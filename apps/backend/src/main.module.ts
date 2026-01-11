@@ -6,10 +6,14 @@ import { ZodSerializerInterceptor, ZodValidationPipe } from "nestjs-zod"
 
 import { auth } from "@repo/auth"
 
+import { AllExceptionsFilter } from "@/common/filters/all-exceptions.filter"
 import { DBModule } from "@/common/database/database.module"
 import { HttpExceptionFilter } from "@/common/filters/http-exception.filter"
 import { HealthModule } from "@/common/health/health.module"
 import { AppModule as V1AppModule } from "@/modules/v1/app.module"
+import { LoggingInterceptor } from "@/shared/interceptors/logging.interceptor"
+import { SharedModule } from "@/shared/shared.module"
+import { TransformInterceptor } from "@/shared/interceptors/transform.interceptor"
 
 @Module({
 	imports: [
@@ -21,6 +25,7 @@ import { AppModule as V1AppModule } from "@/modules/v1/app.module"
 		// Common modules
 		DBModule,
 		HealthModule,
+		SharedModule,
 		// Authentication
 		AuthModule.forRoot({ auth }),
 		// Feature modules
@@ -35,6 +40,18 @@ import { AppModule as V1AppModule } from "@/modules/v1/app.module"
 		{
 			provide: APP_INTERCEPTOR,
 			useClass: ZodSerializerInterceptor,
+		},
+		{
+			provide: APP_INTERCEPTOR,
+			useClass: TransformInterceptor,
+		},
+		{
+			provide: APP_INTERCEPTOR,
+			useClass: LoggingInterceptor,
+		},
+		{
+			provide: APP_FILTER,
+			useClass: AllExceptionsFilter,
 		},
 		{
 			provide: APP_FILTER,

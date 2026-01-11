@@ -1,0 +1,74 @@
+[
+  {
+    "id": 1,
+    "header": "Executive Summary",
+    "type": "Executive Summary",
+    "status": "Done",
+    "target": "100%",
+    "limit": "50 pages",
+    "reviewer": "Eddie Lake"
+  },
+  {
+    "id": 2,
+    "header": "Technical Approach",
+    "type": "Technical Approach",
+    "status": "In Progress",
+    "target": "80%",
+    "limit": "100 pages",
+    "reviewer": "Jamik Tashpulatov"
+  },
+  {
+    "id": 3,
+    "header": "Table of Contents",
+    "type": "Table of Contents",
+    "status": "Done",
+    "target": "100%",
+    "limit": "10 pages",
+    "reviewer": "Eddie Lake"
+  },
+  {
+    "id": 4,
+    "header": "Design Specifications",
+    "type": "Design",
+    "status": "In Progress",
+    "target": "60%",
+    "limit": "75 pages",
+    "reviewer": "Assign reviewer"
+  },
+  {
+    "id": 5,
+    "header": "System Capabilities",
+    "type": "Capabilities",
+    "status": "Not Started",
+    "target": "0%",
+    "limit": "40 pages",
+    "reviewer": "Assign reviewer"
+  },
+  {
+    "id": 6,
+    "header": "Focus Documents",
+    "type": "Focus Documents",
+    "status": "In Progress",
+    "target": "45%",
+    "limit": "30 pages",
+    "reviewer": "Jamik Tashpulatov"
+  },
+  {
+    "id": 7,
+    "header": "Project Narrative",
+    "type": "Narrative",
+    "status": "Not Started",
+    "target": "0%",
+    "limit": "25 pages",
+    "reviewer": "Assign reviewer"
+  },
+  {
+    "id": 8,
+    "header": "Cover Page",
+    "type": "Cover Page",
+    "status": "Done",
+    "target": "100%",
+    "limit": "1 page",
+    "reviewer": "Eddie Lake"
+  }
+]

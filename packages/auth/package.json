@@ -24,12 +24,14 @@
 	},
 	"dependencies": {
 		"@repo/db": "workspace:*",
+		"bcryptjs": "^3.0.3",
 		"better-auth": "catalog:"
 	},
 	"devDependencies": {
 		"@repo/eslint-config": "workspace:*",
 		"@repo/prettier-config": "workspace:*",
 		"@repo/tsconfig": "workspace:*",
+		"@types/bcryptjs": "^2.4.6",
 		"@types/node": "catalog:",
 		"eslint": "catalog:",
 		"prettier": "catalog:",

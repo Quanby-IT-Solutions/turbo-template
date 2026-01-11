@@ -23,6 +23,7 @@ export const env = createEnv({
 	 */
 	client: {
 		NEXT_PUBLIC_BETTER_AUTH_URL: z.url().optional(),
+		NEXT_PUBLIC_API_BASE_URL: z.string().url().optional(),
 	},
 	/**
 	 * Destructure all  client variables from `process.env` to make sure they aren't tree-shaken away.
@@ -30,6 +31,7 @@ export const env = createEnv({
 	runtimeEnv: {
 		NODE_ENV: process.env.NODE_ENV,
 		NEXT_PUBLIC_BETTER_AUTH_URL: process.env.NEXT_PUBLIC_BETTER_AUTH_URL,
+		NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL,
 	},
 	skipValidation: !!process.env.CI || process.env.npm_lifecycle_event === "lint",
 })

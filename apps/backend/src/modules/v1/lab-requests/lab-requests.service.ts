@@ -1,0 +1,103 @@
+import { Inject, Injectable } from "@nestjs/common"
+import { eq, inArray } from "drizzle-orm"
+
+import { labRequests, organizations, patientInfos, users } from "@repo/db/schema"
+
+import { DB, type DBType } from "@/common/database/database-providers"
+
+@Injectable()
+export class LabRequestsService {
+	constructor(@Inject(DB) private readonly db: DBType) {}
+
+	async findAll() {
+		return this.db.select().from(labRequests)
+	}
+
+	async findOne(id: string) {
+		const [result] = await this.db
+			.select()
+			.from(labRequests)
+			.where(eq(labRequests.id, id))
+			.limit(1)
+		return result
+	}
+
+	async getDoctorLabRequests(doctorId: string) {
+		const requests = await this.db
+			.select()
+			.from(labRequests)
+			.where(eq(labRequests.doctorId, doctorId))
+
+		// Get patient and organization info for each request
+		const patientIds = [
+			...new Set(requests.map(r => r.patientId).filter((id): id is string => id !== null)),
+		]
+		const orgIds = [
+			...new Set(requests.map(r => r.organizationId).filter((id): id is string => id !== null)),
+		]
+
+		// Fetch patients and organizations in parallel
+		const [patientsData, orgsData] = await Promise.all([
+			patientIds.length > 0
+				? this.db
+						.select({
+							userId: users.id,
+							patientFirstName: patientInfos.firstName,
+							patientMiddleName: patientInfos.middleName,
+							patientLastName: patientInfos.lastName,
+						})
+						.from(users)
+						.innerJoin(patientInfos, eq(users.id, patientInfos.userId))
+						.where(inArray(users.id, patientIds))
+				: [],
+			orgIds.length > 0
+				? this.db
+						.select({
+							id: organizations.id,
+							name: organizations.name,
+						})
+						.from(organizations)
+						.where(inArray(organizations.id, orgIds))
+				: [],
+		])
+
+		type PatientData = {
+			userId: string
+			patientFirstName: string | null
+			patientMiddleName: string | null
+			patientLastName: string | null
+		}
+		type OrgData = {
+			id: string
+			name: string
+		}
+
+		const patientsMap = new Map<string, PatientData>(
+			patientsData.map((p): [string, PatientData] => [p.userId, p])
+		)
+		const orgsMap = new Map<string, OrgData>(orgsData.map((o): [string, OrgData] => [o.id, o]))
+
+		// Format requests with patient and organization names
+		return requests.map(request => {
+			const patient = request.patientId ? patientsMap.get(request.patientId) : undefined
+			const org = request.organizationId ? orgsMap.get(request.organizationId) : undefined
+
+			return {
+				...request,
+				patientName: patient
+					? `${patient.patientFirstName || ""} ${patient.patientMiddleName || ""} ${patient.patientLastName || ""}`.trim()
+					: null,
+				organizationName: org?.name || null,
+			}
+		})
+	}
+
+	async getPatientLabRequests(patientId: string) {
+		const requests = await this.db
+			.select()
+			.from(labRequests)
+			.where(eq(labRequests.patientId, patientId))
+
+		return requests
+	}
+}

@@ -1,0 +1,60 @@
+group 'com.biosensesignal.flutter_sdk'
+version '5.11.1'
+
+buildscript {
+    ext.kotlin_version = '1.9.0'
+    repositories {
+        google()
+        mavenCentral()
+    }
+
+    dependencies {
+        classpath 'com.android.tools.build:gradle:7.4.2'
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+    }
+}
+
+rootProject.allprojects {
+    repositories {
+        google()
+        mavenCentral()
+        flatDir {
+            dirs project(':biosensesignal_flutter_sdk').file('libs')
+        }
+    }
+}
+
+apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
+
+android {
+    compileSdk 35
+    ndkVersion "25.1.8937393"
+    defaultConfig {
+        targetSdkVersion 35
+        minSdkVersion 27
+        ndkVersion "25.1.8937393"
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    kotlinOptions {
+        jvmTarget = '1.8'
+    }
+
+    sourceSets {
+        main.java.srcDirs += 'src/main/kotlin'
+    }
+
+    namespace 'com.biosensesignal.flutter_sdk'
+}
+
+dependencies {
+    implementation (name: 'biosensesignalsdk', ext: 'aar')
+    implementation 'com.segment.analytics.kotlin:android:1.16.3'
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.6.4"
+}

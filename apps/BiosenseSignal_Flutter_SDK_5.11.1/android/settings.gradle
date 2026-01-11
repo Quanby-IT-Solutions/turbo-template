@@ -1,0 +1,2 @@
+rootProject.name = 'biosensesignal_flutter_sdk'
+include ':biosensesignal_flutter_sdk'

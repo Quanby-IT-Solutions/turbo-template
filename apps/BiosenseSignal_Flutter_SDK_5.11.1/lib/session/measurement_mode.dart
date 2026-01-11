@@ -1,0 +1,4 @@
+enum MeasurementMode {
+  face,
+  ppgDevice
+}

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/presentation/auth/providers/auth_providers.dart';
+import 'package:mobile/presentation/patient/providers/patient_providers.dart';
+import 'package:mobile/presentation/scheduling/providers/appointment_providers.dart';
 import 'package:mobile/core/responsive/responsive_config.dart';
 import 'package:mobile/core/widgets/animated_nav_wrapper.dart';
 import 'package:mobile/core/widgets/stat_card.dart';
@@ -13,6 +15,7 @@ import 'package:mobile/core/widgets/profile_menu_button.dart';
 import 'package:mobile/core/widgets/theme_toggle_button.dart';
 import 'package:mobile/presentation/auth/providers/auth_providers.dart'
     as auth_providers;
+import 'package:mobile/domain/entities/appointment.dart';
 
 class PatientHomeScreen extends ConsumerWidget {
   const PatientHomeScreen({super.key});
@@ -20,7 +23,21 @@ class PatientHomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
+    final patientAsync = ref.watch(currentPatientProvider);
+    final appointmentsAsync = ref.watch(appointmentsListProvider);
     final colorScheme = Theme.of(context).colorScheme;
+
+    // Calculate upcoming appointments count
+    final upcomingCount = appointmentsAsync.whenData((appointments) {
+      final now = DateTime.now();
+      return appointments.where((apt) {
+        if (apt.status.toLowerCase() != 'confirmed' &&
+            apt.status.toLowerCase() != 'pending') {
+          return false;
+        }
+        return apt.scheduledAt.isAfter(now);
+      }).length;
+    }).value ?? 0;
 
     return AnimatedNavWrapper(
       child: Column(
@@ -48,8 +65,9 @@ class PatientHomeScreen extends ConsumerWidget {
           Expanded(
             child: RefreshIndicator(
               onRefresh: () async {
-                // TODO: Implement data refresh
-                await Future.delayed(const Duration(seconds: 1));
+                ref.invalidate(appointmentsListProvider);
+                ref.invalidate(currentPatientProvider);
+                await Future.delayed(const Duration(milliseconds: 500));
               },
               child: CustomScrollView(
                 slivers: [
@@ -76,7 +94,7 @@ class PatientHomeScreen extends ConsumerWidget {
                                     Expanded(
                                       child: StatCard(
                                         title: 'Upcoming',
-                                        value: '1',
+                                        value: upcomingCount.toString(),
                                         icon: Icons.upcoming_rounded,
                                         color: colorScheme.primary,
                                         onTap: () => context.push(
@@ -88,7 +106,7 @@ class PatientHomeScreen extends ConsumerWidget {
                                     Expanded(
                                       child: StatCard(
                                         title: 'Prescriptions',
-                                        value: '2',
+                                        value: '0', // TODO: Connect to prescriptions provider
                                         icon: Icons.medication_rounded,
                                         color: colorScheme.secondary,
                                         onTap: () =>
@@ -137,21 +155,69 @@ class PatientHomeScreen extends ConsumerWidget {
                                         color: colorScheme.secondary,
                                       ),
                                       const SizedBox(height: 20),
-                                      ActivityCard(
-                                        title:
-                                            'Appointment confirmed with Dr. Sarah Johnson',
-                                        subtitle: 'Tomorrow, 2:00 PM',
-                                        icon: Icons.calendar_today_rounded,
-                                        color: colorScheme.primary,
-                                        onTap: () => context.push(
-                                          '/consultations-history',
-                                        ),
+                                      ...appointmentsAsync.when(
+                                        data: (appointments) {
+                                          final upcoming = appointments
+                                              .where((apt) =>
+                                                  apt.status.toLowerCase() ==
+                                                      'confirmed' ||
+                                                  apt.status.toLowerCase() ==
+                                                      'pending')
+                                              .toList()
+                                            ..sort((a, b) => a.scheduledAt
+                                                .compareTo(b.scheduledAt));
+                                          if (upcoming.isEmpty) {
+                                            return [
+                                              ActivityCard(
+                                                title: 'No upcoming appointments',
+                                                subtitle: 'Book an appointment to get started',
+                                                icon: Icons.calendar_today_rounded,
+                                                color: colorScheme.outline,
+                                                onTap: () =>
+                                                    context.push('/doctor-search'),
+                                              ),
+                                            ];
+                                          }
+                                          final nextAppointment = upcoming.first;
+                                          return [
+                                            ActivityCard(
+                                              title:
+                                                  'Appointment ${nextAppointment.status == 'confirmed' ? 'confirmed' : 'pending'}',
+                                              subtitle: _formatAppointmentDate(
+                                                  nextAppointment.scheduledAt),
+                                              icon: Icons.calendar_today_rounded,
+                                              color: colorScheme.primary,
+                                              onTap: () => context.push(
+                                                '/consultations-history',
+                                              ),
+                                            ),
+                                          ];
+                                        },
+                                        loading: () => [
+                                          const ActivityCard(
+                                            title: 'Loading...',
+                                            subtitle: 'Please wait',
+                                            icon: Icons.calendar_today_rounded,
+                                            color: Colors.grey,
+                                            onTap: null,
+                                          ),
+                                        ],
+                                        error: (_, __) => [
+                                          ActivityCard(
+                                            title: 'Unable to load appointments',
+                                            subtitle: 'Pull to refresh',
+                                            icon: Icons.error_outline_rounded,
+                                            color: colorScheme.error,
+                                            onTap: () => context.push(
+                                              '/consultations-history',
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                       const SizedBox(height: 12),
                                       ActivityCard(
-                                        title:
-                                            'New prescription available: Amoxicillin',
-                                        subtitle: '1 day ago',
+                                        title: 'View prescriptions',
+                                        subtitle: 'Check your medication history',
                                         icon: Icons.medication_rounded,
                                         color: colorScheme.secondary,
                                         onTap: () =>
@@ -159,8 +225,8 @@ class PatientHomeScreen extends ConsumerWidget {
                                       ),
                                       const SizedBox(height: 12),
                                       ActivityCard(
-                                        title: 'Vitals check completed',
-                                        subtitle: '3 days ago',
+                                        title: 'Vitals check',
+                                        subtitle: 'Monitor your health metrics',
                                         icon: Icons.monitor_heart_rounded,
                                         color: colorScheme.tertiary,
                                         onTap: () =>
@@ -168,8 +234,8 @@ class PatientHomeScreen extends ConsumerWidget {
                                       ),
                                       const SizedBox(height: 12),
                                       ActivityCard(
-                                        title: 'Lab results available',
-                                        subtitle: '5 days ago',
+                                        title: 'Medical records',
+                                        subtitle: 'View your complete health history',
                                         icon: Icons.science_rounded,
                                         color: colorScheme.outline,
                                         onTap: () => context.push(
@@ -473,6 +539,35 @@ class PatientHomeScreen extends ConsumerWidget {
         context.go('/login');
       }
     }
+  }
+
+  String _formatAppointmentDate(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final appointmentDate = DateTime(date.year, date.month, date.day);
+
+    if (appointmentDate == today) {
+      return 'Today, ${_formatTime(date)}';
+    } else if (appointmentDate == today.add(const Duration(days: 1))) {
+      return 'Tomorrow, ${_formatTime(date)}';
+    } else if (appointmentDate == today.subtract(const Duration(days: 1))) {
+      return 'Yesterday, ${_formatTime(date)}';
+    } else {
+      final difference = appointmentDate.difference(today).inDays;
+      if (difference < 7 && difference > -7) {
+        return '${date.weekday == 1 ? 'Mon' : date.weekday == 2 ? 'Tue' : date.weekday == 3 ? 'Wed' : date.weekday == 4 ? 'Thu' : date.weekday == 5 ? 'Fri' : date.weekday == 6 ? 'Sat' : 'Sun'}, ${_formatTime(date)}';
+      } else {
+        return '${date.day}/${date.month}/${date.year}, ${_formatTime(date)}';
+      }
+    }
+  }
+
+  String _formatTime(DateTime date) {
+    final hour = date.hour;
+    final minute = date.minute;
+    final period = hour >= 12 ? 'PM' : 'AM';
+    final displayHour = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
+    return '${displayHour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')} $period';
   }
 }
 

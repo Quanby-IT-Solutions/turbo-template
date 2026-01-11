@@ -822,6 +822,68 @@ class HttpService {
 
   static const String _consultationsEndpoint = '/api/v1/consultations';
 
+  /// Get consultations
+  static Future<Map<String, dynamic>> getConsultations({
+    String? patientId,
+    String? doctorId,
+    int? page,
+    int? limit,
+  }) async {
+    try {
+      final dio = await _getDio();
+      final queryParams = <String, dynamic>{};
+      if (patientId != null && patientId.isNotEmpty) {
+        queryParams['patientId'] = patientId;
+      }
+      if (doctorId != null && doctorId.isNotEmpty) {
+        queryParams['doctorId'] = doctorId;
+      }
+      if (page != null) queryParams['page'] = page;
+      if (limit != null) queryParams['limit'] = limit;
+
+      final response = await dio.get(
+        _consultationsEndpoint,
+        queryParameters: queryParams,
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = response.data as Map<String, dynamic>;
+        // Backend returns {success: true, data: consultations[]}
+        if (responseData['success'] == true && responseData['data'] != null) {
+          return responseData['data'] as Map<String, dynamic>;
+        }
+        return responseData;
+      } else {
+        throw _handleError(response);
+      }
+    } catch (e) {
+      debugPrint('Get consultations error: $e');
+      rethrow;
+    }
+  }
+
+  /// Get consultation by ID
+  static Future<Map<String, dynamic>> getConsultation(String id) async {
+    try {
+      final dio = await _getDio();
+      final response = await dio.get('$_consultationsEndpoint/$id');
+
+      if (response.statusCode == 200) {
+        final responseData = response.data as Map<String, dynamic>;
+        // Backend returns {success: true, data: consultation}
+        if (responseData['success'] == true && responseData['data'] != null) {
+          return responseData['data'] as Map<String, dynamic>;
+        }
+        return responseData;
+      } else {
+        throw _handleError(response);
+      }
+    } catch (e) {
+      debugPrint('Get consultation error: $e');
+      rethrow;
+    }
+  }
+
   /// Update consultation (for post-call notes)
   static Future<Map<String, dynamic>> updateConsultation({
     required String consultationId,
@@ -943,6 +1005,234 @@ class HttpService {
       }
     } catch (e) {
       debugPrint('Search organizations error: $e');
+      rethrow;
+    }
+  }
+
+  // ===================
+  // Patient Methods
+  // ===================
+
+  /// Get a patient by ID
+  static Future<Map<String, dynamic>> getPatient(String id) async {
+    try {
+      final dio = await _getDio();
+      final response = await dio.get('/api/v1/patients/$id');
+
+      if (response.statusCode == 200) {
+        final responseData = response.data as Map<String, dynamic>;
+        // Backend returns {success: true, data: patient}
+        if (responseData['success'] == true && responseData['data'] != null) {
+          return responseData['data'] as Map<String, dynamic>;
+        }
+        return responseData;
+      } else {
+        throw _handleError(response);
+      }
+    } catch (e) {
+      debugPrint('Get patient error: $e');
+      rethrow;
+    }
+  }
+
+  /// Get list of patients (for doctors/admins)
+  static Future<Map<String, dynamic>> getPatients({
+    String? search,
+    int? page,
+    int? limit,
+  }) async {
+    try {
+      final dio = await _getDio();
+      final queryParams = <String, dynamic>{};
+      if (search != null && search.isNotEmpty) queryParams['search'] = search;
+      if (page != null) queryParams['page'] = page;
+      if (limit != null) queryParams['limit'] = limit;
+
+      final response = await dio.get(
+        '/api/v1/patients',
+        queryParameters: queryParams,
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = response.data as Map<String, dynamic>;
+        // Backend returns {success: true, data: {items: [...], total, page, limit, totalPages}}
+        if (responseData['success'] == true && responseData['data'] != null) {
+          return responseData['data'] as Map<String, dynamic>;
+        }
+        return responseData;
+      } else {
+        throw _handleError(response);
+      }
+    } catch (e) {
+      debugPrint('Get patients error: $e');
+      rethrow;
+    }
+  }
+
+  // ===================
+  // Medical Records Methods
+  // ===================
+
+  static const String _medicalRecordsEndpoint = '/api/v1/medical-records';
+
+  /// Get medical records
+  static Future<List<Map<String, dynamic>>> getMedicalRecords({
+    String? patientId,
+    String? recordType,
+  }) async {
+    try {
+      final dio = await _getDio();
+      final queryParams = <String, dynamic>{};
+      if (patientId != null && patientId.isNotEmpty) {
+        queryParams['patientId'] = patientId;
+      }
+      if (recordType != null && recordType.isNotEmpty) {
+        queryParams['recordType'] = recordType;
+      }
+
+      final response = await dio.get(
+        _medicalRecordsEndpoint,
+        queryParameters: queryParams,
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = response.data as Map<String, dynamic>;
+        // Backend returns {success: true, data: records[]}
+        if (responseData['success'] == true && responseData['data'] != null) {
+          final data = responseData['data'];
+          if (data is List) {
+            return data.cast<Map<String, dynamic>>();
+          }
+          return [];
+        }
+        return [];
+      } else {
+        throw _handleError(response);
+      }
+    } catch (e) {
+      debugPrint('Get medical records error: $e');
+      rethrow;
+    }
+  }
+
+  /// Get medical record by ID
+  static Future<Map<String, dynamic>> getMedicalRecord(String id) async {
+    try {
+      final dio = await _getDio();
+      final response = await dio.get('$_medicalRecordsEndpoint/$id');
+
+      if (response.statusCode == 200) {
+        final responseData = response.data as Map<String, dynamic>;
+        // Backend returns {success: true, data: record}
+        if (responseData['success'] == true && responseData['data'] != null) {
+          return responseData['data'] as Map<String, dynamic>;
+        }
+        return responseData;
+      } else {
+        throw _handleError(response);
+      }
+    } catch (e) {
+      debugPrint('Get medical record error: $e');
+      rethrow;
+    }
+  }
+
+  // ===================
+  // Prescriptions Methods
+  // ===================
+
+  static const String _prescriptionsEndpoint = '/api/v1/prescriptions';
+
+  /// Get prescriptions
+  static Future<Map<String, dynamic>> getPrescriptions({
+    String? patientId,
+    String? doctorId,
+    bool? isActive,
+    int? page,
+    int? limit,
+  }) async {
+    try {
+      final dio = await _getDio();
+      final queryParams = <String, dynamic>{};
+      if (patientId != null && patientId.isNotEmpty) {
+        queryParams['patientId'] = patientId;
+      }
+      if (doctorId != null && doctorId.isNotEmpty) {
+        queryParams['doctorId'] = doctorId;
+      }
+      if (isActive != null) queryParams['isActive'] = isActive;
+      if (page != null) queryParams['page'] = page;
+      if (limit != null) queryParams['limit'] = limit;
+
+      final response = await dio.get(
+        _prescriptionsEndpoint,
+        queryParameters: queryParams,
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = response.data as Map<String, dynamic>;
+        // Backend returns {success: true, data: prescriptions[]}
+        if (responseData['success'] == true && responseData['data'] != null) {
+          final data = responseData['data'];
+          if (data is List) {
+            return {'items': data};
+          }
+          return responseData['data'] as Map<String, dynamic>;
+        }
+        return responseData;
+      } else {
+        throw _handleError(response);
+      }
+    } catch (e) {
+      debugPrint('Get prescriptions error: $e');
+      rethrow;
+    }
+  }
+
+  /// Get prescription by ID
+  static Future<Map<String, dynamic>> getPrescription(String id) async {
+    try {
+      final dio = await _getDio();
+      final response = await dio.get('$_prescriptionsEndpoint/$id');
+
+      if (response.statusCode == 200) {
+        final responseData = response.data as Map<String, dynamic>;
+        // Backend returns {success: true, data: prescription}
+        if (responseData['success'] == true && responseData['data'] != null) {
+          return responseData['data'] as Map<String, dynamic>;
+        }
+        return responseData;
+      } else {
+        throw _handleError(response);
+      }
+    } catch (e) {
+      debugPrint('Get prescription error: $e');
+      rethrow;
+    }
+  }
+
+  // ===================
+  // Doctor Methods
+  // ===================
+
+  /// Get a doctor by ID
+  static Future<Map<String, dynamic>> getDoctor(String id) async {
+    try {
+      final dio = await _getDio();
+      final response = await dio.get('/api/v1/doctors/$id');
+
+      if (response.statusCode == 200) {
+        final responseData = response.data as Map<String, dynamic>;
+        // Backend returns {success: true, data: doctor}
+        if (responseData['success'] == true && responseData['data'] != null) {
+          return responseData['data'] as Map<String, dynamic>;
+        }
+        return responseData;
+      } else {
+        throw _handleError(response);
+      }
+    } catch (e) {
+      debugPrint('Get doctor error: $e');
       rethrow;
     }
   }

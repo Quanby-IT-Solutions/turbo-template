@@ -12,55 +12,39 @@ import 'package:mobile/core/widgets/profile_menu_button.dart';
 import 'package:mobile/core/widgets/theme_toggle_button.dart';
 import 'package:mobile/presentation/auth/providers/auth_providers.dart'
     as auth_providers;
+import 'package:mobile/presentation/doctor/providers/doctor_providers.dart';
+import 'package:mobile/presentation/scheduling/providers/appointment_providers.dart';
+import 'package:mobile/domain/entities/appointment.dart';
 
 class DoctorHomeScreen extends ConsumerWidget {
   const DoctorHomeScreen({super.key});
 
-  static final List<_ConsultationSlot> _todaySlots = [
-    _ConsultationSlot(
-      patientName: 'Sarah Johnson',
-      timeLabel: '09:30 AM · Follow-up',
-      statusLabel: 'Confirmed',
-      statusColor: Colors.green,
-      route: '/video-call',
-    ),
-    _ConsultationSlot(
-      patientName: 'Michael Chen',
-      timeLabel: '11:15 AM · New patient',
-      statusLabel: 'Waiting room',
-      statusColor: Colors.orange,
-      route: '/video-call',
-    ),
-    _ConsultationSlot(
-      patientName: 'Emily Rogers',
-      timeLabel: '02:00 PM · Diabetes check',
-      statusLabel: 'Prep notes',
-      statusColor: Colors.blue,
-      route: '/consultation-notes',
-    ),
-  ];
-
-  static final List<_ConsultationSlot> _pendingRequests = [
-    _ConsultationSlot(
-      patientName: 'Juan Dela Cruz',
-      timeLabel: 'Thu · 04:30 PM',
-      statusLabel: 'Reschedule requested',
-      statusColor: Colors.deepOrange,
-      route: '/appointment-requests',
-    ),
-    _ConsultationSlot(
-      patientName: 'Maria Santos',
-      timeLabel: 'Fri · 10:00 AM',
-      statusLabel: 'New request',
-      statusColor: Colors.teal,
-      route: '/appointment-requests',
-    ),
-  ];
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(auth_providers.currentUserProvider);
+    final appointmentsAsync = ref.watch(appointmentsListProvider);
     final colorScheme = Theme.of(context).colorScheme;
+
+    // Filter appointments for today and pending
+    final todayAppointments = appointmentsAsync.whenData((appointments) {
+      final now = DateTime.now();
+      final todayStart = DateTime(now.year, now.month, now.day);
+      final todayEnd = todayStart.add(const Duration(days: 1));
+      return appointments.where((apt) {
+        return apt.scheduledAt.isAfter(todayStart) &&
+            apt.scheduledAt.isBefore(todayEnd) &&
+            (apt.status.toLowerCase() == 'confirmed' ||
+                apt.status.toLowerCase() == 'pending');
+      }).toList()
+        ..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
+    }).value ?? [];
+
+    final pendingAppointments = appointmentsAsync.whenData((appointments) {
+      return appointments
+          .where((apt) => apt.status.toLowerCase() == 'pending')
+          .toList()
+        ..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
+    }).value ?? [];
 
     return AnimatedNavWrapper(
       child: Column(
@@ -88,8 +72,8 @@ class DoctorHomeScreen extends ConsumerWidget {
           Expanded(
             child: RefreshIndicator(
               onRefresh: () async {
-                // TODO: Implement data refresh
-                await Future.delayed(const Duration(seconds: 1));
+                ref.invalidate(appointmentsListProvider);
+                await Future.delayed(const Duration(milliseconds: 500));
               },
               child: CustomScrollView(
                 slivers: [
@@ -116,7 +100,7 @@ class DoctorHomeScreen extends ConsumerWidget {
                                     Expanded(
                                       child: StatCard(
                                         title: 'Today',
-                                        value: _todaySlots.length.toString(),
+                                        value: todayAppointments.length.toString(),
                                         icon: Icons.people_rounded,
                                         color: colorScheme.primary,
                                         onTap: () => context.push(
@@ -128,8 +112,7 @@ class DoctorHomeScreen extends ConsumerWidget {
                                     Expanded(
                                       child: StatCard(
                                         title: 'Pending',
-                                        value: _pendingRequests.length
-                                            .toString(),
+                                        value: pendingAppointments.length.toString(),
                                         icon: Icons.pending_actions_rounded,
                                         color: colorScheme.secondary,
                                         onTap: () => context.push(
@@ -529,8 +512,9 @@ class DoctorHomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildTodaySchedule(BuildContext context) {
+  Widget _buildTodaySchedule(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
+    final appointmentsAsync = ref.watch(appointmentsListProvider);
 
     return SectionContainer(
       color: colorScheme.secondary,
@@ -544,28 +528,72 @@ class DoctorHomeScreen extends ConsumerWidget {
             color: colorScheme.secondary,
           ),
           const SizedBox(height: 20),
-          ...List.generate(_todaySlots.length, (index) {
-            final slot = _todaySlots[index];
-            return Padding(
-              padding: EdgeInsets.only(
-                bottom: index < _todaySlots.length - 1 ? 12 : 0,
-              ),
-              child: ActivityCard(
-                title: slot.patientName,
-                subtitle: slot.timeLabel,
-                icon: Icons.person_rounded,
-                color: slot.statusColor,
-                onTap: () => context.push(slot.route),
-              ),
-            );
-          }),
+          appointmentsAsync.when(
+            data: (appointments) {
+              final now = DateTime.now();
+              final todayStart = DateTime(now.year, now.month, now.day);
+              final todayEnd = todayStart.add(const Duration(days: 1));
+              final todayAppointments = appointments
+                  .where((apt) =>
+                      apt.scheduledAt.isAfter(todayStart) &&
+                      apt.scheduledAt.isBefore(todayEnd) &&
+                      (apt.status.toLowerCase() == 'confirmed' ||
+                          apt.status.toLowerCase() == 'pending'))
+                  .toList()
+                ..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
+
+              if (todayAppointments.isEmpty) {
+                return ActivityCard(
+                  title: 'No appointments today',
+                  subtitle: 'You have a clear schedule',
+                  icon: Icons.calendar_today_rounded,
+                  color: colorScheme.outline,
+                  onTap: null,
+                );
+              }
+
+              return Column(
+                children: List.generate(todayAppointments.length, (index) {
+                  final apt = todayAppointments[index];
+                  return Padding(
+                    padding: EdgeInsets.only(
+                      bottom: index < todayAppointments.length - 1 ? 12 : 0,
+                    ),
+                    child: ActivityCard(
+                      title: apt.patientName,
+                      subtitle:
+                          '${_formatTime(apt.scheduledAt)} · ${apt.statusDisplayName}',
+                      icon: Icons.person_rounded,
+                      color: _getStatusColor(apt.status, colorScheme),
+                      onTap: () => context.push('/video-call'),
+                    ),
+                  );
+                }),
+              );
+            },
+            loading: () => const ActivityCard(
+              title: 'Loading...',
+              subtitle: 'Please wait',
+              icon: Icons.calendar_today_rounded,
+              color: Colors.grey,
+              onTap: null,
+            ),
+            error: (_, __) => ActivityCard(
+              title: 'Unable to load appointments',
+              subtitle: 'Pull to refresh',
+              icon: Icons.error_outline_rounded,
+              color: colorScheme.error,
+              onTap: () {},
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildPendingRequests(BuildContext context) {
+  Widget _buildPendingRequests(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
+    final appointmentsAsync = ref.watch(appointmentsListProvider);
 
     return SectionContainer(
       color: colorScheme.tertiary,
@@ -579,21 +607,57 @@ class DoctorHomeScreen extends ConsumerWidget {
             color: colorScheme.tertiary,
           ),
           const SizedBox(height: 20),
-          ...List.generate(_pendingRequests.length, (index) {
-            final slot = _pendingRequests[index];
-            return Padding(
-              padding: EdgeInsets.only(
-                bottom: index < _pendingRequests.length - 1 ? 12 : 0,
-              ),
-              child: ActivityCard(
-                title: slot.patientName,
-                subtitle: '${slot.timeLabel} · ${slot.statusLabel}',
-                icon: Icons.schedule_rounded,
-                color: slot.statusColor,
-                onTap: () => context.push(slot.route),
-              ),
-            );
-          }),
+          appointmentsAsync.when(
+            data: (appointments) {
+              final pendingAppointments = appointments
+                  .where((apt) => apt.status.toLowerCase() == 'pending')
+                  .toList()
+                ..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
+
+              if (pendingAppointments.isEmpty) {
+                return ActivityCard(
+                  title: 'No pending requests',
+                  subtitle: 'All appointments are confirmed',
+                  icon: Icons.check_circle_outline_rounded,
+                  color: colorScheme.outline,
+                  onTap: null,
+                );
+              }
+
+              return Column(
+                children: List.generate(pendingAppointments.length, (index) {
+                  final apt = pendingAppointments[index];
+                  return Padding(
+                    padding: EdgeInsets.only(
+                      bottom: index < pendingAppointments.length - 1 ? 12 : 0,
+                    ),
+                    child: ActivityCard(
+                      title: apt.patientName,
+                      subtitle:
+                          '${_formatAppointmentDate(apt.scheduledAt)} · Pending',
+                      icon: Icons.schedule_rounded,
+                      color: Colors.deepOrange,
+                      onTap: () => context.push('/appointment-requests'),
+                    ),
+                  );
+                }),
+              );
+            },
+            loading: () => const ActivityCard(
+              title: 'Loading...',
+              subtitle: 'Please wait',
+              icon: Icons.pending_actions_rounded,
+              color: Colors.grey,
+              onTap: null,
+            ),
+            error: (_, __) => ActivityCard(
+              title: 'Unable to load requests',
+              subtitle: 'Pull to refresh',
+              icon: Icons.error_outline_rounded,
+              color: colorScheme.error,
+              onTap: () {},
+            ),
+          ),
         ],
       ),
     );
@@ -609,6 +673,51 @@ class DoctorHomeScreen extends ConsumerWidget {
     if (hour < 12) return 'Good morning';
     if (hour < 18) return 'Good afternoon';
     return 'Good evening';
+  }
+
+  Color _getStatusColor(String status, ColorScheme colorScheme) {
+    final normalized = status.toLowerCase();
+    switch (normalized) {
+      case 'confirmed':
+        return Colors.green;
+      case 'pending':
+        return Colors.orange;
+      case 'cancelled':
+        return Colors.red;
+      case 'completed':
+        return Colors.blue;
+      default:
+        return colorScheme.primary;
+    }
+  }
+
+  String _formatTime(DateTime date) {
+    final hour = date.hour;
+    final minute = date.minute;
+    final period = hour >= 12 ? 'PM' : 'AM';
+    final displayHour = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
+    return '${displayHour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')} $period';
+  }
+
+  String _formatAppointmentDate(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final appointmentDate = DateTime(date.year, date.month, date.day);
+
+    if (appointmentDate == today) {
+      return 'Today, ${_formatTime(date)}';
+    } else if (appointmentDate == today.add(const Duration(days: 1))) {
+      return 'Tomorrow, ${_formatTime(date)}';
+    } else if (appointmentDate == today.subtract(const Duration(days: 1))) {
+      return 'Yesterday, ${_formatTime(date)}';
+    } else {
+      final difference = appointmentDate.difference(today).inDays;
+      if (difference < 7 && difference > -7) {
+        return '${date.weekday == 1 ? 'Mon' : date.weekday == 2 ? 'Tue' : date.weekday == 3 ? 'Wed' : date.weekday == 4 ? 'Thu' : date.weekday == 5 ? 'Fri' : date.weekday == 6 ? 'Sat' : 'Sun'}, ${_formatTime(date)}';
+      } else {
+        return '${date.day}/${date.month}/${date.year}, ${_formatTime(date)}';
+      }
+    }
   }
 
   Future<void> _showLogoutDialog(BuildContext context, WidgetRef ref) async {

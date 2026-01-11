@@ -37,6 +37,9 @@ import 'package:mobile/presentation/test/screens/notification_test_screen.dart';
 import 'package:mobile/presentation/common/screens/home_gate_screen.dart';
 import 'package:mobile/presentation/doctor/screens/doctor_home_screen.dart';
 import 'package:mobile/presentation/patients/patients_screen.dart';
+import 'package:mobile/presentation/patient/screens/patient_profile_screen.dart';
+import 'package:mobile/presentation/doctor/screens/doctor_profile_screen.dart';
+import 'package:mobile/presentation/doctor/screens/patient_detail_screen.dart';
 
 // Store user role globally for redirect logic (set by auth provider)
 String? _currentUserRole;
@@ -147,6 +150,14 @@ final GoRouter appRouter = GoRouter(
           _requireRole(requireDoctor: false, requirePatient: true),
       builder: (context, state) =>
           _animateRoute(const PatientHomeScreen(), 'slideInUp'),
+    ),
+    GoRoute(
+      path: '/patient-profile',
+      name: 'patient-profile',
+      redirect: (context, state) =>
+          _requireRole(requireDoctor: false, requirePatient: true),
+      builder: (context, state) =>
+          _animateRoute(const PatientProfileScreen(), 'slideInUp'),
     ),
     GoRoute(
       path: '/doctor-home',

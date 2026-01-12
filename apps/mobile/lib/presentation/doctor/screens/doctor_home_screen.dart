@@ -136,12 +136,12 @@ class DoctorHomeScreen extends ConsumerWidget {
                                 const SizedBox(height: 32),
 
                                 // Today's Schedule Section
-                                _buildTodaySchedule(context),
+                                _buildTodaySchedule(context, ref),
 
                                 const SizedBox(height: 32),
 
                                 // Pending Requests Section
-                                _buildPendingRequests(context),
+                                _buildPendingRequests(context, ref),
 
                                 const SizedBox(
                                   height: 100,

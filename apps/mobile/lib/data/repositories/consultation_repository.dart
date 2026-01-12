@@ -18,10 +18,10 @@ class ConsultationRepository {
         limit: limit,
       );
 
-      // Backend returns array directly in data
+      // Backend returns {items: [...], total, page, limit, totalPages}
       final List<dynamic> consultationsList;
-      if (response is List) {
-        consultationsList = response;
+      if (response['items'] != null) {
+        consultationsList = response['items'] as List<dynamic>;
       } else {
         consultationsList = [];
       }

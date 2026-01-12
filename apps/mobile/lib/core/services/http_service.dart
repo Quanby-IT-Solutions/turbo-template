@@ -789,7 +789,7 @@ class HttpService {
 
   static const String _videoCallEndpoint = '/api/v1/webrtc';
 
-  /// Generate LiveKit access token for video call
+  /// Generate WebRTC token for video call (placeholder - backend WebRTC implementation)
   static Future<Map<String, dynamic>> generateVideoCallToken({
     required String consultationId,
   }) async {

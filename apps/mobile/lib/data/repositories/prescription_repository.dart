@@ -20,12 +20,10 @@ class PrescriptionRepository {
         limit: limit,
       );
 
-      // Backend returns array directly in data
+      // Backend returns {items: [...], total, page, limit, totalPages}
       final List<dynamic> prescriptionsList;
       if (response['items'] != null) {
         prescriptionsList = response['items'] as List<dynamic>;
-      } else if (response is List) {
-        prescriptionsList = response;
       } else {
         prescriptionsList = [];
       }

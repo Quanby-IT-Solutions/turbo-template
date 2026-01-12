@@ -164,28 +164,67 @@ class DoctorSearchItem {
   });
 
   factory DoctorSearchItem.fromJson(Map<String, dynamic> json) {
+    // Extract name from doctorInfo if present, otherwise try direct name field
+    String doctorName;
+    if (json['doctorInfo'] != null) {
+      final doctorInfo = json['doctorInfo'] as Map<String, dynamic>;
+      final firstName = doctorInfo['firstName'] as String? ?? '';
+      final middleName = doctorInfo['middleName'] as String?;
+      final lastName = doctorInfo['lastName'] as String? ?? '';
+      
+      final parts = <String>[
+        firstName.trim(),
+        if (middleName != null && middleName.isNotEmpty) middleName.trim(),
+        lastName.trim(),
+      ].where((value) => value.isNotEmpty).toList();
+      
+      doctorName = parts.isNotEmpty 
+          ? parts.join(' ')
+          : (json['email'] as String? ?? 'Unknown Doctor');
+    } else {
+      // Fallback to direct name field or email
+      doctorName = json['name'] as String? ?? 
+                   json['email'] as String? ?? 
+                   'Unknown Doctor';
+    }
+    
+    // Extract specialization from doctorInfo if present
+    List<String> specializationList = [];
+    if (json['doctorInfo'] != null) {
+      final doctorInfo = json['doctorInfo'] as Map<String, dynamic>;
+      final spec = doctorInfo['specialization'] as String?;
+      if (spec != null && spec.isNotEmpty) {
+        specializationList = [spec];
+      }
+    }
+    if (specializationList.isEmpty) {
+      specializationList = (json['specialization'] as List<dynamic>?)
+          ?.map((e) => e as String)
+          .toList() ?? [];
+    }
+    
     return DoctorSearchItem(
-      id: json['id'] as String,
-      userId: json['userId'] as String,
-      name: json['name'] as String,
+      id: json['id'] as String? ?? '',
+      userId: json['userId'] as String? ?? json['id'] as String? ?? '',
+      name: doctorName,
       email: json['email'] as String?,
       image: json['image'] as String?,
-      specialization:
-          (json['specialization'] as List<dynamic>?)
-              ?.map((e) => e as String)
-              .toList() ??
-          [],
+      specialization: specializationList,
       bio: json['bio'] as String?,
-      qualifications: json['qualifications'] as String?,
-      experience: json['experience'] as int?,
+      qualifications: json['doctorInfo'] != null 
+          ? (json['doctorInfo'] as Map<String, dynamic>)['qualifications'] as String?
+          : json['qualifications'] as String?,
+      experience: json['doctorInfo'] != null
+          ? (json['doctorInfo'] as Map<String, dynamic>)['experience'] as int?
+          : json['experience'] as int?,
       licenseNumber: json['licenseNumber'] as String?,
       isLicenseActive: json['isLicenseActive'] as bool? ?? false,
       isVerified: json['isVerified'] as bool? ?? false,
       organization: json['organization'] != null
           ? Organization.fromJson(json['organization'] as Map<String, dynamic>)
           : null,
-      createdAt: json['createdAt'] as String,
-      updatedAt: json['updatedAt'] as String,
+      createdAt: json['createdAt'] as String? ?? DateTime.now().toIso8601String(),
+      updatedAt: json['updatedAt'] as String? ?? DateTime.now().toIso8601String(),
     );
   }
 
@@ -222,15 +261,15 @@ class Organization {
 
   factory Organization.fromJson(Map<String, dynamic> json) {
     return Organization(
-      id: json['id'] as String,
-      name: json['name'] as String,
+      id: json['id'] as String? ?? '',
+      name: json['name'] as String? ?? 'Unknown Organization',
       address: json['address'] as String?,
       contactNumber: json['contactNumber'] as String?,
       email: json['email'] as String?,
       isActive: json['isActive'] as bool? ?? false,
       doctorCount: json['doctorCount'] as int? ?? 0,
-      createdAt: json['createdAt'] as String,
-      updatedAt: json['updatedAt'] as String,
+      createdAt: json['createdAt'] as String? ?? DateTime.now().toIso8601String(),
+      updatedAt: json['updatedAt'] as String? ?? DateTime.now().toIso8601String(),
     );
   }
 }

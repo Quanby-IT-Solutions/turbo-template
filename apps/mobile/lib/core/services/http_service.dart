@@ -848,9 +848,23 @@ class HttpService {
 
       if (response.statusCode == 200) {
         final responseData = response.data as Map<String, dynamic>;
-        // Backend returns {success: true, data: consultations[]}
+        // Backend returns {success: true, data: consultations[]} or {success: true, data: {items: [...], total, page, limit, totalPages}}
         if (responseData['success'] == true && responseData['data'] != null) {
-          return responseData['data'] as Map<String, dynamic>;
+          final data = responseData['data'];
+          // Handle case where data is a List directly
+          if (data is List) {
+            return {
+              'items': data,
+              'total': data.length,
+              'page': page ?? 1,
+              'limit': limit ?? data.length,
+              'totalPages': 1,
+            };
+          }
+          // Handle case where data is already a Map (paginated response)
+          if (data is Map<String, dynamic>) {
+            return data;
+          }
         }
         return responseData;
       } else {

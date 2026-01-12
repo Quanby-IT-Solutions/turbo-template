@@ -31,7 +31,7 @@ class MedicalRecordsScreen extends StatelessWidget {
         'subtitle': 'Monitor your vital signs',
         'icon': Icons.favorite_rounded,
         'color': Colors.red,
-        'route': '/vitals-scanner',
+        'route': '/vitals-self-check',
         'badge': 'New',
       },
       {

@@ -33,6 +33,14 @@ export class AppointmentsController {
 		return { success: true, data: appointments }
 	}
 
+	// ADD THIS - Get available doctors for booking
+	@Get("doctors")
+	@Roles("PATIENT", "ADMIN", "SUPER_ADMIN")
+	async getAvailableDoctors() {
+		const doctors = await this.appointmentsService.getAvailableDoctors()
+		return { success: true, data: doctors }
+	}
+
 	// This route must come before @Get(':id') to avoid conflicts
 	@Get("my-appointments")
 	@ZodSerializerDto(AppointmentListResponseDto)

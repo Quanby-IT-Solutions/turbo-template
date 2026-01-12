@@ -281,4 +281,24 @@ export class AppointmentsService {
 			totalPages: Math.ceil(total / limitNum) || 1,
 		}
 	}
+
+	async getAvailableDoctors() {
+		const doctors = await this.db
+			.select({
+				id: users.id,
+				email: users.email,
+				firstName: doctorInfos.firstName,
+				lastName: doctorInfos.lastName,
+				specialization: doctorInfos.specialization,
+			})
+			.from(users)
+			.innerJoin(doctorInfos, eq(users.id, doctorInfos.userId))
+			.where(eq(users.role, "DOCTOR" as const))
+	
+		return doctors.map(doctor => ({
+			id: doctor.id,
+			name: `${doctor.firstName} ${doctor.lastName}`,
+			specialization: doctor.specialization || 'General Practice',
+		}))
+	}
 }

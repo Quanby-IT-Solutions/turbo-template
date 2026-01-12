@@ -60,6 +60,10 @@ dependencies:
   # Secure storage for authentication tokens
   flutter_secure_storage: ^10.0.0
 
+  # BiosenseSignal SDK for vital signs measurement
+  biosensesignal_flutter_sdk:
+    path: ../BiosenseSignal_Flutter_SDK_5.11.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

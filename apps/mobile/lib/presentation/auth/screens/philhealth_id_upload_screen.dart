@@ -1,19 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:hyperkyc_flutter/hyperkyc_flutter.dart';
-import 'package:hyperkyc_flutter/hyperkyc_config.dart';
-import 'package:hyperkyc_flutter/hyperkyc_result.dart';
+// TODO: Uncomment when hyperkyc_flutter package is available
+// import 'package:hyperkyc_flutter/hyperkyc_flutter.dart';
+// import 'package:hyperkyc_flutter/hyperkyc_config.dart';
+// import 'package:hyperkyc_flutter/hyperkyc_result.dart';
 import 'package:mobile/core/constants/app_constants.dart';
 import 'package:mobile/core/services/toast_service.dart';
 import 'package:mobile/core/services/hyperverge_service.dart';
-import 'package:mobile/presentation/auth/providers/auth_providers.dart';
+// TODO: Uncomment when implementing HyperKYC
+// import 'package:mobile/presentation/auth/providers/auth_providers.dart';
 
 final hypervergeServiceProvider = Provider<HyperVergeService>((ref) {
   return HyperVergeService();
 });
 
 /// Patient-specific PhilHealth ID upload screen with HyperVerge SDK integration
+/// TODO: Uncomment HyperKYC code when package is available
 class PhilHealthIdUploadScreen extends ConsumerStatefulWidget {
   const PhilHealthIdUploadScreen({super.key});
 
@@ -27,6 +30,14 @@ class _PhilHealthIdUploadScreenState
   bool _isLoading = false;
 
   Future<void> _startVerification() async {
+    // TODO: Uncomment when hyperkyc_flutter package is available
+    ToastService.showInfo(
+      context: context,
+      title: 'Feature Unavailable',
+      description: 'PhilHealth ID verification is temporarily unavailable. Please check back later.',
+    );
+    
+    /* COMMENTED OUT - HyperKYC integration pending package availability
     final user = ref.read(currentUserProvider);
     if (user == null) {
       ToastService.showError(
@@ -134,6 +145,7 @@ class _PhilHealthIdUploadScreenState
         setState(() => _isLoading = false);
       }
     }
+    */
   }
 
   @override

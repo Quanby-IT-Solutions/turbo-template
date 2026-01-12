@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:hyperkyc_flutter/hyperkyc_flutter.dart';
-import 'package:hyperkyc_flutter/hyperkyc_config.dart';
-import 'package:hyperkyc_flutter/hyperkyc_result.dart';
+// TODO: Uncomment when hyperkyc_flutter package is available
+// import 'package:hyperkyc_flutter/hyperkyc_flutter.dart';
+// import 'package:hyperkyc_flutter/hyperkyc_config.dart';
+// import 'package:hyperkyc_flutter/hyperkyc_result.dart';
 import 'package:mobile/core/constants/app_constants.dart';
 import 'package:mobile/core/services/toast_service.dart';
 import 'package:mobile/core/services/hyperverge_service.dart';
@@ -15,6 +16,7 @@ final hypervergeServiceProvider = Provider<HyperVergeService>((ref) {
 
 /// KYC Verification Screen with HyperVerge SDK integration
 /// For healthcare providers - verifies identity using government ID + selfie
+/// TODO: Uncomment HyperKYC code when package is available
 class KycVerificationScreen extends ConsumerStatefulWidget {
   const KycVerificationScreen({super.key});
 
@@ -53,6 +55,14 @@ class _KycVerificationScreenState extends ConsumerState<KycVerificationScreen> {
   }
 
   Future<void> _startVerification() async {
+    // TODO: Uncomment when hyperkyc_flutter package is available
+    ToastService.showInfo(
+      context: context,
+      title: 'Feature Unavailable',
+      description: 'KYC verification is temporarily unavailable. Please check back later.',
+    );
+    
+    /* COMMENTED OUT - HyperKYC integration pending package availability
     final user = ref.read(currentUserProvider);
     if (user == null) {
       ToastService.showError(
@@ -156,6 +166,7 @@ class _KycVerificationScreenState extends ConsumerState<KycVerificationScreen> {
         setState(() => _isLoading = false);
       }
     }
+    */
   }
 
   @override

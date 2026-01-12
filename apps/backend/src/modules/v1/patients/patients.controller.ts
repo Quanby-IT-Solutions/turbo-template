@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query, UseGuards } from "@nestjs/common"
+import { Body, Controller, Get, Param, Put, Query, UseGuards } from "@nestjs/common"
 import { AllowAnonymous } from "@thallesp/nestjs-better-auth"
 import { ZodSerializerDto } from "nestjs-zod"
 
@@ -39,4 +39,5 @@ export class PatientsController {
 			data: patient,
 		}
 	}
+
 }

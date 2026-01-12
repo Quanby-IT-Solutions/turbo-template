@@ -30,7 +30,7 @@ final consultationRepositoryProvider = Provider<ConsultationRepository>((ref) {
 
 /// Current patient provider (for logged-in patient)
 final currentPatientProvider = FutureProvider<Patient?>((ref) async {
-  final user = await ref.watch(currentUserProvider.future);
+  final user = ref.watch(currentUserProvider);
   if (user == null || !user.isPatient) {
     return null;
   }

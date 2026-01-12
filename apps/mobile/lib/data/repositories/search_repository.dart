@@ -27,18 +27,18 @@ class SearchRepository {
           .toList();
 
       final total = response['total'] as int? ?? 0;
-      final page = response['page'] as int? ?? 1;
-      final limit = response['limit'] as int? ?? 10;
+      final responsePage = response['page'] as int? ?? 1;
+      final responseLimit = response['limit'] as int? ?? 10;
       final totalPages = response['totalPages'] as int? ?? 0;
 
       return DoctorSearchResult(
         doctors: doctors,
         total: total,
-        page: page,
-        limit: limit,
+        page: responsePage,
+        limit: responseLimit,
         totalPages: totalPages,
-        hasNext: page < totalPages,
-        hasPrev: page > 1,
+        hasNext: responsePage < totalPages,
+        hasPrev: responsePage > 1,
       );
     } catch (e) {
       throw Exception('Failed to search doctors: $e');
@@ -69,18 +69,18 @@ class SearchRepository {
           .toList();
 
       final total = response['total'] as int? ?? 0;
-      final page = response['page'] as int? ?? 1;
-      final limit = response['limit'] as int? ?? 10;
+      final responsePage = response['page'] as int? ?? 1;
+      final responseLimit = response['limit'] as int? ?? 10;
       final totalPages = response['totalPages'] as int? ?? 0;
 
       return OrganizationSearchResult(
         organizations: organizations,
         total: total,
-        page: page,
-        limit: limit,
+        page: responsePage,
+        limit: responseLimit,
         totalPages: totalPages,
-        hasNext: page < totalPages,
-        hasPrev: page > 1,
+        hasNext: responsePage < totalPages,
+        hasPrev: responsePage > 1,
       );
     } catch (e) {
       throw Exception('Failed to search organizations: $e');

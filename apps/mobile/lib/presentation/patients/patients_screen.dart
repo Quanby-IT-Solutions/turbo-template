@@ -5,6 +5,7 @@ import 'package:mobile/core/responsive/responsive_config.dart';
 import 'package:mobile/core/services/toast_service.dart';
 import 'package:mobile/core/widgets/animated_nav_wrapper.dart';
 import 'package:mobile/presentation/doctor/providers/doctor_providers.dart';
+import 'package:mobile/presentation/patient/providers/patient_providers.dart';
 import 'package:mobile/domain/entities/patient.dart';
 
 class PatientsScreen extends ConsumerStatefulWidget {

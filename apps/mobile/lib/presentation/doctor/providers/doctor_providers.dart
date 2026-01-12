@@ -6,6 +6,7 @@ import 'package:mobile/domain/entities/doctor.dart';
 import 'package:mobile/domain/entities/patient.dart';
 import 'package:mobile/domain/entities/appointment.dart';
 import 'package:mobile/presentation/auth/providers/auth_providers.dart';
+import 'package:mobile/presentation/patient/providers/patient_providers.dart';
 
 /// Doctor repository provider
 final doctorRepositoryProvider = Provider<DoctorRepository>((ref) {
@@ -14,7 +15,7 @@ final doctorRepositoryProvider = Provider<DoctorRepository>((ref) {
 
 /// Current doctor provider (for logged-in doctor)
 final currentDoctorProvider = FutureProvider<Doctor?>((ref) async {
-  final user = await ref.watch(currentUserProvider.future);
+  final user = ref.watch(currentUserProvider);
   if (user == null || !user.isDoctor) {
     return null;
   }

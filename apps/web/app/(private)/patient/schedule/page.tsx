@@ -33,6 +33,7 @@ import type { AppointmentRequest, DoctorAvailability, RescheduleRequest } from "
 import { getUser } from "@/services/api/client"
 import { toast } from "sonner"
 
+
 const getStatusBadgeVariant = (status: string) => {
   switch (status) {
     case 'CONFIRMED':
@@ -105,9 +106,24 @@ export default function SchedulePage() {
       setIsLoading(true)
       const response = await appointmentsApi.getMyAppointments()
       console.log('Appointments response:', response)
-      if (response?.success && Array.isArray(response.data)) {
-        console.log('Loaded appointments:', response.data)
-        setAppointments(response.data)
+      
+      // Handle paginated response structure
+      if (response?.success && response.data) {
+        // Check if it's paginated (has items property)
+        if (response.data.items && Array.isArray(response.data.items)) {
+          console.log('Loaded appointments:', response.data.items)
+          setAppointments(response.data.items)
+        }
+        // Fallback: if it's a direct array
+        else if (Array.isArray(response.data)) {
+          console.log('Loaded appointments:', response.data)
+          setAppointments(response.data)
+        }
+        else {
+          console.error('Unexpected response format:', response)
+          toast.error('Unexpected response format')
+          setAppointments([])
+        }
       } else {
         console.error('Failed to load appointments:', response)
         toast.error(response?.message || 'Failed to load appointments')
@@ -933,21 +949,34 @@ export default function SchedulePage() {
           </DialogHeader>
           
           <div className="space-y-4 py-4">
-            <Field>
+          <Field>
               <FieldLabel>Select Doctor *</FieldLabel>
               <Select value={selectedDoctorId} onValueChange={setSelectedDoctorId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose a doctor" />
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Choose a doctor">
+                    {selectedDoctorId && doctors.length > 0
+                      ? (() => {
+                          const selected = doctors.find(d => d.id === selectedDoctorId)
+                          return selected ? `${selected.name} - ${selected.specialization}` : selectedDoctorId
+                        })()
+                      : undefined}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  {doctors.map((doctor) => (
-                    <SelectItem key={doctor.id} value={doctor.id}>
-                      {doctor.name} - {doctor.specialization}
-                    </SelectItem>
-                  ))}
+                  {doctors.length === 0 ? (
+                    <div className="px-2 py-4 text-sm text-muted-foreground text-center">
+                      Loading doctors...
+                    </div>
+                  ) : (
+                    doctors.map((doctor) => (
+                      <SelectItem key={doctor.id} value={doctor.id}>
+                        {doctor.name} - {doctor.specialization}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
-              <FieldDescription>Choose the doctor you want to see</FieldDescription>
+              <FieldDescription>Choose a doctor for your appointment</FieldDescription>
             </Field>
 
             <Field>

@@ -44,6 +44,7 @@ export const PatientListResponseSchema = z.object({
 	totalPages: z.number(),
 })
 
+export const UpdatePatientInfoSchema = PatientInfoSchema.partial()
 // ============================================================================
 // DTOs
 // ============================================================================
@@ -53,3 +54,5 @@ export class PatientQueryDto extends createZodDto(PatientQuerySchema) {}
 export class PatientResponseDto extends createZodDto(ApiSuccessResponseSchema(PatientSchema)) {}
 
 export class PatientListResponseDto extends createZodDto(ApiSuccessResponseSchema(PatientListResponseSchema)) {}
+
+export class UpdatePatientInfoDto extends createZodDto( UpdatePatientInfoSchema) {}

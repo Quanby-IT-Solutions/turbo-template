@@ -1,4 +1,5 @@
 import { Inject, Injectable, NotFoundException } from "@nestjs/common"
+import { UpdatePatientInfoDto } from "@repo/contracts"
 import { and, eq, sql } from "drizzle-orm"
 
 import { patientInfos, users } from "@repo/db/schema"
@@ -91,6 +92,9 @@ export class PatientsService {
 			email: patient.user.email,
 			patientInfo: {
 				...patient.patientInfo,
+				dateOfBirth: patient.patientInfo.dateOfBirth instanceof Date
+      ? patient.patientInfo.dateOfBirth.toISOString()
+      : patient.patientInfo.dateOfBirth,
 				verificationStatusUpdatedAt: patient.patientInfo.verificationStatusUpdatedAt
 					? (patient.patientInfo.verificationStatusUpdatedAt instanceof Date
 							? patient.patientInfo.verificationStatusUpdatedAt.toISOString()
@@ -108,4 +112,27 @@ export class PatientsService {
 					: patient.user.createdAt,
 		}
 	}
+
+async updatePatientInfo(
+  userId: string,
+  data: UpdatePatientInfoDto,
+) {
+  const updateData: Partial<typeof patientInfos.$inferSelect> = {
+	...data,
+	dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : undefined,
+  }
+
+  if (updateData.dateOfBirth && typeof updateData.dateOfBirth === 'string') {
+    updateData.dateOfBirth = new Date(updateData.dateOfBirth)
+  }
+  await this.db
+    .update(patientInfos)
+    .set(updateData)
+    .where(eq(patientInfos.userId, userId))
+
+  return this.findOne(userId)
 }
+
+
+}
+

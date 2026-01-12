@@ -1,8 +1,8 @@
-import { Controller, Get, Param, Query, UseGuards } from "@nestjs/common"
+import { Body, Controller, Get, Param, Put, Query, UseGuards } from "@nestjs/common"
 import { AllowAnonymous } from "@thallesp/nestjs-better-auth"
 import { ZodSerializerDto } from "nestjs-zod"
 
-import { PatientListResponseDto, PatientQueryDto, PatientResponseDto } from "@repo/contracts"
+import { PatientListResponseDto, PatientQueryDto, PatientResponseDto, UpdatePatientInfoDto} from "@repo/contracts"
 
 import { Public } from "@/shared/decorators/public.decorator"
 import { Roles } from "@/shared/decorators/roles.decorator"
@@ -39,4 +39,23 @@ export class PatientsController {
 			data: patient,
 		}
 	}
+
+	@Put(":id")
+  @Roles("ADMIN", "SUPER_ADMIN", "PATIENT")
+  @ZodSerializerDto(PatientResponseDto)
+  async updatePatient(
+    @Param("id") id: string,
+    @Body() dto: UpdatePatientInfoDto,
+  ) {
+    const updatedPatient = await this.patientsService.updatePatientInfo(
+      id,
+      dto,
+    )
+
+    return {
+      success: true,
+      data: updatedPatient,
+    }
+  }
+
 }

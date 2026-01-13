@@ -27,40 +27,34 @@ type AppointmentResponsePayload =
       pagination?: AppointmentListResponse['pagination'];
     };
 
-const normalizeAppointmentsPayload = (
-  payload?: AppointmentResponsePayload
-): { appointments: AppointmentRequest[]; pagination?: AppointmentListResponse['pagination'] } => {
-  if (!payload) {
-    return { appointments: [] };
-  }
-
-  if (Array.isArray(payload)) {
-    return { appointments: payload };
-  }
-
-  if ('data' in payload && payload.data) {
-    if (Array.isArray(payload.data)) {
-      return {
-        appointments: payload.data,
-        pagination: payload.pagination,
-      };
-    }
-
-    if (
-      typeof payload.data === 'object' &&
-      payload.data !== null &&
-      'data' in payload.data &&
-      Array.isArray(payload.data.data)
-    ) {
-      return {
-        appointments: payload.data.data,
-        pagination: payload.data.pagination || payload.pagination,
-      };
+const normalizeAppointmentsPayload = (data: any) => {
+  // If data has items (paginated response)
+  if (data.items && Array.isArray(data.items)) {
+    return {
+      appointments: data.items,
+      pagination: {
+        total: data.total,
+        page: data.page,
+        limit: data.limit,
+        totalPages: data.totalPages,
+      }
     }
   }
-
-  return { appointments: [], pagination: payload.pagination };
-};
+  
+  // If data is directly an array
+  if (Array.isArray(data)) {
+    return {
+      appointments: data,
+      pagination: undefined
+    }
+  }
+  
+  // Fallback
+  return {
+    appointments: [],
+    pagination: undefined
+  }
+}
 
 export const appointmentsApi = {
   /**
@@ -77,27 +71,23 @@ export const appointmentsApi = {
    * Get user appointments (patients and doctors)
    * Normalizes backend payload into a consistent array
    */
-  getMyAppointments: async (params?: { status?: string; page?: number; limit?: number }): Promise<
-    ApiResponse<AppointmentRequest[]> & { pagination?: AppointmentListResponse['pagination'] }
-  > => {
-    const queryParams = new URLSearchParams();
-    if (params?.status) queryParams.append('status', params.status);
-    if (params?.page) queryParams.append('page', params.page.toString());
-    if (params?.limit) queryParams.append('limit', params.limit.toString());
-    
-    const queryString = queryParams.toString();
-    const response = await apiRequest<AppointmentResponsePayload>(`/v1/appointments/my-appointments${queryString ? `?${queryString}` : ''}`, {
-      method: 'GET',
-    });
+  getMyAppointments: async (params?: { status?: string; page?: number; limit?: number }) => {
+  const queryParams = new URLSearchParams();
+  if (params?.status) queryParams.append('status', params.status);
+  if (params?.page) queryParams.append('page', params.page.toString());
+  if (params?.limit) queryParams.append('limit', params.limit.toString());
+  
+  const queryString = queryParams.toString();
+  const response = await apiRequest<any>(
+    `/v1/appointments/my-appointments${queryString ? `?${queryString}` : ''}`,
+    { method: 'GET' }
+  );
 
-    const { appointments, pagination } = normalizeAppointmentsPayload(response.data);
+  console.log('🔵 Full response:', response);
 
-    return {
-      ...response,
-      data: appointments,
-      ...(pagination ? { pagination } : {}),
-    };
-  },
+  // Return response as-is, let the frontend handle it
+  return response;
+},
 
   /**
    * Update appointment status (doctors only - accept/reject)

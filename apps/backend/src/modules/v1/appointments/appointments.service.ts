@@ -152,6 +152,11 @@ export class AppointmentsService {
 		const limitNum = Math.min(Math.max(limit, 1), 100)
 		const offset = (pageNum - 1) * limitNum
 
+		console.log('🔍 getMyAppointments called')
+  console.log('📋 User Info:', { userId, userRole })
+  console.log('📋 Query params:', { limit: limitNum, page: pageNum, offset, status: query.status })
+
+
 		if (!userId || !userRole) {
 			throw new ForbiddenException("User information not found")
 		}
@@ -165,6 +170,9 @@ export class AppointmentsService {
 		} else {
 			throw new ForbiddenException("Invalid role for this endpoint")
 		}
+
+		 console.log('🔎 Where condition role:', userRole)
+  console.log('🔎 Searching for userId:', userId)
 
 		// Optionally filter by status if provided
 		if (query.status) {
@@ -274,6 +282,12 @@ export class AppointmentsService {
 
 		const total = countResult[0]?.count || 0
 
+
+		  console.log('📊 Raw appointments found:', appointmentsData.length)
+  console.log('📊 First appointment (if any):', appointmentsData[0])
+
+  console.log('✅ Returning appointments count:', appointments.length)
+  console.log('✅ Total from count query:', total)
 		return {
 			items: appointments,
 			total,

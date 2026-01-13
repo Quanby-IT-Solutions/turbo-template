@@ -1083,11 +1083,40 @@ class HttpService {
     }
   }
 
+  /// Update patient information
+  static Future<Map<String, dynamic>> updatePatient(
+    String id,
+    Map<String, dynamic> data,
+  ) async {
+    try {
+      final dio = await _getDio();
+      final response = await dio.patch(
+        '/api/v1/patients/$id',
+        data: data,
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = response.data as Map<String, dynamic>;
+        // Backend returns {success: true, data: patient}
+        if (responseData['success'] == true && responseData['data'] != null) {
+          return responseData['data'] as Map<String, dynamic>;
+        }
+        return responseData;
+      } else {
+        throw _handleError(response);
+      }
+    } catch (e) {
+      debugPrint('Update patient error: $e');
+      rethrow;
+    }
+  }
+
   // ===================
   // Medical Records Methods
   // ===================
 
   static const String _medicalRecordsEndpoint = '/api/v1/medical-records';
+  static const String _labRequestsEndpoint = '/api/v1/lab-requests';
 
   /// Get medical records
   static Future<List<Map<String, dynamic>>> getMedicalRecords({
@@ -1272,6 +1301,149 @@ class HttpService {
         return 'ORGANIZATION';
       default:
         return 'PATIENT'; // Default to PATIENT
+    }
+  }
+
+  // ===================
+  // Lab Requests Methods
+  // ===================
+
+  /// Get patient lab requests
+  static Future<Map<String, dynamic>> getPatientLabRequests(String patientId) async {
+    try {
+      final dio = await _getDio();
+      final response = await dio.get('$_labRequestsEndpoint/patient/$patientId');
+
+      if (response.statusCode == 200) {
+        final responseData = response.data as Map<String, dynamic>;
+        // Backend returns {success: true, data: [...]}
+        if (responseData['success'] == true && responseData['data'] != null) {
+          return responseData;
+        }
+        return responseData;
+      } else {
+        throw _handleError(response);
+      }
+    } catch (e) {
+      debugPrint('Get patient lab requests error: $e');
+      rethrow;
+    }
+  }
+
+  // ===================
+  // Notifications Methods
+  // ===================
+
+  static const String _notificationsEndpoint = '/api/v1/notifications';
+
+  /// Get notifications for current user
+  static Future<List<dynamic>> getNotifications({
+    bool? isRead,
+    bool? isArchived,
+    String? type,
+    String? priority,
+    int? limit,
+    int? offset,
+  }) async {
+    try {
+      final dio = await _getDio();
+      final queryParams = <String, dynamic>{};
+      if (isRead != null) queryParams['isRead'] = isRead;
+      if (isArchived != null) queryParams['isArchived'] = isArchived;
+      if (type != null && type.isNotEmpty) queryParams['type'] = type;
+      if (priority != null && priority.isNotEmpty) queryParams['priority'] = priority;
+      if (limit != null) queryParams['limit'] = limit;
+      if (offset != null) queryParams['offset'] = offset;
+
+      final response = await dio.get(
+        _notificationsEndpoint,
+        queryParameters: queryParams,
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = response.data as Map<String, dynamic>;
+        if (responseData['success'] == true && responseData['data'] != null) {
+          // Backend returns {success: true, data: [...]} where data is a List
+          final data = responseData['data'];
+          if (data is List) {
+            return data;
+          }
+          return [];
+        }
+        return [];
+      } else {
+        throw _handleError(response);
+      }
+    } catch (e) {
+      debugPrint('Get notifications error: $e');
+      rethrow;
+    }
+  }
+
+  /// Mark notification as read
+  static Future<Map<String, dynamic>> markNotificationRead(String notificationId) async {
+    try {
+      final dio = await _getDio();
+      final response = await dio.patch(
+        '$_notificationsEndpoint/$notificationId/read',
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = response.data as Map<String, dynamic>;
+        if (responseData['success'] == true && responseData['data'] != null) {
+          return responseData['data'] as Map<String, dynamic>;
+        }
+        return responseData;
+      } else {
+        throw _handleError(response);
+      }
+    } catch (e) {
+      debugPrint('Mark notification read error: $e');
+      rethrow;
+    }
+  }
+
+  /// Mark all notifications as read
+  static Future<bool> markAllNotificationsRead() async {
+    try {
+      final dio = await _getDio();
+      final response = await dio.patch(
+        '$_notificationsEndpoint/mark-all-read',
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = response.data as Map<String, dynamic>;
+        return responseData['success'] == true;
+      } else {
+        throw _handleError(response);
+      }
+    } catch (e) {
+      debugPrint('Mark all notifications read error: $e');
+      rethrow;
+    }
+  }
+
+  /// Get unread notifications count
+  static Future<int> getUnreadNotificationsCount() async {
+    try {
+      final dio = await _getDio();
+      final response = await dio.get(
+        '$_notificationsEndpoint/unread-count',
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = response.data as Map<String, dynamic>;
+        if (responseData['success'] == true && responseData['data'] != null) {
+          final data = responseData['data'] as Map<String, dynamic>;
+          return data['count'] as int? ?? 0;
+        }
+        return 0;
+      } else {
+        throw _handleError(response);
+      }
+    } catch (e) {
+      debugPrint('Get unread notifications count error: $e');
+      rethrow;
     }
   }
 }

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:mobile/core/responsive/responsive_config.dart';
 import 'package:mobile/core/widgets/animated_nav_wrapper.dart';
 import 'package:mobile/presentation/doctor/providers/doctor_providers.dart';

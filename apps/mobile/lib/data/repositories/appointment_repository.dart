@@ -244,6 +244,7 @@ class AppointmentRepository {
     final reason =
         json['reason'] as String? ?? json['reasonForVisit'] as String?;
     final notes = json['notes'] as String?;
+    final priority = json['priority'] as String?;
 
     final createdAtStr =
         json['createdAt'] ??
@@ -261,9 +262,59 @@ class AppointmentRepository {
         ? DateTime.parse(updatedAtStr as String)
         : null;
 
-    // Mock patient/doctor names from IDs (will be replaced with actual data in production)
-    final patientName = json['patientName'] as String? ?? 'Patient $patientId';
-    final doctorName = json['doctorName'] as String? ?? 'Doctor $doctorId';
+    // Parse patient/doctor names
+    String patientName = json['patientName'] as String? ?? 'Patient $patientId';
+    String doctorName = json['doctorName'] as String? ?? 'Doctor $doctorId';
+    
+    // Parse doctor info if available
+    DoctorInfo? doctorInfo;
+    if (json['doctor'] != null) {
+      final doctorJson = json['doctor'] as Map<String, dynamic>;
+      final doctorInfoJson = doctorJson['doctorInfo'] as Map<String, dynamic>?;
+      if (doctorInfoJson != null) {
+        doctorName = '${doctorInfoJson['firstName'] ?? ''} ${doctorInfoJson['lastName'] ?? ''}'.trim();
+        if (doctorName.isEmpty) {
+          doctorName = json['doctorName'] as String? ?? 'Doctor $doctorId';
+        }
+        doctorInfo = DoctorInfo(
+          firstName: doctorInfoJson['firstName'] as String? ?? '',
+          lastName: doctorInfoJson['lastName'] as String? ?? '',
+          specialization: doctorInfoJson['specialization'] as String?,
+          email: doctorJson['email'] as String?,
+        );
+      } else if (doctorJson['email'] != null) {
+        doctorInfo = DoctorInfo(
+          firstName: doctorJson['firstName'] as String? ?? '',
+          lastName: doctorJson['lastName'] as String? ?? '',
+          specialization: doctorJson['specialization'] as String?,
+          email: doctorJson['email'] as String?,
+        );
+      }
+    }
+
+    // Parse reschedule requests
+    List<RescheduleRequest>? rescheduleRequests;
+    if (json['rescheduleRequests'] != null) {
+      final requestsList = json['rescheduleRequests'] as List<dynamic>;
+      rescheduleRequests = requestsList.map((reqJson) {
+        final req = reqJson as Map<String, dynamic>;
+        return RescheduleRequest(
+          id: req['id'] as String,
+          appointmentId: req['appointmentId'] as String? ?? id,
+          requestedBy: req['requestedBy'] as String? ?? '',
+          requestedByRole: req['requestedByRole'] as String? ?? 'PATIENT',
+          currentDate: req['currentDate'] as String?,
+          currentTime: req['currentTime'] as String?,
+          newDate: req['newDate'] as String,
+          newTime: req['newTime'] as String,
+          reason: req['reason'] as String? ?? '',
+          notes: req['notes'] as String?,
+          status: (req['status'] as String? ?? 'PENDING').toUpperCase(),
+          createdAt: DateTime.parse(req['createdAt'] as String),
+          updatedAt: DateTime.parse(req['updatedAt'] as String),
+        );
+      }).toList();
+    }
 
     return Appointment(
       id: id,
@@ -276,8 +327,11 @@ class AppointmentRepository {
       type: type,
       reasonForVisit: reason,
       notes: notes,
+      priority: priority,
       createdAt: createdAt,
       updatedAt: updatedAt,
+      rescheduleRequests: rescheduleRequests,
+      doctor: doctorInfo,
     );
   }
 

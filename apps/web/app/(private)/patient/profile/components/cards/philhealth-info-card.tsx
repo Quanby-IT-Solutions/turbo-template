@@ -1,77 +1,71 @@
 "use client"
 
 import * as React from "react"
-import { IconCheck, IconEdit, IconUpload, IconUser, IconX } from "@tabler/icons-react"
+import { IconCheck, IconEdit, IconFileText, IconUpload, IconX } from "@tabler/icons-react"
 import { toast } from "sonner"
-
+import { Badge } from "@/core/components/ui/badge"
 import { Button } from "@/core/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/core/components/ui/card"
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@/core/components/ui/card"
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@/core/components/ui/dialog"
 import { Input } from "@/core/components/ui/input"
 import { Label } from "@/core/components/ui/label"
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/core/components/ui/select"
-import { Textarea } from "@/core/components/ui/textarea"
-import type { User } from "@/services/api/types"
 import { patientsApi } from "@/features/patients/api/patients-api"
-
+import type { User } from "@/services/api/types"
 import type { PatientInfoType } from "../types"
 
-type PersonalInfoCardProps = {
+type PhilHealthInfoCardProps = {
 	user: User | null
 	patientInfo: PatientInfoType | null
 	onRefresh: () => Promise<void>
 }
 
-export function PersonalInfoCard({ user, patientInfo, onRefresh }: PersonalInfoCardProps) {
+export function PhilHealthInfoCard({ user, patientInfo, onRefresh }: PhilHealthInfoCardProps) {
 	const [isEditing, setIsEditing] = React.useState(false)
 	const [saving, setSaving] = React.useState(false)
 	const [uploading, setUploading] = React.useState(false)
+	const [viewImageDialogOpen, setViewImageDialogOpen] = React.useState(false)
 
 	// Form state
-	const [firstName, setFirstName] = React.useState("")
-	const [middleName, setMiddleName] = React.useState("")
-	const [lastName, setLastName] = React.useState("")
-	const [gender, setGender] = React.useState("")
-	const [dateOfBirth, setDateOfBirth] = React.useState("")
-	const [contactNumber, setContactNumber] = React.useState("")
-	const [address, setAddress] = React.useState("")
-	const [weight, setWeight] = React.useState("")
-	const [height, setHeight] = React.useState("")
-	const [bloodType, setBloodType] = React.useState("")
-	const [medicalHistory, setMedicalHistory] = React.useState("")
-	const [allergies, setAllergies] = React.useState("")
-	const [medications, setMedications] = React.useState("")
-	const [profilePicture, setProfilePicture] = React.useState<string | null>(null)
-	const [profilePictureFile, setProfilePictureFile] = React.useState<File | null>(null)
+	const [philHealthId, setPhilHealthId] = React.useState("")
+	const [philHealthStatus, setPhilHealthStatus] = React.useState("")
+	const [philHealthCategory, setPhilHealthCategory] = React.useState("")
+	const [philHealthExpiry, setPhilHealthExpiry] = React.useState("")
+	const [philHealthMemberSince, setPhilHealthMemberSince] = React.useState("")
+	const [philHealthIdImage, setPhilHealthIdImage] = React.useState<string | null>(null)
+	const [philHealthIdImageFile, setPhilHealthIdImageFile] = React.useState<File | null>(null)
 
 	// Initialize form when patientInfo changes
 	React.useEffect(() => {
 		if (patientInfo) {
-			setFirstName(patientInfo.firstName || "")
-			setMiddleName(patientInfo.middleName || "")
-			setLastName(patientInfo.lastName || "")
-			setGender(patientInfo.gender || "")
-			setDateOfBirth(
-				patientInfo.dateOfBirth ? new Date(patientInfo.dateOfBirth).toISOString().split("T")[0] : ""
+			setPhilHealthId(patientInfo.philHealthId || "")
+			setPhilHealthStatus(patientInfo.philHealthStatus || "")
+			setPhilHealthCategory(patientInfo.philHealthCategory || "")
+			setPhilHealthExpiry(
+				patientInfo.philHealthExpiry
+					? new Date(patientInfo.philHealthExpiry).toISOString().split("T")[0]
+					: ""
 			)
-			setContactNumber(patientInfo.contactNumber || "")
-			setAddress(patientInfo.address || "")
-			setWeight(patientInfo.weight?.toString() || "")
-			setHeight(patientInfo.height?.toString() || "")
-			setBloodType(patientInfo.bloodType || "")
-			setMedicalHistory(patientInfo.medicalHistory || "")
-			setAllergies(patientInfo.allergies || "")
-			setMedications(patientInfo.medications || "")
+			setPhilHealthMemberSince(
+				patientInfo.philHealthMemberSince
+					? new Date(patientInfo.philHealthMemberSince).toISOString().split("T")[0]
+					: ""
+			)
+			setPhilHealthIdImage(patientInfo.philHealthIdImage || null)
 		}
-		if (user?.profilePicture) {
-			setProfilePicture(typeof user.profilePicture === "string" ? user.profilePicture : null)
-		}
-	}, [patientInfo, user])
+	}, [patientInfo])
 
 	const handleFileUpload = async (file: File) => {
 		if (!file.type.startsWith("image/")) {
@@ -89,8 +83,8 @@ export function PersonalInfoCard({ user, patientInfo, onRefresh }: PersonalInfoC
 			const reader = new FileReader()
 			reader.onloadend = () => {
 				const base64String = reader.result as string
-				setProfilePicture(base64String)
-				setProfilePictureFile(file)
+				setPhilHealthIdImage(base64String)
+				setPhilHealthIdImageFile(file)
 				toast.success("Image uploaded successfully")
 			}
 			reader.onerror = () => {
@@ -112,52 +106,40 @@ export function PersonalInfoCard({ user, patientInfo, onRefresh }: PersonalInfoC
 		setSaving(true)
 		try {
 			const updateData: Record<string, unknown> = {}
-
+			
 			// Only include fields that have values
-			if (firstName.trim()) updateData.firstName = firstName.trim()
-			if (middleName.trim()) updateData.middleName = middleName.trim()
-			if (lastName.trim()) updateData.lastName = lastName.trim()
-			if (gender) updateData.gender = gender
-
-			// Convert date to ISO datetime format
-			if (dateOfBirth) {
-				const date = new Date(dateOfBirth)
-				updateData.dateOfBirth = date.toISOString()
+			if (philHealthId.trim()) updateData.philHealthId = philHealthId.trim()
+			if (philHealthStatus.trim()) updateData.philHealthStatus = philHealthStatus.trim()
+			if (philHealthCategory.trim()) updateData.philHealthCategory = philHealthCategory.trim()
+			
+			// Convert dates to ISO datetime format
+			if (philHealthExpiry) {
+				const date = new Date(philHealthExpiry)
+				updateData.philHealthExpiry = date.toISOString()
 			}
-
-			if (contactNumber.trim()) updateData.contactNumber = contactNumber.trim()
-			if (address.trim()) updateData.address = address.trim()
-
-			// Parse numbers carefully
-			const weightNum = parseFloat(weight)
-			if (!isNaN(weightNum) && weightNum > 0) updateData.weight = weightNum
-
-			const heightNum = parseFloat(height)
-			if (!isNaN(heightNum) && heightNum > 0) updateData.height = heightNum
-
-			if (bloodType) updateData.bloodType = bloodType
-			if (medicalHistory.trim()) updateData.medicalHistory = medicalHistory.trim()
-			if (allergies.trim()) updateData.allergies = allergies.trim()
-			if (medications.trim()) updateData.medications = medications.trim()
-
-			// Only include profile picture if it was changed
-			if (profilePictureFile) {
-				updateData.profilePicture = profilePicture
+			if (philHealthMemberSince) {
+				const date = new Date(philHealthMemberSince)
+				updateData.philHealthMemberSince = date.toISOString()
+			}
+			
+			// Only include image if it was changed
+			if (philHealthIdImageFile) {
+				updateData.philHealthIdImage = philHealthIdImage
 			}
 
 			const response = await patientsApi.updatePatient(user.id, updateData)
 			if (response.success) {
-				toast.success("Profile updated successfully")
+				toast.success("PhilHealth information updated successfully")
 				setIsEditing(false)
-				setProfilePictureFile(null)
+				setPhilHealthIdImageFile(null)
 				await onRefresh()
 			} else {
-				toast.error(response.message || "Failed to update profile")
+				toast.error(response.message || "Failed to update PhilHealth information")
 				console.error("Update failed:", response)
 			}
 		} catch (error) {
-			toast.error("An error occurred while updating profile")
-			console.error("Error updating profile:", error)
+			toast.error("An error occurred while updating PhilHealth information")
+			console.error("Error updating PhilHealth information:", error)
 		} finally {
 			setSaving(false)
 		}
@@ -165,322 +147,273 @@ export function PersonalInfoCard({ user, patientInfo, onRefresh }: PersonalInfoC
 
 	const handleCancel = () => {
 		setIsEditing(false)
-		if (user && patientInfo) {
-			setFirstName(patientInfo.firstName || "")
-			setMiddleName(patientInfo.middleName || "")
-			setLastName(patientInfo.lastName || "")
-			setGender(patientInfo.gender || "")
-			setDateOfBirth(
-				patientInfo.dateOfBirth ? new Date(patientInfo.dateOfBirth).toISOString().split("T")[0] : ""
+		if (patientInfo) {
+			setPhilHealthId(patientInfo.philHealthId || "")
+			setPhilHealthStatus(patientInfo.philHealthStatus || "")
+			setPhilHealthCategory(patientInfo.philHealthCategory || "")
+			setPhilHealthExpiry(
+				patientInfo.philHealthExpiry
+					? new Date(patientInfo.philHealthExpiry).toISOString().split("T")[0]
+					: ""
 			)
-			setContactNumber(patientInfo.contactNumber || "")
-			setAddress(patientInfo.address || "")
-			setWeight(patientInfo.weight?.toString() || "")
-			setHeight(patientInfo.height?.toString() || "")
-			setBloodType(patientInfo.bloodType || "")
-			setMedicalHistory(patientInfo.medicalHistory || "")
-			setAllergies(patientInfo.allergies || "")
-			setMedications(patientInfo.medications || "")
-			setProfilePicture(typeof user.profilePicture === "string" ? user.profilePicture : null)
-			setProfilePictureFile(null)
+			setPhilHealthMemberSince(
+				patientInfo.philHealthMemberSince
+					? new Date(patientInfo.philHealthMemberSince).toISOString().split("T")[0]
+					: ""
+			)
+			setPhilHealthIdImage(patientInfo.philHealthIdImage || null)
+			setPhilHealthIdImageFile(null)
 		}
 	}
 
-	const fullName = patientInfo
-		? `${patientInfo.firstName || ""} ${patientInfo.middleName || ""} ${patientInfo.lastName || ""}`.trim()
-		: "Patient"
-
-	const age = patientInfo?.dateOfBirth
-		? Math.floor(
-				(new Date().getTime() - new Date(patientInfo.dateOfBirth).getTime()) /
-					(1000 * 60 * 60 * 24 * 365.25)
-			)
-		: null
-
 	return (
 		<>
-			<div className="mb-6 flex items-center justify-between">
-				<div>
-					<h1 className="mb-2 text-2xl font-bold">My Profile</h1>
-					<p className="text-muted-foreground text-sm">Manage your personal information</p>
-				</div>
-				{!isEditing ? (
-					<Button onClick={() => setIsEditing(true)}>
-						<IconEdit className="mr-2 h-4 w-4" />
-						Edit Profile
-					</Button>
-				) : (
-					<div className="flex gap-2">
-						<Button variant="outline" onClick={handleCancel} disabled={saving}>
-							<IconX className="mr-2 h-4 w-4" />
-							Cancel
-						</Button>
-						<Button onClick={handleSave} disabled={saving}>
-							<IconCheck className="mr-2 h-4 w-4" />
-							{saving ? "Saving..." : "Save Changes"}
-						</Button>
-					</div>
-				)}
-			</div>
-
 			<Card className="mb-6">
-				<CardHeader>
-					<CardTitle>Personal Information</CardTitle>
+				<CardHeader className="flex flex-row items-center justify-between">
+					<div>
+						<CardTitle>PhilHealth Information</CardTitle>
+						<CardDescription>Your PhilHealth membership details and identification</CardDescription>
+					</div>
+					{!isEditing ? (
+						<Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
+							<IconEdit className="mr-2 h-4 w-4" />
+							Edit
+						</Button>
+					) : (
+						<div className="flex gap-2">
+							<Button variant="outline" size="sm" onClick={handleCancel} disabled={saving}>
+								<IconX className="mr-2 h-4 w-4" />
+								Cancel
+							</Button>
+							<Button size="sm" onClick={handleSave} disabled={saving}>
+								<IconCheck className="mr-2 h-4 w-4" />
+								{saving ? "Saving..." : "Save"}
+							</Button>
+						</div>
+					)}
 				</CardHeader>
 				<CardContent>
-					<div className="mb-6 flex items-start gap-6">
-						<div className="relative">
-							<div className="bg-muted flex h-24 w-24 items-center justify-center overflow-hidden rounded-full">
-								{profilePicture ? (
-									<img src={profilePicture} alt="Profile" className="h-full w-full object-cover" />
-								) : (
-									<IconUser className="text-muted-foreground h-12 w-12" />
-								)}
-							</div>
-							{isEditing && (
-								<label
-									htmlFor="profile-picture-upload"
-									className="absolute right-0 bottom-0 cursor-pointer"
-								>
-									<div className="bg-primary text-primary-foreground hover:bg-primary/90 flex h-8 w-8 items-center justify-center rounded-full transition-colors">
-										<IconUpload className="h-4 w-4" />
-									</div>
-									<input
-										id="profile-picture-upload"
-										type="file"
-										accept="image/*"
-										className="hidden"
-										onChange={e => {
-											const file = e.target.files?.[0]
-											if (file) handleFileUpload(file)
-										}}
-									/>
-								</label>
-							)}
-						</div>
-						<div className="flex-1">
-							<h3 className="mb-1 text-lg font-semibold">{fullName}</h3>
-							<p className="text-muted-foreground text-sm">{user?.email}</p>
-							{isEditing && profilePictureFile && (
-								<p className="text-muted-foreground mt-1 text-xs">{profilePictureFile.name}</p>
-							)}
-						</div>
-					</div>
-
-					<div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+					<div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
 						<div>
 							<Label className="text-muted-foreground mb-2 block text-xs font-semibold uppercase">
-								FIRST NAME
+								PHILHEALTH ID
 							</Label>
 							{isEditing ? (
 								<Input
-									value={firstName}
-									onChange={e => setFirstName(e.target.value)}
-									placeholder="First name"
+									value={philHealthId}
+									onChange={e => setPhilHealthId(e.target.value)}
+									placeholder="PhilHealth ID"
 								/>
 							) : (
-								<p className="text-sm">{patientInfo?.firstName || "—"}</p>
+								<p className="text-sm">{patientInfo?.philHealthId || "—"}</p>
 							)}
 						</div>
 						<div>
 							<Label className="text-muted-foreground mb-2 block text-xs font-semibold uppercase">
-								MIDDLE NAME
+								STATUS
 							</Label>
 							{isEditing ? (
 								<Input
-									value={middleName}
-									onChange={e => setMiddleName(e.target.value)}
-									placeholder="Middle name"
+									value={philHealthStatus}
+									onChange={e => setPhilHealthStatus(e.target.value)}
+									placeholder="Status"
 								/>
 							) : (
-								<p className="text-sm">{patientInfo?.middleName || "—"}</p>
+								<p className="text-sm">{patientInfo?.philHealthStatus || "—"}</p>
 							)}
 						</div>
 						<div>
 							<Label className="text-muted-foreground mb-2 block text-xs font-semibold uppercase">
-								LAST NAME
+								CATEGORY
 							</Label>
 							{isEditing ? (
 								<Input
-									value={lastName}
-									onChange={e => setLastName(e.target.value)}
-									placeholder="Last name"
+									value={philHealthCategory}
+									onChange={e => setPhilHealthCategory(e.target.value)}
+									placeholder="Category"
 								/>
 							) : (
-								<p className="text-sm">{patientInfo?.lastName || "—"}</p>
+								<p className="text-sm">{patientInfo?.philHealthCategory || "—"}</p>
 							)}
 						</div>
 						<div>
 							<Label className="text-muted-foreground mb-2 block text-xs font-semibold uppercase">
-								EMAIL
-							</Label>
-							<p className="text-sm">{user?.email || "—"}</p>
-						</div>
-						<div>
-							<Label className="text-muted-foreground mb-2 block text-xs font-semibold uppercase">
-								PHONE
-							</Label>
-							{isEditing ? (
-								<Input
-									value={contactNumber}
-									onChange={e => setContactNumber(e.target.value)}
-									placeholder="Contact number"
-								/>
-							) : (
-								<p className="text-sm">{patientInfo?.contactNumber || "—"}</p>
-							)}
-						</div>
-						<div>
-							<Label className="text-muted-foreground mb-2 block text-xs font-semibold uppercase">
-								DATE OF BIRTH
+								MEMBER SINCE
 							</Label>
 							{isEditing ? (
 								<Input
 									type="date"
-									value={dateOfBirth}
-									onChange={e => setDateOfBirth(e.target.value)}
+									value={philHealthMemberSince}
+									onChange={e => setPhilHealthMemberSince(e.target.value)}
 								/>
 							) : (
 								<p className="text-sm">
-									{patientInfo?.dateOfBirth
-										? `${new Date(patientInfo.dateOfBirth).toLocaleDateString()}${age ? ` (${age} years old)` : ""}`
+									{patientInfo?.philHealthMemberSince
+										? new Date(patientInfo.philHealthMemberSince).toLocaleDateString()
 										: "—"}
 								</p>
 							)}
 						</div>
-						{isEditing && (
-							<>
-								<div>
-									<Label className="text-muted-foreground mb-2 block text-xs font-semibold uppercase">
-										GENDER
-									</Label>
-									<Select value={gender} onValueChange={setGender}>
-										<SelectTrigger>
-											<SelectValue placeholder="Select gender" />
-										</SelectTrigger>
-										<SelectContent>
-											<SelectItem value="MALE">Male</SelectItem>
-											<SelectItem value="FEMALE">Female</SelectItem>
-											<SelectItem value="OTHER">Other</SelectItem>
-										</SelectContent>
-									</Select>
-								</div>
-								<div>
-									<Label className="text-muted-foreground mb-2 block text-xs font-semibold uppercase">
-										ADDRESS
-									</Label>
-									<Input
-										value={address}
-										onChange={e => setAddress(e.target.value)}
-										placeholder="Address"
+						<div>
+							<Label className="text-muted-foreground mb-2 block text-xs font-semibold uppercase">
+								EXPIRY DATE
+							</Label>
+							{isEditing ? (
+								<Input
+									type="date"
+									value={philHealthExpiry}
+									onChange={e => setPhilHealthExpiry(e.target.value)}
+								/>
+							) : (
+								<p className="text-sm">
+									{patientInfo?.philHealthExpiry
+										? new Date(patientInfo.philHealthExpiry).toLocaleDateString()
+										: "—"}
+								</p>
+							)}
+						</div>
+					</div>
+
+					<div className="border-t pt-6">
+						<Label className="text-muted-foreground mb-4 block text-xs font-semibold uppercase">
+							PHILHEALTH ID DOCUMENT
+						</Label>
+						<div className="flex items-center gap-4">
+							<div
+								className={`border-muted-foreground/25 bg-muted/50 flex h-32 w-32 items-center justify-center overflow-hidden rounded-lg border-2 border-dashed ${
+									!isEditing && philHealthIdImage
+										? "cursor-pointer transition-opacity hover:opacity-80"
+										: ""
+								}`}
+								onClick={() => {
+									if (!isEditing && philHealthIdImage) {
+										setViewImageDialogOpen(true)
+									}
+								}}
+							>
+								{philHealthIdImage &&
+								typeof philHealthIdImage === "string" &&
+								philHealthIdImage.startsWith("data:") ? (
+									<img
+										src={philHealthIdImage}
+										alt="PhilHealth ID"
+										className="h-full w-full object-cover"
+										onError={e => {
+											console.error("Failed to load PhilHealth ID image:", e)
+											setPhilHealthIdImage(null)
+										}}
 									/>
-								</div>
-								<div>
-									<Label className="text-muted-foreground mb-2 block text-xs font-semibold uppercase">
-										WEIGHT (kg)
-									</Label>
-									<Input
-										type="number"
-										value={weight}
-										onChange={e => setWeight(e.target.value)}
-										placeholder="Weight"
-									/>
-								</div>
-								<div>
-									<Label className="text-muted-foreground mb-2 block text-xs font-semibold uppercase">
-										HEIGHT (cm)
-									</Label>
-									<Input
-										type="number"
-										value={height}
-										onChange={e => setHeight(e.target.value)}
-										placeholder="Height"
-									/>
-								</div>
-								<div>
-									<Label className="text-muted-foreground mb-2 block text-xs font-semibold uppercase">
-										BLOOD TYPE
-									</Label>
-									<Select value={bloodType} onValueChange={setBloodType}>
-										<SelectTrigger>
-											<SelectValue placeholder="Select blood type" />
-										</SelectTrigger>
-										<SelectContent>
-											<SelectItem value="O+">O+</SelectItem>
-											<SelectItem value="O-">O-</SelectItem>
-											<SelectItem value="A+">A+</SelectItem>
-											<SelectItem value="A-">A-</SelectItem>
-											<SelectItem value="B+">B+</SelectItem>
-											<SelectItem value="B-">B-</SelectItem>
-											<SelectItem value="AB+">AB+</SelectItem>
-											<SelectItem value="AB-">AB-</SelectItem>
-										</SelectContent>
-									</Select>
-								</div>
-							</>
-						)}
+								) : (
+									<IconFileText className="text-muted-foreground h-8 w-8" />
+								)}
+							</div>
+							<div className="flex-1">
+								<p className="text-muted-foreground mb-2 text-sm">
+									Upload your PhilHealth ID document (Image)
+								</p>
+								{isEditing ? (
+									<div className="flex items-center gap-2">
+										<label htmlFor="philhealth-upload">
+											<Button variant="outline" size="sm" type="button" disabled={uploading} asChild>
+												<span>
+													<IconUpload className="mr-2 h-4 w-4" />
+													{uploading
+														? "Uploading..."
+														: philHealthIdImageFile
+															? "Change Document"
+															: "Upload Document"}
+												</span>
+											</Button>
+											<input
+												id="philhealth-upload"
+												type="file"
+												accept="image/*"
+												className="hidden"
+												onChange={e => {
+													const file = e.target.files?.[0]
+													if (file) handleFileUpload(file)
+												}}
+											/>
+										</label>
+										{philHealthIdImage && (
+											<Badge variant="outline" className="border-green-500/20 bg-green-500/10 text-green-700">
+												Uploaded
+											</Badge>
+										)}
+									</div>
+								) : (
+									<div className="flex items-center gap-2">
+										{philHealthIdImage &&
+											typeof philHealthIdImage === "string" &&
+											philHealthIdImage.startsWith("data:") && (
+												<Badge variant="outline" className="border-green-500/20 bg-green-500/10 text-green-700">
+													Uploaded
+												</Badge>
+											)}
+									</div>
+								)}
+								{philHealthIdImageFile && (
+									<p className="text-muted-foreground mt-2 text-xs">{philHealthIdImageFile.name}</p>
+								)}
+							</div>
+						</div>
 					</div>
 				</CardContent>
 			</Card>
 
-			{(isEditing || medicalHistory || allergies || medications) && (
-				<Card className="mb-6">
-					<CardHeader>
-						<CardTitle>Medical Information</CardTitle>
-					</CardHeader>
-					<CardContent>
-						<div className="grid grid-cols-1 gap-4">
-							<div>
-								<Label className="text-muted-foreground mb-2 block text-xs font-semibold uppercase">
-									MEDICAL HISTORY
-								</Label>
-								{isEditing ? (
-									<Textarea
-										value={medicalHistory}
-										onChange={e => setMedicalHistory(e.target.value)}
-										placeholder="Medical history"
-										rows={4}
-									/>
-								) : (
-									<p className="text-sm whitespace-pre-wrap">
-										{patientInfo?.medicalHistory || "—"}
-									</p>
-								)}
-							</div>
-							<div>
-								<Label className="text-muted-foreground mb-2 block text-xs font-semibold uppercase">
-									ALLERGIES
-								</Label>
-								{isEditing ? (
-									<Textarea
-										value={allergies}
-										onChange={e => setAllergies(e.target.value)}
-										placeholder="Allergies"
-										rows={3}
-									/>
-								) : (
-									<p className="text-sm whitespace-pre-wrap">{patientInfo?.allergies || "—"}</p>
-								)}
-							</div>
-							<div>
-								<Label className="text-muted-foreground mb-2 block text-xs font-semibold uppercase">
-									MEDICATIONS
-								</Label>
-								{isEditing ? (
-									<Textarea
-										value={medications}
-										onChange={e => setMedications(e.target.value)}
-										placeholder="Current medications"
-										rows={3}
-									/>
-								) : (
-									<p className="text-sm whitespace-pre-wrap">{patientInfo?.medications || "—"}</p>
-								)}
-							</div>
-						</div>
-					</CardContent>
-				</Card>
-			)}
+			<Dialog open={viewImageDialogOpen} onOpenChange={setViewImageDialogOpen}>
+				<DialogContent className="max-h-[90vh] max-w-4xl overflow-auto">
+					<DialogHeader>
+						<DialogTitle>PhilHealth ID Document</DialogTitle>
+						<DialogDescription>
+							{patientInfo && (
+								<span>
+									Document for {patientInfo.firstName} {patientInfo.lastName}
+								</span>
+							)}
+						</DialogDescription>
+					</DialogHeader>
+					<div className="bg-muted/50 flex min-h-[400px] items-center justify-center rounded-lg py-4">
+						{philHealthIdImage &&
+						typeof philHealthIdImage === "string" &&
+						philHealthIdImage.startsWith("data:") ? (
+							<img
+								src={philHealthIdImage}
+								alt="PhilHealth ID Document"
+								className="max-h-[70vh] max-w-full rounded-lg object-contain shadow-lg"
+								onError={e => {
+									console.error("Failed to load PhilHealth ID image in dialog:", e)
+								}}
+							/>
+						) : (
+							<div className="text-muted-foreground">No document available</div>
+						)}
+					</div>
+					<DialogFooter>
+						<Button variant="outline" onClick={() => setViewImageDialogOpen(false)}>
+							Close
+						</Button>
+						{philHealthIdImage && patientInfo && (
+							<Button
+								variant="outline"
+								onClick={() => {
+									if (philHealthIdImage) {
+										const link = document.createElement("a")
+										link.href = philHealthIdImage
+										const fileName = `philhealth-id-${patientInfo.firstName}-${patientInfo.lastName}.png`
+										link.download = fileName
+										document.body.appendChild(link)
+										link.click()
+										document.body.removeChild(link)
+									}
+								}}
+							>
+								Download
+							</Button>
+						)}
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</>
 	)
 }

@@ -55,14 +55,14 @@ export function PhilHealthInfoCard({ user, patientInfo, onRefresh }: PhilHealthI
 			setPhilHealthStatus(patientInfo.philHealthStatus || "")
 			setPhilHealthCategory(patientInfo.philHealthCategory || "")
 			setPhilHealthExpiry(
-				patientInfo.philHealthExpiry
+				(patientInfo.philHealthExpiry
 					? new Date(patientInfo.philHealthExpiry).toISOString().split("T")[0]
-					: ""
+					: "") ?? ""
 			)
 			setPhilHealthMemberSince(
-				patientInfo.philHealthMemberSince
+				(patientInfo.philHealthMemberSince
 					? new Date(patientInfo.philHealthMemberSince).toISOString().split("T")[0]
-					: ""
+					: "") ?? ""
 			)
 			setPhilHealthIdImage(patientInfo.philHealthIdImage || null)
 		}
@@ -153,14 +153,14 @@ export function PhilHealthInfoCard({ user, patientInfo, onRefresh }: PhilHealthI
 			setPhilHealthStatus(patientInfo.philHealthStatus || "")
 			setPhilHealthCategory(patientInfo.philHealthCategory || "")
 			setPhilHealthExpiry(
-				patientInfo.philHealthExpiry
+				(patientInfo.philHealthExpiry
 					? new Date(patientInfo.philHealthExpiry).toISOString().split("T")[0]
-					: ""
+					: "") ?? ""
 			)
 			setPhilHealthMemberSince(
-				patientInfo.philHealthMemberSince
+				(patientInfo.philHealthMemberSince
 					? new Date(patientInfo.philHealthMemberSince).toISOString().split("T")[0]
-					: ""
+					: "") ?? ""
 			)
 			setPhilHealthIdImage(patientInfo.philHealthIdImage || null)
 			setPhilHealthIdImageFile(null)
@@ -315,13 +315,7 @@ export function PhilHealthInfoCard({ user, patientInfo, onRefresh }: PhilHealthI
 								{isEditing ? (
 									<div className="flex items-center gap-2">
 										<label htmlFor="philhealth-upload">
-											<Button
-												variant="outline"
-												size="sm"
-												type="button"
-												disabled={uploading}
-												asChild
-											>
+											<Button variant="outline" size="sm" type="button" disabled={uploading}>
 												<span>
 													<IconUpload className="mr-2 h-4 w-4" />
 													{uploading

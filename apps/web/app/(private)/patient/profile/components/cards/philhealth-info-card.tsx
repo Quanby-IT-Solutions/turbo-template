@@ -3,6 +3,7 @@
 import * as React from "react"
 import { IconCheck, IconEdit, IconFileText, IconUpload, IconX } from "@tabler/icons-react"
 import { toast } from "sonner"
+
 import { Badge } from "@/core/components/ui/badge"
 import { Button } from "@/core/components/ui/button"
 import {
@@ -22,9 +23,9 @@ import {
 } from "@/core/components/ui/dialog"
 import { Input } from "@/core/components/ui/input"
 import { Label } from "@/core/components/ui/label"
-import { patientsApi } from "@/features/patients/api/patients-api"
 import type { User } from "@/services/api/types"
-import type { PatientInfoType } from "../types"
+import { patientsApi } from "@/features/patients/api/patients-api"
+import type { PatientInfoType } from "@/features/patients/types/patients-types"
 
 type PhilHealthInfoCardProps = {
 	user: User | null
@@ -54,14 +55,14 @@ export function PhilHealthInfoCard({ user, patientInfo, onRefresh }: PhilHealthI
 			setPhilHealthStatus(patientInfo.philHealthStatus || "")
 			setPhilHealthCategory(patientInfo.philHealthCategory || "")
 			setPhilHealthExpiry(
-				patientInfo.philHealthExpiry
+				(patientInfo.philHealthExpiry
 					? new Date(patientInfo.philHealthExpiry).toISOString().split("T")[0]
-					: ""
+					: "") ?? ""
 			)
 			setPhilHealthMemberSince(
-				patientInfo.philHealthMemberSince
+				(patientInfo.philHealthMemberSince
 					? new Date(patientInfo.philHealthMemberSince).toISOString().split("T")[0]
-					: ""
+					: "") ?? ""
 			)
 			setPhilHealthIdImage(patientInfo.philHealthIdImage || null)
 		}
@@ -106,12 +107,12 @@ export function PhilHealthInfoCard({ user, patientInfo, onRefresh }: PhilHealthI
 		setSaving(true)
 		try {
 			const updateData: Record<string, unknown> = {}
-			
+
 			// Only include fields that have values
 			if (philHealthId.trim()) updateData.philHealthId = philHealthId.trim()
 			if (philHealthStatus.trim()) updateData.philHealthStatus = philHealthStatus.trim()
 			if (philHealthCategory.trim()) updateData.philHealthCategory = philHealthCategory.trim()
-			
+
 			// Convert dates to ISO datetime format
 			if (philHealthExpiry) {
 				const date = new Date(philHealthExpiry)
@@ -121,7 +122,7 @@ export function PhilHealthInfoCard({ user, patientInfo, onRefresh }: PhilHealthI
 				const date = new Date(philHealthMemberSince)
 				updateData.philHealthMemberSince = date.toISOString()
 			}
-			
+
 			// Only include image if it was changed
 			if (philHealthIdImageFile) {
 				updateData.philHealthIdImage = philHealthIdImage
@@ -152,14 +153,14 @@ export function PhilHealthInfoCard({ user, patientInfo, onRefresh }: PhilHealthI
 			setPhilHealthStatus(patientInfo.philHealthStatus || "")
 			setPhilHealthCategory(patientInfo.philHealthCategory || "")
 			setPhilHealthExpiry(
-				patientInfo.philHealthExpiry
+				(patientInfo.philHealthExpiry
 					? new Date(patientInfo.philHealthExpiry).toISOString().split("T")[0]
-					: ""
+					: "") ?? ""
 			)
 			setPhilHealthMemberSince(
-				patientInfo.philHealthMemberSince
+				(patientInfo.philHealthMemberSince
 					? new Date(patientInfo.philHealthMemberSince).toISOString().split("T")[0]
-					: ""
+					: "") ?? ""
 			)
 			setPhilHealthIdImage(patientInfo.philHealthIdImage || null)
 			setPhilHealthIdImageFile(null)
@@ -314,7 +315,7 @@ export function PhilHealthInfoCard({ user, patientInfo, onRefresh }: PhilHealthI
 								{isEditing ? (
 									<div className="flex items-center gap-2">
 										<label htmlFor="philhealth-upload">
-											<Button variant="outline" size="sm" type="button" disabled={uploading} asChild>
+											<Button variant="outline" size="sm" type="button" disabled={uploading}>
 												<span>
 													<IconUpload className="mr-2 h-4 w-4" />
 													{uploading
@@ -336,7 +337,10 @@ export function PhilHealthInfoCard({ user, patientInfo, onRefresh }: PhilHealthI
 											/>
 										</label>
 										{philHealthIdImage && (
-											<Badge variant="outline" className="border-green-500/20 bg-green-500/10 text-green-700">
+											<Badge
+												variant="outline"
+												className="border-green-500/20 bg-green-500/10 text-green-700"
+											>
 												Uploaded
 											</Badge>
 										)}
@@ -346,7 +350,10 @@ export function PhilHealthInfoCard({ user, patientInfo, onRefresh }: PhilHealthI
 										{philHealthIdImage &&
 											typeof philHealthIdImage === "string" &&
 											philHealthIdImage.startsWith("data:") && (
-												<Badge variant="outline" className="border-green-500/20 bg-green-500/10 text-green-700">
+												<Badge
+													variant="outline"
+													className="border-green-500/20 bg-green-500/10 text-green-700"
+												>
 													Uploaded
 												</Badge>
 											)}

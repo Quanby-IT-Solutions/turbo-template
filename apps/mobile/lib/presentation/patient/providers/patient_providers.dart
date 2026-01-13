@@ -3,6 +3,8 @@ import 'package:mobile/data/repositories/patient_repository.dart';
 import 'package:mobile/data/repositories/medical_record_repository.dart';
 import 'package:mobile/data/repositories/prescription_repository.dart';
 import 'package:mobile/data/repositories/consultation_repository.dart';
+import 'package:mobile/data/repositories/lab_request_repository.dart';
+import 'package:mobile/core/services/http_service.dart';
 import 'package:mobile/domain/entities/patient.dart';
 import 'package:mobile/domain/entities/medical_record.dart';
 import 'package:mobile/domain/entities/consultation.dart';
@@ -26,6 +28,11 @@ final prescriptionRepositoryProvider = Provider<PrescriptionRepository>((ref) {
 /// Consultation repository provider
 final consultationRepositoryProvider = Provider<ConsultationRepository>((ref) {
   return ConsultationRepository();
+});
+
+/// Lab request repository provider
+final labRequestRepositoryProvider = Provider<LabRequestRepository>((ref) {
+  return LabRequestRepository();
 });
 
 /// Current patient provider (for logged-in patient)
@@ -176,3 +183,36 @@ class ConsultationListParams {
   @override
   int get hashCode => patientId.hashCode ^ doctorId.hashCode ^ page.hashCode ^ limit.hashCode;
 }
+
+/// Patient vitals history provider
+final patientVitalsHistoryProvider = FutureProvider.family<Map<String, dynamic>, String?>(
+  (ref, patientId) async {
+    if (patientId == null) {
+      return {};
+    }
+    try {
+      final response = await HttpService.getVitalsHistory(
+        patientId: patientId,
+        limit: 100, // Get last 100 records for trends
+      );
+      return response;
+    } catch (e) {
+      return {};
+    }
+  },
+);
+
+/// Patient lab requests provider
+final patientLabRequestsProvider = FutureProvider.family<List<Map<String, dynamic>>, String?>(
+  (ref, patientId) async {
+    if (patientId == null) {
+      return [];
+    }
+    try {
+      final repository = ref.watch(labRequestRepositoryProvider);
+      return await repository.getPatientLabRequests(patientId);
+    } catch (e) {
+      return [];
+    }
+  },
+);

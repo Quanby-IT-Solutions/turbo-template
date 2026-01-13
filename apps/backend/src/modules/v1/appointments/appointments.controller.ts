@@ -67,12 +67,17 @@ export class AppointmentsController {
 
 	// This route must come before @Get(':id') to avoid conflicts
 	@Get("my-appointments")
-	@ZodSerializerDto(AppointmentListResponseDto)
-	@Roles("DOCTOR", "PATIENT")
-	async getMyAppointments(@Request() req: any, @Query() query: any) {
-		const appointments = await this.appointmentsService.getMyAppointments(req.user, query)
-		return { success: true, data: appointments }
-	}
+@Roles("DOCTOR", "PATIENT")
+async getMyAppointments(@Request() req: any, @Query() query: any) {
+  const appointments = await this.appointmentsService.getMyAppointments(req.user, query)
+  
+  const response = { success: true, data: appointments }
+  
+  console.log('🎯 Controller about to return:', JSON.stringify(response, null, 2))
+  console.log('🎯 Items count:', response.data.items.length)
+  
+  return response
+}
 
 	@Get(":id")
 	@ZodSerializerDto(AppointmentResponseDto)

@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query, Request, UseGuards } from "@nestjs/common"
+import { Controller, ForbiddenException, Get, Param, Query, Request, UseGuards } from "@nestjs/common"
 import { AllowAnonymous } from "@thallesp/nestjs-better-auth"
 import { ZodSerializerDto } from "nestjs-zod"
 
@@ -41,6 +41,22 @@ export class AppointmentsController {
 		return { success: true, data: doctors }
 	}
 
+	  @Get("doctor/:doctorId/availability")
+  async getDoctorAvailability(@Param("doctorId") doctorId: string) {
+    return this.appointmentsService.getDoctorAvailability(doctorId)
+  }
+
+	@Get("doctor/:doctorId/available-slots")
+  async getDoctorAvailableTimeSlots(
+    @Param("doctorId") doctorId: string,
+    @Query("date") date: string
+  ) {
+    if (!date) {
+      throw new ForbiddenException("Date parameter is required")
+    }
+    return this.appointmentsService.getDoctorAvailableTimeSlots(doctorId, date)
+  }
+
 	// This route must come before @Get(':id') to avoid conflicts
 	@Get("my-appointments")
 	@ZodSerializerDto(AppointmentListResponseDto)
@@ -57,16 +73,5 @@ export class AppointmentsController {
 		const appointment = await this.appointmentsService.findOne(id)
 		return { success: true, data: appointment }
 	}
-
-@Controller("v1/appointments")
-export class AppointmentsController {
-  constructor(private readonly appointmentsService: AppointmentsService) {}
-
-  @Get("doctor/:doctorId/availability")
-  async getDoctorAvailability(@Param("doctorId") doctorId: string) {
-    return this.appointmentsService.getDoctorAvailability(doctorId)
-  }
-}
-
 
 }

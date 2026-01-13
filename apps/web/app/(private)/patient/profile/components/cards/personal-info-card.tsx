@@ -3,7 +3,6 @@
 import * as React from "react"
 import { IconCheck, IconEdit, IconUpload, IconUser, IconX } from "@tabler/icons-react"
 import { toast } from "sonner"
-
 import { Button } from "@/core/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/core/components/ui/card"
 import { Input } from "@/core/components/ui/input"
@@ -16,8 +15,8 @@ import {
 	SelectValue,
 } from "@/core/components/ui/select"
 import { Textarea } from "@/core/components/ui/textarea"
-import type { User } from "@/services/api/types"
 import { patientsApi } from "@/features/patients/api/patients-api"
+import type { User } from "@/services/api/types"
 import type { PatientInfoType } from "@/features/patients/types/patients-types"
 
 type PersonalInfoCardProps = {
@@ -56,7 +55,9 @@ export function PersonalInfoCard({ user, patientInfo, onRefresh }: PersonalInfoC
 			setLastName(patientInfo.lastName || "")
 			setGender(patientInfo.gender || "")
 			setDateOfBirth(
-				patientInfo.dateOfBirth ? new Date(patientInfo.dateOfBirth).toISOString().split("T")[0] : ""
+				patientInfo.dateOfBirth
+					? new Date(patientInfo.dateOfBirth).toISOString().split("T")[0]
+					: ""
 			)
 			setContactNumber(patientInfo.contactNumber || "")
 			setAddress(patientInfo.address || "")
@@ -68,7 +69,9 @@ export function PersonalInfoCard({ user, patientInfo, onRefresh }: PersonalInfoC
 			setMedications(patientInfo.medications || "")
 		}
 		if (user?.profilePicture) {
-			setProfilePicture(typeof user.profilePicture === "string" ? user.profilePicture : null)
+			setProfilePicture(
+				typeof user.profilePicture === "string" ? user.profilePicture : null
+			)
 		}
 	}, [patientInfo, user])
 
@@ -111,20 +114,38 @@ export function PersonalInfoCard({ user, patientInfo, onRefresh }: PersonalInfoC
 		setSaving(true)
 		try {
 			const updateData: Record<string, unknown> = {}
+			
+			// Only include fields that have values
 			if (firstName.trim()) updateData.firstName = firstName.trim()
 			if (middleName.trim()) updateData.middleName = middleName.trim()
 			if (lastName.trim()) updateData.lastName = lastName.trim()
 			if (gender) updateData.gender = gender
-			if (dateOfBirth) updateData.dateOfBirth = dateOfBirth
+			
+			// Convert date to ISO datetime format
+			if (dateOfBirth) {
+				const date = new Date(dateOfBirth)
+				updateData.dateOfBirth = date.toISOString()
+			}
+			
 			if (contactNumber.trim()) updateData.contactNumber = contactNumber.trim()
 			if (address.trim()) updateData.address = address.trim()
-			if (weight) updateData.weight = parseFloat(weight)
-			if (height) updateData.height = parseFloat(height)
+			
+			// Parse numbers carefully
+			const weightNum = parseFloat(weight)
+			if (!isNaN(weightNum) && weightNum > 0) updateData.weight = weightNum
+			
+			const heightNum = parseFloat(height)
+			if (!isNaN(heightNum) && heightNum > 0) updateData.height = heightNum
+			
 			if (bloodType) updateData.bloodType = bloodType
 			if (medicalHistory.trim()) updateData.medicalHistory = medicalHistory.trim()
 			if (allergies.trim()) updateData.allergies = allergies.trim()
 			if (medications.trim()) updateData.medications = medications.trim()
-			if (profilePicture !== null) updateData.profilePicture = profilePicture || null
+			
+			// Only include profile picture if it was changed
+			if (profilePictureFile) {
+				updateData.profilePicture = profilePicture
+			}
 
 			const response = await patientsApi.updatePatient(user.id, updateData)
 			if (response.success) {
@@ -134,6 +155,7 @@ export function PersonalInfoCard({ user, patientInfo, onRefresh }: PersonalInfoC
 				await onRefresh()
 			} else {
 				toast.error(response.message || "Failed to update profile")
+				console.error("Update failed:", response)
 			}
 		} catch (error) {
 			toast.error("An error occurred while updating profile")
@@ -151,7 +173,9 @@ export function PersonalInfoCard({ user, patientInfo, onRefresh }: PersonalInfoC
 			setLastName(patientInfo.lastName || "")
 			setGender(patientInfo.gender || "")
 			setDateOfBirth(
-				patientInfo.dateOfBirth ? new Date(patientInfo.dateOfBirth).toISOString().split("T")[0] : ""
+				patientInfo.dateOfBirth
+					? new Date(patientInfo.dateOfBirth).toISOString().split("T")[0]
+					: ""
 			)
 			setContactNumber(patientInfo.contactNumber || "")
 			setAddress(patientInfo.address || "")
@@ -161,7 +185,9 @@ export function PersonalInfoCard({ user, patientInfo, onRefresh }: PersonalInfoC
 			setMedicalHistory(patientInfo.medicalHistory || "")
 			setAllergies(patientInfo.allergies || "")
 			setMedications(patientInfo.medications || "")
-			setProfilePicture(typeof user.profilePicture === "string" ? user.profilePicture : null)
+			setProfilePicture(
+				typeof user.profilePicture === "string" ? user.profilePicture : null
+			)
 			setProfilePictureFile(null)
 		}
 	}
@@ -212,7 +238,11 @@ export function PersonalInfoCard({ user, patientInfo, onRefresh }: PersonalInfoC
 						<div className="relative">
 							<div className="bg-muted flex h-24 w-24 items-center justify-center overflow-hidden rounded-full">
 								{profilePicture ? (
-									<img src={profilePicture} alt="Profile" className="h-full w-full object-cover" />
+									<img
+										src={profilePicture}
+										alt="Profile"
+										className="h-full w-full object-cover"
+									/>
 								) : (
 									<IconUser className="text-muted-foreground h-12 w-12" />
 								)}
@@ -242,7 +272,9 @@ export function PersonalInfoCard({ user, patientInfo, onRefresh }: PersonalInfoC
 							<h3 className="mb-1 text-lg font-semibold">{fullName}</h3>
 							<p className="text-muted-foreground text-sm">{user?.email}</p>
 							{isEditing && profilePictureFile && (
-								<p className="text-muted-foreground mt-1 text-xs">{profilePictureFile.name}</p>
+								<p className="text-muted-foreground mt-1 text-xs">
+									{profilePictureFile.name}
+								</p>
 							)}
 						</div>
 					</div>
@@ -439,7 +471,9 @@ export function PersonalInfoCard({ user, patientInfo, onRefresh }: PersonalInfoC
 										rows={3}
 									/>
 								) : (
-									<p className="text-sm whitespace-pre-wrap">{patientInfo?.allergies || "—"}</p>
+									<p className="text-sm whitespace-pre-wrap">
+										{patientInfo?.allergies || "—"}
+									</p>
 								)}
 							</div>
 							<div>
@@ -454,7 +488,9 @@ export function PersonalInfoCard({ user, patientInfo, onRefresh }: PersonalInfoC
 										rows={3}
 									/>
 								) : (
-									<p className="text-sm whitespace-pre-wrap">{patientInfo?.medications || "—"}</p>
+									<p className="text-sm whitespace-pre-wrap">
+										{patientInfo?.medications || "—"}
+									</p>
 								)}
 							</div>
 						</div>

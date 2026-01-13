@@ -1,9 +1,10 @@
-import { Controller, Get, Param, Query, UseGuards } from "@nestjs/common"
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from "@nestjs/common"
 import { AllowAnonymous } from "@thallesp/nestjs-better-auth"
 import { ZodSerializerDto } from "nestjs-zod"
 
 import { DoctorListResponseDto, DoctorQueryDto, DoctorResponseDto } from "@repo/contracts"
 
+import { User } from "@/shared/decorators/user.decorator"
 import { Roles } from "@/shared/decorators/roles.decorator"
 import { BetterAuthGuard } from "@/shared/guards/better-auth.guard"
 import { RolesGuard } from "@/shared/guards/roles.guard"
@@ -27,6 +28,31 @@ export class DoctorsController {
 		}
 	}
 
+	@Post()
+	@ZodSerializerDto(DoctorResponseDto)
+	@Roles("SUPER_ADMIN")
+	async create(@Body() data: any) {
+		const doctor = await this.doctorsService.create(data)
+		return { success: true, data: doctor }
+	}
+
+	// These routes must come before @Get(':id') to avoid conflicts
+	@Post(":id/approve")
+	@ZodSerializerDto(DoctorResponseDto)
+	@Roles("SUPER_ADMIN")
+	async approve(@Param("id") id: string, @User() user: any) {
+		const doctor = await this.doctorsService.approve(id, user?.id)
+		return { success: true, data: doctor }
+	}
+
+	@Post(":id/reject")
+	@ZodSerializerDto(DoctorResponseDto)
+	@Roles("SUPER_ADMIN")
+	async reject(@Param("id") id: string, @Body() body: { reason?: string }, @User() user: any) {
+		const doctor = await this.doctorsService.reject(id, body.reason, user?.id)
+		return { success: true, data: doctor }
+	}
+
 	@Get(":id")
 	@ZodSerializerDto(DoctorResponseDto)
 	@Roles("ADMIN", "SUPER_ADMIN", "DOCTOR", "PATIENT")
@@ -36,5 +62,20 @@ export class DoctorsController {
 			success: true,
 			data: doctor,
 		}
+	}
+
+	@Put(":id")
+	@ZodSerializerDto(DoctorResponseDto)
+	@Roles("SUPER_ADMIN", "ADMIN")
+	async update(@Param("id") id: string, @Body() data: any) {
+		const doctor = await this.doctorsService.update(id, data)
+		return { success: true, data: doctor }
+	}
+
+	@Delete(":id")
+	@Roles("SUPER_ADMIN")
+	async delete(@Param("id") id: string) {
+		await this.doctorsService.delete(id)
+		return { success: true, message: "Doctor deleted successfully" }
 	}
 }

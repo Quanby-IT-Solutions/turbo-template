@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Put, Query, UseGuards } from "@nestjs/common"
+import { Body, Controller, Delete, Get, Param, Put, Query, UseGuards } from "@nestjs/common"
 import { AllowAnonymous } from "@thallesp/nestjs-better-auth"
 import { ZodSerializerDto } from "nestjs-zod"
 
@@ -57,5 +57,12 @@ export class PatientsController {
       data: updatedPatient,
     }
   }
+
+	@Delete(":id")
+	@Roles("SUPER_ADMIN")
+	async delete(@Param("id") id: string) {
+		await this.patientsService.delete(id)
+		return { success: true, message: "Patient deleted successfully" }
+	}
 
 }

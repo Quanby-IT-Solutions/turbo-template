@@ -13,8 +13,6 @@ import type {
   DoctorAvailability,
 } from '@/services/api/types';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000/api';
-
 type AppointmentResponsePayload =
   | AppointmentRequest[]
   | {
@@ -155,53 +153,23 @@ export const appointmentsApi = {
    * Note: This endpoint returns the array directly, not wrapped in success/data
    */
   getDoctorAvailability: async (doctorId: string): Promise<ApiResponse<DoctorAvailability[]>> => {
-    const url = `${API_BASE_URL}/v1/appointments/doctor/${doctorId}/availability`;
-    const sessionToken = typeof window !== 'undefined' ? localStorage.getItem('sessionToken') : null;
-    
-    try {
-      const response = await fetch(url, {
-        method: 'GET',
-        credentials: 'include', // Required for Better Auth session cookies
-        headers: {
-          'Content-Type': 'application/json',
-          ...(sessionToken ? { 'Authorization': `Bearer ${sessionToken}` } : {}),
-        },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        return {
-          success: false,
-          message: errorData.message || 'Failed to fetch doctor availability',
-          error: errorData.error || 'UNKNOWN_ERROR',
-        };
-      }
-
-      const data = await response.json();
-      // Backend returns array directly, not wrapped
-      return {
-        success: true,
-        message: 'Doctor availability fetched successfully',
-        data: Array.isArray(data) ? data : [],
-      };
-    } catch (error) {
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : 'Network error occurred',
-        error: 'NETWORK_ERROR',
-      };
-    }
-  },
+  return apiRequest<DoctorAvailability[]>(`/v1/appointments/doctor/${doctorId}/availability`, {
+    method: 'GET',
+  });
+},
 
   /**
    * Get available time slots for a doctor on a specific date
    * Returns time slots that are available (not already booked)
    */
-  getDoctorAvailableTimeSlots: async (doctorId: string, date: string): Promise<ApiResponse<string[]>> => {
-    return apiRequest<string[]>(`/v1/appointments/doctor/${doctorId}/available-slots?date=${date}`, {
-      method: 'GET',
-    });
-  },
+  getDoctorAvailableTimeSlots: async (
+  doctorId: string,
+  date: string
+): Promise<ApiResponse<string[]>> => {
+  return apiRequest<string[]>(`/v1/appointments/doctor/${doctorId}/available-slots?date=${date}`, {
+    method: 'GET',
+  });
+},
 
   /**
    * Get doctor's weekly availability (doctors only)

@@ -37,12 +37,12 @@ import { Textarea } from "@/core/components/ui/textarea"
 import type { User } from "@/services/api/types"
 import { authApi } from "@/features/auth/api/auth-api"
 import { patientsApi } from "@/features/patients/api/patients-api"
+import { useEffect } from "react"
 
 type UserProfileType = {
 	id: string
 	email: string
-	firstName: string
-	lastName: string
+	name: string
 	profilePicture?: string
 }
 
@@ -101,6 +101,31 @@ export default function ProfilePage() {
 	const [profilePictureFile, setProfilePictureFile] = React.useState<File | null>(null)
 	const [viewImageDialogOpen, setViewImageDialogOpen] = React.useState(false)
 
+	useEffect(() => {
+  if (patientInfo) {
+    setFirstName(patientInfo.firstName || '')
+    setLastName(patientInfo.lastName || '')
+    setMiddleName(patientInfo.middleName || '')
+		setGender(patientInfo.gender || '')
+		setDateOfBirth(patientInfo.dateOfBirth || '')
+		setContactNumber(patientInfo.contactNumber || '')
+		setAddress(patientInfo.address || '')
+		setWeight(patientInfo.weight?.toString() || '')
+		setHeight(patientInfo.height?.toString() || '')
+		setBloodType(patientInfo.bloodType || '')
+		setMedicalHistory(patientInfo.medicalHistory || '')
+		setAllergies(patientInfo.allergies || '')
+		setMedications(patientInfo.medications || '')
+		setPhilHealthId(patientInfo.philHealthId || '')
+		setPhilHealthStatus(patientInfo.philHealthStatus || '')
+		setPhilHealthCategory(patientInfo.philHealthCategory || '')
+		setPhilHealthExpiry(patientInfo.philHealthExpiry || '')
+		setPhilHealthMemberSince(patientInfo.philHealthMemberSince || '')
+		setPhilHealthIdImage(patientInfo.philHealthIdImage || null)
+  }
+}, [patientInfo])
+
+
 	// Fetch user profile
 	React.useEffect(() => {
 		fetchProfile()
@@ -112,9 +137,10 @@ export default function ProfilePage() {
 			const response = await authApi.getProfile()
 			if (response.success && response.data) {
 				setUser(response.data)
-				setProfilePicture(response.data.profilePicture || null)
+				setProfilePicture(
+					typeof response.data.profilePicture === "string" ? response.data.profilePicture : null
+				)
 
-				// Now fetch patient info separately
 				if (response.data.id) {
 					fetchPatientInfo(response.data.id)
 				}
@@ -133,11 +159,9 @@ export default function ProfilePage() {
 		setLoading(true)
 		try {
 			const response = await patientsApi.getPatientById(patientId)
+			console.log("Patient info API response:", response)
 			if (response.success && response.data) {
 				setPatientInfo(response.data.patientInfo ?? null)
-				console.log("Patient info API response:", response)
-				console.log("patientInfo:", patientInfo)
-				// Optionally, also set individual patient form states here
 			} else {
 				toast.error(response.message || "Failed to fetch patient info")
 			}
@@ -388,7 +412,7 @@ export default function ProfilePage() {
 		)
 	}
 
-	const info = user?.patientInfo as PatientInfoType | undefined
+	const info = patientInfo as PatientInfoType | undefined
 
 	const fullName = info
 		? `${info.firstName || ""} ${info.middleName || ""} ${info.lastName || ""}`.trim()

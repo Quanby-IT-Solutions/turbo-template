@@ -4,7 +4,9 @@ import 'package:go_router/go_router.dart';
 import 'package:mobile/core/responsive/responsive_config.dart';
 import 'package:mobile/core/widgets/animated_nav_wrapper.dart';
 import 'package:mobile/presentation/patient/providers/patient_providers.dart';
+import 'package:mobile/presentation/auth/providers/auth_providers.dart';
 import 'package:mobile/domain/entities/patient.dart';
+import 'package:mobile/domain/entities/user.dart' as user_entity;
 
 class PatientProfileScreen extends ConsumerWidget {
   const PatientProfileScreen({super.key});
@@ -12,6 +14,7 @@ class PatientProfileScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final patientAsync = ref.watch(currentPatientProvider);
+    final user = ref.watch(currentUserProvider);
     final colorScheme = Theme.of(context).colorScheme;
 
     return AnimatedNavWrapper(
@@ -20,7 +23,15 @@ class PatientProfileScreen extends ConsumerWidget {
           title: const Text('My Profile'),
           actions: [
             IconButton(
+              icon: const Icon(Icons.edit_rounded),
+              tooltip: 'Edit Profile',
+              onPressed: () {
+                context.push('/patient-profile/edit');
+              },
+            ),
+            IconButton(
               icon: const Icon(Icons.refresh_rounded),
+              tooltip: 'Refresh',
               onPressed: () {
                 ref.invalidate(currentPatientProvider);
               },
@@ -61,13 +72,15 @@ class PatientProfileScreen extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildProfileCard(context, patient, colorScheme),
+                        _buildProfileCard(context, patient, user, colorScheme),
                         const SizedBox(height: 24),
                         _buildPersonalInfoSection(context, patient, colorScheme),
                         const SizedBox(height: 24),
+                        _buildPhilHealthInfoSection(context, patient, colorScheme),
+                        const SizedBox(height: 24),
                         _buildMedicalInfoSection(context, patient, colorScheme),
                         const SizedBox(height: 24),
-                        _buildContactInfoSection(context, patient, colorScheme),
+                        _buildSystemInfoSection(context, patient, colorScheme),
                         const SizedBox(height: 100),
                       ],
                     ),
@@ -113,9 +126,12 @@ class PatientProfileScreen extends ConsumerWidget {
   Widget _buildProfileCard(
     BuildContext context,
     Patient patient,
+    user_entity.User? user,
     ColorScheme colorScheme,
   ) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final profileImageUrl = user?.profileImageUrl;
+    final hasProfileImage = profileImageUrl != null && profileImageUrl.isNotEmpty;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -144,20 +160,25 @@ class PatientProfileScreen extends ConsumerWidget {
           CircleAvatar(
             radius: 40,
             backgroundColor: colorScheme.primary,
-            child: Text(
-              patient.displayName
-                  .split(' ')
-                  .where((part) => part.isNotEmpty)
-                  .map((part) => part[0])
-                  .take(2)
-                  .join()
-                  .toUpperCase(),
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 24,
-              ),
-            ),
+            backgroundImage: profileImageUrl != null && profileImageUrl.isNotEmpty
+                ? NetworkImage(profileImageUrl)
+                : null,
+            child: hasProfileImage
+                ? null
+                : Text(
+                    patient.displayName
+                        .split(' ')
+                        .where((part) => part.isNotEmpty)
+                        .map((part) => part[0])
+                        .take(2)
+                        .join()
+                        .toUpperCase(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 24,
+                    ),
+                  ),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -176,7 +197,7 @@ class PatientProfileScreen extends ConsumerWidget {
                 Text(
                   patient.email,
                   style: TextStyle(
-                    color: colorScheme.onSurface.withOpacity(0.7),
+                    color: colorScheme.onSurface.withValues(alpha: 0.7),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -184,7 +205,7 @@ class PatientProfileScreen extends ConsumerWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     color: _getStatusColor(patient.verificationStatus)
-                        .withOpacity(0.12),
+                        .withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
@@ -219,12 +240,30 @@ class PatientProfileScreen extends ConsumerWidget {
       icon: Icons.person_outline_rounded,
       colorScheme: colorScheme,
       children: [
-        _buildInfoRow(context, 'Full Name', patient.displayName),
-        _buildInfoRow(context, 'Age', '${patient.age} years'),
+        _buildInfoRow(
+          context,
+          'First Name',
+          patient.firstName.isNotEmpty ? patient.firstName : 'Not provided',
+        ),
+        if (patient.middleName != null && patient.middleName!.isNotEmpty)
+          _buildInfoRow(context, 'Middle Name', patient.middleName!),
+        _buildInfoRow(
+          context,
+          'Last Name',
+          patient.lastName.isNotEmpty ? patient.lastName : 'Not provided',
+        ),
+        _buildInfoRow(context, 'Email', patient.email),
+        _buildInfoRow(
+          context,
+          'Phone',
+          patient.contactNumber.isNotEmpty
+              ? patient.contactNumber
+              : 'Not provided',
+        ),
         _buildInfoRow(
           context,
           'Date of Birth',
-          _formatDate(patient.dateOfBirth),
+          '${_formatDate(patient.dateOfBirth)} (${patient.age} years old)',
         ),
         _buildInfoRow(
           context,
@@ -235,8 +274,38 @@ class PatientProfileScreen extends ConsumerWidget {
                   ? 'Female'
                   : 'Other',
         ),
-        if (patient.philHealthId != null && patient.philHealthId!.isNotEmpty)
-          _buildInfoRow(context, 'PhilHealth ID', patient.philHealthId!),
+        _buildInfoRow(
+          context,
+          'Address',
+          patient.address.isNotEmpty ? patient.address : 'Not provided',
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPhilHealthInfoSection(
+    BuildContext context,
+    Patient patient,
+    ColorScheme colorScheme,
+  ) {
+    return _buildSection(
+      context: context,
+      title: 'PhilHealth Information',
+      icon: Icons.credit_card_outlined,
+      colorScheme: colorScheme,
+      children: [
+        _buildInfoRow(
+          context,
+          'PhilHealth ID',
+          patient.philHealthId != null && patient.philHealthId!.isNotEmpty
+              ? patient.philHealthId!
+              : 'Not provided',
+        ),
+        _buildInfoRow(context, 'Status', 'Not provided'),
+        _buildInfoRow(context, 'Category', 'Not provided'),
+        _buildInfoRow(context, 'Member Since', 'Not provided'),
+        _buildInfoRow(context, 'Expiry Date', 'Not provided'),
+        _buildInfoRow(context, 'Document', 'Not provided'),
       ],
     );
   }
@@ -283,29 +352,33 @@ class PatientProfileScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildContactInfoSection(
+  Widget _buildSystemInfoSection(
     BuildContext context,
     Patient patient,
     ColorScheme colorScheme,
   ) {
     return _buildSection(
       context: context,
-      title: 'Contact Information',
-      icon: Icons.contact_phone_outlined,
+      title: 'System Information',
+      icon: Icons.info_outline_rounded,
       colorScheme: colorScheme,
       children: [
-        _buildInfoRow(context, 'Email', patient.email),
+        _buildInfoRow(context, 'Account Status', 'ACTIVE'),
         _buildInfoRow(
           context,
-          'Phone',
-          patient.contactNumber.isNotEmpty
-              ? patient.contactNumber
-              : 'Not provided',
+          'Verification Status',
+          patient.verificationStatus == 'VERIFIED'
+              ? 'Verified'
+              : patient.verificationStatus == 'PENDING'
+                  ? 'Pending'
+                  : patient.verificationStatus == 'REJECTED'
+                      ? 'Rejected'
+                      : 'Not Verified',
         ),
         _buildInfoRow(
           context,
-          'Address',
-          patient.address.isNotEmpty ? patient.address : 'Not provided',
+          'Account Created',
+          _formatDate(patient.createdAt),
         ),
       ],
     );
@@ -366,7 +439,7 @@ class PatientProfileScreen extends ConsumerWidget {
             child: Text(
               label,
               style: TextStyle(
-                color: colorScheme.onSurface.withOpacity(0.7),
+                color: colorScheme.onSurface.withValues(alpha: 0.7),
                 fontWeight: FontWeight.w500,
               ),
             ),

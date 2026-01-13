@@ -40,7 +40,7 @@ class PrescriptionRepository {
   Future<Prescription> getPrescription(String id) async {
     try {
       final response = await HttpService.getPrescription(id);
-      return Prescription.fromMap(response as Map<String, dynamic>);
+      return Prescription.fromMap(response);
     } catch (e) {
       throw Exception('Failed to get prescription: ${e.toString()}');
     }

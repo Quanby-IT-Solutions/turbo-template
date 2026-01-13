@@ -38,7 +38,7 @@ class ConsultationRepository {
   Future<Consultation> getConsultation(String id) async {
     try {
       final response = await HttpService.getConsultation(id);
-      return Consultation.fromMap(response as Map<String, dynamic>);
+      return Consultation.fromMap(response);
     } catch (e) {
       throw Exception('Failed to get consultation: ${e.toString()}');
     }
@@ -62,7 +62,7 @@ class ConsultationRepository {
         followUpDate: followUpDate?.toIso8601String(),
         status: status,
       );
-      return Consultation.fromMap(response as Map<String, dynamic>);
+      return Consultation.fromMap(response);
     } catch (e) {
       throw Exception('Failed to update consultation: ${e.toString()}');
     }

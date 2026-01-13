@@ -12,9 +12,7 @@ import 'package:mobile/core/widgets/profile_menu_button.dart';
 import 'package:mobile/core/widgets/theme_toggle_button.dart';
 import 'package:mobile/presentation/auth/providers/auth_providers.dart'
     as auth_providers;
-import 'package:mobile/presentation/doctor/providers/doctor_providers.dart';
 import 'package:mobile/presentation/scheduling/providers/appointment_providers.dart';
-import 'package:mobile/domain/entities/appointment.dart';
 
 class DoctorHomeScreen extends ConsumerWidget {
   const DoctorHomeScreen({super.key});

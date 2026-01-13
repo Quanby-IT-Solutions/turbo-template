@@ -8,7 +8,7 @@ class PatientRepository {
   Future<Patient> getPatient(String id) async {
     try {
       final response = await HttpService.getPatient(id);
-      return Patient.fromMap(response as Map<String, dynamic>);
+      return Patient.fromMap(response);
     } catch (e) {
       throw Exception('Failed to get patient: ${e.toString()}');
     }
@@ -35,6 +35,19 @@ class PatientRepository {
           .toList();
     } catch (e) {
       throw Exception('Failed to get patients: ${e.toString()}');
+    }
+  }
+
+  /// Update patient information
+  Future<Patient> updatePatient(
+    String id,
+    Map<String, dynamic> data,
+  ) async {
+    try {
+      final response = await HttpService.updatePatient(id, data);
+      return Patient.fromMap(response);
+    } catch (e) {
+      throw Exception('Failed to update patient: ${e.toString()}');
     }
   }
 }

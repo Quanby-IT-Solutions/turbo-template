@@ -14,7 +14,7 @@ class MedicalRecordRepository {
         recordType: recordType,
       );
       return records
-          .map((json) => MedicalRecord.fromMap(json as Map<String, dynamic>))
+          .map((json) => MedicalRecord.fromMap(json))
           .toList();
     } catch (e) {
       throw Exception('Failed to get medical records: ${e.toString()}');
@@ -25,7 +25,7 @@ class MedicalRecordRepository {
   Future<MedicalRecord> getMedicalRecord(String id) async {
     try {
       final response = await HttpService.getMedicalRecord(id);
-      return MedicalRecord.fromMap(response as Map<String, dynamic>);
+      return MedicalRecord.fromMap(response);
     } catch (e) {
       throw Exception('Failed to get medical record: ${e.toString()}');
     }

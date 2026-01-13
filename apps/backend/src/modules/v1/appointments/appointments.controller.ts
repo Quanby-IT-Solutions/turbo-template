@@ -57,4 +57,16 @@ export class AppointmentsController {
 		const appointment = await this.appointmentsService.findOne(id)
 		return { success: true, data: appointment }
 	}
+
+@Controller("v1/appointments")
+export class AppointmentsController {
+  constructor(private readonly appointmentsService: AppointmentsService) {}
+
+  @Get("doctor/:doctorId/availability")
+  async getDoctorAvailability(@Param("doctorId") doctorId: string) {
+    return this.appointmentsService.getDoctorAvailability(doctorId)
+  }
+}
+
+
 }

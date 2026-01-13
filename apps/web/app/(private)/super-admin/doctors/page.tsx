@@ -107,6 +107,39 @@ export default function DoctorsPage() {
   const [isAssignOrgDialogOpen, setIsAssignOrgDialogOpen] = React.useState(false)
   const [organizations, setOrganizations] = React.useState<Organization[]>([])
   const [loadingOrgs, setLoadingOrgs] = React.useState(false)
+  const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false)
+  const [editingDoctor, setEditingDoctor] = React.useState<Doctor | null>(null)
+  const [saving, setSaving] = React.useState(false)
+  const [deletingId, setDeletingId] = React.useState<string | null>(null)
+  const [deletingDoctor, setDeletingDoctor] = React.useState<Doctor | null>(null)
+  const [processing, setProcessing] = React.useState(false)
+  const [isAddDoctorDialogOpen, setIsAddDoctorDialogOpen] = React.useState(false)
+  const [creating, setCreating] = React.useState(false)
+  
+  // Add doctor form state
+  const [newDoctorEmail, setNewDoctorEmail] = React.useState("")
+  const [newDoctorPassword, setNewDoctorPassword] = React.useState("")
+  const [newDoctorFirstName, setNewDoctorFirstName] = React.useState("")
+  const [newDoctorMiddleName, setNewDoctorMiddleName] = React.useState("")
+  const [newDoctorLastName, setNewDoctorLastName] = React.useState("")
+  const [newDoctorGender, setNewDoctorGender] = React.useState("")
+  const [newDoctorDateOfBirth, setNewDoctorDateOfBirth] = React.useState("")
+  const [newDoctorContactNumber, setNewDoctorContactNumber] = React.useState("")
+  const [newDoctorAddress, setNewDoctorAddress] = React.useState("")
+  const [newDoctorBio, setNewDoctorBio] = React.useState("")
+  const [newDoctorSpecialization, setNewDoctorSpecialization] = React.useState("")
+  const [newDoctorQualifications, setNewDoctorQualifications] = React.useState("")
+  const [newDoctorExperience, setNewDoctorExperience] = React.useState("")
+  const [newDoctorOrganizationId, setNewDoctorOrganizationId] = React.useState<string | null>(null)
+  
+  // Edit form state
+  const [editFirstName, setEditFirstName] = React.useState("")
+  const [editMiddleName, setEditMiddleName] = React.useState("")
+  const [editLastName, setEditLastName] = React.useState("")
+  const [editSpecialization, setEditSpecialization] = React.useState("")
+  const [editQualifications, setEditQualifications] = React.useState("")
+  const [editExperience, setEditExperience] = React.useState("")
+  const [editContactNumber, setEditContactNumber] = React.useState("")
 
   const fetchDoctors = React.useCallback(async () => {
     setLoading(true)
@@ -202,6 +235,28 @@ export default function DoctorsPage() {
     }
   }
 
+  const handleDelete = async () => {
+    if (!deletingId) return
+    
+    setProcessing(true)
+    try {
+      const response = await doctorsApi.deleteDoctor(deletingId)
+      if (response.success) {
+        toast.success("Doctor deleted successfully")
+        setDeletingId(null)
+        setDeletingDoctor(null)
+        await fetchDoctors()
+      } else {
+        toast.error(response.message || "Failed to delete doctor")
+      }
+    } catch (error) {
+      toast.error("Failed to delete doctor")
+      console.error(error)
+    } finally {
+      setProcessing(false)
+    }
+  }
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'APPROVED':
@@ -254,7 +309,21 @@ export default function DoctorsPage() {
                       Manage all doctors in the QHealth system
                     </p>
                   </div>
-                  <Button>
+                  <Button onClick={async () => {
+                    setIsAddDoctorDialogOpen(true)
+                    // Load organizations for assignment
+                    setLoadingOrgs(true)
+                    try {
+                      const response = await organizationsApi.getOrganizations()
+                      if (response.success && response.data) {
+                        setOrganizations(response.data)
+                      }
+                    } catch {
+                      toast.error("Failed to load organizations")
+                    } finally {
+                      setLoadingOrgs(false)
+                    }
+                  }}>
                     <IconPlus className="h-4 w-4 mr-2" />
                     Add New Doctor
                   </Button>
@@ -299,9 +368,9 @@ export default function DoctorsPage() {
                         <Label htmlFor="status" className="mb-2 block text-sm font-medium">
                           Approval Status
                         </Label>
-                        <Select value={statusFilter} onValueChange={setStatusFilter}>
+                        <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value || "all")}>
                           <SelectTrigger id="status">
-                            <SelectValue placeholder="All Statuses" />
+                            <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="all">All Statuses</SelectItem>
@@ -410,7 +479,7 @@ export default function DoctorsPage() {
                                 <TableCell>
                                   <div className="flex items-center justify-end">
                                     <DropdownMenu>
-                                      <DropdownMenuTrigger asChild>
+                                      <DropdownMenuTrigger {...({ asChild: true } as any)}>
                                         <Button
                                           variant="ghost"
                                           size="icon"
@@ -529,8 +598,15 @@ export default function DoctorsPage() {
                                         </DropdownMenuItem>
                                         <DropdownMenuItem
                                           onClick={() => {
-                                            // TODO: Implement edit doctor functionality
-                                            toast.info("Edit doctor functionality coming soon")
+                                            setEditingDoctor(doctor)
+                                            setEditFirstName(doctor.doctorInfo.firstName)
+                                            setEditMiddleName(doctor.doctorInfo.middleName || "")
+                                            setEditLastName(doctor.doctorInfo.lastName)
+                                            setEditSpecialization(doctor.doctorInfo.specialization)
+                                            setEditQualifications(doctor.doctorInfo.qualifications)
+                                            setEditExperience(doctor.doctorInfo.experience.toString())
+                                            setEditContactNumber(doctor.doctorInfo.contactNumber)
+                                            setIsEditDialogOpen(true)
                                           }}
                                         >
                                           <IconEdit className="h-4 w-4 mr-2" />
@@ -539,8 +615,8 @@ export default function DoctorsPage() {
                                         <DropdownMenuSeparator />
                                         <DropdownMenuItem
                                           onClick={() => {
-                                            // TODO: Implement delete doctor functionality
-                                            toast.info("Delete doctor functionality coming soon")
+                                            setDeletingDoctor(doctor)
+                                            setDeletingId(doctor.id)
                                           }}
                                           className="text-destructive focus:text-destructive"
                                         >
@@ -611,8 +687,10 @@ export default function DoctorsPage() {
                       <Select
                         value={itemsPerPage.toString()}
                         onValueChange={(value) => {
-                          setItemsPerPage(parseInt(value))
-                          setCurrentPage(1)
+                          if (value) {
+                            setItemsPerPage(parseInt(value))
+                            setCurrentPage(1)
+                          }
                         }}
                         disabled={loading}
                       >
@@ -937,6 +1015,494 @@ export default function DoctorsPage() {
                 Download
               </Button>
             )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Doctor Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={(open) => {
+        setIsEditDialogOpen(open)
+        if (!open) {
+          setEditingDoctor(null)
+          setEditFirstName("")
+          setEditMiddleName("")
+          setEditLastName("")
+          setEditSpecialization("")
+          setEditQualifications("")
+          setEditExperience("")
+          setEditContactNumber("")
+        }
+      }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Doctor Information</DialogTitle>
+            <DialogDescription>
+              Update the doctor&apos;s information. Changes will be saved to the database.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="edit-firstname">First Name *</Label>
+                <Input
+                  id="edit-firstname"
+                  value={editFirstName}
+                  onChange={(e) => setEditFirstName(e.target.value)}
+                  placeholder="First Name"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-middlename">Middle Name</Label>
+                <Input
+                  id="edit-middlename"
+                  value={editMiddleName}
+                  onChange={(e) => setEditMiddleName(e.target.value)}
+                  placeholder="Middle Name"
+                />
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="edit-lastname">Last Name *</Label>
+              <Input
+                id="edit-lastname"
+                value={editLastName}
+                onChange={(e) => setEditLastName(e.target.value)}
+                placeholder="Last Name"
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-specialization">Specialization *</Label>
+              <Input
+                id="edit-specialization"
+                value={editSpecialization}
+                onChange={(e) => setEditSpecialization(e.target.value)}
+                placeholder="Specialization"
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-qualifications">Qualifications *</Label>
+              <Textarea
+                id="edit-qualifications"
+                value={editQualifications}
+                onChange={(e) => setEditQualifications(e.target.value)}
+                placeholder="Qualifications"
+                rows={3}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="edit-experience">Experience (years) *</Label>
+                <Input
+                  id="edit-experience"
+                  type="number"
+                  value={editExperience}
+                  onChange={(e) => setEditExperience(e.target.value)}
+                  placeholder="Years of experience"
+                  min="0"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-contact">Contact Number *</Label>
+                <Input
+                  id="edit-contact"
+                  value={editContactNumber}
+                  onChange={(e) => setEditContactNumber(e.target.value)}
+                  placeholder="Contact Number"
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsEditDialogOpen(false)
+                setEditingDoctor(null)
+              }}
+              disabled={saving}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!editingDoctor) return
+                
+                // Validation
+                if (!editFirstName.trim() || !editLastName.trim() || !editSpecialization.trim() || 
+                    !editQualifications.trim() || !editExperience || !editContactNumber.trim()) {
+                  toast.error("Please fill in all required fields")
+                  return
+                }
+
+                const experienceNum = parseInt(editExperience)
+                if (isNaN(experienceNum) || experienceNum < 0) {
+                  toast.error("Experience must be a valid number")
+                  return
+                }
+
+                setSaving(true)
+                try {
+                  const response = await doctorsApi.updateDoctor(editingDoctor.id, {
+                    firstName: editFirstName.trim(),
+                    middleName: editMiddleName.trim() || undefined,
+                    lastName: editLastName.trim(),
+                    specialization: editSpecialization.trim(),
+                    qualifications: editQualifications.trim(),
+                    experience: experienceNum,
+                    contactNumber: editContactNumber.trim(),
+                  })
+                  
+                  if (response.success) {
+                    toast.success("Doctor information updated successfully")
+                    setIsEditDialogOpen(false)
+                    setEditingDoctor(null)
+                    await fetchDoctors()
+                  } else {
+                    toast.error(response.message || "Failed to update doctor")
+                  }
+                } catch (error) {
+                  toast.error("Failed to update doctor")
+                  console.error(error)
+                } finally {
+                  setSaving(false)
+                }
+              }}
+              disabled={saving}
+            >
+              {saving ? "Saving..." : "Save Changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Doctor Dialog */}
+      <Dialog open={isAddDoctorDialogOpen} onOpenChange={(open) => {
+        setIsAddDoctorDialogOpen(open)
+        if (!open) {
+          // Reset form
+          setNewDoctorEmail("")
+          setNewDoctorPassword("")
+          setNewDoctorFirstName("")
+          setNewDoctorMiddleName("")
+          setNewDoctorLastName("")
+          setNewDoctorGender("")
+          setNewDoctorDateOfBirth("")
+          setNewDoctorContactNumber("")
+          setNewDoctorAddress("")
+          setNewDoctorBio("")
+          setNewDoctorSpecialization("")
+          setNewDoctorQualifications("")
+          setNewDoctorExperience("")
+          setNewDoctorOrganizationId(null)
+        }
+      }}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
+          <DialogHeader>
+            <DialogTitle>Add New Doctor</DialogTitle>
+            <DialogDescription>
+              Create a new doctor account. The doctor will need to verify their email and complete their profile.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            {/* Account Information */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Account Information</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="new-doctor-email">Email *</Label>
+                  <Input
+                    id="new-doctor-email"
+                    type="email"
+                    value={newDoctorEmail}
+                    onChange={(e) => setNewDoctorEmail(e.target.value)}
+                    placeholder="doctor@example.com"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="new-doctor-password">Password *</Label>
+                  <Input
+                    id="new-doctor-password"
+                    type="password"
+                    value={newDoctorPassword}
+                    onChange={(e) => setNewDoctorPassword(e.target.value)}
+                    placeholder="Password (min 8 characters)"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Personal Information */}
+            <div className="space-y-4 border-t pt-4">
+              <h3 className="text-lg font-semibold">Personal Information</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="new-doctor-firstname">First Name *</Label>
+                  <Input
+                    id="new-doctor-firstname"
+                    value={newDoctorFirstName}
+                    onChange={(e) => setNewDoctorFirstName(e.target.value)}
+                    placeholder="First Name"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="new-doctor-middlename">Middle Name</Label>
+                  <Input
+                    id="new-doctor-middlename"
+                    value={newDoctorMiddleName}
+                    onChange={(e) => setNewDoctorMiddleName(e.target.value)}
+                    placeholder="Middle Name"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="new-doctor-lastname">Last Name *</Label>
+                  <Input
+                    id="new-doctor-lastname"
+                    value={newDoctorLastName}
+                    onChange={(e) => setNewDoctorLastName(e.target.value)}
+                    placeholder="Last Name"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="new-doctor-gender">Gender</Label>
+                  <Select value={newDoctorGender} onValueChange={(value) => setNewDoctorGender(value || "")}>
+                    <SelectTrigger id="new-doctor-gender">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="MALE">Male</SelectItem>
+                      <SelectItem value="FEMALE">Female</SelectItem>
+                      <SelectItem value="OTHER">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="new-doctor-dob">Date of Birth</Label>
+                  <Input
+                    id="new-doctor-dob"
+                    type="date"
+                    value={newDoctorDateOfBirth}
+                    onChange={(e) => setNewDoctorDateOfBirth(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="new-doctor-contact">Contact Number *</Label>
+                  <Input
+                    id="new-doctor-contact"
+                    value={newDoctorContactNumber}
+                    onChange={(e) => setNewDoctorContactNumber(e.target.value)}
+                    placeholder="Contact Number"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="new-doctor-address">Address</Label>
+                  <Textarea
+                    id="new-doctor-address"
+                    value={newDoctorAddress}
+                    onChange={(e) => setNewDoctorAddress(e.target.value)}
+                    placeholder="Address"
+                    rows={2}
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="new-doctor-bio">Bio</Label>
+                  <Textarea
+                    id="new-doctor-bio"
+                    value={newDoctorBio}
+                    onChange={(e) => setNewDoctorBio(e.target.value)}
+                    placeholder="Doctor bio"
+                    rows={3}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Professional Information */}
+            <div className="space-y-4 border-t pt-4">
+              <h3 className="text-lg font-semibold">Professional Information</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="new-doctor-specialization">Specialization *</Label>
+                  <Input
+                    id="new-doctor-specialization"
+                    value={newDoctorSpecialization}
+                    onChange={(e) => setNewDoctorSpecialization(e.target.value)}
+                    placeholder="Specialization"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="new-doctor-experience">Experience (years) *</Label>
+                    <Input
+                      id="new-doctor-experience"
+                      type="number"
+                      value={newDoctorExperience}
+                      onChange={(e) => setNewDoctorExperience(e.target.value)}
+                      placeholder="Years of experience"
+                      min="0"
+                    />
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="new-doctor-qualifications">Qualifications *</Label>
+                  <Textarea
+                    id="new-doctor-qualifications"
+                    value={newDoctorQualifications}
+                    onChange={(e) => setNewDoctorQualifications(e.target.value)}
+                    placeholder="Qualifications"
+                    rows={3}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Organization Assignment */}
+            <div className="space-y-4 border-t pt-4">
+              <h3 className="text-lg font-semibold">Organization Assignment (Optional)</h3>
+              <div>
+                <Label htmlFor="new-doctor-organization">Assign to Organization</Label>
+                <Select 
+                  value={newDoctorOrganizationId || ""} 
+                  onValueChange={(value) => setNewDoctorOrganizationId(value || null)}
+                >
+                  <SelectTrigger id="new-doctor-organization">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">None (Unassigned)</SelectItem>
+                    {organizations.map((org) => (
+                      <SelectItem key={org.id} value={org.id}>
+                        {org.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsAddDoctorDialogOpen(false)
+              }}
+              disabled={creating}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={async () => {
+                // Validation
+                if (!newDoctorEmail.trim() || !newDoctorPassword.trim() || 
+                    !newDoctorFirstName.trim() || !newDoctorLastName.trim() ||
+                    !newDoctorContactNumber.trim() || !newDoctorSpecialization.trim() ||
+                    !newDoctorQualifications.trim() || !newDoctorExperience) {
+                  toast.error("Please fill in all required fields")
+                  return
+                }
+
+                if (newDoctorPassword.length < 8) {
+                  toast.error("Password must be at least 8 characters long")
+                  return
+                }
+
+                const experienceNum = parseInt(newDoctorExperience)
+                if (isNaN(experienceNum) || experienceNum < 0) {
+                  toast.error("Experience must be a valid number")
+                  return
+                }
+
+                setCreating(true)
+                try {
+                  const response = await doctorsApi.createDoctor({
+                    email: newDoctorEmail.trim(),
+                    password: newDoctorPassword,
+                    firstName: newDoctorFirstName.trim(),
+                    middleName: newDoctorMiddleName.trim() || undefined,
+                    lastName: newDoctorLastName.trim(),
+                    gender: newDoctorGender || undefined,
+                    dateOfBirth: newDoctorDateOfBirth || undefined,
+                    contactNumber: newDoctorContactNumber.trim(),
+                    address: newDoctorAddress.trim() || undefined,
+                    bio: newDoctorBio.trim() || undefined,
+                    specialization: newDoctorSpecialization.trim(),
+                    qualifications: newDoctorQualifications.trim(),
+                    experience: experienceNum,
+                    organizationId: newDoctorOrganizationId || null,
+                  })
+                  
+                  if (response.success) {
+                    toast.success("Doctor created successfully")
+                    setIsAddDoctorDialogOpen(false)
+                    // Reset form
+                    setNewDoctorEmail("")
+                    setNewDoctorPassword("")
+                    setNewDoctorFirstName("")
+                    setNewDoctorMiddleName("")
+                    setNewDoctorLastName("")
+                    setNewDoctorGender("")
+                    setNewDoctorDateOfBirth("")
+                    setNewDoctorContactNumber("")
+                    setNewDoctorAddress("")
+                    setNewDoctorBio("")
+                    setNewDoctorSpecialization("")
+                    setNewDoctorQualifications("")
+                    setNewDoctorExperience("")
+                    setNewDoctorOrganizationId(null)
+                    await fetchDoctors()
+                  } else {
+                    toast.error(response.message || "Failed to create doctor")
+                  }
+                } catch (error: any) {
+                  toast.error(error.message || "Failed to create doctor")
+                  console.error(error)
+                } finally {
+                  setCreating(false)
+                }
+              }}
+              disabled={creating}
+            >
+              {creating ? "Creating..." : "Create Doctor"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!deletingId} onOpenChange={(open) => !open && setDeletingId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Doctor</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this doctor? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          {deletingDoctor && (
+            <div className="mt-2 mb-4">
+              <p className="font-medium">
+                {deletingDoctor.doctorInfo.firstName} {deletingDoctor.doctorInfo.middleName || ""} {deletingDoctor.doctorInfo.lastName}
+              </p>
+              <p className="text-sm text-muted-foreground">{deletingDoctor.email}</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Specialization: {deletingDoctor.doctorInfo.specialization}
+              </p>
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDeletingId(null)
+                setDeletingDoctor(null)
+              }}
+              disabled={processing}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={processing}
+            >
+              {processing ? 'Deleting...' : 'Delete Doctor'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

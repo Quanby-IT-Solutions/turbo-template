@@ -25,8 +25,7 @@ import { Input } from "@/core/components/ui/input"
 import { Label } from "@/core/components/ui/label"
 import type { User } from "@/services/api/types"
 import { patientsApi } from "@/features/patients/api/patients-api"
-
-import type { PatientInfoType } from "../types"
+import type { PatientInfoType } from "@/features/patients/types/patients-types"
 
 type PhilHealthInfoCardProps = {
 	user: User | null

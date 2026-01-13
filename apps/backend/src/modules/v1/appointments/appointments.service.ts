@@ -9,6 +9,7 @@ import { DB, type DBType } from "@/common/database/database-providers"
 export class AppointmentsService {
 	constructor(@Inject(DB) private readonly db: DBType) {}
 
+	
 	async findAll(query: any) {
 		return this.db.select().from(appointmentRequests).limit(query.limit || 10).offset(query.offset || 0)
 	}
@@ -512,4 +513,29 @@ async getDoctorAvailableTimeSlots(doctorId: string, date: string) {
 
   return availableSlots
 }
+
+
+// appointments.service.ts
+async create(data: any, user: any) {
+    const userId = user?.userId || user?.id;
+    
+    if (!data.doctorId) {
+        throw new ForbiddenException("Doctor ID is required");
+    }
+
+    return await this.db
+        .insert(appointmentRequests)
+        .values({
+            patientId: userId,
+            doctorId: data.doctorId,
+            requestedDate: new Date(data.requestedDate),
+            requestedTime: data.requestedTime,
+            reason: data.reason,
+            status: "PENDING",
+            priority: data.priority || "MEDIUM",
+            notes: data.notes,
+        })
+        .returning();
+}
+
 }

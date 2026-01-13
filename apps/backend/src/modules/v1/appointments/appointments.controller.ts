@@ -1,4 +1,4 @@
-import { Controller, ForbiddenException, Get, Param, Query, Request, UseGuards } from "@nestjs/common"
+import { Controller, Get, Post, Body, Param, Query, Request, UseGuards, ForbiddenException } from "@nestjs/common"
 import { AllowAnonymous } from "@thallesp/nestjs-better-auth"
 import { ZodSerializerDto } from "nestjs-zod"
 
@@ -15,7 +15,15 @@ import { AppointmentsService } from "./appointments.service"
 @UseGuards(BetterAuthGuard, RolesGuard)
 export class AppointmentsController {
 	constructor(private readonly appointmentsService: AppointmentsService) {}
+	
+	@Post("request")
+    @Roles("PATIENT", "ADMIN", "SUPER_ADMIN")
+    async create(@Request() req: any, @Body() createDto: any) {
+        const appointment = await this.appointmentsService.create(createDto, req.user);
+        return { success: true, data: appointment };
+    }
 
+	
 	@Get()
 	@ZodSerializerDto(AppointmentListResponseDto)
 	@Roles("DOCTOR", "PATIENT", "ADMIN", "SUPER_ADMIN")

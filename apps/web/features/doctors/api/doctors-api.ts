@@ -88,17 +88,30 @@ export const doctorsApi = {
     password: string;
     organizationId?: string | null;
     firstName: string;
+    middleName?: string;
     lastName: string;
+    gender?: string;
+    dateOfBirth?: string;
+    contactNumber: string;
+    address?: string;
+    bio?: string;
     specialization: string;
     qualifications: string;
     experience: number;
-    contactNumber?: string;
-    address?: string;
-    bio?: string;
+    subscriptionTier?: string;
   }): Promise<ApiResponse<Doctor>> => {
     return apiRequest<Doctor>(`/v1/doctors`, {
       method: 'POST',
       body: JSON.stringify(data),
+    });
+  },
+
+  /**
+   * Delete doctor
+   */
+  deleteDoctor: async (id: string): Promise<ApiResponse> => {
+    return apiRequest(`/v1/doctors/${id}`, {
+      method: 'DELETE',
     });
   },
 };

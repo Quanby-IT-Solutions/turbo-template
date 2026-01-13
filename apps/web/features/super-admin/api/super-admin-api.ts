@@ -15,12 +15,33 @@ export interface PatientListItem {
     firstName: string;
     middleName?: string | null;
     lastName: string;
+    gender?: string;
+    dateOfBirth?: string;
+    contactNumber?: string;
+    address?: string;
+    weight?: number;
+    height?: number;
+    bloodType?: string;
+    medicalHistory?: string;
+    allergies?: string;
+    medications?: string;
+    philHealthId?: string | null;
+    philHealthStatus?: string;
+    philHealthCategory?: string;
+    philHealthExpiry?: string;
+    philHealthMemberSince?: string;
+    philHealthIdImage?: string | null;
+    philHealthIdVerified: boolean;
+    philHealthIdVerifiedAt?: string | null;
     verificationStatus: 'NOT_VERIFIED' | 'PENDING' | 'VERIFIED' | 'REJECTED';
     verificationStatusUpdatedAt?: string | null;
     verificationRejectionReason?: string | null;
-    philHealthId?: string | null;
-    philHealthIdImage?: string | null;
-    philHealthIdVerified: boolean;
+    subscriptionTier?: string;
+    maxFaceScans?: number;
+    currentFaceScans?: number;
+    subscriptionStartDate?: string;
+    subscriptionEndDate?: string;
+    isSubscriptionActive?: boolean;
   };
 }
 

@@ -116,4 +116,13 @@ export const patientsApi = {
       body: JSON.stringify(data),
     });
   },
+
+  /**
+   * Delete patient
+   */
+  deletePatient: async (patientId: string): Promise<ApiResponse> => {
+    return apiRequest(`/v1/patients/${patientId}`, {
+      method: 'DELETE',
+    });
+  },
 };

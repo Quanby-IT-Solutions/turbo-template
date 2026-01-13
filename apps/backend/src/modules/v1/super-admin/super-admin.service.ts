@@ -32,21 +32,11 @@ export class SuperAdminService {
 			? and(eq(users.role, "PATIENT" as const), eq(patientInfos.verificationStatus, status as PatientVerificationStatus))
 			: eq(users.role, "PATIENT" as const)
 
-		// Get patients
+		// Get patients with all fields
 		const patients = await this.db
 			.select({
-				id: users.id,
-				email: users.email,
-				createdAt: users.createdAt,
-				firstName: patientInfos.firstName,
-				middleName: patientInfos.middleName,
-				lastName: patientInfos.lastName,
-				verificationStatus: patientInfos.verificationStatus,
-				verificationStatusUpdatedAt: patientInfos.verificationStatusUpdatedAt,
-				verificationRejectionReason: patientInfos.verificationRejectionReason,
-				philHealthId: patientInfos.philHealthId,
-				philHealthIdImage: patientInfos.philHealthIdImage,
-				philHealthIdVerified: patientInfos.philHealthIdVerified,
+				user: users,
+				patientInfo: patientInfos,
 			})
 			.from(users)
 			.innerJoin(patientInfos, eq(users.id, patientInfos.userId))
@@ -67,37 +57,50 @@ export class SuperAdminService {
 
 		// Convert Buffer (bytea) to base64 for frontend and format response
 		const patientsWithBase64 = patients.map((patient: any) => {
-			const formatted: any = {
-				id: patient.id,
-				email: patient.email,
-				createdAt:
-					patient.createdAt instanceof Date
-						? patient.createdAt.toISOString()
-						: patient.createdAt,
-				patientInfo: {
-					firstName: patient.firstName,
-					middleName: patient.middleName,
-					lastName: patient.lastName,
-					verificationStatus: patient.verificationStatus,
-					verificationStatusUpdatedAt: patient.verificationStatusUpdatedAt
-						? (patient.verificationStatusUpdatedAt instanceof Date
-								? patient.verificationStatusUpdatedAt.toISOString()
-								: patient.verificationStatusUpdatedAt)
-						: null,
-					verificationRejectionReason: patient.verificationRejectionReason,
-					philHealthId: patient.philHealthId,
-					philHealthIdVerified: patient.philHealthIdVerified,
-					philHealthIdImage: null as string | null,
-				},
+			// Convert image buffers to base64 if present
+			const convertImage = (image: any): string | null => {
+				if (!image) return null
+				if (Buffer.isBuffer(image)) {
+					return image.toString("base64")
+				}
+				if (typeof image === "string") {
+					return image
+				}
+				return null
 			}
 
-			// Convert image buffer to base64 if present
-			if (patient.philHealthIdImage) {
-				if (Buffer.isBuffer(patient.philHealthIdImage)) {
-					formatted.patientInfo.philHealthIdImage = patient.philHealthIdImage.toString("base64")
-				} else if (typeof patient.philHealthIdImage === "string") {
-					formatted.patientInfo.philHealthIdImage = patient.philHealthIdImage
-				}
+			const formatted: any = {
+				id: patient.user.id,
+				email: patient.user.email,
+				createdAt:
+					patient.user.createdAt instanceof Date
+						? patient.user.createdAt.toISOString()
+						: patient.user.createdAt,
+				patientInfo: {
+					...patient.patientInfo,
+					dateOfBirth: patient.patientInfo.dateOfBirth instanceof Date
+						? patient.patientInfo.dateOfBirth.toISOString()
+						: patient.patientInfo.dateOfBirth,
+					philHealthExpiry: patient.patientInfo.philHealthExpiry instanceof Date
+						? patient.patientInfo.philHealthExpiry.toISOString()
+						: patient.patientInfo.philHealthExpiry,
+					philHealthMemberSince: patient.patientInfo.philHealthMemberSince instanceof Date
+						? patient.patientInfo.philHealthMemberSince.toISOString()
+						: patient.patientInfo.philHealthMemberSince,
+					philHealthIdVerifiedAt: patient.patientInfo.philHealthIdVerifiedAt instanceof Date
+						? patient.patientInfo.philHealthIdVerifiedAt.toISOString()
+						: patient.patientInfo.philHealthIdVerifiedAt,
+					verificationStatusUpdatedAt: patient.patientInfo.verificationStatusUpdatedAt instanceof Date
+						? patient.patientInfo.verificationStatusUpdatedAt.toISOString()
+						: patient.patientInfo.verificationStatusUpdatedAt,
+					subscriptionStartDate: patient.patientInfo.subscriptionStartDate instanceof Date
+						? patient.patientInfo.subscriptionStartDate.toISOString()
+						: patient.patientInfo.subscriptionStartDate,
+					subscriptionEndDate: patient.patientInfo.subscriptionEndDate instanceof Date
+						? patient.patientInfo.subscriptionEndDate.toISOString()
+						: patient.patientInfo.subscriptionEndDate,
+					philHealthIdImage: convertImage(patient.patientInfo.philHealthIdImage),
+				},
 			}
 
 			return formatted

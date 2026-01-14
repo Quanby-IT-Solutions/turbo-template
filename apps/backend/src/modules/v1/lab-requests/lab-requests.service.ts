@@ -1,26 +1,39 @@
-import { Inject, Injectable } from "@nestjs/common"
-import { eq, inArray } from "drizzle-orm"
+import {  Inject, Injectable, NotFoundException } from "@nestjs/common"
+import { and, desc, eq, inArray } from "drizzle-orm"
 
 import { labRequests, organizations, patientInfos, users } from "@repo/db/schema"
 
 import { DB, type DBType } from "@/common/database/database-providers"
+import {  LabRequestQueryDto } from "@repo/contracts"
 
 @Injectable()
 export class LabRequestsService {
 	constructor(@Inject(DB) private readonly db: DBType) {}
+	  private serializeLabRequest(labRequest: any) {
+    return {
+      ...labRequest,
+      createdAt: labRequest.createdAt.toISOString(),
+      updatedAt: labRequest.updatedAt.toISOString(),
+    };
+  }
 
-	async findAll() {
+async findAll() {
 		return this.db.select().from(labRequests)
 	}
 
-	async findOne(id: string) {
-		const [result] = await this.db
-			.select()
-			.from(labRequests)
-			.where(eq(labRequests.id, id))
-			.limit(1)
-		return result
-	}
+	  async findOne(id: string) {
+    const [labRequest] = await this.db
+      .select()
+      .from(labRequests)
+      .where(eq(labRequests.id, id))
+      .limit(1);
+
+    if (!labRequest) {
+      throw new NotFoundException(`Lab request with ID ${id} not found`);
+    }
+
+    return this.serializeLabRequest(labRequest);
+  }
 
 	async getDoctorLabRequests(doctorId: string) {
 		const requests = await this.db
@@ -92,12 +105,35 @@ export class LabRequestsService {
 		})
 	}
 
-	async getPatientLabRequests(patientId: string) {
-		const requests = await this.db
-			.select()
-			.from(labRequests)
-			.where(eq(labRequests.patientId, patientId))
+async getPatientLabRequests(patientId: string, query: LabRequestQueryDto) {
+  const { organizationId, status, page = 1, limit = 10 } = query;
 
-		return requests
-	}
+  const conditions = [eq(labRequests.patientId, patientId)];
+
+  if (organizationId) {
+    conditions.push(eq(labRequests.organizationId, organizationId));
+  }
+
+  if (status) {
+    conditions.push(eq(labRequests.status, status));
+  }
+
+  const whereClause = and(...conditions);
+
+  const results = await this.db
+    .select()
+    .from(labRequests)
+    .where(whereClause)
+    .orderBy(desc(labRequests.createdAt))
+    .limit(limit)
+    .offset((page - 1) * limit);
+
+  // Serialize dates to ISO strings
+  return results.map(result => ({
+    ...result,
+    createdAt: result.createdAt.toISOString(),
+    updatedAt: result.updatedAt.toISOString(),
+  }));
+}
+
 }

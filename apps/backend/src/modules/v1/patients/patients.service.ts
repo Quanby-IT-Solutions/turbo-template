@@ -15,10 +15,10 @@ export class PatientsService {
 		const limit = query.limit || 10
 		const offset = (page - 1) * limit
 
-		let whereConditions: any[] = [eq(users.role, "PATIENT" as any)]
+		const whereConditions: any[] = [eq(users.role, "PATIENT" as any)]
 
 		if (query.search) {
-			whereConditions.push(sql`${patientInfos.firstName} ILIKE ${"%" + query.search + "%"}`)
+			whereConditions.push(sql`${patientInfos.firstName} ILIKE ${`%${  query.search  }%`}`)
 		}
 
 		const [patients, countResult] = await Promise.all([

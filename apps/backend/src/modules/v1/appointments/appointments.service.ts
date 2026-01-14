@@ -528,8 +528,6 @@ async getDoctorAvailableTimeSlots(doctorId: string, date: string) {
   return availableSlots
 }
 
-
-// appointments.service.ts
 async create(data: any, user: any) {
     const userId = user?.userId || user?.id;
     
@@ -537,7 +535,7 @@ async create(data: any, user: any) {
         throw new ForbiddenException("Doctor ID is required");
     }
 
-    return await this.db
+    return this.db
         .insert(appointmentRequests)
         .values({
             patientId: userId,

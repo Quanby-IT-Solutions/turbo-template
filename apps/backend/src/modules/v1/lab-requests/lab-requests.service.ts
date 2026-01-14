@@ -166,7 +166,7 @@ async getPatientLabRequests(patientId: string, query: LabRequestQueryDto) {
     return this.serializeLabRequest(result);
   }
 
-	   async update(id: string, updateDto: Partial<CreateLabRequestDto>, user: any) {
+	async update(id: string, updateDto: Partial<CreateLabRequestDto>, user: any) {
     const userId = user?.userId || user?.id;
     
     await this.findOne(id);

@@ -60,4 +60,14 @@ async getPatientLabRequests(
 		return { success: true, data: labRequest }
 	}
 
+  @Put(':id')
+  @Roles('DOCTOR', 'ADMIN', 'SUPER_ADMIN')
+  async update(
+    @Request() req: any,
+    @Param('id') id: string,
+    @Body() updateDto: Partial<CreateLabRequestDto>,
+  ) {
+    const labRequest = await this.labRequestsService.update(id, updateDto, req.user);
+    return { success: true, data: labRequest };
+  }
 }

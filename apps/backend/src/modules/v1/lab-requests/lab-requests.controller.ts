@@ -24,6 +24,13 @@ export class LabRequestsController {
 		return { success: true, data: labRequests }
 	}
 
+	@Post()
+  @Roles('PATIENT', 'DOCTOR', 'ADMIN', 'SUPER_ADMIN')
+  async create(@Request() req: any, @Body() createDto: CreateLabRequestDto) {
+    const labRequest = await this.labRequestsService.create(createDto, req.user);
+    return { success: true, data: labRequest };
+  }
+
 	// These routes must come before @Get(':id') to avoid conflicts
 	@Get("doctor/:doctorId")
 	@ZodSerializerDto(LabRequestListResponseDto)

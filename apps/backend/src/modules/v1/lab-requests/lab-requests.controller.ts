@@ -70,4 +70,11 @@ async getPatientLabRequests(
     const labRequest = await this.labRequestsService.update(id, updateDto, req.user);
     return { success: true, data: labRequest };
   }
+
+  @Delete(':id')
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  async remove(@Request() req: any, @Param('id') id: string) {
+    await this.labRequestsService.remove(id);
+    return { success: true, message: 'Lab request deleted successfully' };
+  }
 }

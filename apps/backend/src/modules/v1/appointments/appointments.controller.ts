@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Query, Request, UseGuards, ForbiddenException } from "@nestjs/common"
+import { Controller, Get, Post, Body, Param, Query, Request, UseGuards, ForbiddenException, Patch } from "@nestjs/common"
 import { AllowAnonymous } from "@thallesp/nestjs-better-auth"
 import { ZodSerializerDto } from "nestjs-zod"
 
@@ -86,5 +86,20 @@ async getMyAppointments(@Request() req: any, @Query() query: any) {
 		const appointment = await this.appointmentsService.findOne(id)
 		return { success: true, data: appointment }
 	}
+
+	@Patch(':id/cancel')
+@Roles('PATIENT', 'ADMIN', 'SUPER_ADMIN')
+async cancelAppointment(
+  @Request() req: any,
+  @Param('id') id: string,
+  @Body() body: { reason?: string }
+) {
+  const appointment = await this.appointmentsService.cancelAppointment(
+    id,
+    body.reason,
+    req.user
+  );
+  return { success: true, data: appointment };
+}
 
 }

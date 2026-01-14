@@ -183,4 +183,12 @@ async getPatientLabRequests(patientId: string, query: LabRequestQueryDto) {
 
     return this.serializeLabRequest(updated);
   }
+
+  async remove(id: string) {
+    await this.findOne(id);
+
+    await this.db
+      .delete(labRequests)
+      .where(eq(labRequests.id, id));
+  }
 }

@@ -1,4 +1,4 @@
-import { ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common"
+import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common"
 import { and, desc, eq, inArray } from "drizzle-orm"
 
 import { labRequests, organizations, patientInfos, users } from "@repo/db/schema"
@@ -164,5 +164,23 @@ async getPatientLabRequests(patientId: string, query: LabRequestQueryDto) {
       .returning();
 
     return this.serializeLabRequest(result);
+  }
+
+	   async update(id: string, updateDto: Partial<CreateLabRequestDto>, user: any) {
+    const userId = user?.userId || user?.id;
+    
+    await this.findOne(id);
+
+    const [updated] = await this.db
+      .update(labRequests)
+      .set({
+        ...updateDto,
+        updatedBy: userId,
+        updatedAt: new Date(),
+      })
+      .where(eq(labRequests.id, id))
+      .returning();
+
+    return this.serializeLabRequest(updated);
   }
 }

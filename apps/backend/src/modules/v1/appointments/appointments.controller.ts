@@ -102,4 +102,15 @@ async cancelAppointment(
   return { success: true, data: appointment };
 }
 
+	@Post(":id/reschedule")
+	@Roles("PATIENT", "ADMIN", "SUPER_ADMIN")
+	async requestReschedule(
+		@Request() req: any,
+		@Param("id") id: string,
+		@Body() body: { newDate: string; newTime: string; reason?: string; notes?: string }
+	) {
+		const appointment = await this.appointmentsService.rescheduleAppointment(id, body, req.user)
+		return { success: true, data: appointment }
+	}
+
 }

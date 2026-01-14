@@ -1,4 +1,4 @@
-import { ForbiddenException, Inject, Injectable } from "@nestjs/common"
+import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common"
 import { and, desc, eq, inArray, sql } from "drizzle-orm"
 
 import { appointmentRequests, doctorInfos, doctorSchedules, patientInfos, users } from "@repo/db/schema"
@@ -550,4 +550,106 @@ async create(data: any, user: any) {
         .returning();
 }
 
+	async cancelAppointment(appointmentId: string, reason: string | undefined, user: any) {
+		const userId = user?.userId || user?.id;
+
+		// Check if appointment exists
+		const [appointment] = await this.db
+			.select()
+			.from(appointmentRequests)
+			.where(eq(appointmentRequests.id, appointmentId))
+			.limit(1);
+
+		if (!appointment) {
+			throw new NotFoundException(`Appointment with ID ${appointmentId} not found`);
+		}
+
+		// Check if user is authorized (patient who created it or admin)
+		if (appointment.patientId !== userId && user?.role !== 'ADMIN' && user?.role !== 'SUPER_ADMIN') {
+			throw new ForbiddenException('You are not authorized to cancel this appointment');
+		}
+
+		// Check if appointment can be cancelled
+		if (appointment.status === 'CANCELLED') {
+			throw new BadRequestException('Appointment is already cancelled');
+		}
+
+		if (appointment.status === 'COMPLETED') {
+			throw new BadRequestException('Cannot cancel a completed appointment');
+		}
+
+		// Update appointment status to CANCELLED
+		await this.db
+			.update(appointmentRequests)
+			.set({
+				status: 'CANCELLED',
+				notes: reason 
+					? `${appointment.notes ? `${appointment.notes  }\n\n` : ''}Cancellation reason: ${reason}`
+					: appointment.notes,
+				updatedAt: new Date(),
+			})
+			.where(eq(appointmentRequests.id, appointmentId));
+
+		// Fetch the updated appointment with doctor info
+		const result = await this.db
+			.select({
+				appointmentId: appointmentRequests.id,
+				patientId: appointmentRequests.patientId,
+				doctorId: appointmentRequests.doctorId,
+				requestedDate: appointmentRequests.requestedDate,
+				requestedTime: appointmentRequests.requestedTime,
+				reason: appointmentRequests.reason,
+				status: appointmentRequests.status,
+				priority: appointmentRequests.priority,
+				notes: appointmentRequests.notes,
+				consultationId: appointmentRequests.consultationId,
+				createdAt: appointmentRequests.createdAt,
+				updatedAt: appointmentRequests.updatedAt,
+				doctorEmail: users.email,
+				doctorFirstName: doctorInfos.firstName,
+				doctorLastName: doctorInfos.lastName,
+				doctorSpecialization: doctorInfos.specialization,
+			})
+			.from(appointmentRequests)
+			.leftJoin(users, eq(appointmentRequests.doctorId, users.id))
+			.leftJoin(doctorInfos, eq(users.id, doctorInfos.userId))
+			.where(eq(appointmentRequests.id, appointmentId))
+			.limit(1);
+
+		const apt = result[0];
+
+		if (!apt) {
+			throw new NotFoundException(`Appointment with ID ${appointmentId} not found after update`);
+		}
+
+		return {
+			id: apt.appointmentId,
+			patientId: apt.patientId,
+			doctorId: apt.doctorId,
+			requestedDate: apt.requestedDate instanceof Date 
+				? apt.requestedDate.toISOString() 
+				: apt.requestedDate,
+			requestedTime: apt.requestedTime,
+			reason: apt.reason,
+			status: apt.status,
+			priority: apt.priority,
+			notes: apt.notes,
+			consultationId: apt.consultationId,
+			createdAt: apt.createdAt instanceof Date 
+				? apt.createdAt.toISOString() 
+				: apt.createdAt,
+			updatedAt: apt.updatedAt instanceof Date 
+				? apt.updatedAt.toISOString() 
+				: apt.updatedAt,
+			doctor: apt.doctorId ? {
+				id: apt.doctorId,
+				email: apt.doctorEmail,
+				doctorInfo: {
+					firstName: apt.doctorFirstName,
+					lastName: apt.doctorLastName,
+					specialization: apt.doctorSpecialization,
+				},
+			} : null,
+		};
+	}
 }

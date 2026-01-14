@@ -1,10 +1,10 @@
-import {  Inject, Injectable, NotFoundException } from "@nestjs/common"
+import { ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common"
 import { and, desc, eq, inArray } from "drizzle-orm"
 
 import { labRequests, organizations, patientInfos, users } from "@repo/db/schema"
 
 import { DB, type DBType } from "@/common/database/database-providers"
-import {  LabRequestQueryDto } from "@repo/contracts"
+import { CreateLabRequestDto, LabRequestQueryDto } from "@repo/contracts"
 
 @Injectable()
 export class LabRequestsService {
@@ -136,4 +136,33 @@ async getPatientLabRequests(patientId: string, query: LabRequestQueryDto) {
   }));
 }
 
+  async create(data: CreateLabRequestDto, user: any) {
+    const userId = user?.userId || user?.id;
+
+    if (!data.organizationId) {
+      throw new ForbiddenException('Organization ID is required');
+    }
+
+    if (!data.patientId) {
+      throw new ForbiddenException('Patient ID is required');
+    }
+
+    const [result] = await this.db
+      .insert(labRequests)
+      .values({
+        patientId: data.patientId,
+        organizationId: data.organizationId,
+        doctorId: data.doctorId || null,
+        note: data.note || null,
+        requestedTests: data.requestedTests || null,
+        instructions: data.instructions || null,
+        status: 'PENDING',
+        priority: data.priority || 'NORMAL',
+        createdBy: userId,
+        updatedBy: userId,
+      })
+      .returning();
+
+    return this.serializeLabRequest(result);
+  }
 }

@@ -675,7 +675,7 @@ function SidebarMenuSubButton({
 		: {}
 
 	// Extract style from props to merge correctly
-	const { style: propsStyle, className: propsClassName, ...restProps } = props
+	const { style: propsStyle, className: propsClassName = "", ...restProps } = props
 
 	return (
 		<Comp

@@ -1,5 +1,5 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from "@nestjs/common"
-import { count, eq } from "drizzle-orm"
+import { and, count, eq, inArray, sql } from "drizzle-orm"
 
 import { organizations, users } from "@repo/db/schema"
 
@@ -12,9 +12,36 @@ export class OrganizationsService {
 	async findAll() {
 		const orgs = await this.db.select().from(organizations)
 		
-		// Convert Date objects to ISO strings for serialization
+		// Calculate currentDoctors dynamically for each organization
+		const orgIds = orgs.map(org => org.id)
+		const doctorCounts = new Map<string, number>()
+		
+		if (orgIds.length > 0) {
+			const counts = await this.db
+				.select({
+					organizationId: users.organizationId,
+					count: sql<number>`count(*)::int`.as("count"),
+				})
+				.from(users)
+				.where(
+					and(
+						inArray(users.organizationId, orgIds.filter(id => id !== null) as string[]),
+						eq(users.role, "DOCTOR" as const)
+					)
+				)
+				.groupBy(users.organizationId)
+			
+			counts.forEach(c => {
+				if (c.organizationId) {
+					doctorCounts.set(c.organizationId, Number(c.count))
+				}
+			})
+		}
+		
+		// Convert Date objects to ISO strings for serialization and update currentDoctors
 		return orgs.map(org => ({
 			...org,
+			currentDoctors: doctorCounts.get(org.id) || 0,
 			createdAt: org.createdAt instanceof Date ? org.createdAt.toISOString() : org.createdAt,
 			updatedAt: org.updatedAt instanceof Date ? org.updatedAt.toISOString() : org.updatedAt,
 			subscriptionStartDate: org.subscriptionStartDate instanceof Date 
@@ -39,9 +66,23 @@ export class OrganizationsService {
 			throw new NotFoundException(`Organization with ID ${id} not found`)
 		}
 		
+		// Calculate currentDoctors dynamically
+		const [doctorCountResult] = await this.db
+			.select({ count: sql<number>`count(*)::int`.as("count") })
+			.from(users)
+			.where(
+				and(
+					eq(users.organizationId, id),
+					eq(users.role, "DOCTOR" as const)
+				)
+			)
+		
+		const currentDoctors = doctorCountResult?.count || 0
+		
 		// Convert Date objects to ISO strings for serialization
 		return {
 			...result,
+			currentDoctors,
 			createdAt: result.createdAt instanceof Date ? result.createdAt.toISOString() : result.createdAt,
 			updatedAt: result.updatedAt instanceof Date ? result.updatedAt.toISOString() : result.updatedAt,
 			subscriptionStartDate: result.subscriptionStartDate instanceof Date 

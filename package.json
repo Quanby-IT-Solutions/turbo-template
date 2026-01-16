@@ -32,6 +32,7 @@
 	"devDependencies": {
 		"@repo/prettier-config": "workspace:*",
 		"@turbo/gen": "catalog:",
+		"@vercel/node": "^3.0.21",
 		"prettier": "catalog:",
 		"turbo": "catalog:",
 		"typescript": "catalog:"

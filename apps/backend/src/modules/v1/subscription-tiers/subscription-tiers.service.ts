@@ -9,6 +9,13 @@ export class SubscriptionTiersService {
 	constructor(@Inject(DB) private readonly db: DBType) {}
 
 	async findAll() {
-		return this.db.select().from(subscriptionTierSettings)
+		const tiers = await this.db.select().from(subscriptionTierSettings)
+		
+		// Convert Date objects to ISO strings for serialization
+		return tiers.map(tier => ({
+			...tier,
+			createdAt: tier.createdAt instanceof Date ? tier.createdAt.toISOString() : tier.createdAt,
+			updatedAt: tier.updatedAt instanceof Date ? tier.updatedAt.toISOString() : tier.updatedAt,
+		}))
 	}
 }

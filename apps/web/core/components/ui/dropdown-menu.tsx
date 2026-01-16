@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { Menu as MenuPrimitive } from "@base-ui/react/menu"
+import { Slot } from "@radix-ui/react-slot"
 
 import { cn } from "@/core/lib/utils"
 import { HugeiconsIcon } from "@hugeicons/react"
@@ -15,13 +16,25 @@ function DropdownMenuPortal({ ...props }: MenuPrimitive.Portal.Props) {
   return <MenuPrimitive.Portal data-slot="dropdown-menu-portal" {...props} />
 }
 
-function DropdownMenuTrigger({ asChild, ...props }: MenuPrimitive.Trigger.Props) {
-  // @base-ui/react's MenuPrimitive.Trigger doesn't properly handle asChild
-  // It passes asChild to the DOM element, causing React warnings
-  // We extract it to prevent the warning, but this means asChild won't work
-  // For proper asChild support, we'd need to handle composition differently
+function DropdownMenuTrigger({ asChild, children, ...props }: MenuPrimitive.Trigger.Props & { asChild?: boolean }) {
+  // Extract asChild to prevent it from being passed to MenuPrimitive.Trigger
   const { asChild: _, ...restProps } = props as typeof props & { asChild?: boolean }
-  return <MenuPrimitive.Trigger data-slot="dropdown-menu-trigger" {...restProps} />
+  
+  // Base UI's MenuPrimitive.Trigger doesn't properly support asChild
+  // When asChild is true, we need to manually merge trigger props with the child
+  // The solution is to use MenuPrimitive.Trigger's asChild prop if it supports it,
+  // otherwise we need to wrap the child differently
+  if (asChild && React.isValidElement(children)) {
+    // Try passing asChild to MenuPrimitive.Trigger - if it supports it, this will work
+    // Otherwise, we'll need to handle it differently
+    return (
+      <MenuPrimitive.Trigger data-slot="dropdown-menu-trigger" {...restProps} asChild>
+        {children}
+      </MenuPrimitive.Trigger>
+    )
+  }
+  
+  return <MenuPrimitive.Trigger data-slot="dropdown-menu-trigger" {...restProps}>{children}</MenuPrimitive.Trigger>
 }
 
 function DropdownMenuContent({

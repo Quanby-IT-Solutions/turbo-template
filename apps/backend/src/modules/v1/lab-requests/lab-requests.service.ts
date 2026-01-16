@@ -100,4 +100,31 @@ export class LabRequestsService {
 
 		return requests
 	}
+
+	async getRoomLabRequests(roomId: string) {
+		return this.db
+			.select()
+			.from(labRequests)
+			.where(eq(labRequests.roomId, roomId))
+	}
+
+	async create(data: any) {
+		const [result] = await this.db
+			.insert(labRequests)
+			.values({
+				patientId: data.patientId,
+				organizationId: data.organizationId,
+				doctorId: data.doctorId || null,
+				roomId: data.roomId || null,
+				note: data.note || null,
+				status: data.status || "PENDING",
+				priority: data.priority || "NORMAL",
+				requestedTests: data.requestedTests || null,
+				instructions: data.instructions || null,
+				createdBy: data.createdBy || data.doctorId,
+				updatedBy: data.updatedBy || data.doctorId || null,
+			})
+			.returning()
+		return result
+	}
 }

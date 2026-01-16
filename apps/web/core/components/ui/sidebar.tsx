@@ -550,7 +550,7 @@ const SidebarMenuButton = React.forwardRef<HTMLButtonElement, SidebarMenuButtonP
 
     return (
       <Tooltip>
-        <TooltipTrigger asChild={asChild}>{buttonContent}</TooltipTrigger>
+        <TooltipTrigger asChild={false}>{buttonContent}</TooltipTrigger>
         <TooltipContent
           side="right"
           align="center"

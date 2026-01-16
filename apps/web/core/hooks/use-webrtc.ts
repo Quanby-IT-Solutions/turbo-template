@@ -68,7 +68,7 @@ const getIceServers = async (): Promise<RTCIceServer[]> => {
       headers['Authorization'] = `Bearer ${token}`
     }
 
-    const response = await fetch(`${apiBaseUrl}/webrtc/turn-token`, {
+    const response = await fetch(`${apiBaseUrl}/v1/webrtc/turn-token`, {
       method: 'GET',
       headers,
     })
@@ -111,8 +111,10 @@ const getSignalingUrl = (): string => {
   if (process.env.NEXT_PUBLIC_WEBRTC_SIGNALING_URL) {
     return process.env.NEXT_PUBLIC_WEBRTC_SIGNALING_URL
   }
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
-  return apiUrl.replace("/api", "")
+  // Use the same base URL as the API (backend runs on port 3000)
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000/api'
+  // Remove /api suffix to get the base URL for Socket.IO
+  return apiBaseUrl.replace("/api", "")
 }
 
 export function useWebRTC() {
@@ -337,6 +339,11 @@ export function useWebRTC() {
       }
     }
 
+    // Create a single remote stream that accumulates all tracks
+    if (!remoteStreamRef.current) {
+      remoteStreamRef.current = new MediaStream()
+    }
+    
     newPeer.ontrack = (event) => {
       console.log("🎥 Track received:", event.track.kind, event.streams)
       console.log("🎥 Track details:", {
@@ -347,27 +354,40 @@ export function useWebRTC() {
         streams: event.streams.length,
       })
       
-      if (event.streams && event.streams.length > 0) {
-        // Use the stream from the event directly
-        const stream = event.streams[0]
-        console.log("📹 Remote stream:", {
-          id: stream.id,
-          active: stream.active,
-          tracks: stream.getTracks().length,
-          videoTracks: stream.getVideoTracks().length,
-          audioTracks: stream.getAudioTracks().length,
-        })
+      // Get or create remote stream
+      let stream = remoteStreamRef.current
+      
+      if (!stream) {
+        console.log("📹 Creating new remote stream")
+        stream = new MediaStream()
+        remoteStreamRef.current = stream
+      }
+      
+      // Add track to stream if not already present
+      const existingTrack = stream.getTracks().find(t => t.id === event.track.id)
+      if (!existingTrack) {
+        stream.addTrack(event.track)
+        console.log(`✅ Added ${event.track.kind} track to remote stream`)
+        console.log("📹 Remote stream now has", stream.getTracks().length, "tracks")
         
-        remoteStreamRef.current = stream
-        setRemoteStream(stream)
-        console.log("✅ Remote stream updated with", stream.getTracks().length, "tracks")
-      } else if (event.track) {
-        // Fallback: create a new stream if event.streams is empty
-        console.log("⚠️ No streams in event, creating new stream from track")
-        const stream = new MediaStream([event.track])
-        remoteStreamRef.current = stream
-        setRemoteStream(stream)
-        console.log("✅ Remote stream created from track")
+        // Update state to trigger re-render
+        setRemoteStream(new MediaStream(stream.getTracks()))
+      } else {
+        console.log(`⚠️ Track ${event.track.id} already in stream`)
+      }
+      
+      // Also handle case where event has streams
+      if (event.streams && event.streams.length > 0) {
+        const eventStream = event.streams[0]
+        eventStream.getTracks().forEach((track) => {
+          const existing = stream!.getTracks().find(t => t.id === track.id)
+          if (!existing) {
+            stream!.addTrack(track)
+            console.log(`✅ Added ${track.kind} track from event stream`)
+          }
+        })
+        // Update state
+        setRemoteStream(new MediaStream(stream.getTracks()))
       }
     }
 
@@ -431,6 +451,13 @@ export function useWebRTC() {
 
   // Initialize Socket.IO connection
   const initSocket = useCallback(() => {
+    // If socket exists but is disconnected, disconnect it first to allow reconnection
+    if (socketRef.current && !socketRef.current.connected) {
+      console.log("🔌 Disconnecting existing socket to allow reconnection")
+      socketRef.current.disconnect()
+      socketRef.current = null
+    }
+    
     if (socketRef.current?.connected) {
       console.log("✅ Socket.IO already connected")
       return
@@ -460,6 +487,11 @@ export function useWebRTC() {
     newSocket.on("disconnect", (reason) => {
       console.log("🔌 Socket.IO disconnected:", reason)
       setIsConnected(false)
+    })
+
+    // Global listener for join response (for debugging - individual join() calls set up their own listeners)
+    newSocket.on("webrtc:join-response", (response: JoinResponse) => {
+      console.log("📨 [GLOBAL] Join response received via event:", response)
     })
 
     // Register WebRTC event handlers
@@ -702,20 +734,107 @@ export function useWebRTC() {
     []
   )
 
+  // Wait for socket to be connected (with timeout)
+  const waitForSocketConnection = useCallback(
+    (timeoutMs: number = 10000): Promise<void> => {
+      return new Promise((resolve, reject) => {
+        // Check if already connected
+        if (socketRef.current?.connected) {
+          console.log("✅ Socket already connected")
+          resolve()
+          return
+        }
+
+        // If socket doesn't exist, initialize it
+        if (!socketRef.current) {
+          console.log("🔌 Socket not initialized, initializing...")
+          initSocket()
+        }
+
+        const startTime = Date.now()
+        let checkInterval: NodeJS.Timeout | null = null
+        let connectHandler: (() => void) | null = null
+
+        // Cleanup function
+        const cleanup = () => {
+          if (checkInterval) {
+            clearInterval(checkInterval)
+            checkInterval = null
+          }
+          if (connectHandler && socketRef.current) {
+            socketRef.current.off("connect", connectHandler)
+            connectHandler = null
+          }
+        }
+
+        // Polling check
+        checkInterval = setInterval(() => {
+          if (socketRef.current?.connected) {
+            cleanup()
+            resolve()
+          } else if (Date.now() - startTime > timeoutMs) {
+            cleanup()
+            reject(new Error("Socket connection timeout"))
+          }
+        }, 100)
+
+        // Also listen for connect event (more reliable)
+        connectHandler = () => {
+          cleanup()
+          resolve()
+        }
+
+        if (socketRef.current) {
+          socketRef.current.once("connect", connectHandler)
+        }
+      })
+    },
+    [initSocket]
+  )
+
   // Join a room
   const join = useCallback(
-    (roomId: string): Promise<JoinResponse> => {
+    async (roomId: string, role: "doctor" | "patient" = "doctor"): Promise<JoinResponse> => {
       setCurrentRoomId(roomId)
       currentRoomIdRef.current = roomId // Update ref immediately
-      console.log("🚪 Attempting to join room:", roomId)
+      console.log("🚪 Attempting to join room:", roomId, "as", role)
       console.log("🔌 Socket connected:", socketRef.current?.connected)
 
-      return new Promise((resolve) => {
-        socketRef.current?.emit(
-          "webrtc:join",
-          { roomId },
-          (resp: JoinResponse) => {
-            console.log("📨 Join response received:", resp)
+      // Wait for socket connection if not already connected
+      if (!socketRef.current?.connected) {
+        console.log("⏳ Waiting for socket connection...")
+        try {
+          await waitForSocketConnection()
+          console.log("✅ Socket connected, proceeding with join")
+        } catch (error) {
+          console.error("❌ Failed to connect socket:", error)
+          throw new Error("Socket connection timeout. Please try again.")
+        }
+      }
+
+      // Double-check socket is connected
+      if (!socketRef.current?.connected) {
+        throw new Error("Socket not connected after waiting")
+      }
+
+      return new Promise((resolve, reject) => {
+
+        let resolved = false
+        // Set a timeout to prevent hanging
+        const timeout = setTimeout(() => {
+          if (!resolved) {
+            console.error("❌ Join room timeout after 10 seconds")
+            resolved = true
+            reject(new Error("Join room timeout"))
+          }
+        }, 10000)
+
+        // Listen for join response event (primary method since NestJS doesn't support callbacks well)
+        const responseHandler = (resp: JoinResponse) => {
+          if (!resolved) {
+            clearTimeout(timeout)
+            resolved = true
+            console.log("📨 [JOIN FUNCTION] Join response received via event:", resp)
             if (resp?.ok && resp.role) {
               setCurrentRole(resp.role)
             }
@@ -724,12 +843,30 @@ export function useWebRTC() {
               role: resp.role,
               participants: resp.participants,
             })
+            // Remove listener to prevent memory leaks
+            if (socketRef.current) {
+              socketRef.current.off("webrtc:join-response", responseHandler)
+            }
             resolve(resp)
           }
-        )
+        }
+        
+        // Set up listener BEFORE emitting (use 'on' instead of 'once' to ensure it's set up)
+        if (socketRef.current) {
+          socketRef.current.on("webrtc:join-response", responseHandler)
+        }
+        
+        // Emit join request with the specified role
+        console.log("📤 Emitting join request:", { roomId, role })
+        if (socketRef.current) {
+          socketRef.current.emit("webrtc:join", { roomId, role })
+        } else {
+          clearTimeout(timeout)
+          reject(new Error("Socket reference lost"))
+        }
       })
     },
-    []
+    [waitForSocketConnection]
   )
 
   // Leave room

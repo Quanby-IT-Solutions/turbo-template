@@ -226,8 +226,8 @@ const [labRequests, setLabRequests] = React.useState<LabRequest[]>([])
         audioTracks: stream.getAudioTracks().length,
       })
 
-      // Join room
-      const response = await join(meetingCode)
+      // Join room as patient
+      const response = await join(meetingCode, "patient")
 
       if (response.ok) {
         setIsInCall(true)
@@ -696,16 +696,12 @@ const [labRequests, setLabRequests] = React.useState<LabRequest[]>([])
                       </Button>
 
                       <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="outline"
-                            size="lg"
-                            className="rounded-full h-14 w-14"
-                            title="Consultation actions"
-                          >
-                            <IconMenu2 className="h-6 w-6" />
-                            <span className="sr-only">Consultation actions</span>
-                          </Button>
+                        <DropdownMenuTrigger
+                          className="rounded-full h-14 w-14 border border-border bg-background hover:bg-muted hover:text-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:border-ring inline-flex items-center justify-center whitespace-nowrap transition-all disabled:pointer-events-none disabled:opacity-50 outline-none"
+                          title="Consultation actions"
+                        >
+                          <IconMenu2 className="h-6 w-6" />
+                          <span className="sr-only">Consultation actions</span>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="center" side="top" sideOffset={12} className="w-56">
                           <DropdownMenuItem

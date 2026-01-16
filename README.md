@@ -2,6 +2,8 @@
 
 A TypeScript-first monorepo template using **Turborepo** and **pnpm** with a full-stack architecture spanning web, backend, and mobile platforms.
 
+> **🚀 Quick Deploy:** Want to deploy to Vercel immediately? See the [Quick Start Guide](./QUICK_START.md)
+
 ## Table of Contents
 
 - [Technology Stack](#technology-stack)

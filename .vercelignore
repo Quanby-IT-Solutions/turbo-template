@@ -1,0 +1,33 @@
+# Exclude apps that are not being deployed
+apps/backend
+apps/mobile
+apps/BiosenseSignal_Flutter_SDK_5.11.1
+
+# Exclude documentation
+*.md
+!apps/web/README.md
+
+# Exclude test files
+**/*.test.*
+**/*.spec.*
+**/test/
+**/tests/
+
+# Exclude development files
+.vscode/
+.ruler/
+.gemini/
+
+# Exclude Flutter/mobile artifacts
+*.apk
+*.aab
+*.ipa
+
+# Exclude temp directories
+.tmp/
+.temp/
+tmp/
+
+# Exclude cache directories
+.cache/
+.turbo/

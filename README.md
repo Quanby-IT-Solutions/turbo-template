@@ -221,9 +221,9 @@ import { todos, users } from "@repo/db/schema"
 
 ## Deployment
 
-### Vercel Deployment (Web App)
+### Vercel Deployment (Frontend + Backend)
 
-This repository is configured for seamless deployment to Vercel using Turborepo.
+This repository is configured for seamless deployment of both frontend and backend to Vercel using Turborepo.
 
 📘 **[Read the complete Vercel Deployment Guide](./VERCEL_DEPLOYMENT.md)**
 
@@ -233,11 +233,11 @@ Quick steps:
 3. Configure environment variables
 4. Deploy!
 
-The web app (`apps/web/`) will be automatically deployed with optimal build caching and performance.
+Both the Next.js web app (`apps/web/`) and NestJS backend (`apps/backend/`) will be automatically deployed:
+- **Frontend**: Deployed as a Next.js application
+- **Backend**: Deployed as Vercel serverless functions accessible at `/api/*`
 
-### Backend Deployment
-
-The NestJS backend (`apps/backend/`) requires a Node.js server and should be deployed separately to platforms like Railway, Render, or Heroku. See [VERCEL_DEPLOYMENT.md](./VERCEL_DEPLOYMENT.md) for details.
+The deployment is optimized with Turborepo for fast builds and efficient caching.
 
 ## Documentation
 

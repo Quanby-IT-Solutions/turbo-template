@@ -1,6 +1,6 @@
 # Quick Start: Fork and Deploy to Vercel
 
-This is a quick reference guide for forking this repository and deploying to Vercel.
+This is a quick reference guide for forking this repository and deploying both frontend and backend to Vercel.
 
 ## Step-by-Step Instructions
 
@@ -24,7 +24,7 @@ Vercel will auto-detect the configuration from `vercel.json`. Verify these setti
 
 **Framework Preset:** Next.js (auto-detected)  
 **Root Directory:** `.` (repository root)  
-**Build Command:** `pnpm turbo run build --filter=@repo/web` (from vercel.json)  
+**Build Command:** `pnpm turbo run build --filter=@repo/web --filter=@repo/backend` (from vercel.json)  
 **Install Command:** `pnpm install --frozen-lockfile` (from vercel.json)  
 **Output Directory:** `apps/web/.next` (from vercel.json)
 

@@ -4,10 +4,12 @@ This guide explains how to deploy the Qhealth turborepo to Vercel.
 
 ## Overview
 
-This monorepo contains multiple applications:
-- **Web App** (`apps/web/`): Next.js 16 frontend - **Deployable to Vercel**
-- **Backend** (`apps/backend/`): NestJS API server - Not deployed to Vercel (requires separate Node.js hosting)
+This monorepo contains multiple applications that can be deployed together to Vercel:
+- **Web App** (`apps/web/`): Next.js 16 frontend - **Deployed to Vercel**
+- **Backend** (`apps/backend/`): NestJS API server - **Deployed as Vercel Serverless Functions**
 - **Mobile** (`apps/mobile/`): Flutter mobile app - Not deployed to Vercel
+
+Both the frontend and backend are deployed together in a single Vercel project, with the backend running as serverless functions accessible at `/api/*` routes.
 
 ## Prerequisites
 
@@ -39,7 +41,7 @@ Vercel should automatically detect the configuration from `vercel.json`. Verify 
 - **Framework**: Next.js (should be auto-detected)
 
 #### Build & Development Settings
-- **Build Command**: `pnpm turbo run build --filter=@repo/web` (from vercel.json)
+- **Build Command**: `pnpm turbo run build --filter=@repo/web --filter=@repo/backend` (from vercel.json)
 - **Install Command**: `pnpm install --frozen-lockfile` (from vercel.json)
 - **Output Directory**: `apps/web/.next` (from vercel.json)
 - **Root Directory**: Leave as root (`.`)
@@ -48,7 +50,7 @@ Vercel should automatically detect the configuration from `vercel.json`. Verify 
 
 Add the following environment variables in Vercel:
 
-#### Required for Web App
+#### Required for Both Web App and Backend
 
 | Variable | Description | Example |
 |----------|-------------|---------|
@@ -62,21 +64,23 @@ Add the following environment variables in Vercel:
 | Variable | Description |
 |----------|-------------|
 | `NODE_ENV` | Set to `production` |
-| `NEXT_PUBLIC_API_URL` | Backend API URL if hosted separately |
+| `PORT` | Port for backend (default: 3000) |
+| `ALLOWED_ORIGINS` | Comma-separated list of allowed CORS origins |
 
 ### 5. Deploy
 
 1. Click "Deploy" to start the deployment
 2. Vercel will:
    - Install dependencies using pnpm
-   - Build the web app using Turborepo
-   - Deploy the Next.js app
+   - Build both the web app and backend using Turborepo
+   - Deploy the Next.js app as the frontend
+   - Deploy the NestJS backend as serverless functions at `/api/*`
 
 ### 6. Post-Deployment
 
 After successful deployment:
 1. Set up your database (run migrations)
-2. Test the application
+2. Test the application and API endpoints
 3. Configure custom domains (optional)
 
 ## Database Setup
@@ -97,15 +101,13 @@ After setting up your database, run migrations:
 POSTGRES_URL="your-production-db-url" pnpm db:migrate
 ```
 
-## Backend Deployment
+## Backend API Access
 
-The NestJS backend (`apps/backend/`) cannot be deployed to Vercel as it requires a Node.js server. Deploy it separately to:
+The NestJS backend is deployed as Vercel serverless functions and accessible at:
+- **API Endpoint**: `https://your-domain.vercel.app/api/*`
+- **API Documentation**: `https://your-domain.vercel.app/api/docs`
 
-- **Railway**: Full-stack deployment
-- **Render**: Node.js hosting
-- **Heroku**: Platform as a Service
-- **DigitalOcean App Platform**: Container hosting
-- **Your own VPS**: Full control
+All API routes from the NestJS backend are automatically proxied through the `/api` path.
 
 ## Turborepo Benefits
 

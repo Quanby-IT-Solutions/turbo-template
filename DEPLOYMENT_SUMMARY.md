@@ -2,29 +2,37 @@
 
 ## What Was Done
 
-This branch has been configured for seamless deployment to Vercel as a Turborepo monorepo. All necessary configuration files and documentation have been added.
+This branch has been configured for seamless deployment of both frontend and backend to Vercel as a Turborepo monorepo. All necessary configuration files and documentation have been added.
 
 ## Files Added
 
 ### Configuration Files
 1. **`vercel.json`** - Root Vercel configuration
-   - Builds only the web app using Turborepo filter
+   - Builds both web app and backend using Turborepo filters
    - Uses pnpm with frozen lockfile
    - Optimized ignore command to trigger builds only on relevant changes
    - Points to correct output directory (`apps/web/.next`)
+   - Configures serverless functions for backend API
+   - Rewrites `/api/*` routes to backend serverless functions
 
-2. **`.vercelignore`** - Deployment exclusions
-   - Excludes backend and mobile apps
+2. **`api/index.ts`** - Vercel serverless function wrapper
+   - Wraps NestJS backend for serverless deployment
+   - Handles all HTTP methods (GET, POST, PUT, DELETE, PATCH)
+   - Caches NestJS app instance for better performance
+   - Configures CORS for Vercel environment
+
+3. **`.vercelignore`** - Deployment exclusions
+   - Excludes mobile apps (backend is now included)
    - Excludes root-level documentation markdown files
    - Excludes test files and development directories
    - Keeps deployments lean and fast
 
-3. **`.env.vercel.example`** - Environment variables template
+4. **`.env.vercel.example`** - Environment variables template
    - Documents all required environment variables
    - Provides instructions for secret generation
    - Ready to copy to Vercel dashboard
 
-4. **`turbo.json`** (enhanced) - Turborepo configuration
+5. **`turbo.json`** (enhanced) - Turborepo configuration
    - Added Next.js build outputs for optimal caching
    - Vercel environment variables already configured
    - Supports incremental builds
@@ -35,12 +43,13 @@ This branch has been configured for seamless deployment to Vercel as a Turborepo
    - Environment variable setup
    - Database configuration options
    - Post-deployment instructions
+   - Updated to reflect both frontend and backend deployment
 
 2. **`VERCEL_DEPLOYMENT.md`** - Comprehensive deployment guide
    - Detailed step-by-step instructions
    - Environment variables reference table
    - Database setup options comparison
-   - Backend deployment guidance
+   - Backend serverless deployment explanation
    - Extensive troubleshooting section
    - Custom domain setup
    - Monitoring and analytics
@@ -57,7 +66,7 @@ This branch has been configured for seamless deployment to Vercel as a Turborepo
    - Added quick deploy banner at top
    - New "Deployment" section in table of contents
    - Links to all deployment resources
-   - Backend deployment notes
+   - Updated to reflect both frontend and backend deployment
 
 ## How to Use This Branch
 
@@ -76,7 +85,7 @@ This branch has been configured for seamless deployment to Vercel as a Turborepo
 ## What Gets Deployed
 
 - ✅ **Web App** (`apps/web/`) - Next.js 16 frontend
-- ❌ **Backend** (`apps/backend/`) - Deploy separately (Railway, Render, Heroku)
+- ✅ **Backend** (`apps/backend/`) - NestJS API deployed as Vercel serverless functions at `/api/*`
 - ❌ **Mobile** (`apps/mobile/`) - Not deployable to Vercel
 
 ## Key Features

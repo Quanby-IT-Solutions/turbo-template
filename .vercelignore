@@ -1,5 +1,4 @@
 # Exclude apps that are not being deployed
-apps/backend
 apps/mobile
 apps/BiosenseSignal_Flutter_SDK_5.11.1
 

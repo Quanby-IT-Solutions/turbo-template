@@ -270,7 +270,17 @@ export class DoctorsService {
 		address?: string
 		bio?: string
 	}) {
-		// First verify the doctor exists
+		// First verify the doctor exists and get current organizationId
+		const [existingUser] = await this.db
+			.select({ organizationId: users.organizationId })
+			.from(users)
+			.where(eq(users.id, id))
+			.limit(1)
+
+		if (!existingUser) {
+			throw new NotFoundException(`Doctor with ID ${id} not found`)
+		}
+
 		const [existing] = await this.db
 			.select()
 			.from(doctorInfos)
@@ -301,12 +311,36 @@ export class DoctorsService {
 				.where(eq(doctorInfos.userId, id))
 		}
 
-		// Update user's organizationId if provided
+		// Update user's organizationId if provided and update currentDoctors counts
 		if (data.organizationId !== undefined) {
+			const oldOrganizationId = existingUser.organizationId
+			const newOrganizationId = data.organizationId
+
+			// Update the user's organizationId
 			await this.db
 				.update(users)
-				.set({ organizationId: data.organizationId })
+				.set({ organizationId: newOrganizationId })
 				.where(eq(users.id, id))
+
+			// Update currentDoctors count for old organization (decrement)
+			if (oldOrganizationId) {
+				await this.db
+					.update(organizations)
+					.set({
+						currentDoctors: sql`GREATEST(0, ${organizations.currentDoctors} - 1)`,
+					})
+					.where(eq(organizations.id, oldOrganizationId))
+			}
+
+			// Update currentDoctors count for new organization (increment)
+			if (newOrganizationId) {
+				await this.db
+					.update(organizations)
+					.set({
+						currentDoctors: sql`${organizations.currentDoctors} + 1`,
+					})
+					.where(eq(organizations.id, newOrganizationId))
+			}
 		}
 
 		// Return the updated doctor using findOne to get the full formatted response
@@ -314,9 +348,12 @@ export class DoctorsService {
 	}
 
 	async delete(id: string) {
-		// Verify doctor exists
+		// Verify doctor exists and get organizationId before deletion
 		const [existing] = await this.db
-			.select()
+			.select({
+				userId: users.id,
+				organizationId: users.organizationId,
+			})
 			.from(users)
 			.innerJoin(doctorInfos, eq(users.id, doctorInfos.userId))
 			.where(and(eq(users.id, id), eq(users.role, "DOCTOR" as const)))
@@ -326,11 +363,23 @@ export class DoctorsService {
 			throw new NotFoundException(`Doctor with ID ${id} not found`)
 		}
 
+		const organizationId = existing.organizationId
+
 		// Delete doctor info first (due to foreign key constraint)
 		await this.db.delete(doctorInfos).where(eq(doctorInfos.userId, id))
 		
 		// Delete user
 		await this.db.delete(users).where(eq(users.id, id))
+
+		// Decrement currentDoctors count for the organization if doctor was assigned to one
+		if (organizationId) {
+			await this.db
+				.update(organizations)
+				.set({
+					currentDoctors: sql`GREATEST(0, ${organizations.currentDoctors} - 1)`,
+				})
+				.where(eq(organizations.id, organizationId))
+		}
 	}
 
 	async create(data: {
@@ -417,6 +466,16 @@ export class DoctorsService {
 			subscriptionStartDate: new Date(),
 			isSubscriptionActive: true,
 		})
+
+		// Increment currentDoctors count for the organization if doctor was assigned to one
+		if (data.organizationId) {
+			await this.db
+				.update(organizations)
+				.set({
+					currentDoctors: sql`${organizations.currentDoctors} + 1`,
+				})
+				.where(eq(organizations.id, data.organizationId))
+		}
 
 		// Return the created doctor using findOne to get the full formatted response
 		return this.findOne(user.id)

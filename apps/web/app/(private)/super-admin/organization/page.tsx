@@ -54,6 +54,7 @@ import {
   SelectValue,
 } from "@/core/components/ui/select"
 import { Label } from "@/core/components/ui/label"
+import { Textarea } from "@/core/components/ui/textarea"
 import { organizationsApi } from "@/features/organizations/api/organizations-api"
 import { subscriptionsApi } from "@/features/subscriptions/api/subscriptions-api"
 import { doctorsApi } from "@/features/doctors/api/doctors-api"
@@ -82,6 +83,7 @@ export default function OrganizationPage() {
   const [organizations, setOrganizations] = React.useState<Organization[]>([])
   const [loading, setLoading] = React.useState(true)
   const [isDialogOpen, setIsDialogOpen] = React.useState(false)
+  const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false)
   const [isAddDoctorDialogOpen, setIsAddDoctorDialogOpen] = React.useState(false)
   const [selectedOrganization, setSelectedOrganization] = React.useState<Organization | null>(null)
   const [availableDoctors, setAvailableDoctors] = React.useState<DoctorListItem[]>([])
@@ -96,6 +98,12 @@ export default function OrganizationPage() {
   })
   const [approvingId, setApprovingId] = React.useState<string | null>(null)
   const [rejectingId, setRejectingId] = React.useState<string | null>(null)
+  const [rejectingOrganization, setRejectingOrganization] = React.useState<Organization | null>(null)
+  const [rejectionReason, setRejectionReason] = React.useState("")
+  const [rejecting, setRejecting] = React.useState(false)
+  const [deletingId, setDeletingId] = React.useState<string | null>(null)
+  const [deletingOrganization, setDeletingOrganization] = React.useState<Organization | null>(null)
+  const [processing, setProcessing] = React.useState(false)
 
   // Form state
   const [formData, setFormData] = React.useState<CreateOrganizationRequest>({
@@ -109,8 +117,8 @@ export default function OrganizationPage() {
     maxDoctors: undefined,
     maxPatientsPerDoctor: undefined,
     maxFaceScansPerDoctor: undefined,
-    subscriptionStartDate: new Date().toISOString().split('T')[0],
-    subscriptionEndDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    subscriptionStartDate: "",
+    subscriptionEndDate: "",
   })
 
   React.useEffect(() => {
@@ -190,9 +198,14 @@ export default function OrganizationPage() {
         toast.error("Your session is invalid. Please log in again.")
         clearTokens()
         router.push("/login")
+      } else {
+        // Handle other errors (like 500)
+        console.error("Error fetching tier settings:", response.error || response.message)
+        // Don't show toast for every error to avoid spam, but log it
       }
     } catch (error) {
       console.error("Error fetching tier settings:", error)
+      // Don't block the UI if tier settings fail to load
     }
   }, [router])
 
@@ -227,24 +240,18 @@ export default function OrganizationPage() {
 
   const handleCreateOrganization = async () => {
     try {
-      const response = await organizationsApi.createOrganization(formData)
+      // Clean up form data: convert empty strings to undefined for optional fields
+      const cleanedData: CreateOrganizationRequest = {
+        ...formData,
+        subscriptionStartDate: formData.subscriptionStartDate?.trim() || undefined,
+        subscriptionEndDate: formData.subscriptionEndDate?.trim() || undefined,
+      }
+      
+      const response = await organizationsApi.createOrganization(cleanedData)
       if (response.success) {
         toast.success("Organization created successfully")
         setIsDialogOpen(false)
-        setFormData({
-          name: "",
-          description: "",
-          address: "",
-          phone: "",
-          email: "",
-          website: "",
-          subscriptionTier: "FREE",
-          maxDoctors: undefined,
-          maxPatientsPerDoctor: undefined,
-          maxFaceScansPerDoctor: undefined,
-          subscriptionStartDate: new Date().toISOString().split('T')[0],
-          subscriptionEndDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        })
+        resetFormData()
         fetchOrganizations()
       } else {
         toast.error(response.message || "Failed to create organization")
@@ -255,13 +262,129 @@ export default function OrganizationPage() {
     }
   }
 
-  const handleDeleteOrganization = async (id: string, name: string) => {
-    if (!confirm(`Are you sure you want to delete "${name}"?`)) return
-
+  const handleUpdateOrganization = async () => {
+    if (!selectedOrganization) return
+    
     try {
-      const response = await organizationsApi.deleteOrganization(id)
+      // Clean up form data: convert empty strings to undefined for optional fields
+      const cleanedData: CreateOrganizationRequest = {
+        ...formData,
+        subscriptionStartDate: formData.subscriptionStartDate?.trim() || undefined,
+        subscriptionEndDate: formData.subscriptionEndDate?.trim() || undefined,
+      }
+      
+      const response = await organizationsApi.updateOrganization(selectedOrganization.id, cleanedData)
+      if (response.success) {
+        toast.success("Organization updated successfully")
+        setIsEditDialogOpen(false)
+        setSelectedOrganization(null)
+        resetFormData()
+        fetchOrganizations()
+      } else {
+        toast.error(response.message || "Failed to update organization")
+      }
+    } catch (error) {
+      toast.error("Failed to update organization")
+      console.error("Error updating organization:", error)
+    }
+  }
+
+  const handleOpenEditDialog = (org: Organization) => {
+    setSelectedOrganization(org)
+    // Try to fetch tier settings if empty, but don't block the dialog
+    if (tierSettings.length === 0) {
+      fetchTierSettings()
+    }
+    const tierSetting = tierSettings.find((t) => t.tier === org.subscriptionTier)
+    
+    // Convert ISO date strings to YYYY-MM-DD format for date inputs
+    const formatDateForInput = (dateString: string | null | undefined): string => {
+      // Handle null, undefined, or empty string
+      if (!dateString || (typeof dateString === 'string' && dateString.trim() === "")) {
+        return ""
+      }
+      
+      try {
+        // If already in YYYY-MM-DD format, return as-is
+        if (typeof dateString === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateString.trim())) {
+          return dateString.trim()
+        }
+        
+        // For ISO strings (e.g., "2024-01-15T00:00:00.000Z"), extract the date part
+        // This avoids timezone conversion issues
+        const dateStr = String(dateString).trim()
+        const datePartMatch = dateStr.match(/^(\d{4}-\d{2}-\d{2})/)
+        if (datePartMatch && datePartMatch[1]) {
+          return datePartMatch[1]
+        }
+        
+        // Fallback: parse as Date and use UTC components to preserve the intended date
+        const date = new Date(dateStr)
+        
+        // Check if date is valid
+        if (isNaN(date.getTime())) {
+          console.warn("Invalid date string:", dateString)
+          return ""
+        }
+        
+        // Use UTC components to avoid timezone shifts (preserves the intended date)
+        const year = date.getUTCFullYear()
+        const month = String(date.getUTCMonth() + 1).padStart(2, '0')
+        const day = String(date.getUTCDate()).padStart(2, '0')
+        
+        return `${year}-${month}-${day}`
+      } catch (error) {
+        console.error("Error formatting date:", dateString, error)
+        return ""
+      }
+    }
+    
+    setFormData({
+      name: org.name,
+      description: org.description || "",
+      address: org.address || "",
+      phone: org.phone || "",
+      email: org.email || "",
+      website: org.website || "",
+      subscriptionTier: org.subscriptionTier,
+      // Convert null to undefined for form handling
+      maxDoctors: org.maxDoctors !== null && org.maxDoctors !== undefined ? org.maxDoctors : undefined,
+      maxPatientsPerDoctor: org.maxPatientsPerDoctor !== null && org.maxPatientsPerDoctor !== undefined ? org.maxPatientsPerDoctor : undefined,
+      maxFaceScansPerDoctor: org.maxFaceScansPerDoctor !== null && org.maxFaceScansPerDoctor !== undefined ? org.maxFaceScansPerDoctor : undefined,
+      subscriptionStartDate: formatDateForInput(org.subscriptionStartDate),
+      subscriptionEndDate: formatDateForInput(org.subscriptionEndDate),
+    })
+    setIsEditDialogOpen(true)
+  }
+
+  const resetFormData = () => {
+    setFormData({
+      name: "",
+      description: "",
+      address: "",
+      phone: "",
+      email: "",
+      website: "",
+      subscriptionTier: "FREE",
+      maxDoctors: undefined,
+      maxPatientsPerDoctor: undefined,
+      maxFaceScansPerDoctor: undefined,
+      subscriptionStartDate: "",
+      subscriptionEndDate: "",
+    })
+    setSelectedOrganization(null)
+  }
+
+  const handleDeleteOrganization = async () => {
+    if (!deletingId) return
+
+    setProcessing(true)
+    try {
+      const response = await organizationsApi.deleteOrganization(deletingId)
       if (response.success) {
         toast.success("Organization deleted successfully")
+        setDeletingId(null)
+        setDeletingOrganization(null)
         fetchOrganizations()
       } else {
         toast.error(response.message || "Failed to delete organization")
@@ -269,6 +392,8 @@ export default function OrganizationPage() {
     } catch (error) {
       toast.error("Failed to delete organization")
       console.error("Error deleting organization:", error)
+    } finally {
+      setProcessing(false)
     }
   }
 
@@ -305,13 +430,23 @@ export default function OrganizationPage() {
     }
   }
 
-  const handleRejectOrganization = async (id: string) => {
-    const reason = window.prompt("Enter rejection reason (optional)") || ""
-    setRejectingId(id)
+  const handleRejectOrganization = (org: Organization) => {
+    setRejectingId(org.id)
+    setRejectingOrganization(org)
+    setRejectionReason("")
+  }
+
+  const confirmRejectOrganization = async () => {
+    if (!rejectingId) return
+
+    setRejecting(true)
     try {
-      const response = await organizationsApi.rejectOrganization(id, reason || undefined)
+      const response = await organizationsApi.rejectOrganization(rejectingId, rejectionReason.trim() || undefined)
       if (response.success) {
         toast.success("Organization rejected")
+        setRejectingId(null)
+        setRejectingOrganization(null)
+        setRejectionReason("")
         fetchOrganizations()
       } else {
         toast.error(response.message || "Failed to reject organization")
@@ -320,7 +455,7 @@ export default function OrganizationPage() {
       toast.error("Failed to reject organization")
       console.error("Error rejecting organization:", error)
     } finally {
-      setRejectingId(null)
+      setRejecting(false)
     }
   }
 
@@ -409,6 +544,14 @@ export default function OrganizationPage() {
   const selectedTierSetting = tierSettings.find(
     (tier) => tier.tier === formData.subscriptionTier
   )
+
+  const getPlaceholder = (field: 'maxDoctors' | 'maxPatientsPerDoctor' | 'maxFaceScansPerDoctor') => {
+    const tierValue = selectedTierSetting?.[field]
+    if (tierValue === null || tierValue === undefined) {
+      return ""
+    }
+    return tierValue.toString()
+  }
 
   return (
     <SidebarProvider
@@ -508,7 +651,10 @@ export default function OrganizationPage() {
                       <Button variant="outline" size="icon" onClick={fetchOrganizations}>
                         <IconRefresh className="h-4 w-4" />
                       </Button>
-                      <Button onClick={() => setIsDialogOpen(true)}>
+                      <Button onClick={() => {
+                        resetFormData()
+                        setIsDialogOpen(true)
+                      }}>
                         <IconPlus className="h-4 w-4 mr-2" />
                         Add Organization
                       </Button>
@@ -627,7 +773,7 @@ export default function OrganizationPage() {
                                         <Button
                                           size="sm"
                                           variant="destructive"
-                                          onClick={() => handleRejectOrganization(org.id)}
+                                          onClick={() => handleRejectOrganization(org)}
                                           disabled={rejectingId === org.id}
                                         >
                                           {rejectingId === org.id ? "Rejecting..." : "Reject"}
@@ -636,7 +782,7 @@ export default function OrganizationPage() {
                                     )}
                                   </div>
                                   <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
+                                    <DropdownMenuTrigger>
                                       <Button variant="ghost" size="icon" className="h-8 w-8">
                                         <IconDotsVertical className="h-4 w-4" />
                                       </Button>
@@ -648,7 +794,7 @@ export default function OrganizationPage() {
                                         <IconPlus className="h-4 w-4 mr-2" />
                                         Add Doctor
                                       </DropdownMenuItem>
-                                      <DropdownMenuItem>
+                                      <DropdownMenuItem onClick={() => handleOpenEditDialog(org)}>
                                         <IconEdit className="h-4 w-4 mr-2" />
                                         Edit
                                       </DropdownMenuItem>
@@ -660,7 +806,10 @@ export default function OrganizationPage() {
                                       </DropdownMenuItem>
                                       <DropdownMenuItem
                                         className="text-destructive"
-                                        onClick={() => handleDeleteOrganization(org.id, org.name)}
+                                        onClick={() => {
+                                          setDeletingId(org.id)
+                                          setDeletingOrganization(org)
+                                        }}
                                       >
                                         <IconTrash className="h-4 w-4 mr-2" />
                                         Delete
@@ -762,28 +911,39 @@ export default function OrganizationPage() {
                 <div className="grid gap-2">
                   <Label htmlFor="subscriptionTier">Subscription Tier *</Label>
                   <Select
+                    key={`create-tier-${formData.subscriptionTier}`}
                     value={formData.subscriptionTier}
-                    onValueChange={(value) =>
+                    onValueChange={(value) => {
+                      const tierSetting = tierSettings.find((t) => t.tier === value)
                       setFormData({
                         ...formData,
                         subscriptionTier: value as "FREE" | "BASIC" | "PREMIUM" | "ENTERPRISE" | "T",
-                        maxDoctors: tierSettings.find((t) => t.tier === value)?.maxDoctors || undefined,
-                        maxPatientsPerDoctor:
-                          tierSettings.find((t) => t.tier === value)?.maxPatientsPerDoctor || undefined,
-                        maxFaceScansPerDoctor:
-                          tierSettings.find((t) => t.tier === value)?.maxFaceScansPerDoctor || undefined,
+                        // Only auto-populate if current values are undefined, allowing manual overrides
+                        maxDoctors: formData.maxDoctors === undefined 
+                          ? (tierSetting?.maxDoctors ?? undefined)
+                          : formData.maxDoctors,
+                        maxPatientsPerDoctor: formData.maxPatientsPerDoctor === undefined
+                          ? (tierSetting?.maxPatientsPerDoctor ?? undefined)
+                          : formData.maxPatientsPerDoctor,
+                        maxFaceScansPerDoctor: formData.maxFaceScansPerDoctor === undefined
+                          ? (tierSetting?.maxFaceScansPerDoctor ?? undefined)
+                          : formData.maxFaceScansPerDoctor,
                       })
-                    }
+                    }}
                   >
-                    <SelectTrigger id="subscriptionTier">
-                      <SelectValue placeholder="Select tier" />
+                    <SelectTrigger id="subscriptionTier" className="w-full">
+                      <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
-                      {tierSettings.map((tier) => (
-                        <SelectItem key={tier.id} value={tier.tier}>
-                          {tier.displayName} ({tier.tier})
-                        </SelectItem>
-                      ))}
+                    <SelectContent className="z-[100]">
+                      {tierSettings.length > 0 ? (
+                        tierSettings.map((tier) => (
+                          <SelectItem key={tier.id} value={tier.tier}>
+                            {tier.displayName} ({tier.tier})
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="loading" disabled>Loading tiers...</SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                   {selectedTierSetting && (
@@ -795,64 +955,73 @@ export default function OrganizationPage() {
 
                 <div className="grid gap-2">
                   <Label htmlFor="maxDoctors">
-                    Max Doctors {selectedTierSetting?.maxDoctors !== null && selectedTierSetting?.maxDoctors !== undefined && `(Default: ${selectedTierSetting.maxDoctors})`}
+                    Max Doctors {selectedTierSetting?.maxDoctors !== null && selectedTierSetting?.maxDoctors !== undefined && `(Tier Default: ${selectedTierSetting.maxDoctors})`}
                   </Label>
                   <Input
                     id="maxDoctors"
                     type="number"
+                    min="0"
                     value={formData.maxDoctors ?? ""}
                     onChange={(e) =>
                       setFormData({
                         ...formData,
-                        maxDoctors: e.target.value ? parseInt(e.target.value) : undefined,
+                        maxDoctors: e.target.value && e.target.value !== "" ? parseInt(e.target.value) : undefined,
                       })
                     }
-                    placeholder={selectedTierSetting?.maxDoctors?.toString() || "Unlimited"}
+                    placeholder={getPlaceholder('maxDoctors')}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Leave empty for unlimited (or use tier default)
+                    {selectedTierSetting?.maxDoctors !== null && selectedTierSetting?.maxDoctors !== undefined
+                      ? `Leave empty to use tier default (${selectedTierSetting.maxDoctors}) or enter a custom limit`
+                      : "Leave empty or enter a custom limit"}
                   </p>
                 </div>
 
                 <div className="grid gap-2">
                   <Label htmlFor="maxPatientsPerDoctor">
-                    Patients per Doctor {selectedTierSetting?.maxPatientsPerDoctor !== null && selectedTierSetting?.maxPatientsPerDoctor !== undefined && `(Default: ${selectedTierSetting.maxPatientsPerDoctor})`}
+                    Patients per Doctor {selectedTierSetting?.maxPatientsPerDoctor !== null && selectedTierSetting?.maxPatientsPerDoctor !== undefined && `(Tier Default: ${selectedTierSetting.maxPatientsPerDoctor})`}
                   </Label>
                   <Input
                     id="maxPatientsPerDoctor"
                     type="number"
+                    min="0"
                     value={formData.maxPatientsPerDoctor ?? ""}
                     onChange={(e) =>
                       setFormData({
                         ...formData,
-                        maxPatientsPerDoctor: e.target.value ? parseInt(e.target.value) : undefined,
+                        maxPatientsPerDoctor: e.target.value && e.target.value !== "" ? parseInt(e.target.value) : undefined,
                       })
                     }
-                    placeholder={selectedTierSetting?.maxPatientsPerDoctor?.toString() || "Unlimited"}
+                    placeholder={getPlaceholder('maxPatientsPerDoctor')}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Patients allowed for each doctor (leave empty to use tier default)
+                    {selectedTierSetting?.maxPatientsPerDoctor !== null && selectedTierSetting?.maxPatientsPerDoctor !== undefined
+                      ? `Leave empty to use tier default (${selectedTierSetting.maxPatientsPerDoctor}) or enter a custom limit`
+                      : "Patients allowed for each doctor. Leave empty or enter a custom limit"}
                   </p>
                 </div>
 
                 <div className="grid gap-2">
                   <Label htmlFor="maxFaceScansPerDoctor">
-                    Face Scans per Doctor {selectedTierSetting?.maxFaceScansPerDoctor !== null && selectedTierSetting?.maxFaceScansPerDoctor !== undefined && `(Default: ${selectedTierSetting.maxFaceScansPerDoctor})`}
+                    Face Scans per Doctor {selectedTierSetting?.maxFaceScansPerDoctor !== null && selectedTierSetting?.maxFaceScansPerDoctor !== undefined && `(Tier Default: ${selectedTierSetting.maxFaceScansPerDoctor})`}
                   </Label>
                   <Input
                     id="maxFaceScansPerDoctor"
                     type="number"
+                    min="0"
                     value={formData.maxFaceScansPerDoctor ?? ""}
                     onChange={(e) =>
                       setFormData({
                         ...formData,
-                        maxFaceScansPerDoctor: e.target.value ? parseInt(e.target.value) : undefined,
+                        maxFaceScansPerDoctor: e.target.value && e.target.value !== "" ? parseInt(e.target.value) : undefined,
                       })
                     }
-                    placeholder={selectedTierSetting?.maxFaceScansPerDoctor?.toString() || "Unlimited"}
+                    placeholder={getPlaceholder('maxFaceScansPerDoctor')}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Per-doctor face scan pool distributed across their patients
+                    {selectedTierSetting?.maxFaceScansPerDoctor !== null && selectedTierSetting?.maxFaceScansPerDoctor !== undefined
+                      ? `Leave empty to use tier default (${selectedTierSetting.maxFaceScansPerDoctor}) or enter a custom limit`
+                      : "Per-doctor face scan pool distributed across their patients. Leave empty or enter a custom limit"}
                   </p>
                 </div>
 
@@ -885,11 +1054,256 @@ export default function OrganizationPage() {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+            <Button variant="outline" onClick={() => {
+              setIsDialogOpen(false)
+              resetFormData()
+            }}>
               Cancel
             </Button>
             <Button onClick={handleCreateOrganization} disabled={!formData.name}>
               Create Organization
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Organization Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Organization</DialogTitle>
+            <DialogDescription>
+              Update organization information and subscription tier settings.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="edit-name">Organization Name *</Label>
+              <Input
+                id="edit-name"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="Enter organization name"
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="edit-description">Description</Label>
+              <Input
+                id="edit-description"
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                placeholder="Enter organization description"
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="edit-address">Address</Label>
+              <Input
+                id="edit-address"
+                value={formData.address}
+                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                placeholder="Enter organization address"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="edit-phone">Phone</Label>
+                <Input
+                  id="edit-phone"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  placeholder="Enter phone number"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-email">Email</Label>
+                <Input
+                  id="edit-email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  placeholder="Enter email address"
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="edit-website">Website</Label>
+              <Input
+                id="edit-website"
+                value={formData.website}
+                onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+                placeholder="Enter website URL"
+              />
+            </div>
+
+            <div className="border-t pt-4">
+              <h3 className="text-sm font-semibold mb-4">Subscription Settings</h3>
+
+              <div className="grid gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-subscriptionTier">Subscription Tier *</Label>
+                  <Select
+                    key={`edit-tier-${selectedOrganization?.id}-${formData.subscriptionTier}`}
+                    value={formData.subscriptionTier}
+                    onValueChange={(value) => {
+                      const tierSetting = tierSettings.find((t) => t.tier === value)
+                      setFormData({
+                        ...formData,
+                        subscriptionTier: value as "FREE" | "BASIC" | "PREMIUM" | "ENTERPRISE" | "T",
+                        // Only auto-populate if current values are undefined, allowing manual overrides
+                        maxDoctors: formData.maxDoctors === undefined 
+                          ? (tierSetting?.maxDoctors ?? undefined)
+                          : formData.maxDoctors,
+                        maxPatientsPerDoctor: formData.maxPatientsPerDoctor === undefined
+                          ? (tierSetting?.maxPatientsPerDoctor ?? undefined)
+                          : formData.maxPatientsPerDoctor,
+                        maxFaceScansPerDoctor: formData.maxFaceScansPerDoctor === undefined
+                          ? (tierSetting?.maxFaceScansPerDoctor ?? undefined)
+                          : formData.maxFaceScansPerDoctor,
+                      })
+                    }}
+                  >
+                    <SelectTrigger id="edit-subscriptionTier" className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="z-[100]">
+                      {tierSettings.length > 0 ? (
+                        tierSettings.map((tier) => (
+                          <SelectItem key={tier.id} value={tier.tier}>
+                            {tier.displayName} ({tier.tier})
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <>
+                          <SelectItem value="FREE">Free (FREE)</SelectItem>
+                          <SelectItem value="BASIC">Basic (BASIC)</SelectItem>
+                          <SelectItem value="PREMIUM">Premium (PREMIUM)</SelectItem>
+                          <SelectItem value="ENTERPRISE">Enterprise (ENTERPRISE)</SelectItem>
+                          <SelectItem value="T">T Tier (T)</SelectItem>
+                        </>
+                      )}
+                    </SelectContent>
+                  </Select>
+                  {selectedTierSetting && (
+                    <p className="text-xs text-muted-foreground">
+                      {selectedTierSetting.description || "No description available"}
+                    </p>
+                  )}
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-maxDoctors">
+                    Max Doctors {selectedTierSetting?.maxDoctors !== null && selectedTierSetting?.maxDoctors !== undefined && `(Tier Default: ${selectedTierSetting.maxDoctors})`}
+                  </Label>
+                  <Input
+                    id="edit-maxDoctors"
+                    type="number"
+                    min="0"
+                    value={formData.maxDoctors ?? ""}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        maxDoctors: e.target.value && e.target.value !== "" ? parseInt(e.target.value) : undefined,
+                      })
+                    }
+                    placeholder={getPlaceholder('maxDoctors')}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {selectedTierSetting?.maxDoctors !== null && selectedTierSetting?.maxDoctors !== undefined
+                      ? `Leave empty to use tier default (${selectedTierSetting.maxDoctors}) or enter a custom limit`
+                      : "Leave empty or enter a custom limit"}
+                  </p>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-maxPatientsPerDoctor">
+                    Patients per Doctor {selectedTierSetting?.maxPatientsPerDoctor !== null && selectedTierSetting?.maxPatientsPerDoctor !== undefined && `(Tier Default: ${selectedTierSetting.maxPatientsPerDoctor})`}
+                  </Label>
+                  <Input
+                    id="edit-maxPatientsPerDoctor"
+                    type="number"
+                    min="0"
+                    value={formData.maxPatientsPerDoctor ?? ""}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        maxPatientsPerDoctor: e.target.value && e.target.value !== "" ? parseInt(e.target.value) : undefined,
+                      })
+                    }
+                    placeholder={getPlaceholder('maxPatientsPerDoctor')}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {selectedTierSetting?.maxPatientsPerDoctor !== null && selectedTierSetting?.maxPatientsPerDoctor !== undefined
+                      ? `Leave empty to use tier default (${selectedTierSetting.maxPatientsPerDoctor}) or enter a custom limit`
+                      : "Patients allowed for each doctor. Leave empty or enter a custom limit"}
+                  </p>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-maxFaceScansPerDoctor">
+                    Face Scans per Doctor {selectedTierSetting?.maxFaceScansPerDoctor !== null && selectedTierSetting?.maxFaceScansPerDoctor !== undefined && `(Tier Default: ${selectedTierSetting.maxFaceScansPerDoctor})`}
+                  </Label>
+                  <Input
+                    id="edit-maxFaceScansPerDoctor"
+                    type="number"
+                    min="0"
+                    value={formData.maxFaceScansPerDoctor ?? ""}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        maxFaceScansPerDoctor: e.target.value && e.target.value !== "" ? parseInt(e.target.value) : undefined,
+                      })
+                    }
+                    placeholder={getPlaceholder('maxFaceScansPerDoctor')}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {selectedTierSetting?.maxFaceScansPerDoctor !== null && selectedTierSetting?.maxFaceScansPerDoctor !== undefined
+                      ? `Leave empty to use tier default (${selectedTierSetting.maxFaceScansPerDoctor}) or enter a custom limit`
+                      : "Per-doctor face scan pool distributed across their patients. Leave empty or enter a custom limit"}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="edit-subscriptionStartDate">Start Date</Label>
+                    <Input
+                      id="edit-subscriptionStartDate"
+                      type="date"
+                      value={formData.subscriptionStartDate}
+                      onChange={(e) =>
+                        setFormData({ ...formData, subscriptionStartDate: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="edit-subscriptionEndDate">End Date</Label>
+                    <Input
+                      id="edit-subscriptionEndDate"
+                      type="date"
+                      value={formData.subscriptionEndDate}
+                      onChange={(e) =>
+                        setFormData({ ...formData, subscriptionEndDate: e.target.value })
+                      }
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setIsEditDialogOpen(false)
+              resetFormData()
+            }}>
+              Cancel
+            </Button>
+            <Button onClick={handleUpdateOrganization} disabled={!formData.name}>
+              Update Organization
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -957,6 +1371,108 @@ export default function OrganizationPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsAddDoctorDialogOpen(false)}>
               Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!deletingId} onOpenChange={(open) => !open && setDeletingId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Organization</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this organization? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          {deletingOrganization && (
+            <div className="mt-2 mb-4">
+              <p className="font-medium">{deletingOrganization.name}</p>
+              <p className="text-sm text-muted-foreground">{deletingOrganization.email || "No email"}</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                {deletingOrganization.description || "No description"}
+              </p>
+              {deletingOrganization.currentDoctors > 0 && (
+                <p className="text-sm text-amber-600 mt-2 font-medium">
+                  Warning: This organization has {deletingOrganization.currentDoctors} doctor(s) assigned.
+                </p>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDeletingId(null)
+                setDeletingOrganization(null)
+              }}
+              disabled={processing}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => handleDeleteOrganization()}
+              disabled={processing}
+            >
+              {processing ? 'Deleting...' : 'Delete Organization'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reject Organization Dialog */}
+      <Dialog open={!!rejectingId} onOpenChange={(open) => {
+        if (!open) {
+          setRejectingId(null)
+          setRejectingOrganization(null)
+          setRejectionReason("")
+        }
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reject Organization</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to reject this organization? You can provide an optional reason for rejection.
+            </DialogDescription>
+          </DialogHeader>
+          {rejectingOrganization && (
+            <div className="mt-2 mb-4">
+              <p className="font-medium">{rejectingOrganization.name}</p>
+              <p className="text-sm text-muted-foreground">{rejectingOrganization.email || "No email"}</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                {rejectingOrganization.description || "No description"}
+              </p>
+            </div>
+          )}
+          <div className="grid gap-2 py-4">
+            <Label htmlFor="rejectionReason">Rejection Reason (Optional)</Label>
+            <Textarea
+              id="rejectionReason"
+              placeholder="Enter the reason for rejecting this organization..."
+              value={rejectionReason}
+              onChange={(e) => setRejectionReason(e.target.value)}
+              rows={4}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setRejectingId(null)
+                setRejectingOrganization(null)
+                setRejectionReason("")
+              }}
+              disabled={rejecting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => confirmRejectOrganization()}
+              disabled={rejecting}
+            >
+              {rejecting ? 'Rejecting...' : 'Reject Organization'}
             </Button>
           </DialogFooter>
         </DialogContent>

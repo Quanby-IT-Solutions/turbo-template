@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common"
+import {  ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common"
 import { and, desc, eq, inArray } from "drizzle-orm"
 
 import { labRequests, organizations, patientInfos, users } from "@repo/db/schema"

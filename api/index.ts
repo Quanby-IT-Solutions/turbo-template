@@ -3,7 +3,7 @@ import { ExpressAdapter } from "@nestjs/platform-express"
 import type { VercelRequest, VercelResponse } from "@vercel/node"
 import express from "express"
 
-import { MainModule } from "../apps/backend/src/main.module"
+import { MainModule } from "@/main.module"
 
 // Cache the NestJS app instance across function invocations
 let cachedApp: express.Application | null = null
@@ -25,13 +25,7 @@ async function bootstrapNest() {
 	app.use(express.urlencoded({ extended: true }))
 
 	// CORS configuration
-	const corsOrigins =
-		process.env.NODE_ENV === "production"
-			? process.env.ALLOWED_ORIGINS?.split(",") || [
-					"https://quanby-healthcare-v2.vercel.app",
-					"https://qhealthcare.quanbyit.com",
-				]
-			: true // Allow all origins in development
+	const corsOrigins = process.env.ALLOWED_ORIGINS?.split(",") || true
 
 	app.enableCors({
 		origin: corsOrigins,

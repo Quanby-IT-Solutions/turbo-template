@@ -1084,32 +1084,36 @@ class HttpService {
   }
 
   /// Update patient information
-  static Future<Map<String, dynamic>> updatePatient(
-    String id,
-    Map<String, dynamic> data,
-  ) async {
-    try {
-      final dio = await _getDio();
-      final response = await dio.patch(
-        '/api/v1/patients/$id',
-        data: data,
-      );
+static const String _patientsEndpoint = '/api/v1/patients';
 
-      if (response.statusCode == 200) {
-        final responseData = response.data as Map<String, dynamic>;
-        // Backend returns {success: true, data: patient}
-        if (responseData['success'] == true && responseData['data'] != null) {
-          return responseData['data'] as Map<String, dynamic>;
-        }
-        return responseData;
-      } else {
-        throw _handleError(response);
+static Future<Map<String, dynamic>> updatePatient(
+  String id,
+  Map<String, dynamic> data,
+) async {
+  try {
+    final dio = await _getDio();
+    
+    // Use PUT method 
+    final response = await dio.put(
+      '$_patientsEndpoint/$id',
+      data: data,
+    );
+
+    if (response.statusCode == 200) {
+      final responseData = response.data as Map<String, dynamic>;
+      // Backend returns {success: true, data: patient}
+      if (responseData['success'] == true && responseData['data'] != null) {
+        return responseData['data'] as Map<String, dynamic>;
       }
-    } catch (e) {
-      debugPrint('Update patient error: $e');
-      rethrow;
+      return responseData;
+    } else {
+      throw _handleError(response);
     }
+  } catch (e) {
+    debugPrint('Update patient error: $e');
+    rethrow;
   }
+}
 
   // ===================
   // Medical Records Methods

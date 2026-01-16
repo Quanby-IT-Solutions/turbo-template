@@ -32,10 +32,7 @@ class AppointmentsListNotifier extends AsyncNotifier<List<Appointment>> {
     int? limit,
   }) async {
     try {
-      return await _repository.getAppointments(
-        status: status,
-        limit: limit,
-      );
+      return await _repository.getAppointments(status: status, limit: limit);
     } catch (e) {
       throw Exception('Failed to load appointments: ${e.toString()}');
     }
@@ -87,8 +84,8 @@ class AppointmentsListNotifier extends AsyncNotifier<List<Appointment>> {
 /// Provider for appointments list
 final appointmentsListProvider =
     AsyncNotifierProvider<AppointmentsListNotifier, List<Appointment>>(
-  AppointmentsListNotifier.new,
-);
+      AppointmentsListNotifier.new,
+    );
 
 // ==================
 // Doctor Availability Provider
@@ -141,11 +138,7 @@ class AvailabilitySlotsNotifier extends AsyncNotifier<AvailabilityState?> {
         doctorId: doctorId,
         date: date,
       );
-      return AvailabilityState(
-        slots: slots,
-        doctorId: doctorId,
-        date: date,
-      );
+      return AvailabilityState(slots: slots, doctorId: doctorId, date: date);
     });
   }
 
@@ -158,8 +151,8 @@ class AvailabilitySlotsNotifier extends AsyncNotifier<AvailabilityState?> {
 /// Provider for doctor availability
 final availabilitySlotsProvider =
     AsyncNotifierProvider<AvailabilitySlotsNotifier, AvailabilityState?>(
-  AvailabilitySlotsNotifier.new,
-);
+      AvailabilitySlotsNotifier.new,
+    );
 
 // ==================
 // Appointment Booking Provider
@@ -217,6 +210,7 @@ class AppointmentBookingNotifier extends Notifier<BookingState> {
   }
 
   /// Book a new appointment
+  /// Book a new appointment
   Future<Appointment?> bookAppointment({
     required String doctorId,
     required DateTime scheduledAt,
@@ -242,7 +236,13 @@ class AppointmentBookingNotifier extends Notifier<BookingState> {
 
       return appointment;
     } catch (e) {
-      state = BookingState.error(e.toString());
+      // Extract clean error message from Exception
+      String errorMessage = e.toString();
+      if (errorMessage.startsWith('Exception: ')) {
+        errorMessage = errorMessage.substring('Exception: '.length);
+      }
+
+      state = BookingState.error(errorMessage);
       return null;
     }
   }
@@ -256,8 +256,8 @@ class AppointmentBookingNotifier extends Notifier<BookingState> {
 /// Provider for appointment booking
 final appointmentBookingProvider =
     NotifierProvider<AppointmentBookingNotifier, BookingState>(
-  AppointmentBookingNotifier.new,
-);
+      AppointmentBookingNotifier.new,
+    );
 
 // ==================
 // Appointment Actions Provider
@@ -332,5 +332,55 @@ class AppointmentActionsNotifier extends Notifier<AsyncValue<void>> {
 /// Provider for appointment actions
 final appointmentActionsProvider =
     NotifierProvider<AppointmentActionsNotifier, AsyncValue<void>>(
-  AppointmentActionsNotifier.new,
-);
+      AppointmentActionsNotifier.new,
+    );
+
+// ==================
+// Doctor Weekly Availability Provider
+// ==================
+
+/// Provider for doctor's weekly availability
+final doctorWeeklyAvailabilityProvider =
+    FutureProvider.family<List<DoctorAvailability>, String>((
+      ref,
+      doctorId,
+    ) async {
+      final repository = ref.read(appointmentRepositoryProvider);
+      return repository.getDoctorWeeklyAvailability(doctorId);
+    });
+
+// ==================
+// Available Time Slots Provider
+// ==================
+
+/// Parameters for available slots query
+class AvailableSlotsParams {
+  final String doctorId;
+  final String date;
+
+  AvailableSlotsParams({required this.doctorId, required this.date});
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AvailableSlotsParams &&
+          runtimeType == other.runtimeType &&
+          doctorId == other.doctorId &&
+          date == other.date;
+
+  @override
+  int get hashCode => doctorId.hashCode ^ date.hashCode;
+}
+
+/// Provider for available time slots on a specific date
+final availableSlotsProvider =
+    FutureProvider.family<List<String>, AvailableSlotsParams>((
+      ref,
+      params,
+    ) async {
+      final repository = ref.read(appointmentRepositoryProvider);
+      return repository.getDoctorAvailableSlots(
+        doctorId: params.doctorId,
+        date: params.date,
+      );
+    });

@@ -2,6 +2,8 @@
 
 A TypeScript-first monorepo template using **Turborepo** and **pnpm** with a full-stack architecture spanning web, backend, and mobile platforms.
 
+> **🚀 Quick Deploy:** Want to deploy to Vercel immediately? See the [Quick Start Guide](./QUICK_START.md)
+
 ## Table of Contents
 
 - [Technology Stack](#technology-stack)
@@ -11,6 +13,7 @@ A TypeScript-first monorepo template using **Turborepo** and **pnpm** with a ful
 - [Scripts](#scripts)
 - [Packages](#packages)
 - [Development Workflow](#development-workflow)
+- [Deployment](#deployment)
 - [Documentation](#documentation)
 
 ## Technology Stack
@@ -215,6 +218,26 @@ import { todos, users } from "@repo/db/schema"
    ```
 4. **Update environment files** when adding new variables
 5. **Keep features isolated** in their own folders
+
+## Deployment
+
+### Vercel Deployment (Frontend + Backend)
+
+This repository is configured for seamless deployment of both frontend and backend to Vercel using Turborepo.
+
+📘 **[Read the complete Vercel Deployment Guide](./VERCEL_DEPLOYMENT.md)**
+
+Quick steps:
+1. Fork this repository to your personal GitHub account
+2. Import the forked repository in Vercel
+3. Configure environment variables
+4. Deploy!
+
+Both the Next.js web app (`apps/web/`) and NestJS backend (`apps/backend/`) will be automatically deployed:
+- **Frontend**: Deployed as a Next.js application
+- **Backend**: Deployed as Vercel serverless functions accessible at `/api/*`
+
+The deployment is optimized with Turborepo for fast builds and efficient caching.
 
 ## Documentation
 

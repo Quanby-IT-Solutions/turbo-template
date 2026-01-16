@@ -535,6 +535,43 @@ async create(data: any, user: any) {
         throw new ForbiddenException("Doctor ID is required");
     }
 
+    if (!data.requestedDate || !data.requestedTime) {
+        throw new BadRequestException("Requested date and time are required");
+    }
+
+    // Parse the requested date
+    const requestedDate = new Date(data.requestedDate);
+    const dateStr = requestedDate.toISOString().split('T')[0];
+
+    // Verify doctor exists using existing method (will throw if doctor not found)
+    const availability = await this.getDoctorAvailability(data.doctorId);
+    
+    if (availability.length === 0) {
+        throw new BadRequestException("Doctor has no available schedule");
+    }
+
+    // Get available time slots for the requested date using existing method
+	if (!data.doctorId || !dateStr) {
+		throw new BadRequestException("Doctor ID and requested date are required");
+	}
+	const availableSlots = await this.getDoctorAvailableTimeSlots(data.doctorId, dateStr);
+
+    if (availableSlots.length === 0) {
+        const dayOfWeekMap = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const dayOfWeek = dayOfWeekMap[requestedDate.getUTCDay()];
+        throw new BadRequestException(
+            `Doctor is not available on ${dayOfWeek}s or has no available slots on this date`
+        );
+    }
+
+    // Check if the requested time is in the available slots
+    if (!availableSlots.includes(data.requestedTime)) {
+        throw new BadRequestException(
+            `The requested time slot ${data.requestedTime} is not available. Available slots: ${availableSlots.join(', ')}`
+        );
+    }
+
+    // All validations passed - create the appointment
     return this.db
         .insert(appointmentRequests)
         .values({

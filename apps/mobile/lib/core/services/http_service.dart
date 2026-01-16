@@ -480,29 +480,46 @@ class HttpService {
   }
 
   /// Get doctor availability for a specific date
-  static Future<Map<String, dynamic>> getDoctorAvailability({
+  static Future<dynamic> getDoctorAvailability({
     required String doctorId,
     required String date,
   }) async {
     try {
       final dio = await _getDio();
       final response = await dio.get(
-        '$_appointmentsEndpoint/doctor/$doctorId/availability',
-        queryParameters: {'date': date},
+        '/appointments/doctor/$doctorId/availability',
       );
 
       if (response.statusCode == 200) {
-        final responseData = response.data as Map<String, dynamic>;
-        // Backend returns {success: true, data: {...}}
-        if (responseData['success'] == true && responseData['data'] != null) {
-          return responseData['data'] as Map<String, dynamic>;
-        }
-        return responseData;
+        return response.data;
       } else {
         throw _handleError(response);
       }
     } catch (e) {
       debugPrint('Get doctor availability error: $e');
+      rethrow;
+    }
+  }
+
+  /// Get available time slots for a specific date
+  static Future<dynamic> getDoctorAvailableSlots({
+    required String doctorId,
+    required String date,
+  }) async {
+    try {
+      final dio = await _getDio();
+      final response = await dio.get(
+        '$_appointmentsEndpoint/doctor/$doctorId/available-slots',
+        queryParameters: {'date': date},
+      );
+
+      if (response.statusCode == 200) {
+        return response.data;
+      } else {
+        throw _handleError(response);
+      }
+    } catch (e) {
+      debugPrint('Get available slots error: $e');
       rethrow;
     }
   }
@@ -1099,13 +1116,17 @@ class HttpService {
   }
 
   /// Update patient information
+  static const String _patientsEndpoint = '/api/v1/patients';
+
   static Future<Map<String, dynamic>> updatePatient(
     String id,
     Map<String, dynamic> data,
   ) async {
     try {
       final dio = await _getDio();
-      final response = await dio.patch('/api/v1/patients/$id', data: data);
+
+      // Use PUT method
+      final response = await dio.put('$_patientsEndpoint/$id', data: data);
 
       if (response.statusCode == 200) {
         final responseData = response.data as Map<String, dynamic>;

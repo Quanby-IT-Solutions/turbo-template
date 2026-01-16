@@ -1,0 +1,20 @@
+{
+	"extends": "../tooling/typescript/base.json",
+	"compilerOptions": {
+		"module": "commonjs",
+		"target": "ES2020",
+		"lib": ["ES2020"],
+		"outDir": "./dist",
+		"rootDir": ".",
+		"esModuleInterop": true,
+		"skipLibCheck": true,
+		"strict": true,
+		"resolveJsonModule": true,
+		"moduleResolution": "node",
+		"paths": {
+			"@/*": ["../apps/backend/src/*"]
+		}
+	},
+	"include": ["./**/*.ts"],
+	"exclude": ["node_modules", "dist"]
+}

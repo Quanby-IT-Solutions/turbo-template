@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/core/services/toast_service.dart';
+import 'package:mobile/data/repositories/appointment_repository.dart';
 import 'package:mobile/presentation/scheduling/providers/appointment_providers.dart';
 
 class AppointmentBookingScreen extends ConsumerStatefulWidget {
@@ -20,7 +21,7 @@ class _AppointmentBookingScreenState
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
   String _selectedType = 'video_call';
-  String _selectedPriority = 'MEDIUM'; // Added priority state
+  String _selectedPriority = 'MEDIUM';
   final _reasonController = TextEditingController();
   final _notesController = TextEditingController();
 
@@ -52,7 +53,6 @@ class _AppointmentBookingScreenState
     },
   ];
 
-  // Priority options
   final List<Map<String, dynamic>> _priorityOptions = [
     {
       'value': 'LOW',
@@ -85,11 +85,47 @@ class _AppointmentBookingScreenState
   }
 
   Future<void> _selectDate() async {
+    // Get doctor's weekly availability
+    ref.read(doctorWeeklyAvailabilityProvider(_doctorId));
+    await Future.delayed(const Duration(milliseconds: 100));
+
+    final availabilityAsync = ref.read(
+      doctorWeeklyAvailabilityProvider(_doctorId),
+    );
+
+    List<DoctorAvailability> availability = availabilityAsync.maybeWhen(
+      data: (data) => data,
+      orElse: () => [],
+    );
+
+    // Create set of available day indices (0=Sunday, 6=Saturday)
+    final availableDays = availability
+        .where((a) => a.isAvailable)
+        .map((a) => a.dayIndex)
+        .toSet();
+
+    if (!mounted) return;
+
     final picked = await showDatePicker(
       context: context,
       initialDate: DateTime.now().add(const Duration(days: 1)),
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 90)),
+      selectableDayPredicate: (DateTime date) {
+        // Disable dates in the past
+        if (date.isBefore(DateTime.now())) {
+          return false;
+        }
+
+        // If no availability data loaded, allow all future dates
+        if (availability.isEmpty) return true;
+
+        // Only enable days where doctor is available
+        // Flutter's weekday: 1=Monday, 7=Sunday
+        // Convert to: 0=Sunday, 6=Saturday
+        final dayIndex = date.weekday % 7;
+        return availableDays.contains(dayIndex);
+      },
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -103,28 +139,139 @@ class _AppointmentBookingScreenState
     );
 
     if (picked != null) {
-      setState(() => _selectedDate = picked);
+      setState(() {
+        _selectedDate = picked;
+        _selectedTime = null;
+      });
     }
   }
 
   Future<void> _selectTime() async {
-    final picked = await showTimePicker(
+    if (_selectedDate == null) {
+      ToastService.showError(
+        context: context,
+        title: 'Select Date First',
+        description: 'Please select an appointment date before choosing a time',
+      );
+      return;
+    }
+
+    final dateStr = _selectedDate!.toIso8601String().split('T')[0];
+    final params = AvailableSlotsParams(doctorId: _doctorId, date: dateStr);
+
+    // Show loading indicator
+    if (!mounted) return;
+    showDialog(
       context: context,
-      initialTime: TimeOfDay.now(),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.light(
-              primary: Theme.of(context).colorScheme.primary,
-            ),
-          ),
-          child: child!,
-        );
-      },
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
     );
 
-    if (picked != null) {
-      setState(() => _selectedTime = picked);
+    List<String> availableSlots = [];
+
+    try {
+      // Trigger provider and wait for data
+      ref.invalidate(availableSlotsProvider(params));
+      await Future.delayed(const Duration(milliseconds: 200));
+
+      final slotsAsync = ref.read(availableSlotsProvider(params));
+
+      availableSlots = await slotsAsync.when(
+        data: (data) async => data,
+        loading: () async {
+          // Wait for actual data
+          await Future.delayed(const Duration(seconds: 2));
+          final retryAsync = ref.read(availableSlotsProvider(params));
+          return retryAsync.maybeWhen(
+            data: (data) => data,
+            orElse: () => <String>[],
+          );
+        },
+        error: (error, stack) async {
+          throw Exception('Failed to load time slots');
+        },
+      );
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.of(context).pop(); // Close loading dialog
+
+      ToastService.showError(
+        context: context,
+        title: 'Day Unavailable',
+        description:
+            'The doctor has no available time slots for this date. Please choose another date.',
+      );
+      return;
+    }
+
+    if (!mounted) return;
+    Navigator.of(context).pop(); // Close loading dialog
+
+    if (availableSlots.isEmpty) {
+      ToastService.showError(
+        context: context,
+        title: 'No Slots Available',
+        description:
+            'No available time slots for the selected date. Please choose another date.',
+      );
+      return;
+    }
+
+    await _showTimeSlotPicker(availableSlots);
+  }
+
+  Future<void> _showTimeSlotPicker(List<String> availableSlots) async {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    final selected = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Select Time Slot'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: availableSlots.isEmpty
+              ? const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(20.0),
+                    child: Text('No available slots for this date'),
+                  ),
+                )
+              : ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: availableSlots.length,
+                  itemBuilder: (context, index) {
+                    final slot = availableSlots[index];
+                    return ListTile(
+                      leading: Icon(
+                        Icons.access_time,
+                        color: colorScheme.primary,
+                      ),
+                      title: Text(slot),
+                      onTap: () => Navigator.pop(context, slot),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    );
+                  },
+                ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+
+    if (selected != null) {
+      final parts = selected.split(':');
+      setState(() {
+        _selectedTime = TimeOfDay(
+          hour: int.parse(parts[0]),
+          minute: int.parse(parts[1]),
+        );
+      });
     }
   }
 
@@ -156,7 +303,6 @@ class _AppointmentBookingScreenState
       return;
     }
 
-    // Combine date and time into scheduledAt
     final scheduledAt = DateTime(
       _selectedDate!.year,
       _selectedDate!.month,
@@ -165,7 +311,6 @@ class _AppointmentBookingScreenState
       _selectedTime!.minute,
     );
 
-    // Book appointment via API with priority
     final appointment = await ref
         .read(appointmentBookingProvider.notifier)
         .bookAppointment(
@@ -189,11 +334,15 @@ class _AppointmentBookingScreenState
       );
       context.pop();
     } else {
-      // Error is already shown by the provider
+      // Get the actual error message from provider state
+      final errorState = ref.read(appointmentBookingProvider);
+      final errorMessage =
+          errorState.error ?? 'Failed to book appointment. Please try again.';
+
       ToastService.showError(
         context: context,
         title: 'Booking Failed',
-        description: 'Failed to book appointment. Please try again.',
+        description: errorMessage,
       );
     }
   }
@@ -530,6 +679,7 @@ class _AppointmentBookingScreenState
                         : 'Select Time',
                     onTap: _selectTime,
                     colorScheme: colorScheme,
+                    isDisabled: _selectedDate == null,
                   ),
                 ),
               ],
@@ -668,10 +818,13 @@ class _AppointmentBookingScreenState
     required String value,
     required VoidCallback onTap,
     required ColorScheme colorScheme,
+    bool isDisabled = false,
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerLow,
+        color: isDisabled
+            ? colorScheme.surfaceContainerLow.withValues(alpha: 0.5)
+            : colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: colorScheme.outline.withValues(alpha: 0.1)),
         boxShadow: [
@@ -685,21 +838,29 @@ class _AppointmentBookingScreenState
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: onTap,
+          onTap: isDisabled ? null : onTap,
           borderRadius: BorderRadius.circular(16),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(icon, color: colorScheme.primary, size: 24),
+                Icon(
+                  icon,
+                  color: isDisabled
+                      ? colorScheme.primary.withValues(alpha: 0.4)
+                      : colorScheme.primary,
+                  size: 24,
+                ),
                 const SizedBox(height: 8),
                 Text(
                   label,
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
-                    color: colorScheme.onSurface.withValues(alpha: 0.6),
+                    color: colorScheme.onSurface.withValues(
+                      alpha: isDisabled ? 0.4 : 0.6,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -708,7 +869,9 @@ class _AppointmentBookingScreenState
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: colorScheme.onSurface,
+                    color: colorScheme.onSurface.withValues(
+                      alpha: isDisabled ? 0.4 : 1.0,
+                    ),
                   ),
                 ),
               ],

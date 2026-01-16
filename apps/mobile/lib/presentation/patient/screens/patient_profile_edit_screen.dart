@@ -103,93 +103,102 @@ class _PatientProfileEditScreenState
     }
   }
 
-  Future<void> _saveProfile() async {
-    if (!_formKey.currentState!.validate() || _currentPatient == null) {
-      return;
+Future<void> _saveProfile() async {
+  if (!_formKey.currentState!.validate() || _currentPatient == null) {
+    return;
+  }
+
+  setState(() => _isSaving = true);
+
+  try {
+    final updateData = <String, dynamic>{};
+
+    if (_firstNameController.text.trim().isNotEmpty) {
+      updateData['firstName'] = _firstNameController.text.trim();
+    }
+    if (_middleNameController.text.trim().isNotEmpty) {
+      updateData['middleName'] = _middleNameController.text.trim();
+    }
+    if (_lastNameController.text.trim().isNotEmpty) {
+      updateData['lastName'] = _lastNameController.text.trim();
+    }
+    if (_selectedGender != null) {
+      updateData['gender'] = _selectedGender;
+    }
+    
+    // ✅ FIXED: Format date with UTC timezone 'Z' at the end
+    if (_selectedDateOfBirth != null) {
+      // Create a UTC datetime at midnight for the selected date
+      final utcDate = DateTime.utc(
+        _selectedDateOfBirth!.year,
+        _selectedDateOfBirth!.month,
+        _selectedDateOfBirth!.day,
+      );
+      updateData['dateOfBirth'] = utcDate.toIso8601String();
+    }
+    
+    if (_contactNumberController.text.trim().isNotEmpty) {
+      updateData['contactNumber'] = _contactNumberController.text.trim();
+    }
+    if (_addressController.text.trim().isNotEmpty) {
+      updateData['address'] = _addressController.text.trim();
+    }
+    if (_weightController.text.trim().isNotEmpty) {
+      final weight = double.tryParse(_weightController.text.trim());
+      if (weight != null && weight > 0) {
+        updateData['weight'] = weight;
+      }
+    }
+    if (_heightController.text.trim().isNotEmpty) {
+      final height = double.tryParse(_heightController.text.trim());
+      if (height != null && height > 0) {
+        updateData['height'] = height;
+      }
+    }
+    if (_bloodTypeController.text.trim().isNotEmpty) {
+      updateData['bloodType'] = _bloodTypeController.text.trim();
+    }
+    if (_medicalHistoryController.text.trim().isNotEmpty) {
+      updateData['medicalHistory'] = _medicalHistoryController.text.trim();
+    }
+    if (_allergiesController.text.trim().isNotEmpty) {
+      updateData['allergies'] = _allergiesController.text.trim();
+    }
+    if (_medicationsController.text.trim().isNotEmpty) {
+      updateData['medications'] = _medicationsController.text.trim();
+    }
+    if (_philHealthIdController.text.trim().isNotEmpty) {
+      updateData['philHealthId'] = _philHealthIdController.text.trim();
     }
 
-    setState(() => _isSaving = true);
+    final repository = PatientRepository();
+    await repository.updatePatient(_currentPatient!.id, updateData);
 
-    try {
-      final updateData = <String, dynamic>{};
+    // Invalidate provider to refresh data
+    ref.invalidate(currentPatientProvider);
 
-      if (_firstNameController.text.trim().isNotEmpty) {
-        updateData['firstName'] = _firstNameController.text.trim();
-      }
-      if (_middleNameController.text.trim().isNotEmpty) {
-        updateData['middleName'] = _middleNameController.text.trim();
-      }
-      if (_lastNameController.text.trim().isNotEmpty) {
-        updateData['lastName'] = _lastNameController.text.trim();
-      }
-      if (_selectedGender != null) {
-        updateData['gender'] = _selectedGender;
-      }
-      if (_selectedDateOfBirth != null) {
-        updateData['dateOfBirth'] = _selectedDateOfBirth!.toIso8601String();
-      }
-      if (_contactNumberController.text.trim().isNotEmpty) {
-        updateData['contactNumber'] = _contactNumberController.text.trim();
-      }
-      if (_addressController.text.trim().isNotEmpty) {
-        updateData['address'] = _addressController.text.trim();
-      }
-      if (_weightController.text.trim().isNotEmpty) {
-        final weight = double.tryParse(_weightController.text.trim());
-        if (weight != null && weight > 0) {
-          updateData['weight'] = weight;
-        }
-      }
-      if (_heightController.text.trim().isNotEmpty) {
-        final height = double.tryParse(_heightController.text.trim());
-        if (height != null && height > 0) {
-          updateData['height'] = height;
-        }
-      }
-      if (_bloodTypeController.text.trim().isNotEmpty) {
-        updateData['bloodType'] = _bloodTypeController.text.trim();
-      }
-      if (_medicalHistoryController.text.trim().isNotEmpty) {
-        updateData['medicalHistory'] = _medicalHistoryController.text.trim();
-      }
-      if (_allergiesController.text.trim().isNotEmpty) {
-        updateData['allergies'] = _allergiesController.text.trim();
-      }
-      if (_medicationsController.text.trim().isNotEmpty) {
-        updateData['medications'] = _medicationsController.text.trim();
-      }
-      if (_philHealthIdController.text.trim().isNotEmpty) {
-        updateData['philHealthId'] = _philHealthIdController.text.trim();
-      }
-
-      final repository = PatientRepository();
-      await repository.updatePatient(_currentPatient!.id, updateData);
-
-      // Invalidate provider to refresh data
-      ref.invalidate(currentPatientProvider);
-
-      if (mounted) {
-        ToastService.showMedicalSuccess(
-          context: context,
-          title: 'Profile Updated',
-          description: 'Your profile has been updated successfully.',
-        );
-        context.pop();
-      }
-    } catch (e) {
-      if (mounted) {
-        ToastService.showError(
-          context: context,
-          title: 'Update Failed',
-          description: 'Failed to update profile: ${e.toString()}',
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isSaving = false);
-      }
+    if (mounted) {
+      ToastService.showMedicalSuccess(
+        context: context,
+        title: 'Profile Updated',
+        description: 'Your profile has been updated successfully.',
+      );
+      context.pop();
+    }
+  } catch (e) {
+    if (mounted) {
+      ToastService.showError(
+        context: context,
+        title: 'Update Failed',
+        description: 'Failed to update profile: ${e.toString()}',
+      );
+    }
+  } finally {
+    if (mounted) {
+      setState(() => _isSaving = false);
     }
   }
+}
 
   @override
   Widget build(BuildContext context) {

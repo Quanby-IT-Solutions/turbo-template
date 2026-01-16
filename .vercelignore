@@ -3,9 +3,9 @@ apps/backend
 apps/mobile
 apps/BiosenseSignal_Flutter_SDK_5.11.1
 
-# Exclude documentation
-*.md
-!apps/web/README.md
+# Exclude root-level documentation (keep subdirectory docs)
+/*.md
+!README.md
 
 # Exclude test files
 **/*.test.*

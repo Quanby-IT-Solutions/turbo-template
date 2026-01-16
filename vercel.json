@@ -4,7 +4,7 @@
 	"installCommand": "pnpm install --frozen-lockfile",
 	"outputDirectory": "apps/web/.next",
 	"framework": "nextjs",
-	"ignoreCommand": "git diff --quiet HEAD^ HEAD ./",
+	"ignoreCommand": "git diff --quiet HEAD^ HEAD ./apps/web/ ./packages/ ./tooling/ ./turbo.json ./pnpm-workspace.yaml",
 	"git": {
 		"deploymentEnabled": true
 	}

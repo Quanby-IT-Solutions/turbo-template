@@ -8,21 +8,19 @@ class AppointmentBookingScreen extends ConsumerStatefulWidget {
   final String? doctorId;
   final String? doctorName;
 
-  const AppointmentBookingScreen({
-    super.key,
-    this.doctorId,
-    this.doctorName,
-  });
+  const AppointmentBookingScreen({super.key, this.doctorId, this.doctorName});
 
   @override
   ConsumerState<AppointmentBookingScreen> createState() =>
       _AppointmentBookingScreenState();
 }
 
-class _AppointmentBookingScreenState extends ConsumerState<AppointmentBookingScreen> {
+class _AppointmentBookingScreenState
+    extends ConsumerState<AppointmentBookingScreen> {
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
   String _selectedType = 'video_call';
+  String _selectedPriority = 'MEDIUM'; // Added priority state
   final _reasonController = TextEditingController();
   final _notesController = TextEditingController();
 
@@ -51,6 +49,31 @@ class _AppointmentBookingScreenState extends ConsumerState<AppointmentBookingScr
       'icon': Icons.local_hospital_rounded,
       'description': 'Visit doctor at clinic',
       'color': Colors.purple,
+    },
+  ];
+
+  // Priority options
+  final List<Map<String, dynamic>> _priorityOptions = [
+    {
+      'value': 'LOW',
+      'label': 'Low',
+      'icon': Icons.flag_outlined,
+      'description': 'Routine check-up',
+      'color': Colors.blue,
+    },
+    {
+      'value': 'MEDIUM',
+      'label': 'Medium',
+      'icon': Icons.flag,
+      'description': 'Standard appointment',
+      'color': Colors.orange,
+    },
+    {
+      'value': 'HIGH',
+      'label': 'High',
+      'icon': Icons.flag_rounded,
+      'description': 'Urgent consultation',
+      'color': Colors.red,
     },
   ];
 
@@ -142,7 +165,7 @@ class _AppointmentBookingScreenState extends ConsumerState<AppointmentBookingScr
       _selectedTime!.minute,
     );
 
-    // Book appointment via API
+    // Book appointment via API with priority
     final appointment = await ref
         .read(appointmentBookingProvider.notifier)
         .bookAppointment(
@@ -152,6 +175,7 @@ class _AppointmentBookingScreenState extends ConsumerState<AppointmentBookingScr
           notes: _notesController.text.trim().isNotEmpty
               ? _notesController.text.trim()
               : null,
+          priority: _selectedPriority,
         );
 
     if (!mounted) return;
@@ -160,8 +184,7 @@ class _AppointmentBookingScreenState extends ConsumerState<AppointmentBookingScr
       ToastService.showAppointment(
         context: context,
         title: 'Appointment Requested',
-        description:
-            'Your appointment request has been submitted successfully',
+        description: 'Your appointment request has been submitted successfully',
         isSuccess: true,
       );
       context.pop();
@@ -248,7 +271,7 @@ class _AppointmentBookingScreenState extends ConsumerState<AppointmentBookingScr
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Dr. Sarah Johnson',
+                          _doctorName,
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w700,
@@ -290,6 +313,86 @@ class _AppointmentBookingScreenState extends ConsumerState<AppointmentBookingScr
                   ),
                 ],
               ),
+            ),
+
+            const SizedBox(height: 24),
+
+            // Priority Section
+            Text(
+              'Priority Level',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: colorScheme.onSurface,
+                letterSpacing: -0.2,
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            Row(
+              children: _priorityOptions.map((priority) {
+                final isSelected = _selectedPriority == priority['value'];
+                return Expanded(
+                  child: Container(
+                    margin: EdgeInsets.only(
+                      right: priority != _priorityOptions.last ? 8 : 0,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? (priority['color'] as Color).withValues(alpha: 0.1)
+                          : colorScheme.surfaceContainerLow,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isSelected
+                            ? (priority['color'] as Color)
+                            : colorScheme.outline.withValues(alpha: 0.1),
+                        width: isSelected ? 2 : 1,
+                      ),
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () => setState(
+                          () => _selectedPriority = priority['value'],
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 12,
+                            horizontal: 8,
+                          ),
+                          child: Column(
+                            children: [
+                              Icon(
+                                priority['icon'],
+                                color: isSelected
+                                    ? priority['color']
+                                    : colorScheme.onSurface.withValues(
+                                        alpha: 0.6,
+                                      ),
+                                size: 24,
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                priority['label'],
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: isSelected
+                                      ? FontWeight.w700
+                                      : FontWeight.w600,
+                                  color: isSelected
+                                      ? priority['color']
+                                      : colorScheme.onSurface,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
             ),
 
             const SizedBox(height: 24),
@@ -534,8 +637,9 @@ class _AppointmentBookingScreenState extends ConsumerState<AppointmentBookingScr
                             width: 24,
                             child: CircularProgressIndicator(
                               strokeWidth: 2.5,
-                              valueColor:
-                                  AlwaysStoppedAnimation<Color>(Colors.white),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
                             ),
                           )
                         : const Text(

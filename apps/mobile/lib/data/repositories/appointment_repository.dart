@@ -7,17 +7,18 @@ class AppointmentRepository {
   /// Create a new appointment
   Future<Appointment> createAppointment({
     required String doctorId,
-    required DateTime scheduledAt,
+    required String scheduledAt,
     String? reason,
+    String? priority,
     String? notes,
   }) async {
     try {
       final response = await HttpService.createAppointment(
         doctorId: doctorId,
-        scheduledAt: scheduledAt.toIso8601String(),
+        scheduledAt: scheduledAt,
         reason: reason,
+        priority: priority,
         notes: notes,
-        durationMinutes: 30,
       );
 
       return _parseAppointment(response);
@@ -181,10 +182,13 @@ class AppointmentRepository {
       final response = await HttpService.getRescheduleHistory(appointmentId);
       // Backend may return array directly or wrapped in object
       if (response is List) {
-        return (response as List<dynamic>).map((e) => e as Map<String, dynamic>).toList();
+        return (response as List<dynamic>)
+            .map((e) => e as Map<String, dynamic>)
+            .toList();
       } else if (response['items'] != null) {
         return (response['items'] as List<dynamic>)
-            .map((e) => e as Map<String, dynamic>).toList();
+            .map((e) => e as Map<String, dynamic>)
+            .toList();
       } else if (response['history'] != null) {
         return (response['history'] as List<dynamic>)
             .cast<Map<String, dynamic>>();
@@ -265,14 +269,16 @@ class AppointmentRepository {
     // Parse patient/doctor names
     String patientName = json['patientName'] as String? ?? 'Patient $patientId';
     String doctorName = json['doctorName'] as String? ?? 'Doctor $doctorId';
-    
+
     // Parse doctor info if available
     DoctorInfo? doctorInfo;
     if (json['doctor'] != null) {
       final doctorJson = json['doctor'] as Map<String, dynamic>;
       final doctorInfoJson = doctorJson['doctorInfo'] as Map<String, dynamic>?;
       if (doctorInfoJson != null) {
-        doctorName = '${doctorInfoJson['firstName'] ?? ''} ${doctorInfoJson['lastName'] ?? ''}'.trim();
+        doctorName =
+            '${doctorInfoJson['firstName'] ?? ''} ${doctorInfoJson['lastName'] ?? ''}'
+                .trim();
         if (doctorName.isEmpty) {
           doctorName = json['doctorName'] as String? ?? 'Doctor $doctorId';
         }

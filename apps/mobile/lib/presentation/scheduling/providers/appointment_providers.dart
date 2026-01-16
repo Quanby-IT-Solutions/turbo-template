@@ -221,6 +221,7 @@ class AppointmentBookingNotifier extends Notifier<BookingState> {
     required String doctorId,
     required DateTime scheduledAt,
     String? reason,
+    String? priority,
     String? notes,
   }) async {
     state = BookingState.loading();
@@ -228,8 +229,9 @@ class AppointmentBookingNotifier extends Notifier<BookingState> {
     try {
       final appointment = await _repository.createAppointment(
         doctorId: doctorId,
-        scheduledAt: scheduledAt,
+        scheduledAt: scheduledAt.toIso8601String(),
         reason: reason,
+        priority: priority,
         notes: notes,
       );
 

@@ -123,7 +123,7 @@ class HttpService {
       final backendRole = _mapRoleToBackend(role);
       final normalizedFirstName = firstName.trim();
       final normalizedLastName = lastName.trim();
-      
+
       final response = await dio.post(
         '$_authEndpoint/register',
         data: {
@@ -380,19 +380,26 @@ class HttpService {
     required String scheduledAt,
     String? reason,
     String? notes,
+    String? priority,
     int? durationMinutes,
   }) async {
     try {
       final dio = await _getDio();
-      // Parse scheduledAt ISO string to date and time components
+      // Parse scheduledAt ISO string to DateTime
       final scheduledDateTime = DateTime.parse(scheduledAt);
+
+      // Format date and time for backend
+      final requestedDate = scheduledDateTime.toIso8601String();
+      final requestedTime = scheduledDateTime.toIso8601String();
+
       final response = await dio.post(
-        _appointmentsEndpoint,
+        '$_appointmentsEndpoint/request',
         data: {
           'doctorId': doctorId,
-          'requestedDate': scheduledAt,
-          'requestedTime': scheduledDateTime.toIso8601String(),
+          'requestedDate': requestedDate,
+          'requestedTime': requestedTime,
           'reason': reason ?? '',
+          'priority': priority ?? 'MEDIUM',
           if (notes != null) 'notes': notes,
         },
       );
@@ -401,7 +408,12 @@ class HttpService {
         final responseData = response.data as Map<String, dynamic>;
         // Backend returns {success: true, data: appointment}
         if (responseData['success'] == true && responseData['data'] != null) {
-          return responseData['data'] as Map<String, dynamic>;
+          // Backend returns array from .returning(), get first element
+          final appointmentData = responseData['data'];
+          if (appointmentData is List && appointmentData.isNotEmpty) {
+            return appointmentData[0] as Map<String, dynamic>;
+          }
+          return appointmentData as Map<String, dynamic>;
         }
         return responseData;
       } else {
@@ -505,7 +517,10 @@ class HttpService {
       final dio = await _getDio();
       final response = await dio.patch(
         '$_appointmentsEndpoint/$id',
-        data: {'status': status.toUpperCase(), if (notes != null) 'notes': notes},
+        data: {
+          'status': status.toUpperCase(),
+          if (notes != null) 'notes': notes,
+        },
       );
 
       if (response.statusCode == 200) {
@@ -1090,10 +1105,7 @@ class HttpService {
   ) async {
     try {
       final dio = await _getDio();
-      final response = await dio.patch(
-        '/api/v1/patients/$id',
-        data: data,
-      );
+      final response = await dio.patch('/api/v1/patients/$id', data: data);
 
       if (response.statusCode == 200) {
         final responseData = response.data as Map<String, dynamic>;
@@ -1309,10 +1321,14 @@ class HttpService {
   // ===================
 
   /// Get patient lab requests
-  static Future<Map<String, dynamic>> getPatientLabRequests(String patientId) async {
+  static Future<Map<String, dynamic>> getPatientLabRequests(
+    String patientId,
+  ) async {
     try {
       final dio = await _getDio();
-      final response = await dio.get('$_labRequestsEndpoint/patient/$patientId');
+      final response = await dio.get(
+        '$_labRequestsEndpoint/patient/$patientId',
+      );
 
       if (response.statusCode == 200) {
         final responseData = response.data as Map<String, dynamic>;
@@ -1351,7 +1367,8 @@ class HttpService {
       if (isRead != null) queryParams['isRead'] = isRead;
       if (isArchived != null) queryParams['isArchived'] = isArchived;
       if (type != null && type.isNotEmpty) queryParams['type'] = type;
-      if (priority != null && priority.isNotEmpty) queryParams['priority'] = priority;
+      if (priority != null && priority.isNotEmpty)
+        queryParams['priority'] = priority;
       if (limit != null) queryParams['limit'] = limit;
       if (offset != null) queryParams['offset'] = offset;
 
@@ -1381,7 +1398,9 @@ class HttpService {
   }
 
   /// Mark notification as read
-  static Future<Map<String, dynamic>> markNotificationRead(String notificationId) async {
+  static Future<Map<String, dynamic>> markNotificationRead(
+    String notificationId,
+  ) async {
     try {
       final dio = await _getDio();
       final response = await dio.patch(
@@ -1407,9 +1426,7 @@ class HttpService {
   static Future<bool> markAllNotificationsRead() async {
     try {
       final dio = await _getDio();
-      final response = await dio.patch(
-        '$_notificationsEndpoint/mark-all-read',
-      );
+      final response = await dio.patch('$_notificationsEndpoint/mark-all-read');
 
       if (response.statusCode == 200) {
         final responseData = response.data as Map<String, dynamic>;
@@ -1427,9 +1444,7 @@ class HttpService {
   static Future<int> getUnreadNotificationsCount() async {
     try {
       final dio = await _getDio();
-      final response = await dio.get(
-        '$_notificationsEndpoint/unread-count',
-      );
+      final response = await dio.get('$_notificationsEndpoint/unread-count');
 
       if (response.statusCode == 200) {
         final responseData = response.data as Map<String, dynamic>;

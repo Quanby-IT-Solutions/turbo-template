@@ -238,12 +238,12 @@ export function RequestLabTestModal({ open, onOpenChange, onSuccess }: RequestLa
 							<Select
 								value={formData.organizationId}
 								onValueChange={value =>
-									setFormData(prev => ({ ...prev, organizationId: value, doctorId: "" }))
+									setFormData(prev => ({ ...prev, organizationId: value || "", doctorId: "" }))
 								}
 								required
 							>
-								<SelectTrigger id="organization" className="h-9">
-									<SelectValue placeholder="Select clinic">
+								<SelectTrigger id="organization" className="h-9 w-full">
+									<SelectValue>
 										{formData.organizationId && organizations.length > 0
 											? organizations.find(org => org.id === formData.organizationId)?.name
 											: "Select clinic"}
@@ -271,37 +271,26 @@ export function RequestLabTestModal({ open, onOpenChange, onSuccess }: RequestLa
 							</Label>
 							<Select
 								value={formData.doctorId}
-								onValueChange={value => setFormData(prev => ({ ...prev, doctorId: value }))}
+								onValueChange={value => setFormData(prev => ({ ...prev, doctorId: value || "" }))}
 								disabled={
 									!formData.organizationId || isLoadingDoctors || !doctors || doctors.length === 0
 								}
 							>
-								<SelectTrigger id="doctor" className="h-9">
-									<SelectValue
-										placeholder={
-											isLoadingDoctors
-												? "Loading doctors..."
-												: !formData.organizationId
-													? "Select clinic first"
-													: doctors && doctors.length === 0
-														? "No doctors available"
-														: "Select doctor (optional)"
-										}
-									>
-										{formData.doctorId && doctors.length > 0
-											? (() => {
-													const doctor = doctors.find(d => d.id === formData.doctorId)
-													return doctor
-														? `Dr. ${doctor.doctorInfo?.firstName || ""} ${doctor.doctorInfo?.lastName || ""}`.trim()
-														: "Select doctor (optional)"
-												})()
-											: isLoadingDoctors
-												? "Loading doctors..."
-												: !formData.organizationId
-													? "Select clinic first"
-													: doctors && doctors.length === 0
-														? "No doctors available"
-														: "Select doctor (optional)"}
+								<SelectTrigger id="doctor" className="h-9 w-full">
+									<SelectValue>
+										{(() => {
+											if (formData.doctorId && doctors.length > 0) {
+												const doctor = doctors.find(d => d.id === formData.doctorId)
+												if (doctor) {
+													return `Dr. ${doctor.doctorInfo?.firstName || ""} ${doctor.doctorInfo?.lastName || ""}`.trim()
+												}
+											}
+
+											if (isLoadingDoctors) return "Loading doctors..."
+											if (!formData.organizationId) return "Select clinic first"
+											if (doctors && doctors.length === 0) return "No doctors available"
+											return "Select doctor (optional)"
+										})()}
 									</SelectValue>
 								</SelectTrigger>
 								<SelectContent>

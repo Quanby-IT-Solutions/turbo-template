@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Query, Request, UseGuards, ForbiddenException, Patch } from "@nestjs/common"
+import { Controller, Get, Post, Body, Param, Query, Request, UseGuards, ForbiddenException, Patch, BadRequestException } from "@nestjs/common"
 import { AllowAnonymous } from "@thallesp/nestjs-better-auth"
 import { ZodSerializerDto } from "nestjs-zod"
 
@@ -19,8 +19,20 @@ export class AppointmentsController {
 	@Post("request")
     @Roles("PATIENT", "ADMIN", "SUPER_ADMIN")
     async create(@Request() req: any, @Body() createDto: any) {
-        const appointment = await this.appointmentsService.create(createDto, req.user);
-        return { success: true, data: appointment };
+        try {
+            const appointment = await this.appointmentsService.create(createDto, req.user);
+            return { success: true, data: appointment };
+        } catch (error) {
+            // Re-throw validation errors with proper status codes
+            if (error instanceof BadRequestException || 
+                error instanceof ForbiddenException) {
+                throw error;
+            }
+            // Handle unexpected errors
+            throw new BadRequestException(
+				(error instanceof Error ? error.message : "Failed to create appointment request")
+            );
+        }
     }
 
 	

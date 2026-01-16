@@ -68,7 +68,7 @@ const formatAppointmentTime = (time?: string) => {
 	try {
 		const [hours, minutes] = time.split(":").map(Number)
 		const date = new Date()
-		date.setHours(hours, minutes || 0, 0, 0)
+		date.setHours(hours ?? 0, minutes ?? 0, 0, 0)
 		return date.toLocaleTimeString(undefined, {
 			hour: "numeric",
 			minute: "2-digit",
@@ -316,7 +316,7 @@ export default function PatientDashboardPage() {
 										)}
 
 										<div className="flex flex-col gap-3 md:flex-row">
-											<Button asChild className="flex-1">
+											<Button className="flex-1">
 												<Link href="/patient/schedule">
 													<IconCalendarPlus className="mr-2 size-4" />
 													Book a visit

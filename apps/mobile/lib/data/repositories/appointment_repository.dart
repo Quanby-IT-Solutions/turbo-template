@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:mobile/core/services/http_service.dart';
 import 'package:mobile/domain/entities/appointment.dart';
 
@@ -7,22 +8,81 @@ class AppointmentRepository {
   /// Create a new appointment
   Future<Appointment> createAppointment({
     required String doctorId,
-    required DateTime scheduledAt,
+    required String scheduledAt,
     String? reason,
+    String? priority,
     String? notes,
   }) async {
     try {
       final response = await HttpService.createAppointment(
         doctorId: doctorId,
-        scheduledAt: scheduledAt.toIso8601String(),
+        scheduledAt: scheduledAt,
         reason: reason,
+        priority: priority,
         notes: notes,
-        durationMinutes: 30,
       );
 
       return _parseAppointment(response);
+    } on DioException catch (e) {
+      // Extract backend error message
+      final errorMessage =
+          e.response?.data?['message'] ??
+          e.response?.data?['error'] ??
+          'Failed to create appointment';
+      throw Exception(errorMessage);
     } catch (e) {
       throw Exception('Failed to create appointment: ${e.toString()}');
+    }
+  }
+
+  /// Get doctor's weekly availability schedule
+  Future<List<DoctorAvailability>> getDoctorWeeklyAvailability(
+    String doctorId,
+  ) async {
+    try {
+      final response = await HttpService.getDoctorAvailability(
+        doctorId: doctorId,
+        date: '', // Not needed for weekly availability endpoint
+      );
+
+      // Backend returns array of availability by day
+      final List<dynamic> availabilityList = response as List<dynamic>;
+      return availabilityList
+          .map(
+            (json) => DoctorAvailability.fromJson(json as Map<String, dynamic>),
+          )
+          .toList();
+    } on DioException catch (e) {
+      throw Exception('Failed to get doctor availability: ${e.toString()}');
+    }
+  }
+
+  /// Get available time slots for a specific date
+  /// Get available time slots for a specific date
+  Future<List<String>> getDoctorAvailableSlots({
+    required String doctorId,
+    required String date,
+  }) async {
+    try {
+      final response = await HttpService.getDoctorAvailableSlots(
+        doctorId: doctorId,
+        date: date,
+      );
+
+      // Backend returns: { success: true, data: ["09:00", "09:30", ...] }
+      if (response is Map && response['data'] != null) {
+        return List<String>.from(response['data'] as List);
+      } else if (response is List) {
+        return List<String>.from(response);
+      }
+
+      return [];
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        // Doctor not available on this date
+        return [];
+      }
+      throw Exception('Failed to get available slots: ${e.toString()}');
     }
   }
 
@@ -181,10 +241,13 @@ class AppointmentRepository {
       final response = await HttpService.getRescheduleHistory(appointmentId);
       // Backend may return array directly or wrapped in object
       if (response is List) {
-        return (response as List<dynamic>).map((e) => e as Map<String, dynamic>).toList();
+        return (response as List<dynamic>)
+            .map((e) => e as Map<String, dynamic>)
+            .toList();
       } else if (response['items'] != null) {
         return (response['items'] as List<dynamic>)
-            .map((e) => e as Map<String, dynamic>).toList();
+            .map((e) => e as Map<String, dynamic>)
+            .toList();
       } else if (response['history'] != null) {
         return (response['history'] as List<dynamic>)
             .cast<Map<String, dynamic>>();
@@ -265,14 +328,16 @@ class AppointmentRepository {
     // Parse patient/doctor names
     String patientName = json['patientName'] as String? ?? 'Patient $patientId';
     String doctorName = json['doctorName'] as String? ?? 'Doctor $doctorId';
-    
+
     // Parse doctor info if available
     DoctorInfo? doctorInfo;
     if (json['doctor'] != null) {
       final doctorJson = json['doctor'] as Map<String, dynamic>;
       final doctorInfoJson = doctorJson['doctorInfo'] as Map<String, dynamic>?;
       if (doctorInfoJson != null) {
-        doctorName = '${doctorInfoJson['firstName'] ?? ''} ${doctorInfoJson['lastName'] ?? ''}'.trim();
+        doctorName =
+            '${doctorInfoJson['firstName'] ?? ''} ${doctorInfoJson['lastName'] ?? ''}'
+                .trim();
         if (doctorName.isEmpty) {
           doctorName = json['doctorName'] as String? ?? 'Doctor $doctorId';
         }
@@ -374,4 +439,42 @@ class TimeSlot {
     required this.label,
     required this.isAvailable,
   });
+}
+
+/// Doctor availability model
+class DoctorAvailability {
+  final String dayOfWeek;
+  final bool isAvailable;
+  final String? startTime;
+  final String? endTime;
+
+  DoctorAvailability({
+    required this.dayOfWeek,
+    required this.isAvailable,
+    this.startTime,
+    this.endTime,
+  });
+
+  factory DoctorAvailability.fromJson(Map<String, dynamic> json) {
+    return DoctorAvailability(
+      dayOfWeek: json['dayOfWeek'] as String,
+      isAvailable: json['isAvailable'] as bool,
+      startTime: json['startTime'] as String?,
+      endTime: json['endTime'] as String?,
+    );
+  }
+
+  /// Helper to get day index (0 = Sunday, 6 = Saturday)
+  int get dayIndex {
+    const days = [
+      'Sunday',
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+    ];
+    return days.indexOf(dayOfWeek);
+  }
 }

@@ -1,10 +1,11 @@
-import { Controller, Get, Param, UseGuards } from "@nestjs/common"
+import { Controller, Get, Param, Query, UseGuards } from "@nestjs/common"
 import { AllowAnonymous } from "@thallesp/nestjs-better-auth"
 import { ZodSerializerDto } from "nestjs-zod"
 
-import { MedicalRecordListResponseDto, MedicalRecordResponseDto } from "@repo/contracts"
+import { MedicalRecordListResponseDto, MedicalRecordQueryDto, MedicalRecordResponseDto } from "@repo/contracts"
 
 import { Roles } from "@/shared/decorators/roles.decorator"
+import { User } from "@/shared/decorators/user.decorator"
 import { BetterAuthGuard } from "@/shared/guards/better-auth.guard"
 import { RolesGuard } from "@/shared/guards/roles.guard"
 
@@ -19,8 +20,8 @@ export class MedicalRecordsController {
 	@Get()
 	@ZodSerializerDto(MedicalRecordListResponseDto)
 	@Roles("DOCTOR", "PATIENT", "ADMIN", "SUPER_ADMIN")
-	async findAll() {
-		const records = await this.medicalRecordsService.findAll()
+	async findAll(@Query() query: MedicalRecordQueryDto, @User() user: any) {
+		const records = await this.medicalRecordsService.findAll(query, user)
 		return { success: true, data: records }
 	}
 

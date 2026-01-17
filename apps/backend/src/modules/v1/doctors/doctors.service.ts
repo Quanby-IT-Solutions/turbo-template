@@ -14,10 +14,10 @@ export class DoctorsService {
 		const limit = query.limit || 10
 		const offset = (page - 1) * limit
 
-		let whereConditions: any[] = [eq(users.role, "DOCTOR" as any)]
+		const whereConditions: any[] = [eq(users.role, "DOCTOR" as any)]
 
 		if (query.search) {
-			whereConditions.push(sql`${doctorInfos.firstName} ILIKE ${"%" + query.search + "%"}`)
+			whereConditions.push(sql`${doctorInfos.firstName} ILIKE ${`%${  query.search  }%`}`)
 		}
 
 		if (query.organizationId) {

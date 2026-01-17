@@ -14,10 +14,10 @@ export class PatientsService {
 		const limit = query.limit || 10
 		const offset = (page - 1) * limit
 
-		let whereConditions: any[] = [eq(users.role, "PATIENT" as any)]
+		const whereConditions: any[] = [eq(users.role, "PATIENT" as any)]
 
 		if (query.search) {
-			whereConditions.push(sql`${patientInfos.firstName} ILIKE ${"%" + query.search + "%"}`)
+			whereConditions.push(sql`${patientInfos.firstName} ILIKE ${`%${  query.search  }%`}`)
 		}
 
 		const [patients, countResult] = await Promise.all([
@@ -45,6 +45,10 @@ export class PatientsService {
 			email: patient.user.email,
 			patientInfo: {
 				...patient.patientInfo,
+				dateOfBirth:
+					patient.patientInfo.dateOfBirth instanceof Date
+						? patient.patientInfo.dateOfBirth.toISOString()
+						: (patient.patientInfo.dateOfBirth as any),
 				verificationStatusUpdatedAt: patient.patientInfo.verificationStatusUpdatedAt
 					? (patient.patientInfo.verificationStatusUpdatedAt instanceof Date
 							? patient.patientInfo.verificationStatusUpdatedAt.toISOString()
@@ -91,6 +95,10 @@ export class PatientsService {
 			email: patient.user.email,
 			patientInfo: {
 				...patient.patientInfo,
+				dateOfBirth:
+					patient.patientInfo.dateOfBirth instanceof Date
+						? patient.patientInfo.dateOfBirth.toISOString()
+						: (patient.patientInfo.dateOfBirth as any),
 				verificationStatusUpdatedAt: patient.patientInfo.verificationStatusUpdatedAt
 					? (patient.patientInfo.verificationStatusUpdatedAt instanceof Date
 							? patient.patientInfo.verificationStatusUpdatedAt.toISOString()

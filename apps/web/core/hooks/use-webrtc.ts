@@ -420,6 +420,16 @@ export function useWebRTC() {
     newPeer.ondatachannel = (event) => {
       console.log("📡 Data channel received:", event.channel.label)
       const channel = event.channel
+
+      // IMPORTANT:
+      // Only one side "should" create the data channel (offerer). The other side receives it here.
+      // Our app historically created a channel on both sides, which can leave the UI holding the wrong
+      // channel reference (so requests/replies never reach the peer).
+      //
+      // Treat the received channel as the active channel when it arrives.
+      dataChannelRef.current = channel
+      setDataChannel(channel)
+
       channel.onopen = () => {
         console.log("📡 Remote data channel opened")
       }

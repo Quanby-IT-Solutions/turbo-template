@@ -328,7 +328,7 @@ export class BetterAuthGuard implements CanActivate {
 				// Get Better Auth session using Fetch Request
 				const fetchRequest = new Request(url, {
 					method: request.method,
-					headers: headers,
+					headers,
 				})
 
 				const sessionResult = await authInstance.api.getSession({

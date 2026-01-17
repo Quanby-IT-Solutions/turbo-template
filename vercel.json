@@ -4,7 +4,7 @@
 	"installCommand": "pnpm install --frozen-lockfile",
 	"outputDirectory": "apps/web/.next",
 	"framework": "nextjs",
-	"ignoreCommand": "git diff --quiet HEAD^ HEAD ./apps/ ./packages/ ./tooling/ ./turbo.json ./pnpm-workspace.yaml ./api/",
+	"ignoreCommand": "git diff --quiet HEAD^ HEAD -- ./apps/ ./packages/ ./tooling/ ./turbo.json ./pnpm-workspace.yaml ./api/",
 	"functions": {
 		"api/**/*.ts": {
 			"runtime": "nodejs20.x",

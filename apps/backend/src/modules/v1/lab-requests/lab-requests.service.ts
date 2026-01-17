@@ -172,4 +172,30 @@ export class LabRequestsService {
 
 		return this.serialize(result)
 	}
+
+	async update(id: string, updateDto: Partial<CreateLabRequestDto>, user: any) {
+		const userId = user?.userId || user?.id;
+		
+		await this.findOne(id);
+
+		const [updated] = await this.db
+			.update(labRequests)
+			.set({
+				...updateDto,
+				updatedBy: userId,
+				updatedAt: new Date(),
+			})
+			.where(eq(labRequests.id, id))
+			.returning();
+
+		return this.serialize(updated);
+	}
+
+	async remove(id: string) {
+		await this.findOne(id);
+
+		await this.db
+			.delete(labRequests)
+			.where(eq(labRequests.id, id));
+	}
 }

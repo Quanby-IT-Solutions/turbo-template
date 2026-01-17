@@ -5,8 +5,9 @@
 	"outputDirectory": ".next",
 	"framework": "nextjs",
 	"functions": {
-		"api/**/*.ts": {
-			"includeFiles": "apps/backend/dist/**"
+		"api/index.ts": {
+			"memory": 1024,
+			"maxDuration": 10
 		}
 	},
 	"rewrites": [

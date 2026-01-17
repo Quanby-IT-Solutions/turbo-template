@@ -12,6 +12,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/cor
 import { Button } from "@/core/components/ui/button"
 import { Input } from "@/core/components/ui/input"
 import { Badge } from "@/core/components/ui/badge"
+import { ScrollArea } from "@/core/components/ui/scroll-area"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/core/components/ui/dialog"
 import { toast } from "sonner"
 import {
   IconUser,
@@ -21,8 +29,6 @@ import {
   IconPill,
   IconStethoscope,
   IconFlask,
-  IconCalendar,
-  IconClock,
 } from "@tabler/icons-react"
 import { diagnosesApi, type Diagnosis } from "@/features/diagnoses/api/diagnoses-api"
 import { prescriptionsApi, type Prescription } from "@/features/prescriptions/api/prescriptions-api"
@@ -45,6 +51,8 @@ export default function PatientRecordsPage() {
   const [patientRecords, setPatientRecords] = React.useState<PatientRecord[]>([])
   const [filteredRecords, setFilteredRecords] = React.useState<PatientRecord[]>([])
   const [currentDoctorId, setCurrentDoctorId] = React.useState<string | null>(null)
+  const [showRecordsModal, setShowRecordsModal] = React.useState(false)
+  const [selectedRecord, setSelectedRecord] = React.useState<PatientRecord | null>(null)
 
   // Fetch current doctor ID
   React.useEffect(() => {
@@ -139,7 +147,7 @@ export default function PatientRecordsPage() {
           
           if (allDates.length > 0) {
             const sortedDates = allDates.sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
-            record.lastVisit = sortedDates[0]
+            record.lastVisit = sortedDates[0] ?? null
           }
         })
 
@@ -323,8 +331,8 @@ export default function PatientRecordsPage() {
                                   variant="outline"
                                   size="sm"
                                   onClick={() => {
-                                    // Navigate to detailed view or open modal
-                                    toast.info("Viewing detailed records for " + fullName)
+                                    setSelectedRecord(record)
+                                    setShowRecordsModal(true)
                                   }}
                                 >
                                   <IconFileText className="mr-2 h-4 w-4" />
@@ -352,6 +360,149 @@ export default function PatientRecordsPage() {
             </div>
           </div>
         </div>
+
+        {/* View Records Modal */}
+        <Dialog
+          open={showRecordsModal}
+          onOpenChange={(open) => {
+            setShowRecordsModal(open)
+            if (!open) setSelectedRecord(null)
+          }}
+        >
+          <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-hidden">
+            <DialogHeader>
+              <DialogTitle className="text-2xl">Patient Records</DialogTitle>
+              <DialogDescription>
+                Diagnoses, prescriptions, and lab requests for this patient.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="border rounded-lg overflow-hidden">
+              <ScrollArea className="h-[70vh]">
+                <div className="p-4 space-y-6">
+                  {selectedRecord ? (
+                    <>
+                      <div className="space-y-1">
+                        <p className="text-base font-semibold">
+                          {`${selectedRecord.patient.patientInfo?.firstName || ""} ${selectedRecord.patient.patientInfo?.lastName || ""}`.trim() ||
+                            selectedRecord.patient.email ||
+                            "Patient"}
+                        </p>
+                        <p className="text-sm text-muted-foreground">{selectedRecord.patient.email}</p>
+                        <p className="text-xs text-muted-foreground font-mono">
+                          {selectedRecord.patient.id}
+                        </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <p className="text-sm font-semibold">Diagnoses</p>
+                        {selectedRecord.diagnoses.length === 0 ? (
+                          <p className="text-sm text-muted-foreground">No diagnoses.</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {selectedRecord.diagnoses.map((d) => (
+                              <div key={d.id} className="border rounded-md p-3">
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="min-w-0">
+                                    <p className="font-medium truncate">{d.diagnosisName}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                      {d.diagnosedAt ? new Date(d.diagnosedAt).toLocaleString() : ""}
+                                    </p>
+                                  </div>
+                                  <Badge variant="outline" className="shrink-0">
+                                    {d.status}
+                                  </Badge>
+                                </div>
+                                {d.notes && (
+                                  <p className="text-sm text-muted-foreground mt-2 whitespace-pre-wrap">
+                                    {d.notes}
+                                  </p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <p className="text-sm font-semibold">Prescriptions</p>
+                        {selectedRecord.prescriptions.length === 0 ? (
+                          <p className="text-sm text-muted-foreground">No prescriptions.</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {selectedRecord.prescriptions.map((p) => (
+                              <div key={p.id} className="border rounded-md p-3">
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="min-w-0">
+                                    <p className="font-medium truncate">{p.medicationName}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                      {p.prescribedAt ? new Date(p.prescribedAt).toLocaleString() : ""}
+                                    </p>
+                                  </div>
+                                  <Badge variant="outline" className="shrink-0">
+                                    {p.isActive ? "ACTIVE" : "INACTIVE"}
+                                  </Badge>
+                                </div>
+                                <p className="text-sm text-muted-foreground mt-2">
+                                  {p.dosage} • {p.frequency} • {p.duration}
+                                </p>
+                                {p.notes && (
+                                  <p className="text-sm text-muted-foreground mt-2 whitespace-pre-wrap">
+                                    {p.notes}
+                                  </p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <p className="text-sm font-semibold">Lab Requests</p>
+                        {selectedRecord.labRequests.length === 0 ? (
+                          <p className="text-sm text-muted-foreground">No lab requests.</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {selectedRecord.labRequests.map((l) => (
+                              <div key={l.id} className="border rounded-md p-3">
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="min-w-0">
+                                    <p className="font-medium truncate">Lab Request</p>
+                                    <p className="text-xs text-muted-foreground">
+                                      {l.createdAt ? new Date(l.createdAt).toLocaleString() : ""}
+                                    </p>
+                                  </div>
+                                  <Badge variant="outline" className="shrink-0">
+                                    {l.status}
+                                  </Badge>
+                                </div>
+                                <p className="text-sm text-muted-foreground mt-2">
+                                  Priority: {l.priority}
+                                </p>
+                                {l.requestedTests && (
+                                  <pre className="text-xs bg-muted rounded-md p-3 mt-2 whitespace-pre-wrap break-words">
+                                    {l.requestedTests}
+                                  </pre>
+                                )}
+                                {l.note && (
+                                  <p className="text-sm text-muted-foreground mt-2 whitespace-pre-wrap">
+                                    {l.note}
+                                  </p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Select a patient to view records.</p>
+                  )}
+                </div>
+              </ScrollArea>
+            </div>
+          </DialogContent>
+        </Dialog>
       </SidebarInset>
     </SidebarProvider>
   )

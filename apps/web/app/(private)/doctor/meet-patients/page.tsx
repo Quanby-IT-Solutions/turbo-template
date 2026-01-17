@@ -12,6 +12,8 @@ import {
   IconUser,
   IconPill,
   IconFilePlus,
+  IconFolder,
+  IconPlus,
   IconMenu2,
 } from "@tabler/icons-react"
 import { SidebarWrapper } from "@/core/components/sidebar-wrapper"
@@ -26,6 +28,7 @@ import { Input } from "@/core/components/ui/input"
 import { Badge } from "@/core/components/ui/badge"
 import { Label } from "@/core/components/ui/label"
 import { Textarea } from "@/core/components/ui/textarea"
+import { ScrollArea } from "@/core/components/ui/scroll-area"
 import {
   Select,
   SelectContent,
@@ -53,6 +56,7 @@ import type { User } from "@/services/api/types"
 import { prescriptionsApi, type CreatePrescriptionRequest } from "@/features/prescriptions/api/prescriptions-api"
 import { diagnosesApi, type CreateDiagnosisRequest } from "@/features/diagnoses/api/diagnoses-api"
 import { labRequestsApi, type Priority } from "@/features/lab-requests/api/lab-requests-api"
+import { medicalRecordsApi, type MedicalRecord } from "@/features/medical-records/api/medical-records-api"
 import { organizationsApi } from "@/features/organizations/api/organizations-api"
 import { doctorsApi } from "@/features/doctors/api/doctors-api"
 
@@ -134,6 +138,11 @@ export default function MeetPatientsPage() {
   const [isSubmittingDiagnosis, setIsSubmittingDiagnosis] = React.useState(false)
   const [showLabRequestModal, setShowLabRequestModal] = React.useState(false)
   const [isSubmittingLabRequest, setIsSubmittingLabRequest] = React.useState(false)
+
+  const [showRecordsModal, setShowRecordsModal] = React.useState(false)
+  const [recordsLoading, setRecordsLoading] = React.useState(false)
+  const [records, setRecords] = React.useState<MedicalRecord[]>([])
+  const [recordsFilter, setRecordsFilter] = React.useState<string>("ALL")
   const [prescriptionForm, setPrescriptionForm] = React.useState<CreatePrescriptionRequest>({
     patientId: "",
     consultationId: null,
@@ -182,6 +191,101 @@ export default function MeetPatientsPage() {
       .trim()
     return full
   }, [])
+
+  const safeFormatRecordContent = React.useCallback((content: string) => {
+    if (typeof content !== "string") return ""
+    try {
+      const parsed = JSON.parse(content)
+      return JSON.stringify(parsed, null, 2)
+    } catch {
+      return content
+    }
+  }, [])
+
+  const loadMedicalRecords = React.useCallback(async (opts?: { recordType?: string }) => {
+    const pid = patientInfo?.id
+    if (!pid) {
+      toast.info("Waiting for patient info… try again in a second.")
+      return
+    }
+
+    setRecordsLoading(true)
+    try {
+      const recordType =
+        (opts?.recordType && opts.recordType !== "ALL") ? opts.recordType : undefined
+      const resp = await medicalRecordsApi.list({ patientId: pid, recordType, limit: 100, offset: 0 })
+      if (resp.success) {
+        setRecords(resp.data || [])
+      } else {
+        toast.error(resp.message || "Failed to load medical records")
+      }
+    } catch (err) {
+      console.error("Error loading medical records:", err)
+      toast.error("An error occurred while loading medical records")
+    } finally {
+      setRecordsLoading(false)
+    }
+  }, [patientInfo?.id])
+
+  const openRecordsModal = React.useCallback(async () => {
+    const pid = patientInfo?.id
+    if (!pid) {
+      toast.info("Waiting for patient info… try again in a second.")
+      return
+    }
+    setShowRecordsModal(true)
+    await loadMedicalRecords({ recordType: recordsFilter })
+  }, [loadMedicalRecords, patientInfo?.id, recordsFilter])
+
+  const startNewConsultation = React.useCallback(async () => {
+    // Minimal interpretation: start a fresh "encounter context" locally and refresh records.
+    // (If you later add a real Consultation create endpoint, we can generate & store consultationId here.)
+    const pid = patientInfo?.id || ""
+    const rid = meetingCode || null
+
+    // Reset forms but keep patient/room context
+    setPrescriptionForm({
+      patientId: pid,
+      consultationId: null,
+      roomId: rid,
+      medicationName: "",
+      dosage: "",
+      frequency: "",
+      duration: "",
+      instructions: "",
+      quantity: null,
+      refills: 0,
+      expiresAt: null,
+      notes: "",
+    })
+    setDiagnosisForm({
+      patientId: pid,
+      consultationId: null,
+      roomId: rid,
+      diagnosisCode: "",
+      diagnosisName: "",
+      description: "",
+      severity: "MILD",
+      status: "ACTIVE",
+      onsetDate: "",
+      resolvedAt: "",
+      notes: "",
+      isPrimary: false,
+    })
+    setLabRequestForm({
+      patientId: pid,
+      targetType: "ORGANIZATION",
+      targetId: "",
+      note: "",
+      priority: "NORMAL" as Priority,
+      requestedTests: "",
+      instructions: "",
+      roomId: rid,
+    })
+
+    toast.success("New consultation started")
+    await loadMedicalRecords({ recordType: recordsFilter })
+  }, [loadMedicalRecords, meetingCode, patientInfo?.id, recordsFilter])
 
   const loadTargets = React.useCallback(async (target: "ORGANIZATION" | "DOCTOR") => {
     try {
@@ -1014,6 +1118,32 @@ export default function MeetPatientsPage() {
                   </div>
                 ) : (
                   <div className="flex flex-col gap-4">
+                    {/* In-call actions */}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="text-sm text-muted-foreground">
+                        Room: <span className="font-mono">{currentRoomId || meetingCode || "—"}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={openRecordsModal}
+                          disabled={!patientInfo?.id}
+                        >
+                          <IconFolder className="mr-2 h-4 w-4" />
+                          View Records
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={startNewConsultation}
+                          disabled={!patientInfo?.id}
+                        >
+                          <IconPlus className="mr-2 h-4 w-4" />
+                          New Consultation
+                        </Button>
+                      </div>
+                    </div>
                     {/* Video Call Interface */}
                     <div className="relative w-full h-[calc(100vh-300px)] bg-black rounded-lg overflow-hidden">
                       {/* Remote Video (Patient) */}
@@ -1208,6 +1338,99 @@ export default function MeetPatientsPage() {
             </div>
           </div>
         </div>
+
+        {/* View Records Modal */}
+        <Dialog open={showRecordsModal} onOpenChange={setShowRecordsModal}>
+          <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-hidden">
+            <DialogHeader>
+              <DialogTitle className="text-2xl">Patient Records</DialogTitle>
+              <DialogDescription>
+                Diagnoses, prescriptions, and lab requests logged for this patient
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="flex items-center justify-between gap-2 py-2">
+              <div className="min-w-0">
+                <p className="text-sm font-medium truncate">
+                  {getPatientDisplayName(patientInfo) || "Patient"}
+                </p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {patientInfo?.email || ""}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Select
+                  value={recordsFilter}
+                  onValueChange={(v) => {
+                    const next = v ?? "ALL"
+                    setRecordsFilter(next)
+                    void loadMedicalRecords({ recordType: next })
+                  }}
+                >
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">All records</SelectItem>
+                    <SelectItem value="DIAGNOSIS">Diagnoses</SelectItem>
+                    <SelectItem value="MEDICATION">Prescriptions</SelectItem>
+                    <SelectItem value="LAB_RESULTS">Lab requests/results</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => loadMedicalRecords({ recordType: recordsFilter })}
+                  disabled={recordsLoading}
+                >
+                  <IconRefresh className="mr-2 h-4 w-4" />
+                  Refresh
+                </Button>
+              </div>
+            </div>
+
+            <div className="border rounded-lg overflow-hidden">
+              <ScrollArea className="h-[55vh]">
+                <div className="p-4 space-y-4">
+                  {recordsLoading ? (
+                    <div className="text-sm text-muted-foreground">Loading…</div>
+                  ) : records.length === 0 ? (
+                    <div className="text-sm text-muted-foreground">
+                      No records yet for this patient.
+                    </div>
+                  ) : (
+                    records.map((r) => (
+                      <div key={r.id} className="border rounded-lg p-4 space-y-2">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="font-semibold truncate">{r.title}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {r.createdAt ? new Date(r.createdAt).toLocaleString() : ""}
+                            </p>
+                          </div>
+                          <Badge variant="outline" className="shrink-0">
+                            {r.recordType}
+                          </Badge>
+                        </div>
+                        <pre className="text-xs bg-muted rounded-md p-3 whitespace-pre-wrap break-words">
+                          {safeFormatRecordContent(r.content)}
+                        </pre>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </ScrollArea>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4">
+              <Button type="button" variant="outline" onClick={() => setShowRecordsModal(false)}>
+                Close
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Patient Information Modal */}
         <Dialog open={showPatientInfo} onOpenChange={setShowPatientInfo}>

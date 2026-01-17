@@ -1,5 +1,5 @@
-import { Inject, Injectable } from "@nestjs/common"
-import { and, eq } from "drizzle-orm"
+import { Inject, Injectable, NotFoundException } from "@nestjs/common"
+import { and, desc, eq } from "drizzle-orm"
 
 import { patientMedicalHistories } from "@repo/db/schema"
 
@@ -8,6 +8,16 @@ import { DB, type DBType } from "@/common/database/database-providers"
 @Injectable()
 export class MedicalRecordsService {
 	constructor(@Inject(DB) private readonly db: DBType) {}
+
+	private serialize(r: any) {
+		if (!r) return r
+		const toIso = (v: any) => (v instanceof Date ? v.toISOString() : v)
+		return {
+			...r,
+			createdAt: toIso(r.createdAt),
+			updatedAt: toIso(r.updatedAt),
+		}
+	}
 
 	async findAll(
 		query: { patientId?: string; recordType?: string; limit?: number; offset?: number },
@@ -31,12 +41,14 @@ export class MedicalRecordsService {
 		const limit = query.limit || 50
 		const offset = query.offset || 0
 
-		return this.db
+		const rows = await this.db
 			.select()
 			.from(patientMedicalHistories)
 			.where(whereConditions.length ? and(...(whereConditions as any)) : undefined)
+			.orderBy(desc(patientMedicalHistories.createdAt))
 			.limit(limit)
 			.offset(offset)
+		return rows.map(r => this.serialize(r))
 	}
 
 	async findOne(id: string) {
@@ -45,6 +57,9 @@ export class MedicalRecordsService {
 			.from(patientMedicalHistories)
 			.where(eq(patientMedicalHistories.id, id))
 			.limit(1)
-		return result
+		if (!result) {
+			throw new NotFoundException("Medical record not found")
+		}
+		return this.serialize(result)
 	}
 }

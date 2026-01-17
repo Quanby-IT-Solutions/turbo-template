@@ -76,14 +76,15 @@ class AnimatedNavWrapper extends ConsumerWidget {
         semanticLabel: 'Home',
       ),
       _NavDestination(
-        icon: Icons.search_rounded,
-        route: '/doctor-search',
-        semanticLabel: 'Care',
-      ),
-      _NavDestination(
         icon: Icons.folder_special_rounded,
         route: '/medical-records',
         semanticLabel: 'Records',
+      ),
+      // Self Check is the FAB in the center, so we have 4 nav items + FAB = 5 total items
+      _NavDestination(
+        icon: Icons.science_rounded,
+        route: '/patient-lab-requests',
+        semanticLabel: 'Lab Requests',
       ),
       _NavDestination(
         icon: Icons.notifications_rounded,
@@ -130,28 +131,40 @@ class AnimatedNavWrapper extends ConsumerWidget {
           )
         : const _FabConfig(
             icon: Icons.center_focus_strong_rounded,
-            route: '/vitals-scanner',
+            route: '/vitals-self-check',
             tooltip: 'Scan Vitals',
           );
 
     final icons = destinations.map((destination) => destination.icon).toList();
+    
+    // With 5 patient items, use GapLocation.center which places the gap between items 2 and 3
+    // This makes Self Check (item 3) appear next to the FAB, creating a visually centered layout
+    // For doctors with 4 items (even), GapLocation.center works perfectly
+    final gapLocation = GapLocation.center;
+    
+    // With GapLocation.center, we can use rounded corners on both sides
+    final rightCornerRadius = 32.0;
+    
+    // FAB location matches gap location (center)
+    final fabLocation = FloatingActionButtonLocation.centerDocked;
 
     return Scaffold(
       body: child,
       floatingActionButton: FloatingActionButton(
+        key: ValueKey('fab_${isDoctor ? 'doctor' : 'patient'}'),
         onPressed: () => context.push(fabConfig.route),
         backgroundColor: Theme.of(context).primaryColor,
         tooltip: fabConfig.tooltip,
         child: Icon(fabConfig.icon, color: Colors.white, size: 28),
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      floatingActionButtonLocation: fabLocation,
       bottomNavigationBar: AnimatedBottomNavigationBar(
         icons: icons,
         activeIndex: resolvedIndex,
-        gapLocation: GapLocation.center,
+        gapLocation: gapLocation,
         notchSmoothness: NotchSmoothness.verySmoothEdge,
         leftCornerRadius: 32,
-        rightCornerRadius: 32,
+        rightCornerRadius: rightCornerRadius,
         onTap: (index) {
           navNotifier.setIndex(index);
           if (isDoctor) {

@@ -4,6 +4,7 @@ import { eq, inArray } from "drizzle-orm"
 import { labRequests, organizations, patientInfos, patientMedicalHistories, users } from "@repo/db/schema"
 
 import { DB, type DBType } from "@/common/database/database-providers"
+import { CreateLabRequestDto, LabRequestQueryDto } from "@repo/contracts"
 
 @Injectable()
 export class LabRequestsService {

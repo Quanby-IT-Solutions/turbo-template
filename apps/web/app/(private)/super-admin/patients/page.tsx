@@ -11,6 +11,7 @@ import {
   IconX,
   IconEye,
   IconFilter,
+  IconDotsVertical,
 } from "@tabler/icons-react"
 import { SidebarWrapper } from "@/core/components/sidebar-wrapper"
 import { RoleHeader } from "@/core/components/role-header"
@@ -47,7 +48,16 @@ import {
 } from "@/core/components/ui/select"
 import { Label } from "@/core/components/ui/label"
 import { Textarea } from "@/core/components/ui/textarea"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/core/components/ui/dropdown-menu"
 import { superAdminApi, type PatientListItem } from "@/features/super-admin/api/super-admin-api"
+import { patientsApi } from "@/features/patients/api/patients-api"
 import { toast } from "sonner"
 
 type VerificationStatus = 'NOT_VERIFIED' | 'PENDING' | 'VERIFIED' | 'REJECTED' | 'ALL'
@@ -67,6 +77,31 @@ export default function PatientsPage() {
   const [documentPatientName, setDocumentPatientName] = React.useState<string>("")
   const [rejectionReason, setRejectionReason] = React.useState("")
   const [processing, setProcessing] = React.useState(false)
+  const [viewDetailsDialogOpen, setViewDetailsDialogOpen] = React.useState(false)
+  const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false)
+  const [editingPatient, setEditingPatient] = React.useState<PatientListItem | null>(null)
+  const [saving, setSaving] = React.useState(false)
+  const [deletingId, setDeletingId] = React.useState<string | null>(null)
+  
+  // Edit form state
+  const [editFirstName, setEditFirstName] = React.useState("")
+  const [editMiddleName, setEditMiddleName] = React.useState("")
+  const [editLastName, setEditLastName] = React.useState("")
+  const [editContactNumber, setEditContactNumber] = React.useState("")
+  const [editPhilHealthId, setEditPhilHealthId] = React.useState("")
+  const [editGender, setEditGender] = React.useState("")
+  const [editDateOfBirth, setEditDateOfBirth] = React.useState("")
+  const [editAddress, setEditAddress] = React.useState("")
+  const [editWeight, setEditWeight] = React.useState("")
+  const [editHeight, setEditHeight] = React.useState("")
+  const [editBloodType, setEditBloodType] = React.useState("")
+  const [editMedicalHistory, setEditMedicalHistory] = React.useState("")
+  const [editAllergies, setEditAllergies] = React.useState("")
+  const [editMedications, setEditMedications] = React.useState("")
+  const [editPhilHealthStatus, setEditPhilHealthStatus] = React.useState("")
+  const [editPhilHealthCategory, setEditPhilHealthCategory] = React.useState("")
+  const [fullPatientDetails, setFullPatientDetails] = React.useState<any>(null)
+  const [loadingDetails, setLoadingDetails] = React.useState(false)
   const itemsPerPage = 10
 
   const totalPages = Math.ceil(total / itemsPerPage)
@@ -210,6 +245,76 @@ export default function PatientsPage() {
     }
   }
 
+  const handleEdit = async () => {
+    if (!editingPatient) return
+    
+    // Validation
+    if (!editFirstName.trim() || !editLastName.trim()) {
+      toast.error("Please fill in all required fields")
+      return
+    }
+
+    setSaving(true)
+    try {
+      const updateData: any = {
+        firstName: editFirstName.trim(),
+        middleName: editMiddleName.trim() || undefined,
+        lastName: editLastName.trim(),
+        gender: editGender || undefined,
+        dateOfBirth: editDateOfBirth || undefined,
+        contactNumber: editContactNumber.trim() || undefined,
+        address: editAddress.trim() || undefined,
+        weight: editWeight ? parseFloat(editWeight) : undefined,
+        height: editHeight ? parseFloat(editHeight) : undefined,
+        bloodType: editBloodType.trim() || undefined,
+        medicalHistory: editMedicalHistory.trim() || undefined,
+        allergies: editAllergies.trim() || undefined,
+        medications: editMedications.trim() || undefined,
+        philHealthId: editPhilHealthId.trim() || undefined,
+        philHealthStatus: editPhilHealthStatus.trim() || undefined,
+        philHealthCategory: editPhilHealthCategory.trim() || undefined,
+      }
+
+      const response = await patientsApi.updatePatient(editingPatient.id, updateData)
+      
+      if (response.success) {
+        toast.success("Patient information updated successfully")
+        setIsEditDialogOpen(false)
+        setEditingPatient(null)
+        await fetchPatients()
+      } else {
+        toast.error(response.message || "Failed to update patient")
+      }
+    } catch (error) {
+      toast.error("Failed to update patient")
+      console.error(error)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!deletingId) return
+    
+    setProcessing(true)
+    try {
+      const response = await patientsApi.deletePatient(deletingId)
+      if (response.success) {
+        toast.success("Patient deleted successfully")
+        setDeletingId(null)
+        setSelectedPatient(null)
+        await fetchPatients()
+      } else {
+        toast.error(response.message || "Failed to delete patient")
+      }
+    } catch (error) {
+      toast.error("Failed to delete patient")
+      console.error(error)
+    } finally {
+      setProcessing(false)
+    }
+  }
+
   return (
     <SidebarProvider
       style={
@@ -258,7 +363,7 @@ export default function PatientsPage() {
                       }}
                     >
                       <SelectTrigger className="w-[180px]">
-                        <SelectValue placeholder="Filter by status" />
+                        <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="ALL">All Patients</SelectItem>
@@ -324,62 +429,134 @@ export default function PatientsPage() {
                                   )}
                                 </TableCell>
                                 <TableCell>
-                                  <div className="flex items-center justify-end gap-2">
-                                    {hasDocument && (
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-8 w-8"
-                                        onClick={() => {
-                                          if (patient.patientInfo?.philHealthIdImage) {
-                                            setDocumentImage(patient.patientInfo.philHealthIdImage)
-                                            setDocumentPatientName(name)
-                                            setViewDocumentDialogOpen(true)
-                                          }
-                                        }}
-                                      >
-                                        <IconEye className="h-4 w-4" />
-                                      </Button>
-                                    )}
-                                    {status === 'PENDING' && (
-                                      <>
+                                  <div className="flex items-center justify-end">
+                                    <DropdownMenu>
+                                      <DropdownMenuTrigger {...({ asChild: true } as any)}>
                                         <Button
                                           variant="ghost"
                                           size="icon"
-                                          className="h-8 w-8 text-green-600 hover:text-green-700"
+                                          className="h-8 w-8"
+                                        >
+                                          <IconDotsVertical className="h-4 w-4" />
+                                        </Button>
+                                      </DropdownMenuTrigger>
+                                      <DropdownMenuContent align="end">
+                                        <DropdownMenuItem
+                                          onClick={async () => {
+                                            setSelectedPatient(patient)
+                                            setViewDetailsDialogOpen(true)
+                                            // Fetch full patient details
+                                            setLoadingDetails(true)
+                                            try {
+                                              const response = await patientsApi.getPatientById(patient.id)
+                                              if (response.success && response.data) {
+                                                setFullPatientDetails(response.data)
+                                              }
+                                            } catch (error) {
+                                              console.error("Failed to fetch patient details:", error)
+                                            } finally {
+                                              setLoadingDetails(false)
+                                            }
+                                          }}
+                                        >
+                                          <IconEye className="h-4 w-4 mr-2" />
+                                          View Details
+                                        </DropdownMenuItem>
+                                        {hasDocument && (
+                                          <DropdownMenuItem
+                                            onClick={() => {
+                                              if (patient.patientInfo?.philHealthIdImage) {
+                                                setDocumentImage(patient.patientInfo.philHealthIdImage)
+                                                setDocumentPatientName(name)
+                                                setViewDocumentDialogOpen(true)
+                                              }
+                                            }}
+                                          >
+                                            <IconEye className="h-4 w-4 mr-2" />
+                                            View PhilHealth ID
+                                          </DropdownMenuItem>
+                                        )}
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem
                                           onClick={() => {
                                             setSelectedPatient(patient)
                                             setVerifyDialogOpen(true)
                                           }}
+                                          className="text-green-600 focus:text-green-700"
                                         >
-                                          <IconCheck className="h-4 w-4" />
-                                        </Button>
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          className="h-8 w-8 text-red-600 hover:text-red-700"
+                                          <IconCheck className="h-4 w-4 mr-2" />
+                                          Verify
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem
                                           onClick={() => {
                                             setSelectedPatient(patient)
                                             setRejectDialogOpen(true)
                                           }}
+                                          className="text-red-600 focus:text-red-700"
                                         >
-                                          <IconX className="h-4 w-4" />
-                                        </Button>
-                                      </>
-                                    )}
-                                    {status === 'REJECTED' && (
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-8 w-8 text-green-600 hover:text-green-700"
-                                        onClick={() => {
-                                          setSelectedPatient(patient)
-                                          setVerifyDialogOpen(true)
-                                        }}
-                                      >
-                                        <IconCheck className="h-4 w-4" />
-                                      </Button>
-                                    )}
+                                          <IconX className="h-4 w-4 mr-2" />
+                                          Reject
+                                        </DropdownMenuItem>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem
+                                          onClick={async () => {
+                                            setEditingPatient(patient)
+                                            // Fetch full patient details for editing
+                                            try {
+                                              const response = await patientsApi.getPatientById(patient.id)
+                                              if (response.success && response.data) {
+                                                const patientData = response.data.patientInfo || {}
+                                                setEditFirstName(patientData.firstName || "")
+                                                setEditMiddleName(patientData.middleName || "")
+                                                setEditLastName(patientData.lastName || "")
+                                                setEditGender(patientData.gender || "")
+                                                setEditDateOfBirth(patientData.dateOfBirth ? (new Date(patientData.dateOfBirth).toISOString().split('T')[0] || "") : "")
+                                                setEditContactNumber(patientData.contactNumber || "")
+                                                setEditAddress(patientData.address || "")
+                                                setEditWeight(patientData.weight?.toString() || "")
+                                                setEditHeight(patientData.height?.toString() || "")
+                                                setEditBloodType(patientData.bloodType || "")
+                                                setEditMedicalHistory(patientData.medicalHistory || "")
+                                                setEditAllergies(patientData.allergies || "")
+                                                setEditMedications(patientData.medications || "")
+                                                setEditPhilHealthId(patientData.philHealthId || "")
+                                                setEditPhilHealthStatus(patientData.philHealthStatus || "")
+                                                setEditPhilHealthCategory(patientData.philHealthCategory || "")
+                                              } else {
+                                                // Fallback to partial data
+                                                setEditFirstName(patient.patientInfo?.firstName || "")
+                                                setEditMiddleName(patient.patientInfo?.middleName || "")
+                                                setEditLastName(patient.patientInfo?.lastName || "")
+                                                setEditContactNumber(patient.patientInfo?.contactNumber || "")
+                                                setEditPhilHealthId(patient.patientInfo?.philHealthId || "")
+                                              }
+                                            } catch (error) {
+                                              console.error("Failed to fetch patient details:", error)
+                                              // Fallback to partial data
+                                              setEditFirstName(patient.patientInfo?.firstName || "")
+                                              setEditMiddleName(patient.patientInfo?.middleName || "")
+                                              setEditLastName(patient.patientInfo?.lastName || "")
+                                              setEditContactNumber(patient.patientInfo?.contactNumber || "")
+                                              setEditPhilHealthId(patient.patientInfo?.philHealthId || "")
+                                            }
+                                            setIsEditDialogOpen(true)
+                                          }}
+                                        >
+                                          <IconEdit className="h-4 w-4 mr-2" />
+                                          Edit
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem
+                                          onClick={() => {
+                                            setSelectedPatient(patient)
+                                            setDeletingId(patient.id)
+                                          }}
+                                          className="text-destructive focus:text-destructive"
+                                        >
+                                          <IconTrash className="h-4 w-4 mr-2" />
+                                          Delete
+                                        </DropdownMenuItem>
+                                      </DropdownMenuContent>
+                                    </DropdownMenu>
                                   </div>
                                 </TableCell>
                               </TableRow>
@@ -509,6 +686,476 @@ export default function PatientsPage() {
               disabled={processing || !rejectionReason.trim()}
             >
               {processing ? 'Rejecting...' : 'Reject Verification'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* View Details Dialog */}
+      <Dialog open={viewDetailsDialogOpen} onOpenChange={(open) => {
+        setViewDetailsDialogOpen(open)
+        if (!open) {
+          setSelectedPatient(null)
+          setFullPatientDetails(null)
+        }
+      }}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
+          <DialogHeader>
+            <DialogTitle>Patient Details</DialogTitle>
+            <DialogDescription>
+              {fullPatientDetails?.patientInfo && (
+                <span>
+                  Complete information for {fullPatientDetails.patientInfo.firstName} {fullPatientDetails.patientInfo.middleName || ""} {fullPatientDetails.patientInfo.lastName}
+                </span>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          {loadingDetails ? (
+            <div className="py-8 text-center text-muted-foreground">Loading patient details...</div>
+          ) : (fullPatientDetails || selectedPatient) ? (
+            <div className="py-4 space-y-6">
+              {(() => {
+                const patient = fullPatientDetails || selectedPatient
+                const patientInfo = fullPatientDetails?.patientInfo || selectedPatient?.patientInfo
+                return (
+                  <>
+                    {/* Personal Information */}
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-semibold">Personal Information</h3>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label className="text-muted-foreground">Full Name</Label>
+                          <p className="text-sm font-medium">
+                            {patientInfo?.firstName} {patientInfo?.middleName || ""} {patientInfo?.lastName}
+                          </p>
+                        </div>
+                        <div>
+                          <Label className="text-muted-foreground">Email</Label>
+                          <p className="text-sm font-medium">{patient?.email || fullPatientDetails?.email}</p>
+                        </div>
+                        <div>
+                          <Label className="text-muted-foreground">Gender</Label>
+                          <p className="text-sm font-medium">{patientInfo?.gender || "N/A"}</p>
+                        </div>
+                        <div>
+                          <Label className="text-muted-foreground">Date of Birth</Label>
+                          <p className="text-sm font-medium">
+                            {patientInfo?.dateOfBirth ? new Date(patientInfo.dateOfBirth).toLocaleDateString() : "N/A"}
+                          </p>
+                        </div>
+                        <div>
+                          <Label className="text-muted-foreground">Contact Number</Label>
+                          <p className="text-sm font-medium">{patientInfo?.contactNumber || "N/A"}</p>
+                        </div>
+                        <div>
+                          <Label className="text-muted-foreground">Address</Label>
+                          <p className="text-sm font-medium">{patientInfo?.address || "N/A"}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Health Information */}
+                    <div className="space-y-4 border-t pt-4">
+                      <h3 className="text-lg font-semibold">Health Information</h3>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label className="text-muted-foreground">Weight (kg)</Label>
+                          <p className="text-sm font-medium">{patientInfo?.weight || "N/A"}</p>
+                        </div>
+                        <div>
+                          <Label className="text-muted-foreground">Height (cm)</Label>
+                          <p className="text-sm font-medium">{patientInfo?.height || "N/A"}</p>
+                        </div>
+                        <div>
+                          <Label className="text-muted-foreground">Blood Type</Label>
+                          <p className="text-sm font-medium">{patientInfo?.bloodType || "N/A"}</p>
+                        </div>
+                        <div>
+                          <Label className="text-muted-foreground">Medical History</Label>
+                          <p className="text-sm font-medium">{patientInfo?.medicalHistory || "N/A"}</p>
+                        </div>
+                        <div>
+                          <Label className="text-muted-foreground">Allergies</Label>
+                          <p className="text-sm font-medium">{patientInfo?.allergies || "N/A"}</p>
+                        </div>
+                        <div>
+                          <Label className="text-muted-foreground">Medications</Label>
+                          <p className="text-sm font-medium">{patientInfo?.medications || "N/A"}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* PhilHealth Information */}
+                    <div className="space-y-4 border-t pt-4">
+                      <h3 className="text-lg font-semibold">PhilHealth Information</h3>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label className="text-muted-foreground">PhilHealth ID</Label>
+                          <p className="text-sm font-medium">{patientInfo?.philHealthId || "N/A"}</p>
+                        </div>
+                        <div>
+                          <Label className="text-muted-foreground">PhilHealth Status</Label>
+                          <p className="text-sm font-medium">{patientInfo?.philHealthStatus || "N/A"}</p>
+                        </div>
+                        <div>
+                          <Label className="text-muted-foreground">PhilHealth Category</Label>
+                          <p className="text-sm font-medium">{patientInfo?.philHealthCategory || "N/A"}</p>
+                        </div>
+                        <div>
+                          <Label className="text-muted-foreground">PhilHealth ID Verified</Label>
+                          <p className="text-sm font-medium">
+                            {patientInfo?.philHealthIdVerified ? "Yes" : "No"}
+                          </p>
+                        </div>
+                        <div>
+                          <Label className="text-muted-foreground">Member Since</Label>
+                          <p className="text-sm font-medium">
+                            {patientInfo?.philHealthMemberSince ? new Date(patientInfo.philHealthMemberSince).toLocaleDateString() : "N/A"}
+                          </p>
+                        </div>
+                        <div>
+                          <Label className="text-muted-foreground">Expiry Date</Label>
+                          <p className="text-sm font-medium">
+                            {patientInfo?.philHealthExpiry ? new Date(patientInfo.philHealthExpiry).toLocaleDateString() : "N/A"}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Verification Status */}
+                    <div className="space-y-4 border-t pt-4">
+                      <h3 className="text-lg font-semibold">Verification Status</h3>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label className="text-muted-foreground">Verification Status</Label>
+                          <div className="mt-1">
+                            {getStatusBadge(patientInfo?.verificationStatus || 'NOT_VERIFIED')}
+                          </div>
+                        </div>
+                        <div>
+                          <Label className="text-muted-foreground">Status Updated At</Label>
+                          <p className="text-sm font-medium">
+                            {patientInfo?.verificationStatusUpdatedAt ? new Date(patientInfo.verificationStatusUpdatedAt).toLocaleString() : "N/A"}
+                          </p>
+                        </div>
+                        {patientInfo?.verificationStatus === "REJECTED" && patientInfo?.verificationRejectionReason && (
+                          <div className="col-span-2">
+                            <Label className="text-muted-foreground">Rejection Reason</Label>
+                            <p className="text-sm font-medium mt-1 text-red-600">{patientInfo.verificationRejectionReason}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Subscription Information */}
+                    {patientInfo?.subscriptionTier && (
+                      <div className="space-y-4 border-t pt-4">
+                        <h3 className="text-lg font-semibold">Subscription Information</h3>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <Label className="text-muted-foreground">Subscription Tier</Label>
+                            <p className="text-sm font-medium">{patientInfo.subscriptionTier}</p>
+                          </div>
+                          <div>
+                            <Label className="text-muted-foreground">Subscription Active</Label>
+                            <p className="text-sm font-medium">
+                              {patientInfo.isSubscriptionActive ? "Yes" : "No"}
+                            </p>
+                          </div>
+                          <div>
+                            <Label className="text-muted-foreground">Max Face Scans</Label>
+                            <p className="text-sm font-medium">{patientInfo.maxFaceScans || "Unlimited"}</p>
+                          </div>
+                          <div>
+                            <Label className="text-muted-foreground">Current Face Scans</Label>
+                            <p className="text-sm font-medium">{patientInfo.currentFaceScans || 0}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )
+              })()}
+            </div>
+          ) : null}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setViewDetailsDialogOpen(false)
+                setSelectedPatient(null)
+                setFullPatientDetails(null)
+              }}
+            >
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Patient Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={(open) => {
+        setIsEditDialogOpen(open)
+        if (!open) {
+          setEditingPatient(null)
+          setEditFirstName("")
+          setEditMiddleName("")
+          setEditLastName("")
+          setEditGender("")
+          setEditDateOfBirth("")
+          setEditContactNumber("")
+          setEditAddress("")
+          setEditWeight("")
+          setEditHeight("")
+          setEditBloodType("")
+          setEditMedicalHistory("")
+          setEditAllergies("")
+          setEditMedications("")
+          setEditPhilHealthId("")
+          setEditPhilHealthStatus("")
+          setEditPhilHealthCategory("")
+        }
+      }}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Patient Information</DialogTitle>
+            <DialogDescription>
+              Update the patient&apos;s information. Changes will be saved to the database.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            {/* Personal Information */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Personal Information</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="edit-firstname">First Name *</Label>
+                  <Input
+                    id="edit-firstname"
+                    value={editFirstName}
+                    onChange={(e) => setEditFirstName(e.target.value)}
+                    placeholder="First Name"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit-middlename">Middle Name</Label>
+                  <Input
+                    id="edit-middlename"
+                    value={editMiddleName}
+                    onChange={(e) => setEditMiddleName(e.target.value)}
+                    placeholder="Middle Name"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit-lastname">Last Name *</Label>
+                  <Input
+                    id="edit-lastname"
+                    value={editLastName}
+                    onChange={(e) => setEditLastName(e.target.value)}
+                    placeholder="Last Name"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit-gender">Gender</Label>
+                  <Select value={editGender} onValueChange={(value) => setEditGender(value || "")}>
+                    <SelectTrigger id="edit-gender">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="MALE">Male</SelectItem>
+                      <SelectItem value="FEMALE">Female</SelectItem>
+                      <SelectItem value="OTHER">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="edit-dob">Date of Birth</Label>
+                  <Input
+                    id="edit-dob"
+                    type="date"
+                    value={editDateOfBirth}
+                    onChange={(e) => setEditDateOfBirth(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit-contact">Contact Number</Label>
+                  <Input
+                    id="edit-contact"
+                    value={editContactNumber}
+                    onChange={(e) => setEditContactNumber(e.target.value)}
+                    placeholder="Contact Number"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="edit-address">Address</Label>
+                  <Textarea
+                    id="edit-address"
+                    value={editAddress}
+                    onChange={(e) => setEditAddress(e.target.value)}
+                    placeholder="Address"
+                    rows={2}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Health Information */}
+            <div className="space-y-4 border-t pt-4">
+              <h3 className="text-lg font-semibold">Health Information</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="edit-weight">Weight (kg)</Label>
+                  <Input
+                    id="edit-weight"
+                    type="number"
+                    step="0.1"
+                    value={editWeight}
+                    onChange={(e) => setEditWeight(e.target.value)}
+                    placeholder="Weight in kg"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit-height">Height (cm)</Label>
+                  <Input
+                    id="edit-height"
+                    type="number"
+                    step="0.1"
+                    value={editHeight}
+                    onChange={(e) => setEditHeight(e.target.value)}
+                    placeholder="Height in cm"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit-bloodtype">Blood Type</Label>
+                  <Input
+                    id="edit-bloodtype"
+                    value={editBloodType}
+                    onChange={(e) => setEditBloodType(e.target.value)}
+                    placeholder="Blood Type"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="edit-medical-history">Medical History</Label>
+                  <Textarea
+                    id="edit-medical-history"
+                    value={editMedicalHistory}
+                    onChange={(e) => setEditMedicalHistory(e.target.value)}
+                    placeholder="Medical History"
+                    rows={3}
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="edit-allergies">Allergies</Label>
+                  <Textarea
+                    id="edit-allergies"
+                    value={editAllergies}
+                    onChange={(e) => setEditAllergies(e.target.value)}
+                    placeholder="Allergies"
+                    rows={2}
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="edit-medications">Medications</Label>
+                  <Textarea
+                    id="edit-medications"
+                    value={editMedications}
+                    onChange={(e) => setEditMedications(e.target.value)}
+                    placeholder="Current Medications"
+                    rows={2}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* PhilHealth Information */}
+            <div className="space-y-4 border-t pt-4">
+              <h3 className="text-lg font-semibold">PhilHealth Information</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="edit-philhealth">PhilHealth ID</Label>
+                  <Input
+                    id="edit-philhealth"
+                    value={editPhilHealthId}
+                    onChange={(e) => setEditPhilHealthId(e.target.value)}
+                    placeholder="PhilHealth ID"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit-philhealth-status">PhilHealth Status</Label>
+                  <Input
+                    id="edit-philhealth-status"
+                    value={editPhilHealthStatus}
+                    onChange={(e) => setEditPhilHealthStatus(e.target.value)}
+                    placeholder="PhilHealth Status"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit-philhealth-category">PhilHealth Category</Label>
+                  <Input
+                    id="edit-philhealth-category"
+                    value={editPhilHealthCategory}
+                    onChange={(e) => setEditPhilHealthCategory(e.target.value)}
+                    placeholder="PhilHealth Category"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsEditDialogOpen(false)
+                setEditingPatient(null)
+              }}
+              disabled={saving}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleEdit}
+              disabled={saving}
+            >
+              {saving ? "Saving..." : "Save Changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!deletingId} onOpenChange={(open) => !open && setDeletingId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Patient</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this patient? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedPatient?.patientInfo && (
+            <div className="mt-2 mb-4">
+              <p className="font-medium">
+                {selectedPatient.patientInfo.firstName} {selectedPatient.patientInfo.lastName}
+              </p>
+              <p className="text-sm text-muted-foreground">{selectedPatient.email}</p>
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDeletingId(null)
+                setSelectedPatient(null)
+              }}
+              disabled={processing}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={processing}
+            >
+              {processing ? 'Deleting...' : 'Delete Patient'}
             </Button>
           </DialogFooter>
         </DialogContent>

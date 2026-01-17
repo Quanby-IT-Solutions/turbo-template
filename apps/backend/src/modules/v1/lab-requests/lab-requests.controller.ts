@@ -2,7 +2,7 @@ import { Controller, Get, Param, UseGuards, Post, Body } from "@nestjs/common"
 import { AllowAnonymous } from "@thallesp/nestjs-better-auth"
 import { ZodSerializerDto } from "nestjs-zod"
 
-import { LabRequestListResponseDto, LabRequestResponseDto } from "@repo/contracts"
+import { CreateLabRequestDto, LabRequestListResponseDto, LabRequestQueryDto, LabRequestResponseDto } from "@repo/contracts"
 
 import { Roles } from "@/shared/decorators/roles.decorator"
 import { User } from "@/shared/decorators/user.decorator"
@@ -73,4 +73,22 @@ export class LabRequestsController {
 		const labRequest = await this.labRequestsService.findOne(id)
 		return { success: true, data: labRequest }
 	}
+
+  @Put(':id')
+  @Roles('DOCTOR', 'ADMIN', 'SUPER_ADMIN')
+  async update(
+    @Request() req: any,
+    @Param('id') id: string,
+    @Body() updateDto: Partial<CreateLabRequestDto>,
+  ) {
+    const labRequest = await this.labRequestsService.update(id, updateDto, req.user);
+    return { success: true, data: labRequest };
+  }
+
+  @Delete(':id')
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  async remove(@Request() req: any, @Param('id') id: string) {
+    await this.labRequestsService.remove(id);
+    return { success: true, message: 'Lab request deleted successfully' };
+  }
 }

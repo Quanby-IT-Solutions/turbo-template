@@ -36,10 +36,13 @@ import 'package:mobile/presentation/medical_records/screens/medical_records_scre
 import 'package:mobile/presentation/test/screens/notification_test_screen.dart';
 import 'package:mobile/presentation/common/screens/home_gate_screen.dart';
 import 'package:mobile/presentation/doctor/screens/doctor_home_screen.dart';
+import 'package:mobile/presentation/doctor/screens/doctor_profile_screen.dart';
 import 'package:mobile/presentation/patients/patients_screen.dart';
 import 'package:mobile/presentation/patient/screens/patient_profile_screen.dart';
-import 'package:mobile/presentation/doctor/screens/doctor_profile_screen.dart';
-import 'package:mobile/presentation/doctor/screens/patient_detail_screen.dart';
+import 'package:mobile/presentation/patient/screens/patient_profile_edit_screen.dart';
+import 'package:mobile/presentation/scheduling/screens/patient_schedule_screen.dart';
+import 'package:mobile/presentation/video_call/screens/patient_meet_doctor_screen.dart';
+import 'package:mobile/presentation/patient/screens/patient_lab_requests_screen.dart';
 
 // Store user role globally for redirect logic (set by auth provider)
 String? _currentUserRole;
@@ -158,6 +161,38 @@ final GoRouter appRouter = GoRouter(
           _requireRole(requireDoctor: false, requirePatient: true),
       builder: (context, state) =>
           _animateRoute(const PatientProfileScreen(), 'slideInUp'),
+      routes: [
+        GoRoute(
+          path: 'edit',
+          name: 'patient-profile-edit',
+          builder: (context, state) =>
+              _animateRoute(const PatientProfileEditScreen(), 'slideInUp'),
+        ),
+      ],
+    ),
+    GoRoute(
+      path: '/patient-schedule',
+      name: 'patient-schedule',
+      redirect: (context, state) =>
+          _requireRole(requireDoctor: false, requirePatient: true),
+      builder: (context, state) =>
+          _animateRoute(const PatientScheduleScreen(), 'slideInUp'),
+    ),
+    GoRoute(
+      path: '/patient-meet-doctor',
+      name: 'patient-meet-doctor',
+      redirect: (context, state) =>
+          _requireRole(requireDoctor: false, requirePatient: true),
+      builder: (context, state) =>
+          _animateRoute(const PatientMeetDoctorScreen(), 'slideInUp'),
+    ),
+    GoRoute(
+      path: '/patient-lab-requests',
+      name: 'patient-lab-requests',
+      redirect: (context, state) =>
+          _requireRole(requireDoctor: false, requirePatient: true),
+      builder: (context, state) =>
+          _animateRoute(const PatientLabRequestsScreen(), 'slideInUp'),
     ),
     GoRoute(
       path: '/doctor-home',
@@ -167,11 +202,30 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) =>
           _animateRoute(const DoctorHomeScreen(), 'zoomIn'),
     ),
+    GoRoute(
+      path: '/doctor-profile',
+      name: 'doctor-profile',
+      redirect: (context, state) =>
+          _requireRole(requireDoctor: true, requirePatient: false),
+      builder: (context, state) =>
+          _animateRoute(const DoctorProfileScreen(), 'slideInUp'),
+    ),
 
     // Profile Routes
     GoRoute(
       path: '/profile',
       name: 'profile',
+      redirect: (context, state) {
+        // Redirect patients to patient-specific profile
+        if (_isPatient) {
+          return '/patient-profile';
+        }
+        // Redirect doctors to doctor-specific profile
+        if (_isDoctor) {
+          return '/doctor-profile';
+        }
+        return null; // No redirect for other roles
+      },
       builder: (context, state) =>
           _animateRoute(const ProfileScreen(), 'slideInRight'),
     ),

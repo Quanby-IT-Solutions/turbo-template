@@ -1,7 +1,9 @@
-import { Inject, Injectable, NotFoundException } from "@nestjs/common"
+import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException } from "@nestjs/common"
 import { and, eq, inArray, sql } from "drizzle-orm"
+import * as bcrypt from "bcryptjs"
 
-import { doctorInfos, organizations, users } from "@repo/db/schema"
+import { doctorInfos, organizations, subscriptionTierSettings, users } from "@repo/db/schema"
+import type { SubscriptionTier, SubscriptionEntityType } from "@repo/db/schema"
 
 import { DB, type DBType } from "@/common/database/database-providers"
 
@@ -190,5 +192,292 @@ export class DoctorsService {
 					? doctor.user.createdAt.toISOString()
 					: doctor.user.createdAt,
 		}
+	}
+
+	async approve(id: string, userId?: string) {
+		// First verify the doctor exists
+		const [existing] = await this.db
+			.select()
+			.from(doctorInfos)
+			.where(eq(doctorInfos.userId, id))
+			.limit(1)
+
+		if (!existing) {
+			throw new NotFoundException(`Doctor with ID ${id} not found`)
+		}
+
+		// Update approval status
+		const [doctorInfo] = await this.db
+			.update(doctorInfos)
+			.set({
+				approvalStatus: "APPROVED" as any,
+				approvalStatusUpdatedBy: userId || null,
+				approvalStatusUpdatedAt: new Date(),
+				approvalRejectionReason: null,
+			})
+			.where(eq(doctorInfos.userId, id))
+			.returning()
+
+		if (!doctorInfo) {
+			throw new NotFoundException(`Doctor with ID ${id} not found`)
+		}
+
+		// Return the updated doctor using findOne to get the full formatted response
+		return this.findOne(id)
+	}
+
+	async reject(id: string, reason?: string, userId?: string) {
+		// First verify the doctor exists
+		const [existing] = await this.db
+			.select()
+			.from(doctorInfos)
+			.where(eq(doctorInfos.userId, id))
+			.limit(1)
+
+		if (!existing) {
+			throw new NotFoundException(`Doctor with ID ${id} not found`)
+		}
+
+		// Update approval status
+		const [doctorInfo] = await this.db
+			.update(doctorInfos)
+			.set({
+				approvalStatus: "REJECTED" as any,
+				approvalStatusUpdatedBy: userId || null,
+				approvalStatusUpdatedAt: new Date(),
+				approvalRejectionReason: reason || null,
+			})
+			.where(eq(doctorInfos.userId, id))
+			.returning()
+
+		if (!doctorInfo) {
+			throw new NotFoundException(`Doctor with ID ${id} not found`)
+		}
+
+		// Return the updated doctor using findOne to get the full formatted response
+		return this.findOne(id)
+	}
+
+	async update(id: string, data: {
+		organizationId?: string | null
+		firstName?: string
+		middleName?: string
+		lastName?: string
+		specialization?: string
+		qualifications?: string
+		experience?: number
+		contactNumber?: string
+		address?: string
+		bio?: string
+	}) {
+		// First verify the doctor exists and get current organizationId
+		const [existingUser] = await this.db
+			.select({ organizationId: users.organizationId })
+			.from(users)
+			.where(eq(users.id, id))
+			.limit(1)
+
+		if (!existingUser) {
+			throw new NotFoundException(`Doctor with ID ${id} not found`)
+		}
+
+		const [existing] = await this.db
+			.select()
+			.from(doctorInfos)
+			.where(eq(doctorInfos.userId, id))
+			.limit(1)
+
+		if (!existing) {
+			throw new NotFoundException(`Doctor with ID ${id} not found`)
+		}
+
+		// Prepare update data for doctorInfo
+		const doctorInfoUpdate: any = {}
+		if (data.firstName !== undefined) doctorInfoUpdate.firstName = data.firstName
+		if (data.middleName !== undefined) doctorInfoUpdate.middleName = data.middleName
+		if (data.lastName !== undefined) doctorInfoUpdate.lastName = data.lastName
+		if (data.specialization !== undefined) doctorInfoUpdate.specialization = data.specialization
+		if (data.qualifications !== undefined) doctorInfoUpdate.qualifications = data.qualifications
+		if (data.experience !== undefined) doctorInfoUpdate.experience = data.experience
+		if (data.contactNumber !== undefined) doctorInfoUpdate.contactNumber = data.contactNumber
+		if (data.address !== undefined) doctorInfoUpdate.address = data.address
+		if (data.bio !== undefined) doctorInfoUpdate.bio = data.bio
+
+		// Update doctorInfo if there are fields to update
+		if (Object.keys(doctorInfoUpdate).length > 0) {
+			await this.db
+				.update(doctorInfos)
+				.set(doctorInfoUpdate)
+				.where(eq(doctorInfos.userId, id))
+		}
+
+		// Update user's organizationId if provided and update currentDoctors counts
+		if (data.organizationId !== undefined) {
+			const oldOrganizationId = existingUser.organizationId
+			const newOrganizationId = data.organizationId
+
+			// Update the user's organizationId
+			await this.db
+				.update(users)
+				.set({ organizationId: newOrganizationId })
+				.where(eq(users.id, id))
+
+			// Update currentDoctors count for old organization (decrement)
+			if (oldOrganizationId) {
+				await this.db
+					.update(organizations)
+					.set({
+						currentDoctors: sql`GREATEST(0, ${organizations.currentDoctors} - 1)`,
+					})
+					.where(eq(organizations.id, oldOrganizationId))
+			}
+
+			// Update currentDoctors count for new organization (increment)
+			if (newOrganizationId) {
+				await this.db
+					.update(organizations)
+					.set({
+						currentDoctors: sql`${organizations.currentDoctors} + 1`,
+					})
+					.where(eq(organizations.id, newOrganizationId))
+			}
+		}
+
+		// Return the updated doctor using findOne to get the full formatted response
+		return this.findOne(id)
+	}
+
+	async delete(id: string) {
+		// Verify doctor exists and get organizationId before deletion
+		const [existing] = await this.db
+			.select({
+				userId: users.id,
+				organizationId: users.organizationId,
+			})
+			.from(users)
+			.innerJoin(doctorInfos, eq(users.id, doctorInfos.userId))
+			.where(and(eq(users.id, id), eq(users.role, "DOCTOR" as const)))
+			.limit(1)
+
+		if (!existing) {
+			throw new NotFoundException(`Doctor with ID ${id} not found`)
+		}
+
+		const organizationId = existing.organizationId
+
+		// Delete doctor info first (due to foreign key constraint)
+		await this.db.delete(doctorInfos).where(eq(doctorInfos.userId, id))
+		
+		// Delete user
+		await this.db.delete(users).where(eq(users.id, id))
+
+		// Decrement currentDoctors count for the organization if doctor was assigned to one
+		if (organizationId) {
+			await this.db
+				.update(organizations)
+				.set({
+					currentDoctors: sql`GREATEST(0, ${organizations.currentDoctors} - 1)`,
+				})
+				.where(eq(organizations.id, organizationId))
+		}
+	}
+
+	async create(data: {
+		email: string
+		password: string
+		organizationId?: string | null
+		firstName: string
+		middleName?: string
+		lastName: string
+		gender?: string
+		dateOfBirth?: string
+		contactNumber: string
+		address?: string
+		bio?: string
+		specialization: string
+		qualifications: string
+		experience: number
+		subscriptionTier?: string
+	}) {
+		// Check if user with email already exists
+		const [existing] = await this.db
+			.select()
+			.from(users)
+			.where(eq(users.email, data.email))
+			.limit(1)
+
+		if (existing) {
+			throw new ConflictException("User with this email already exists")
+		}
+
+		// Hash password
+		const hashedPassword = await bcrypt.hash(data.password, 10)
+
+		// Get subscription tier settings
+		const requestedTier = (data.subscriptionTier || "FREE") as SubscriptionTier
+		const [tierSetting] = await this.db
+			.select()
+			.from(subscriptionTierSettings)
+			.where(
+				and(
+					eq(subscriptionTierSettings.tier, requestedTier),
+					eq(subscriptionTierSettings.entityType, "DOCTOR" as SubscriptionEntityType)
+				)
+			)
+			.limit(1)
+
+		const appliedTier = tierSetting?.tier || ("FREE" as SubscriptionTier)
+
+		// Create user
+		const [user] = await this.db
+			.insert(users)
+			.values({
+				name: `${data.firstName} ${data.lastName}`.trim() || data.email.split("@")[0] || "Doctor",
+				email: data.email,
+				password: hashedPassword,
+				emailVerified: false,
+				role: "DOCTOR" as any,
+				organizationId: data.organizationId || null,
+			})
+			.returning()
+
+		if (!user) {
+			throw new BadRequestException("Failed to create user")
+		}
+
+		// Create doctor info
+		await this.db.insert(doctorInfos).values({
+			userId: user.id,
+			firstName: data.firstName,
+			middleName: data.middleName || null,
+			lastName: data.lastName,
+			gender: (data.gender || "OTHER") as any,
+			dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : new Date(),
+			contactNumber: data.contactNumber,
+			address: data.address || "",
+			bio: data.bio || "",
+			specialization: data.specialization,
+			qualifications: data.qualifications,
+			experience: data.experience,
+			approvalStatus: "PENDING" as any,
+			subscriptionTier: appliedTier,
+			maxPatients: tierSetting?.maxPatients || null,
+			maxFaceScans: tierSetting?.maxFaceScans || null,
+			subscriptionStartDate: new Date(),
+			isSubscriptionActive: true,
+		})
+
+		// Increment currentDoctors count for the organization if doctor was assigned to one
+		if (data.organizationId) {
+			await this.db
+				.update(organizations)
+				.set({
+					currentDoctors: sql`${organizations.currentDoctors} + 1`,
+				})
+				.where(eq(organizations.id, data.organizationId))
+		}
+
+		// Return the created doctor using findOne to get the full formatted response
+		return this.findOne(user.id)
 	}
 }

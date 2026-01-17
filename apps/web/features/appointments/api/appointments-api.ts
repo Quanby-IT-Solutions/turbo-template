@@ -13,8 +13,6 @@ import type {
   DoctorAvailability,
 } from '@/services/api/types';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000/api';
-
 type AppointmentResponsePayload =
   | AppointmentRequest[]
   | {
@@ -29,40 +27,34 @@ type AppointmentResponsePayload =
       pagination?: AppointmentListResponse['pagination'];
     };
 
-const normalizeAppointmentsPayload = (
-  payload?: AppointmentResponsePayload
-): { appointments: AppointmentRequest[]; pagination?: AppointmentListResponse['pagination'] } => {
-  if (!payload) {
-    return { appointments: [] };
-  }
-
-  if (Array.isArray(payload)) {
-    return { appointments: payload };
-  }
-
-  if ('data' in payload && payload.data) {
-    if (Array.isArray(payload.data)) {
-      return {
-        appointments: payload.data,
-        pagination: payload.pagination,
-      };
-    }
-
-    if (
-      typeof payload.data === 'object' &&
-      payload.data !== null &&
-      'data' in payload.data &&
-      Array.isArray(payload.data.data)
-    ) {
-      return {
-        appointments: payload.data.data,
-        pagination: payload.data.pagination || payload.pagination,
-      };
+const normalizeAppointmentsPayload = (data: any) => {
+  // If data has items (paginated response)
+  if (data.items && Array.isArray(data.items)) {
+    return {
+      appointments: data.items,
+      pagination: {
+        total: data.total,
+        page: data.page,
+        limit: data.limit,
+        totalPages: data.totalPages,
+      }
     }
   }
-
-  return { appointments: [], pagination: payload.pagination };
-};
+  
+  // If data is directly an array
+  if (Array.isArray(data)) {
+    return {
+      appointments: data,
+      pagination: undefined
+    }
+  }
+  
+  // Fallback
+  return {
+    appointments: [],
+    pagination: undefined
+  }
+}
 
 export const appointmentsApi = {
   /**
@@ -79,27 +71,23 @@ export const appointmentsApi = {
    * Get user appointments (patients and doctors)
    * Normalizes backend payload into a consistent array
    */
-  getMyAppointments: async (params?: { status?: string; page?: number; limit?: number }): Promise<
-    ApiResponse<AppointmentRequest[]> & { pagination?: AppointmentListResponse['pagination'] }
-  > => {
-    const queryParams = new URLSearchParams();
-    if (params?.status) queryParams.append('status', params.status);
-    if (params?.page) queryParams.append('page', params.page.toString());
-    if (params?.limit) queryParams.append('limit', params.limit.toString());
-    
-    const queryString = queryParams.toString();
-    const response = await apiRequest<AppointmentResponsePayload>(`/v1/appointments/my-appointments${queryString ? `?${queryString}` : ''}`, {
-      method: 'GET',
-    });
+  getMyAppointments: async (params?: { status?: string; page?: number; limit?: number }) => {
+  const queryParams = new URLSearchParams();
+  if (params?.status) queryParams.append('status', params.status);
+  if (params?.page) queryParams.append('page', params.page.toString());
+  if (params?.limit) queryParams.append('limit', params.limit.toString());
+  
+  const queryString = queryParams.toString();
+  const response = await apiRequest<any>(
+    `/v1/appointments/my-appointments${queryString ? `?${queryString}` : ''}`,
+    { method: 'GET' }
+  );
 
-    const { appointments, pagination } = normalizeAppointmentsPayload(response.data);
+  console.log('🔵 Full response:', response);
 
-    return {
-      ...response,
-      data: appointments,
-      ...(pagination ? { pagination } : {}),
-    };
-  },
+  // Return response as-is, let the frontend handle it
+  return response;
+},
 
   /**
    * Update appointment status (doctors only - accept/reject)
@@ -155,53 +143,23 @@ export const appointmentsApi = {
    * Note: This endpoint returns the array directly, not wrapped in success/data
    */
   getDoctorAvailability: async (doctorId: string): Promise<ApiResponse<DoctorAvailability[]>> => {
-    const url = `${API_BASE_URL}/v1/appointments/doctor/${doctorId}/availability`;
-    const sessionToken = typeof window !== 'undefined' ? localStorage.getItem('sessionToken') : null;
-    
-    try {
-      const response = await fetch(url, {
-        method: 'GET',
-        credentials: 'include', // Required for Better Auth session cookies
-        headers: {
-          'Content-Type': 'application/json',
-          ...(sessionToken ? { 'Authorization': `Bearer ${sessionToken}` } : {}),
-        },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        return {
-          success: false,
-          message: errorData.message || 'Failed to fetch doctor availability',
-          error: errorData.error || 'UNKNOWN_ERROR',
-        };
-      }
-
-      const data = await response.json();
-      // Backend returns array directly, not wrapped
-      return {
-        success: true,
-        message: 'Doctor availability fetched successfully',
-        data: Array.isArray(data) ? data : [],
-      };
-    } catch (error) {
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : 'Network error occurred',
-        error: 'NETWORK_ERROR',
-      };
-    }
-  },
+  return apiRequest<DoctorAvailability[]>(`/v1/appointments/doctor/${doctorId}/availability`, {
+    method: 'GET',
+  });
+},
 
   /**
    * Get available time slots for a doctor on a specific date
    * Returns time slots that are available (not already booked)
    */
-  getDoctorAvailableTimeSlots: async (doctorId: string, date: string): Promise<ApiResponse<string[]>> => {
-    return apiRequest<string[]>(`/v1/appointments/doctor/${doctorId}/available-slots?date=${date}`, {
-      method: 'GET',
-    });
-  },
+  getDoctorAvailableTimeSlots: async (
+  doctorId: string,
+  date: string
+): Promise<ApiResponse<string[]>> => {
+  return apiRequest<string[]>(`/v1/appointments/doctor/${doctorId}/available-slots?date=${date}`, {
+    method: 'GET',
+  });
+},
 
   /**
    * Get doctor's weekly availability (doctors only)

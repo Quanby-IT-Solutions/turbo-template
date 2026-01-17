@@ -27,7 +27,7 @@ class PhilHealthIdUploadScreen extends ConsumerStatefulWidget {
 
 class _PhilHealthIdUploadScreenState
     extends ConsumerState<PhilHealthIdUploadScreen> {
-  bool _isLoading = false;
+  final bool _isLoading = false;
 
   Future<void> _startVerification() async {
     // TODO: Uncomment when hyperkyc_flutter package is available

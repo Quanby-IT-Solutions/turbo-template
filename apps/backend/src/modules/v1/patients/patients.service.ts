@@ -1,4 +1,5 @@
 import { Inject, Injectable, NotFoundException } from "@nestjs/common"
+import { UpdatePatientInfoDto } from "@repo/contracts"
 import { and, eq, sql } from "drizzle-orm"
 
 import { patientInfos, users } from "@repo/db/schema"
@@ -17,6 +18,7 @@ export class PatientsService {
 		const whereConditions: any[] = [eq(users.role, "PATIENT" as any)]
 
 		if (query.search) {
+			
 			whereConditions.push(sql`${patientInfos.firstName} ILIKE ${`%${  query.search  }%`}`)
 		}
 
@@ -90,6 +92,18 @@ export class PatientsService {
 			throw new NotFoundException("Patient not found")
 		}
 
+		// Convert image buffers to base64 if present
+		const convertImage = (image: any): string | null => {
+			if (!image) return null
+			if (Buffer.isBuffer(image)) {
+				return image.toString("base64")
+			}
+			if (typeof image === "string") {
+				return image
+			}
+			return null
+		}
+
 		return {
 			id: patient.user.id,
 			email: patient.user.email,
@@ -116,4 +130,46 @@ export class PatientsService {
 					: patient.user.createdAt,
 		}
 	}
+
+async updatePatientInfo(
+  userId: string,
+  data: UpdatePatientInfoDto,
+) {
+  const updateData: Partial<typeof patientInfos.$inferSelect> = {
+	...data,
+	dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : undefined,
+  }
+
+  if (updateData.dateOfBirth && typeof updateData.dateOfBirth === 'string') {
+    updateData.dateOfBirth = new Date(updateData.dateOfBirth)
+  }
+  await this.db
+    .update(patientInfos)
+    .set(updateData)
+    .where(eq(patientInfos.userId, userId))
+
+  return this.findOne(userId)
 }
+
+async delete(id: string) {
+	// Verify patient exists
+	const [existing] = await this.db
+		.select()
+		.from(users)
+		.innerJoin(patientInfos, eq(users.id, patientInfos.userId))
+		.where(and(eq(users.id, id), eq(users.role, "PATIENT" as const)))
+		.limit(1)
+
+	if (!existing) {
+		throw new NotFoundException(`Patient with ID ${id} not found`)
+	}
+
+	// Delete patient info first (due to foreign key constraint)
+	await this.db.delete(patientInfos).where(eq(patientInfos.userId, id))
+	
+	// Delete user
+	await this.db.delete(users).where(eq(users.id, id))
+}
+
+}
+

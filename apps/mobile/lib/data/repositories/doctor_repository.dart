@@ -8,7 +8,7 @@ class DoctorRepository {
   Future<Doctor> getDoctor(String id) async {
     try {
       final response = await HttpService.getDoctor(id);
-      return Doctor.fromMap(response as Map<String, dynamic>);
+      return Doctor.fromMap(response);
     } catch (e) {
       throw Exception('Failed to get doctor: ${e.toString()}');
     }

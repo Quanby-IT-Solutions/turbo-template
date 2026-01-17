@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UseGuards } from "@nestjs/common"
+import { Body, Controller, Get, Param, Patch, Query, UseGuards } from "@nestjs/common"
 import { AllowAnonymous } from "@thallesp/nestjs-better-auth"
 
 import { Roles } from "@/shared/decorators/roles.decorator"
@@ -26,5 +26,59 @@ export class SubscriptionsController {
 			activeOnly === "true"
 		)
 		return { success: true, data: subscriptions }
+	}
+
+	@Patch("organization/:id")
+	@Roles("SUPER_ADMIN")
+	async updateOrganizationSubscription(
+		@Param("id") id: string,
+		@Body()
+		data: {
+			subscriptionTier?: string
+			maxDoctors?: number | null
+			maxPatientsPerDoctor?: number | null
+			maxFaceScansPerDoctor?: number | null
+			subscriptionStartDate?: string
+			subscriptionEndDate?: string
+			isSubscriptionActive?: boolean
+		}
+	) {
+		const subscription = await this.subscriptionsService.updateOrganizationSubscription(id, data)
+		return { success: true, data: subscription }
+	}
+
+	@Patch("doctor/:id")
+	@Roles("SUPER_ADMIN")
+	async updateDoctorSubscription(
+		@Param("id") id: string,
+		@Body()
+		data: {
+			subscriptionTier?: string
+			maxPatients?: number | null
+			maxFaceScans?: number | null
+			subscriptionStartDate?: string
+			subscriptionEndDate?: string
+			isSubscriptionActive?: boolean
+		}
+	) {
+		const subscription = await this.subscriptionsService.updateDoctorSubscription(id, data)
+		return { success: true, data: subscription }
+	}
+
+	@Patch("patient/:id")
+	@Roles("SUPER_ADMIN")
+	async updatePatientSubscription(
+		@Param("id") id: string,
+		@Body()
+		data: {
+			subscriptionTier?: string
+			maxFaceScans?: number | null
+			subscriptionStartDate?: string
+			subscriptionEndDate?: string
+			isSubscriptionActive?: boolean
+		}
+	) {
+		const subscription = await this.subscriptionsService.updatePatientSubscription(id, data)
+		return { success: true, data: subscription }
 	}
 }

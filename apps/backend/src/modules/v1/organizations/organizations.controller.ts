@@ -19,7 +19,6 @@ export class OrganizationsController {
 
 	@Get()
 	@ZodSerializerDto(OrganizationListResponseDto)
-	@Roles("SUPER_ADMIN", "ADMIN", "DOCTOR")
 	async findAll() {
 		const organizations = await this.organizationsService.findAll()
 		return { success: true, data: organizations }

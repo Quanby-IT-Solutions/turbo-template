@@ -44,7 +44,10 @@ async function bootstrap() {
 					"http://localhost:4200",
 					"http://127.0.0.1:4200",
 				]
-			: ["http://localhost:3000", "http://localhost:3001", "http://localhost:4200", "http://127.0.0.1:3000"]
+			: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+					// DEV ONLY: allow all origins, including LAN IPs like http://192.168.x.x:3001
+					callback(null, true)
+				}
 
 	app.use(
 		helmet({

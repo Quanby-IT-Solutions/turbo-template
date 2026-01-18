@@ -26,7 +26,12 @@ function Tooltip({ ...props }: TooltipPrimitive.Root.Props) {
 }
 
 function TooltipTrigger({ ...props }: TooltipPrimitive.Trigger.Props) {
-  return <TooltipPrimitive.Trigger data-slot="tooltip-trigger" {...props} />
+  // @base-ui/react's TooltipPrimitive.Trigger doesn't properly handle asChild
+  // It passes asChild to the DOM element, causing React warnings
+  // We extract it to prevent the warning, but this means asChild won't work
+  // For proper asChild support, we'd need to handle composition differently
+  const { asChild: _, ...restProps } = props as typeof props & { asChild?: boolean }
+  return <TooltipPrimitive.Trigger data-slot="tooltip-trigger" {...restProps} />
 }
 
 function TooltipContent({

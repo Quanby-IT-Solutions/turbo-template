@@ -29,8 +29,8 @@ async function bootstrap() {
 			const authHeader = req.headers.authorization || ''
 			const token = authHeader.startsWith('Bearer ') ? authHeader.substring(7) : null
 			process.stderr.write(`\n📥 [${new Date().toISOString()}] ${req.method} ${req.path}\n`)
-			process.stderr.write(`   Auth: ${token ? token.substring(0, 32) + ' (len: ' + token.length + ')' : 'none'}\n`)
-			process.stderr.write(`   Cookies: ${req.headers.cookie ? 'yes (' + req.headers.cookie.length + ' chars)' : 'no'}\n`)
+			process.stderr.write(`   Auth: ${token ? `${token.substring(0, 32)  } (len: ${  token.length  })` : 'none'}\n`)
+			process.stderr.write(`   Cookies: ${req.headers.cookie ? `yes (${  req.headers.cookie.length  } chars)` : 'no'}\n`)
 		}
 		next()
 	})

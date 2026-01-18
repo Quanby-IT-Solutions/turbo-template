@@ -41,8 +41,8 @@ import { toast } from "sonner"
 import { useWebRTC } from "@/core/hooks/use-webrtc"
 import { authApi } from "@/features/auth/api/auth-api"
 import { doctorsApi } from "@/features/doctors/api/doctors-api"
-import type { Doctor } from "@/services/api/types"
-import type { User } from "@/services/api/types"
+import { patientsApi, type PatientInfo } from "@/features/patients/api/patients-api"
+import type { Doctor, User } from "@/services/api/types"
 import { diagnosesApi, type Diagnosis } from "@/features/diagnoses/api/diagnoses-api"
 import { prescriptionsApi, type Prescription } from "@/features/prescriptions/api/prescriptions-api"
 import { labRequestsApi, type LabRequest } from "@/features/lab-requests/api/lab-requests-api"
@@ -61,9 +61,11 @@ export default function MeetDoctorPage() {
   const [loadingRecords, setLoadingRecords] = React.useState(false)
   const [diagnoses, setDiagnoses] = React.useState<Diagnosis[]>([])
   const [prescriptions, setPrescriptions] = React.useState<Prescription[]>([])
-const [labRequests, setLabRequests] = React.useState<LabRequest[]>([])
+  const [labRequests, setLabRequests] = React.useState<LabRequest[]>([])
   const [recordsRefreshNonce, setRecordsRefreshNonce] = React.useState(0)
   const hasSentPatientInfoRef = React.useRef(false)
+  const patientProfileRef = React.useRef<User | null>(null)
+  const patientFullInfoRef = React.useRef<PatientInfo | null>(null)
 
   const localVideoRef = React.useRef<HTMLVideoElement>(null)
   const remoteVideoRef = React.useRef<HTMLVideoElement>(null)
@@ -102,6 +104,50 @@ const [labRequests, setLabRequests] = React.useState<LabRequest[]>([])
     fetchProfile()
   }, [])
 
+  React.useEffect(() => {
+    patientProfileRef.current = patientProfile
+  }, [patientProfile])
+
+  const getBestPatientUserPayload = React.useCallback(async (): Promise<User | null> => {
+    const base = patientProfileRef.current
+    if (!base?.id) return base
+
+    // If we already fetched full patient info, reuse it
+    const cached = patientFullInfoRef.current
+    if (cached?.patientInfo) {
+      return {
+        ...base,
+        // attach patientInfo so doctor can display first/middle/last
+        patientInfo: cached.patientInfo,
+        // also provide root first/last as a fallback
+        firstName:
+          typeof cached.patientInfo.firstName === "string" ? cached.patientInfo.firstName : base.firstName,
+        lastName:
+          typeof cached.patientInfo.lastName === "string" ? cached.patientInfo.lastName : base.lastName,
+      } as User
+    }
+
+    // Fetch full patient record (includes PatientInfo names)
+    try {
+      const res = await patientsApi.getPatientById(base.id)
+      if (res.success && res.data?.patientInfo) {
+        patientFullInfoRef.current = res.data
+        return {
+          ...base,
+          patientInfo: res.data.patientInfo,
+          firstName:
+            typeof res.data.patientInfo.firstName === "string" ? res.data.patientInfo.firstName : base.firstName,
+          lastName:
+            typeof res.data.patientInfo.lastName === "string" ? res.data.patientInfo.lastName : base.lastName,
+        } as User
+      }
+    } catch (error) {
+      console.error("❌ Failed to fetch full patient info for data channel:", error)
+    }
+
+    return base
+  }, [])
+
   // Debug: Log local stream changes
   React.useEffect(() => {
     console.log("🔍 Local stream state changed:", {
@@ -122,7 +168,7 @@ const [labRequests, setLabRequests] = React.useState<LabRequest[]>([])
       tracks: localStream?.getTracks().length,
       videoTracks: localStream?.getVideoTracks().length,
     })
-    
+
     if (localVideoRef.current && localStream) {
       console.log("📹 Setting local video stream:", {
         id: localStream.id,
@@ -131,7 +177,7 @@ const [labRequests, setLabRequests] = React.useState<LabRequest[]>([])
         videoTracks: localStream.getVideoTracks().length,
         audioTracks: localStream.getAudioTracks().length,
       })
-      
+
       // Check if stream already set to avoid unnecessary updates
       if (localVideoRef.current.srcObject !== localStream) {
         localVideoRef.current.srcObject = localStream
@@ -139,7 +185,7 @@ const [labRequests, setLabRequests] = React.useState<LabRequest[]>([])
       } else {
         console.log("⏭️ Local video srcObject already set, skipping")
       }
-      
+
       // Ensure video plays
       localVideoRef.current.play().then(() => {
         console.log("▶️ Local video play() resolved")
@@ -162,12 +208,12 @@ const [labRequests, setLabRequests] = React.useState<LabRequest[]>([])
         hasStream: !!localStream,
         currentSrcObject: !!localVideoRef.current.srcObject,
       })
-      
+
       if (localVideoRef.current.srcObject !== localStream) {
         localVideoRef.current.srcObject = localStream
         console.log("✅ Local video srcObject updated")
       }
-      
+
       // Force play
       localVideoRef.current.play().then(() => {
         console.log("▶️ Local video play() successful")
@@ -206,9 +252,17 @@ const [labRequests, setLabRequests] = React.useState<LabRequest[]>([])
   }
 
   const joinMeeting = async () => {
-    if (!meetingCode || meetingCode.length !== 6) {
+    // Normalize meeting code: uppercase, trim, alphanumeric only
+    const normalizedCode = meetingCode.toUpperCase().trim().replace(/[^A-Z0-9]/g, "")
+
+    if (!normalizedCode || normalizedCode.length !== 6) {
       toast.error("Please enter a valid 6-character meeting code")
       return
+    }
+
+    // Update state with normalized code for consistency
+    if (normalizedCode !== meetingCode) {
+      setMeetingCode(normalizedCode)
     }
 
     setIsJoining(true)
@@ -226,14 +280,20 @@ const [labRequests, setLabRequests] = React.useState<LabRequest[]>([])
         audioTracks: stream.getAudioTracks().length,
       })
 
-      // Join room
-      const response = await join(meetingCode)
+      // Join room as patient using normalized code
+      console.log("🔑 Patient joining room with code:", normalizedCode)
+      const response = await join(normalizedCode, "patient")
 
       if (response.ok) {
         setIsInCall(true)
         toast.success("Joined meeting successfully")
       } else {
-        toast.error(response.error || "Failed to join meeting")
+        const errorMsg = response.error || "Failed to join meeting"
+        if (errorMsg === "DOCTOR_NOT_IN_ROOM") {
+          toast.error("No doctor is waiting in this meeting. Please enter the correct meeting code provided by your doctor.")
+        } else {
+          toast.error(errorMsg)
+        }
         setIsJoining(false)
       }
     } catch (error: unknown) {
@@ -270,19 +330,23 @@ const [labRequests, setLabRequests] = React.useState<LabRequest[]>([])
     }
 
     const sendInfo = () => {
-      try {
-        dataChannel.send(
-          JSON.stringify({
-            type: "patient-info",
-            user: patientProfile,
-            timestamp: Date.now(),
-          })
-        )
-        hasSentPatientInfoRef.current = true
-        console.log("📡 Patient info sent to doctor")
-      } catch (error) {
-        console.error("❌ Failed to send patient info:", error)
-      }
+      void (async () => {
+        try {
+          const payloadUser = await getBestPatientUserPayload()
+          if (!payloadUser) return
+          dataChannel.send(
+            JSON.stringify({
+              type: "patient-info",
+              user: payloadUser,
+              timestamp: Date.now(),
+            })
+          )
+          hasSentPatientInfoRef.current = true
+          console.log("📡 Patient info sent to doctor")
+        } catch (error) {
+          console.error("❌ Failed to send patient info:", error)
+        }
+      })()
     }
 
     // Send immediately, then once more after a short delay as a backup
@@ -303,15 +367,19 @@ const [labRequests, setLabRequests] = React.useState<LabRequest[]>([])
       try {
         const parsed = JSON.parse(event.data)
         if (parsed?.type === "request-patient-info" && patientProfile) {
-          dataChannel.send(
-            JSON.stringify({
-              type: "patient-info",
-              user: patientProfile,
-              timestamp: Date.now(),
-            })
-          )
-          hasSentPatientInfoRef.current = true
-          console.log("📡 Patient info sent in response to request")
+          void (async () => {
+            const payloadUser = await getBestPatientUserPayload()
+            if (!payloadUser) return
+            dataChannel.send(
+              JSON.stringify({
+                type: "patient-info",
+                user: payloadUser,
+                timestamp: Date.now(),
+              })
+            )
+            hasSentPatientInfoRef.current = true
+            console.log("📡 Patient info sent in response to request")
+          })()
         }
       } catch {
         // ignore non-JSON messages
@@ -321,7 +389,7 @@ const [labRequests, setLabRequests] = React.useState<LabRequest[]>([])
     return () => {
       dataChannel.removeEventListener("message", handleMessage)
     }
-  }, [dataChannel, patientProfile])
+  }, [dataChannel, patientProfile, getBestPatientUserPayload])
 
   const toggleMute = () => {
     if (localStream) {
@@ -446,8 +514,8 @@ const [labRequests, setLabRequests] = React.useState<LabRequest[]>([])
     >
       <SidebarWrapper role="patient" variant="inset" />
       <SidebarInset>
-        <RoleHeader 
-          title="Meet Doctor" 
+        <RoleHeader
+          title="Meet Doctor"
           description="Schedule and join video consultations with your doctor"
         />
         <div className="flex flex-1 flex-col">
@@ -497,7 +565,11 @@ const [labRequests, setLabRequests] = React.useState<LabRequest[]>([])
                               <div className="flex gap-2">
                                 <Input
                                   value={meetingCode}
-                                  onChange={(e) => setMeetingCode(e.target.value.toUpperCase())}
+                                  onChange={(e) => {
+                                    // Only allow alphanumeric, convert to uppercase, trim
+                                    const value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6)
+                                    setMeetingCode(value)
+                                  }}
                                   placeholder="Enter meeting code"
                                   className="flex-1 text-center font-mono text-lg"
                                   maxLength={6}
@@ -516,8 +588,8 @@ const [labRequests, setLabRequests] = React.useState<LabRequest[]>([])
                             </div>
 
                             {/* Join Meeting Button */}
-                            <Button 
-                              className="w-full mb-3" 
+                            <Button
+                              className="w-full mb-3"
                               size="lg"
                               onClick={joinMeeting}
                               disabled={!meetingCode || meetingCode.length !== 6 || isJoining}
@@ -696,16 +768,12 @@ const [labRequests, setLabRequests] = React.useState<LabRequest[]>([])
                       </Button>
 
                       <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="outline"
-                            size="lg"
-                            className="rounded-full h-14 w-14"
-                            title="Consultation actions"
-                          >
-                            <IconMenu2 className="h-6 w-6" />
-                            <span className="sr-only">Consultation actions</span>
-                          </Button>
+                        <DropdownMenuTrigger
+                          className="rounded-full h-14 w-14 border border-border bg-background hover:bg-muted hover:text-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:border-ring inline-flex items-center justify-center whitespace-nowrap transition-all disabled:pointer-events-none disabled:opacity-50 outline-none"
+                          title="Consultation actions"
+                        >
+                          <IconMenu2 className="h-6 w-6" />
+                          <span className="sr-only">Consultation actions</span>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="center" side="top" sideOffset={12} className="w-56">
                           <DropdownMenuItem
@@ -797,30 +865,30 @@ const [labRequests, setLabRequests] = React.useState<LabRequest[]>([])
                 {(doctorInfo.doctorInfo?.qualifications ||
                   doctorInfo.doctorInfo?.contactNumber ||
                   doctorInfo.doctorInfo?.approvalStatus) && (
-                  <div className="space-y-3">
-                    <h3 className="text-lg font-semibold border-b pb-2">Details</h3>
-                    {doctorInfo.doctorInfo?.qualifications && (
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground">Qualifications</label>
-                        <p className="text-base font-medium whitespace-pre-wrap">
-                          {doctorInfo.doctorInfo.qualifications}
-                        </p>
-                      </div>
-                    )}
-                    {doctorInfo.doctorInfo?.contactNumber && (
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground">Contact Number</label>
-                        <p className="text-base font-medium">{doctorInfo.doctorInfo.contactNumber}</p>
-                      </div>
-                    )}
-                    {doctorInfo.doctorInfo?.approvalStatus && (
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground">Approval Status</label>
-                        <p className="text-base font-medium">{doctorInfo.doctorInfo.approvalStatus}</p>
-                      </div>
-                    )}
-                  </div>
-                )}
+                    <div className="space-y-3">
+                      <h3 className="text-lg font-semibold border-b pb-2">Details</h3>
+                      {doctorInfo.doctorInfo?.qualifications && (
+                        <div>
+                          <label className="text-sm font-medium text-muted-foreground">Qualifications</label>
+                          <p className="text-base font-medium whitespace-pre-wrap">
+                            {doctorInfo.doctorInfo.qualifications}
+                          </p>
+                        </div>
+                      )}
+                      {doctorInfo.doctorInfo?.contactNumber && (
+                        <div>
+                          <label className="text-sm font-medium text-muted-foreground">Contact Number</label>
+                          <p className="text-base font-medium">{doctorInfo.doctorInfo.contactNumber}</p>
+                        </div>
+                      )}
+                      {doctorInfo.doctorInfo?.approvalStatus && (
+                        <div>
+                          <label className="text-sm font-medium text-muted-foreground">Approval Status</label>
+                          <p className="text-base font-medium">{doctorInfo.doctorInfo.approvalStatus}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                 {doctorInfo.organizationId && (
                   <div className="space-y-3">

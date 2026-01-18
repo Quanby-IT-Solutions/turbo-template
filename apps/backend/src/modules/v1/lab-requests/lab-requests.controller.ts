@@ -5,6 +5,7 @@ import { ZodSerializerDto } from "nestjs-zod"
 import { CreateLabRequestDto, LabRequestListResponseDto, LabRequestQueryDto, LabRequestResponseDto } from "@repo/contracts"
 
 import { Roles } from "@/shared/decorators/roles.decorator"
+import { User } from "@/shared/decorators/user.decorator"
 import { BetterAuthGuard } from "@/shared/guards/better-auth.guard"
 import { RolesGuard } from "@/shared/guards/roles.guard"
 
@@ -25,11 +26,20 @@ export class LabRequestsController {
 	}
 
 	@Post()
-  @Roles('PATIENT', 'DOCTOR', 'ADMIN', 'SUPER_ADMIN')
-  async create(@Request() req: any, @Body() createDto: CreateLabRequestDto) {
-    const labRequest = await this.labRequestsService.create(createDto, req.user);
-    return { success: true, data: labRequest };
-  }
+	@ZodSerializerDto(LabRequestResponseDto)
+	@Roles("DOCTOR", "ADMIN", "SUPER_ADMIN")
+	async create(@Body() data: any, @User() user: any) {
+		const doctorId = user?.userId || user?.id
+		if (!doctorId) {
+			throw new Error("Doctor ID not found")
+		}
+		const labRequest = await this.labRequestsService.create({
+			...data,
+			doctorId,
+			createdBy: doctorId,
+		})
+		return { success: true, data: labRequest }
+	}
 
 	// These routes must come before @Get(':id') to avoid conflicts
 	@Get("doctor/:doctorId")
@@ -40,17 +50,21 @@ export class LabRequestsController {
 		return { success: true, data: labRequests }
 	}
 
-@Get('patient/:patientId')
-@ZodSerializerDto(LabRequestListResponseDto)
-@Roles("DOCTOR", "PATIENT", "ADMIN", "SUPER_ADMIN")
-async getPatientLabRequests(
-  @Request() req: any,
-  @Param('patientId') patientId: string,
-  @Query() query: LabRequestQueryDto
-) {
-  const labRequests = await this.labRequestsService.getPatientLabRequests(patientId, query);
-  return { success: true, data: labRequests };
-}
+	@Get("patient/:patientId")
+	@ZodSerializerDto(LabRequestListResponseDto)
+	@Roles("DOCTOR", "PATIENT", "ADMIN", "SUPER_ADMIN")
+	async getPatientLabRequests(@Param("patientId") patientId: string) {
+		const labRequests = await this.labRequestsService.getPatientLabRequests(patientId)
+		return { success: true, data: labRequests }
+	}
+
+	@Get("room/:roomId")
+	@ZodSerializerDto(LabRequestListResponseDto)
+	@Roles("DOCTOR", "PATIENT", "ADMIN", "SUPER_ADMIN")
+	async getRoomLabRequests(@Param("roomId") roomId: string) {
+		const labRequests = await this.labRequestsService.getRoomLabRequests(roomId)
+		return { success: true, data: labRequests }
+	}
 
 	@Get(":id")
 	@ZodSerializerDto(LabRequestResponseDto)

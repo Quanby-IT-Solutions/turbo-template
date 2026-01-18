@@ -106,7 +106,7 @@ export default function DoctorDashboardPage() {
         const response = await appointmentsApi.getMyAppointments({ limit: 50 })
 
         if (response.success && response.data) {
-          const data = [...response.data].sort((a, b) => {
+          const data = [...response.data.items].sort((a, b) => {
             const dateA = new Date(a.requestedDate).getTime()
             const dateB = new Date(b.requestedDate).getTime()
             return dateA - dateB

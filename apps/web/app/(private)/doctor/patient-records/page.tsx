@@ -1,5 +1,7 @@
 "use client"
 
+import * as React from "react"
+import { useRouter } from "next/navigation"
 import { SidebarWrapper } from "@/core/components/sidebar-wrapper"
 import { RoleHeader } from "@/core/components/role-header"
 import {
@@ -10,8 +12,224 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/cor
 import { Button } from "@/core/components/ui/button"
 import { Input } from "@/core/components/ui/input"
 import { Badge } from "@/core/components/ui/badge"
+import { ScrollArea } from "@/core/components/ui/scroll-area"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/core/components/ui/dialog"
+import { toast } from "sonner"
+import {
+  IconUser,
+  IconSearch,
+  IconPlus,
+  IconFileText,
+  IconPill,
+  IconStethoscope,
+  IconFlask,
+} from "@tabler/icons-react"
+import { diagnosesApi, type Diagnosis } from "@/features/diagnoses/api/diagnoses-api"
+import { prescriptionsApi, type Prescription } from "@/features/prescriptions/api/prescriptions-api"
+import { labRequestsApi, type LabRequest } from "@/features/lab-requests/api/lab-requests-api"
+import { patientsApi, type PatientInfo } from "@/features/patients/api/patients-api"
+import { authApi } from "@/features/auth/api/auth-api"
+
+interface PatientRecord {
+  patient: PatientInfo
+  diagnoses: Diagnosis[]
+  prescriptions: Prescription[]
+  labRequests: LabRequest[]
+  lastVisit: string | null
+}
 
 export default function PatientRecordsPage() {
+  const router = useRouter()
+  const [searchQuery, setSearchQuery] = React.useState("")
+  const [loading, setLoading] = React.useState(true)
+  const [patientRecords, setPatientRecords] = React.useState<PatientRecord[]>([])
+  const [filteredRecords, setFilteredRecords] = React.useState<PatientRecord[]>([])
+  const [currentDoctorId, setCurrentDoctorId] = React.useState<string | null>(null)
+  const [showRecordsModal, setShowRecordsModal] = React.useState(false)
+  const [selectedRecord, setSelectedRecord] = React.useState<PatientRecord | null>(null)
+
+  // Fetch current doctor ID
+  React.useEffect(() => {
+    const fetchDoctorId = async () => {
+      try {
+        const response = await authApi.getProfile()
+        if (response.success && response.data) {
+          setCurrentDoctorId(response.data.id)
+        }
+      } catch (error) {
+        console.error("Failed to fetch doctor profile:", error)
+        toast.error("Failed to load doctor profile")
+      }
+    }
+    fetchDoctorId()
+  }, [])
+
+  // Fetch all patient records
+  React.useEffect(() => {
+    const fetchPatientRecords = async () => {
+      if (!currentDoctorId) return
+
+      setLoading(true)
+      try {
+        // Fetch all diagnoses, prescriptions, and lab requests for this doctor
+        const [diagnosesRes, prescriptionsRes, labRequestsRes] = await Promise.all([
+          diagnosesApi.getDoctorDiagnoses(),
+          prescriptionsApi.getDoctorPrescriptions(currentDoctorId),
+          labRequestsApi.getDoctorLabRequests(currentDoctorId),
+        ])
+
+        const diagnoses = diagnosesRes.success && diagnosesRes.data ? diagnosesRes.data : []
+        const prescriptions = prescriptionsRes.success && prescriptionsRes.data ? prescriptionsRes.data : []
+        const labRequests = labRequestsRes.success && labRequestsRes.data ? labRequestsRes.data : []
+
+        // Get unique patient IDs from all records
+        const patientIds = new Set<string>()
+        diagnoses.forEach((d) => patientIds.add(d.patientId))
+        prescriptions.forEach((p) => patientIds.add(p.patientId))
+        labRequests.forEach((l) => patientIds.add(l.patientId))
+
+        // Fetch patient info for each unique patient
+        const patientPromises = Array.from(patientIds).map((patientId) =>
+          patientsApi.getPatientById(patientId)
+        )
+        const patientResults = await Promise.all(patientPromises)
+
+        // Build patient records map
+        const recordsMap = new Map<string, PatientRecord>()
+
+        patientResults.forEach((result) => {
+          if (result.success && result.data) {
+            const patient = result.data
+            recordsMap.set(patient.id, {
+              patient,
+              diagnoses: [],
+              prescriptions: [],
+              labRequests: [],
+              lastVisit: null,
+            })
+          }
+        })
+
+        // Group records by patient
+        diagnoses.forEach((diagnosis) => {
+          const record = recordsMap.get(diagnosis.patientId)
+          if (record) {
+            record.diagnoses.push(diagnosis)
+          }
+        })
+
+        prescriptions.forEach((prescription) => {
+          const record = recordsMap.get(prescription.patientId)
+          if (record) {
+            record.prescriptions.push(prescription)
+          }
+        })
+
+        labRequests.forEach((labRequest) => {
+          const record = recordsMap.get(labRequest.patientId)
+          if (record) {
+            record.labRequests.push(labRequest)
+          }
+        })
+
+        // Calculate last visit date for each patient
+        recordsMap.forEach((record) => {
+          const allDates: string[] = []
+          record.diagnoses.forEach((d) => allDates.push(d.diagnosedAt))
+          record.prescriptions.forEach((p) => allDates.push(p.prescribedAt))
+          record.labRequests.forEach((l) => allDates.push(l.createdAt))
+          
+          if (allDates.length > 0) {
+            const sortedDates = allDates.sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
+            record.lastVisit = sortedDates[0] ?? null
+          }
+        })
+
+        // Convert map to array and sort by last visit
+        const records = Array.from(recordsMap.values()).sort((a, b) => {
+          if (!a.lastVisit) return 1
+          if (!b.lastVisit) return -1
+          return new Date(b.lastVisit).getTime() - new Date(a.lastVisit).getTime()
+        })
+
+        setPatientRecords(records)
+        setFilteredRecords(records)
+      } catch (error) {
+        console.error("Error fetching patient records:", error)
+        toast.error("Failed to load patient records")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    if (currentDoctorId) {
+      fetchPatientRecords()
+    }
+  }, [currentDoctorId])
+
+  // Filter records based on search query
+  React.useEffect(() => {
+    if (!searchQuery.trim()) {
+      setFilteredRecords(patientRecords)
+      return
+    }
+
+    const query = searchQuery.toLowerCase()
+    const filtered = patientRecords.filter((record) => {
+      const patient = record.patient
+      const firstName = patient.patientInfo?.firstName?.toLowerCase() || ""
+      const lastName = patient.patientInfo?.lastName?.toLowerCase() || ""
+      const email = patient.email?.toLowerCase() || ""
+      const fullName = `${firstName} ${lastName}`.trim()
+
+      return (
+        fullName.includes(query) ||
+        email.includes(query) ||
+        patient.id.toLowerCase().includes(query)
+      )
+    })
+
+    setFilteredRecords(filtered)
+  }, [searchQuery, patientRecords])
+
+  const handleAddNewRecord = () => {
+    router.push("/doctor/meet-patients")
+  }
+
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return "N/A"
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    })
+  }
+
+  const getAge = (dateOfBirth: string | null | undefined) => {
+    if (!dateOfBirth) return "N/A"
+    const today = new Date()
+    const birthDate = new Date(dateOfBirth)
+    let age = today.getFullYear() - birthDate.getFullYear()
+    const monthDiff = today.getMonth() - birthDate.getMonth()
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--
+    }
+    return age
+  }
+
+  const getPrimaryDiagnosis = (diagnoses: Diagnosis[]) => {
+    const primary = diagnoses.find((d) => d.isPrimary && d.status === "ACTIVE")
+    if (primary) return primary.diagnosisName
+    const active = diagnoses.find((d) => d.status === "ACTIVE")
+    return active?.diagnosisName || "No active diagnosis"
+  }
+
   return (
     <SidebarProvider
       style={
@@ -32,63 +250,260 @@ export default function PatientRecordsPage() {
             <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
               <div className="px-4 lg:px-6">
                 <div className="mb-4 flex items-center justify-between">
-                  <Input placeholder="Search patient records..." className="w-64" />
-                  <Button>Add New Record</Button>
+                  <div className="relative w-64">
+                    <IconSearch className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      placeholder="Search patient records..."
+                      className="pl-9"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                  </div>
+                  <Button onClick={handleAddNewRecord}>
+                    <IconPlus className="mr-2 h-4 w-4" />
+                    Add New Record
+                  </Button>
                 </div>
-                <div className="grid gap-4">
-                  <Card>
-                    <CardHeader>
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <CardTitle>John Doe</CardTitle>
-                          <CardDescription>Patient ID: PAT-001 • Age: 45 • Last Visit: Jan 15, 2024</CardDescription>
-                        </div>
-                        <Badge variant="default">Active</Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-1">
-                          <p className="text-sm text-muted-foreground">Diagnosis: Hypertension</p>
-                          <p className="text-sm text-muted-foreground">Last Updated: 2 days ago</p>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button variant="outline" size="sm">View Records</Button>
-                          <Button variant="outline" size="sm">Edit</Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardHeader>
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <CardTitle>Jane Smith</CardTitle>
-                          <CardDescription>Patient ID: PAT-002 • Age: 32 • Last Visit: Jan 14, 2024</CardDescription>
-                        </div>
-                        <Badge variant="default">Active</Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-1">
-                          <p className="text-sm text-muted-foreground">Diagnosis: Diabetes Type 2</p>
-                          <p className="text-sm text-muted-foreground">Last Updated: 3 days ago</p>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button variant="outline" size="sm">View Records</Button>
-                          <Button variant="outline" size="sm">Edit</Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
+
+                {loading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <div className="text-muted-foreground">Loading patient records...</div>
+                  </div>
+                ) : filteredRecords.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12">
+                    <IconUser className="h-12 w-12 text-muted-foreground mb-4" />
+                    <p className="text-muted-foreground text-center">
+                      {patientRecords.length === 0
+                        ? "No patient records found. Start a meeting to create records."
+                        : "No patients match your search."}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid gap-4">
+                    {filteredRecords.map((record) => {
+                      const patient = record.patient
+                      const firstName = patient.patientInfo?.firstName || ""
+                      const lastName = patient.patientInfo?.lastName || ""
+                      const fullName = `${firstName} ${lastName}`.trim() || patient.email || "Unknown Patient"
+                      const age = getAge(patient.patientInfo?.dateOfBirth)
+                      const primaryDiagnosis = getPrimaryDiagnosis(record.diagnoses)
+                      const totalRecords = record.diagnoses.length + record.prescriptions.length + record.labRequests.length
+
+                      return (
+                        <Card key={patient.id}>
+                          <CardHeader>
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <CardTitle>{fullName}</CardTitle>
+                                <CardDescription>
+                                  Patient ID: {patient.id.substring(0, 8)}... • Age: {age} • Last Visit: {formatDate(record.lastVisit)}
+                                </CardDescription>
+                              </div>
+                              <Badge variant={totalRecords > 0 ? "default" : "secondary"}>
+                                {totalRecords} {totalRecords === 1 ? "Record" : "Records"}
+                              </Badge>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="space-y-4">
+                              <div className="space-y-1">
+                                <p className="text-sm text-muted-foreground">
+                                  <IconStethoscope className="mr-2 inline h-4 w-4" />
+                                  Diagnosis: {primaryDiagnosis}
+                                </p>
+                                <div className="flex gap-4 text-sm text-muted-foreground">
+                                  <span>
+                                    <IconPill className="mr-1 inline h-4 w-4" />
+                                    {record.prescriptions.length} Prescription{record.prescriptions.length !== 1 ? "s" : ""}
+                                  </span>
+                                  <span>
+                                    <IconFlask className="mr-1 inline h-4 w-4" />
+                                    {record.labRequests.length} Lab Request{record.labRequests.length !== 1 ? "s" : ""}
+                                  </span>
+                                  <span>
+                                    <IconStethoscope className="mr-1 inline h-4 w-4" />
+                                    {record.diagnoses.length} Diagnosis{record.diagnoses.length !== 1 ? "es" : ""}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="flex gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedRecord(record)
+                                    setShowRecordsModal(true)
+                                  }}
+                                >
+                                  <IconFileText className="mr-2 h-4 w-4" />
+                                  View Records
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    router.push(`/doctor/meet-patients?patientId=${patient.id}`)
+                                  }}
+                                >
+                                  <IconPlus className="mr-2 h-4 w-4" />
+                                  New Consultation
+                                </Button>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )
+                    })}
+                  </div>
+                )}
               </div>
             </div>
           </div>
         </div>
+
+        {/* View Records Modal */}
+        <Dialog
+          open={showRecordsModal}
+          onOpenChange={(open) => {
+            setShowRecordsModal(open)
+            if (!open) setSelectedRecord(null)
+          }}
+        >
+          <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-hidden">
+            <DialogHeader>
+              <DialogTitle className="text-2xl">Patient Records</DialogTitle>
+              <DialogDescription>
+                Diagnoses, prescriptions, and lab requests for this patient.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="border rounded-lg overflow-hidden">
+              <ScrollArea className="h-[70vh]">
+                <div className="p-4 space-y-6">
+                  {selectedRecord ? (
+                    <>
+                      <div className="space-y-1">
+                        <p className="text-base font-semibold">
+                          {`${selectedRecord.patient.patientInfo?.firstName || ""} ${selectedRecord.patient.patientInfo?.lastName || ""}`.trim() ||
+                            selectedRecord.patient.email ||
+                            "Patient"}
+                        </p>
+                        <p className="text-sm text-muted-foreground">{selectedRecord.patient.email}</p>
+                        <p className="text-xs text-muted-foreground font-mono">
+                          {selectedRecord.patient.id}
+                        </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <p className="text-sm font-semibold">Diagnoses</p>
+                        {selectedRecord.diagnoses.length === 0 ? (
+                          <p className="text-sm text-muted-foreground">No diagnoses.</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {selectedRecord.diagnoses.map((d) => (
+                              <div key={d.id} className="border rounded-md p-3">
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="min-w-0">
+                                    <p className="font-medium truncate">{d.diagnosisName}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                      {d.diagnosedAt ? new Date(d.diagnosedAt).toLocaleString() : ""}
+                                    </p>
+                                  </div>
+                                  <Badge variant="outline" className="shrink-0">
+                                    {d.status}
+                                  </Badge>
+                                </div>
+                                {d.notes && (
+                                  <p className="text-sm text-muted-foreground mt-2 whitespace-pre-wrap">
+                                    {d.notes}
+                                  </p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <p className="text-sm font-semibold">Prescriptions</p>
+                        {selectedRecord.prescriptions.length === 0 ? (
+                          <p className="text-sm text-muted-foreground">No prescriptions.</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {selectedRecord.prescriptions.map((p) => (
+                              <div key={p.id} className="border rounded-md p-3">
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="min-w-0">
+                                    <p className="font-medium truncate">{p.medicationName}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                      {p.prescribedAt ? new Date(p.prescribedAt).toLocaleString() : ""}
+                                    </p>
+                                  </div>
+                                  <Badge variant="outline" className="shrink-0">
+                                    {p.isActive ? "ACTIVE" : "INACTIVE"}
+                                  </Badge>
+                                </div>
+                                <p className="text-sm text-muted-foreground mt-2">
+                                  {p.dosage} • {p.frequency} • {p.duration}
+                                </p>
+                                {p.notes && (
+                                  <p className="text-sm text-muted-foreground mt-2 whitespace-pre-wrap">
+                                    {p.notes}
+                                  </p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <p className="text-sm font-semibold">Lab Requests</p>
+                        {selectedRecord.labRequests.length === 0 ? (
+                          <p className="text-sm text-muted-foreground">No lab requests.</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {selectedRecord.labRequests.map((l) => (
+                              <div key={l.id} className="border rounded-md p-3">
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="min-w-0">
+                                    <p className="font-medium truncate">Lab Request</p>
+                                    <p className="text-xs text-muted-foreground">
+                                      {l.createdAt ? new Date(l.createdAt).toLocaleString() : ""}
+                                    </p>
+                                  </div>
+                                  <Badge variant="outline" className="shrink-0">
+                                    {l.status}
+                                  </Badge>
+                                </div>
+                                <p className="text-sm text-muted-foreground mt-2">
+                                  Priority: {l.priority}
+                                </p>
+                                {l.requestedTests && (
+                                  <pre className="text-xs bg-muted rounded-md p-3 mt-2 whitespace-pre-wrap break-words">
+                                    {l.requestedTests}
+                                  </pre>
+                                )}
+                                {l.note && (
+                                  <p className="text-sm text-muted-foreground mt-2 whitespace-pre-wrap">
+                                    {l.note}
+                                  </p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Select a patient to view records.</p>
+                  )}
+                </div>
+              </ScrollArea>
+            </div>
+          </DialogContent>
+        </Dialog>
       </SidebarInset>
     </SidebarProvider>
   )
 }
-

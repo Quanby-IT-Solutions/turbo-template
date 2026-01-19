@@ -1282,7 +1282,7 @@ class HttpService {
         throw _handleError(response);
       }
     } catch (e) {
-      // debugPrint('Get prescription error: $e');
+      debugPrint('Get prescription error: $e');
       rethrow;
     }
   }

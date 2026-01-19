@@ -219,7 +219,7 @@ export class AuthService {
 						id: sessionToken, // Use token as id (Better Auth pattern)
 						token: sessionToken,
 						userId: userIdString,
-						expiresAt: expiresAt,
+						expiresAt,
 						createdAt: new Date(),
 						updatedAt: new Date(),
 					})
@@ -257,7 +257,7 @@ export class AuthService {
 							.set({
 								token: sessionToken,
 								userId: userIdString,
-								expiresAt: expiresAt,
+								expiresAt,
 								updatedAt: new Date(),
 							})
 							.where(eq(sessionTable.id, sessionToken))
@@ -274,7 +274,7 @@ export class AuthService {
 					.update(sessionTable)
 					.set({
 						userId: userIdString,
-						expiresAt: expiresAt,
+						expiresAt,
 						updatedAt: new Date(),
 					})
 					.where(eq(sessionTable.id, existingSession.id))
@@ -302,7 +302,7 @@ export class AuthService {
 					expiresAt: expiresAt.toISOString(),
 				},
 				// Include session token for frontend - ensure it's the full token
-				sessionToken: sessionToken,
+				sessionToken,
 			}
 		} catch (error: any) {
 			if (error instanceof UnauthorizedException) {

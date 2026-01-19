@@ -32,7 +32,7 @@ export class BetterAuthController {
 			const fetchRequest = new Request(url, {
 				method: req.method,
 				headers: new Headers(req.headers as any),
-				body: body,
+				body,
 			})
 
 			// Call Better Auth handler

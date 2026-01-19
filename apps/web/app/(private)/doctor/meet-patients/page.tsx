@@ -12,6 +12,8 @@ import {
   IconUser,
   IconPill,
   IconFilePlus,
+  IconFolder,
+  IconPlus,
   IconMenu2,
 } from "@tabler/icons-react"
 import { SidebarWrapper } from "@/core/components/sidebar-wrapper"
@@ -26,6 +28,7 @@ import { Input } from "@/core/components/ui/input"
 import { Badge } from "@/core/components/ui/badge"
 import { Label } from "@/core/components/ui/label"
 import { Textarea } from "@/core/components/ui/textarea"
+import { ScrollArea } from "@/core/components/ui/scroll-area"
 import {
   Select,
   SelectContent,
@@ -53,6 +56,7 @@ import type { User } from "@/services/api/types"
 import { prescriptionsApi, type CreatePrescriptionRequest } from "@/features/prescriptions/api/prescriptions-api"
 import { diagnosesApi, type CreateDiagnosisRequest } from "@/features/diagnoses/api/diagnoses-api"
 import { labRequestsApi, type Priority } from "@/features/lab-requests/api/lab-requests-api"
+import { medicalRecordsApi, type MedicalRecord } from "@/features/medical-records/api/medical-records-api"
 import { organizationsApi } from "@/features/organizations/api/organizations-api"
 import { doctorsApi } from "@/features/doctors/api/doctors-api"
 
@@ -70,32 +74,47 @@ const mapUserToPatientInfo = (user: User): PatientInfo => {
 
   const safePatientInfo = info
     ? {
-        firstName: toStringOrUndefined(info.firstName),
-        middleName: toStringOrUndefined(info.middleName),
-        lastName: toStringOrUndefined(info.lastName),
-        gender: toStringOrUndefined(info.gender),
-        dateOfBirth: toStringOrUndefined(info.dateOfBirth),
-        contactNumber: toStringOrUndefined(info.contactNumber),
-        address: toStringOrUndefined(info.address),
-        weight: toNumberOrUndefined(info.weight),
-        height: toNumberOrUndefined(info.height),
-        bloodType: toStringOrUndefined(info.bloodType),
-        medicalHistory: toStringOrUndefined(info.medicalHistory),
-        allergies: toStringOrUndefined(info.allergies),
-        medications: toStringOrUndefined(info.medications),
-        philHealthId: toStringOrUndefined(info.philHealthId),
-        philHealthStatus: toStringOrUndefined(info.philHealthStatus),
-        philHealthCategory: toStringOrUndefined(info.philHealthCategory),
-        philHealthExpiry: toStringOrUndefined(info.philHealthExpiry),
-        philHealthMemberSince: toStringOrUndefined(info.philHealthMemberSince),
-        philHealthIdImage: toStringOrNullOrUndefined(info.philHealthIdImage),
-      }
+      firstName: toStringOrUndefined(info.firstName),
+      middleName: toStringOrUndefined(info.middleName),
+      lastName: toStringOrUndefined(info.lastName),
+      gender: toStringOrUndefined(info.gender),
+      dateOfBirth: toStringOrUndefined(info.dateOfBirth),
+      contactNumber: toStringOrUndefined(info.contactNumber),
+      address: toStringOrUndefined(info.address),
+      weight: toNumberOrUndefined(info.weight),
+      height: toNumberOrUndefined(info.height),
+      bloodType: toStringOrUndefined(info.bloodType),
+      medicalHistory: toStringOrUndefined(info.medicalHistory),
+      allergies: toStringOrUndefined(info.allergies),
+      medications: toStringOrUndefined(info.medications),
+      philHealthId: toStringOrUndefined(info.philHealthId),
+      philHealthStatus: toStringOrUndefined(info.philHealthStatus),
+      philHealthCategory: toStringOrUndefined(info.philHealthCategory),
+      philHealthExpiry: toStringOrUndefined(info.philHealthExpiry),
+      philHealthMemberSince: toStringOrUndefined(info.philHealthMemberSince),
+      philHealthIdImage: toStringOrNullOrUndefined(info.philHealthIdImage),
+    }
     : undefined
+
+  // Some profile payloads include patient name at the root (User.firstName/lastName)
+  // instead of nested patientInfo. Use that as a fallback so the doctor sees the name.
+  const fallbackFirstName = typeof user.firstName === "string" ? user.firstName : undefined
+  const fallbackLastName = typeof user.lastName === "string" ? user.lastName : undefined
+
+  const mergedPatientInfo =
+    safePatientInfo ||
+    (fallbackFirstName || fallbackLastName
+      ? {
+        firstName: fallbackFirstName,
+        middleName: undefined,
+        lastName: fallbackLastName,
+      }
+      : undefined)
 
   return {
     id: user.id,
     email: user.email,
-    patientInfo: safePatientInfo,
+    patientInfo: mergedPatientInfo,
   }
 }
 
@@ -106,16 +125,24 @@ export default function MeetPatientsPage() {
   const [isInCall, setIsInCall] = React.useState(false)
   const [isMuted, setIsMuted] = React.useState(false)
   const [isVideoOff, setIsVideoOff] = React.useState(false)
+  const [remoteNeedsPlay, setRemoteNeedsPlay] = React.useState(false)
   const [isInitializing, setIsInitializing] = React.useState(false)
   const [showPatientInfo, setShowPatientInfo] = React.useState(false)
   const [patientInfo, setPatientInfo] = React.useState<PatientInfo | null>(null)
   const [loadingPatientInfo, setLoadingPatientInfo] = React.useState(false)
+  const patientInfoRef = React.useRef<PatientInfo | null>(null)
+  const hasRequestedPatientInfoRef = React.useRef(false)
   const [showPrescriptionModal, setShowPrescriptionModal] = React.useState(false)
   const [isSubmittingPrescription, setIsSubmittingPrescription] = React.useState(false)
   const [showDiagnosisModal, setShowDiagnosisModal] = React.useState(false)
   const [isSubmittingDiagnosis, setIsSubmittingDiagnosis] = React.useState(false)
   const [showLabRequestModal, setShowLabRequestModal] = React.useState(false)
   const [isSubmittingLabRequest, setIsSubmittingLabRequest] = React.useState(false)
+
+  const [showRecordsModal, setShowRecordsModal] = React.useState(false)
+  const [recordsLoading, setRecordsLoading] = React.useState(false)
+  const [records, setRecords] = React.useState<MedicalRecord[]>([])
+  const [recordsFilter, setRecordsFilter] = React.useState<string>("ALL")
   const [prescriptionForm, setPrescriptionForm] = React.useState<CreatePrescriptionRequest>({
     patientId: "",
     consultationId: null,
@@ -156,6 +183,109 @@ export default function MeetPatientsPage() {
   })
   const targetTypeRef = React.useRef<"ORGANIZATION" | "DOCTOR">("ORGANIZATION")
   const [doctorContext, setDoctorContext] = React.useState<{ doctorId: string; organizationId?: string | null } | null>(null)
+  const getPatientDisplayName = React.useCallback((p: PatientInfo | null) => {
+    if (!p?.patientInfo) return ""
+    const full = [p.patientInfo.firstName, p.patientInfo.middleName, p.patientInfo.lastName]
+      .filter((v) => typeof v === "string" && v.trim().length > 0)
+      .join(" ")
+      .trim()
+    return full
+  }, [])
+
+  const safeFormatRecordContent = React.useCallback((content: string) => {
+    if (typeof content !== "string") return ""
+    try {
+      const parsed = JSON.parse(content)
+      return JSON.stringify(parsed, null, 2)
+    } catch {
+      return content
+    }
+  }, [])
+
+  const loadMedicalRecords = React.useCallback(async (opts?: { recordType?: string }) => {
+    const pid = patientInfo?.id
+    if (!pid) {
+      toast.info("Waiting for patient info… try again in a second.")
+      return
+    }
+
+    setRecordsLoading(true)
+    try {
+      const recordType =
+        (opts?.recordType && opts.recordType !== "ALL") ? opts.recordType : undefined
+      const resp = await medicalRecordsApi.list({ patientId: pid, recordType, limit: 100, offset: 0 })
+      if (resp.success) {
+        setRecords(resp.data || [])
+      } else {
+        toast.error(resp.message || "Failed to load medical records")
+      }
+    } catch (err) {
+      console.error("Error loading medical records:", err)
+      toast.error("An error occurred while loading medical records")
+    } finally {
+      setRecordsLoading(false)
+    }
+  }, [patientInfo?.id])
+
+  const openRecordsModal = React.useCallback(async () => {
+    const pid = patientInfo?.id
+    if (!pid) {
+      toast.info("Waiting for patient info… try again in a second.")
+      return
+    }
+    setShowRecordsModal(true)
+    await loadMedicalRecords({ recordType: recordsFilter })
+  }, [loadMedicalRecords, patientInfo?.id, recordsFilter])
+
+  const startNewConsultation = React.useCallback(async () => {
+    // Minimal interpretation: start a fresh "encounter context" locally and refresh records.
+    // (If you later add a real Consultation create endpoint, we can generate & store consultationId here.)
+    const pid = patientInfo?.id || ""
+    const rid = meetingCode || null
+
+    // Reset forms but keep patient/room context
+    setPrescriptionForm({
+      patientId: pid,
+      consultationId: null,
+      roomId: rid,
+      medicationName: "",
+      dosage: "",
+      frequency: "",
+      duration: "",
+      instructions: "",
+      quantity: null,
+      refills: 0,
+      expiresAt: null,
+      notes: "",
+    })
+    setDiagnosisForm({
+      patientId: pid,
+      consultationId: null,
+      roomId: rid,
+      diagnosisCode: "",
+      diagnosisName: "",
+      description: "",
+      severity: "MILD",
+      status: "ACTIVE",
+      onsetDate: "",
+      resolvedAt: "",
+      notes: "",
+      isPrimary: false,
+    })
+    setLabRequestForm({
+      patientId: pid,
+      targetType: "ORGANIZATION",
+      targetId: "",
+      note: "",
+      priority: "NORMAL" as Priority,
+      requestedTests: "",
+      instructions: "",
+      roomId: rid,
+    })
+
+    toast.success("New consultation started")
+    await loadMedicalRecords({ recordType: recordsFilter })
+  }, [loadMedicalRecords, meetingCode, patientInfo?.id, recordsFilter])
 
   const loadTargets = React.useCallback(async (target: "ORGANIZATION" | "DOCTOR") => {
     try {
@@ -195,6 +325,18 @@ export default function MeetPatientsPage() {
   React.useEffect(() => {
     loadTargets(targetTypeRef.current)
   }, [loadTargets])
+
+  // Auto-generate meeting code on mount if not set (e.g., when coming from patient records)
+  React.useEffect(() => {
+    if (!meetingCode && !isInCall) {
+      const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+      const newCode = Array.from({ length: 6 }, () =>
+        chars[Math.floor(Math.random() * chars.length)]
+      ).join("").toUpperCase()
+      setMeetingCode(newCode)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // Only run on mount - meetingCode and isInCall are intentionally excluded
 
   const localVideoRef = React.useRef<HTMLVideoElement>(null)
   const remoteVideoRef = React.useRef<HTMLVideoElement>(null)
@@ -250,17 +392,30 @@ export default function MeetPatientsPage() {
     return null
   }, [currentRoomId, doctorContext])
 
-  // Initialize socket on mount
+  // Initialize socket on mount and reconnect if disconnected
   React.useEffect(() => {
+    // Always initialize socket when component mounts or when navigating to this page
     initSocket()
-  }, [initSocket])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  React.useEffect(() => {
+    patientInfoRef.current = patientInfo
+  }, [patientInfo])
+
+  // Reset "requested patient info" flag when leaving call
+  React.useEffect(() => {
+    if (!isInCall) {
+      hasRequestedPatientInfoRef.current = false
+    }
+  }, [isInCall])
 
   // Listen for patient info via data channel
   React.useEffect(() => {
     if (dataChannelMessage && dataChannelMessage.type === "patient-info") {
       const patientInfoMessage = dataChannelMessage as { type: "patient-info"; user: User; timestamp: number }
       console.log("📡 Received patient info via data channel:", patientInfoMessage)
-      
+
       if (patientInfoMessage.user) {
         const patientData: PatientInfo = mapUserToPatientInfo(patientInfoMessage.user)
         setPatientInfo(patientData)
@@ -268,6 +423,68 @@ export default function MeetPatientsPage() {
       }
     }
   }, [dataChannelMessage])
+
+  // Auto-update forms when patient info is received (keep patientId synced for forms)
+  React.useEffect(() => {
+    if (!patientInfo || !patientInfo.id) return
+
+    setPrescriptionForm((prev) => ({
+      ...prev,
+      patientId: patientInfo.id,
+      roomId: currentRoomId || prev.roomId || null,
+    }))
+
+    setDiagnosisForm((prev) => ({
+      ...prev,
+      patientId: patientInfo.id,
+      roomId: currentRoomId || prev.roomId || null,
+    }))
+
+    setLabRequestForm((prev) => ({
+      ...prev,
+      patientId: patientInfo.id,
+      roomId: currentRoomId || prev.roomId || null,
+    }))
+  }, [patientInfo, currentRoomId])
+
+  // Auto-request patient info once when connected (so forms are prefilled)
+  React.useEffect(() => {
+    if (!isInCall) return
+    if (!currentRoomId) return
+    if (patientInfoRef.current) return
+    if (!dataChannel || dataChannel.readyState !== "open") return
+    if (hasRequestedPatientInfoRef.current) return
+
+    hasRequestedPatientInfoRef.current = true
+    try {
+      dataChannel.send(JSON.stringify({ type: "request-patient-info", timestamp: Date.now() }))
+    } catch (error) {
+      console.error("Error auto-requesting patient info:", error)
+    }
+  }, [isInCall, currentRoomId, dataChannel])
+
+  const ensurePatientInfoForForms = React.useCallback(async (): Promise<PatientInfo | null> => {
+    if (patientInfoRef.current) return patientInfoRef.current
+    if (!currentRoomId) return null
+
+    // Try data channel first (fast + correct for live meeting)
+    if (dataChannel && dataChannel.readyState === "open") {
+      try {
+        dataChannel.send(JSON.stringify({ type: "request-patient-info", timestamp: Date.now() }))
+        // Give it a bit more time; patient must respond over data channel
+        for (let i = 0; i < 6; i += 1) {
+          await new Promise((resolve) => setTimeout(resolve, 500))
+          if (patientInfoRef.current) return patientInfoRef.current
+        }
+      } catch (error) {
+        console.error("Error sending request-patient-info:", error)
+      }
+    }
+
+    // IMPORTANT: The /webrtc/room/:id/patient endpoint often 404s until a record exists.
+    // For live meetings, patient-info should come from the data channel.
+    return null
+  }, [currentRoomId, dataChannel])
 
   // Debug: Log local stream changes
   React.useEffect(() => {
@@ -287,12 +504,12 @@ export default function MeetPatientsPage() {
         hasStream: !!localStream,
         currentSrcObject: !!localVideoRef.current.srcObject,
       })
-      
+
       if (localVideoRef.current.srcObject !== localStream) {
         localVideoRef.current.srcObject = localStream
         console.log("✅ Local video srcObject updated")
       }
-      
+
       // Force play
       localVideoRef.current.play().then(() => {
         console.log("▶️ Local video play() successful")
@@ -312,7 +529,7 @@ export default function MeetPatientsPage() {
       tracks: localStream?.getTracks().length,
       videoTracks: localStream?.getVideoTracks().length,
     })
-    
+
     if (localVideoRef.current && localStream) {
       console.log("📹 Setting local video stream:", {
         id: localStream.id,
@@ -321,7 +538,7 @@ export default function MeetPatientsPage() {
         videoTracks: localStream.getVideoTracks().length,
         audioTracks: localStream.getAudioTracks().length,
       })
-      
+
       // Check if stream already set to avoid unnecessary updates
       if (localVideoRef.current.srcObject !== localStream) {
         localVideoRef.current.srcObject = localStream
@@ -329,7 +546,7 @@ export default function MeetPatientsPage() {
       } else {
         console.log("⏭️ Local video srcObject already set, skipping")
       }
-      
+
       // Ensure video plays
       localVideoRef.current.play().then(() => {
         console.log("▶️ Local video play() resolved")
@@ -354,8 +571,12 @@ export default function MeetPatientsPage() {
         audioTracks: remoteStream.getAudioTracks().length,
       })
       remoteVideoRef.current.srcObject = remoteStream
-      remoteVideoRef.current.play().catch((error) => {
+      remoteVideoRef.current.play().then(() => {
+        setRemoteNeedsPlay(false)
+      }).catch((error) => {
         console.error("❌ Error playing remote video:", error)
+        // Autoplay can be blocked; show a click-to-play fallback overlay.
+        setRemoteNeedsPlay(true)
       })
     } else if (remoteVideoRef.current && !remoteStream) {
       // Clear video if stream is removed
@@ -368,7 +589,9 @@ export default function MeetPatientsPage() {
     const newCode = Array.from({ length: 6 }, () =>
       chars[Math.floor(Math.random() * chars.length)]
     ).join("")
-    setMeetingCode(newCode)
+    // Ensure code is uppercase and normalized
+    const normalizedCode = newCode.toUpperCase().trim()
+    setMeetingCode(normalizedCode)
     toast.success("Meeting code generated")
   }
 
@@ -382,9 +605,17 @@ export default function MeetPatientsPage() {
   }
 
   const startMeeting = async () => {
-    if (!meetingCode || meetingCode.length !== 6) {
+    // Normalize meeting code: uppercase, trim, alphanumeric only
+    const normalizedCode = meetingCode.toUpperCase().trim().replace(/[^A-Z0-9]/g, "")
+
+    if (!normalizedCode || normalizedCode.length !== 6) {
       toast.error("Please enter a valid 6-character meeting code")
       return
+    }
+
+    // Update state with normalized code for consistency
+    if (normalizedCode !== meetingCode) {
+      setMeetingCode(normalizedCode)
     }
 
     setIsInitializing(true)
@@ -402,14 +633,19 @@ export default function MeetPatientsPage() {
         audioTracks: stream.getAudioTracks().length,
       })
 
-      // Join room
-      const response = await join(meetingCode)
+      // Join room as doctor using normalized code
+      console.log("🔑 Doctor joining room with code:", normalizedCode)
+      const response = await join(normalizedCode, "doctor")
+      console.log("📨 Join response:", response)
 
-      if (response.ok) {
+      if (response && response.ok) {
         setIsInCall(true)
+        setIsInitializing(false)
         toast.success("Meeting started successfully")
       } else {
-        toast.error(response.error || "Failed to start meeting")
+        const errorMsg = response?.error || "Failed to start meeting"
+        console.error("❌ Join failed:", errorMsg)
+        toast.error(errorMsg)
         setIsInitializing(false)
       }
     } catch (error: unknown) {
@@ -478,9 +714,10 @@ export default function MeetPatientsPage() {
       }
     }
 
-    // Fallback to API if no patient info from data channel
-    if (!currentRoomId) {
-      toast.error("No active meeting room")
+    // Fallback: if we have a patientId but not full info, load from /patients/:id
+    const current = patientInfoRef.current
+    if (!current?.id) {
+      toast.info("Patient info is still loading… please try again in a moment.")
       return
     }
 
@@ -488,23 +725,22 @@ export default function MeetPatientsPage() {
     let attempts = 0
     while (attempts <= maxRetries) {
       try {
-        const response = await patientsApi.getPatientByRoomId(currentRoomId)
+        const response = await patientsApi.getPatientById(current.id)
         if (response.success && response.data) {
           setPatientInfo(response.data)
           setShowPatientInfo(true)
           break
-        } else if (response.error === "PATIENT_NOT_FOUND" && attempts < maxRetries) {
-          await new Promise((resolve) => setTimeout(resolve, 1200))
+        } else if (attempts < maxRetries) {
+          await new Promise((resolve) => setTimeout(resolve, 800))
         } else {
           toast.error(response.message || "Failed to fetch patient information")
-          break
         }
       } catch (error: unknown) {
         console.error("Error fetching patient info:", error)
         if (attempts >= maxRetries) {
           toast.error("An error occurred while fetching patient information")
         } else {
-          await new Promise((resolve) => setTimeout(resolve, 1200))
+          await new Promise((resolve) => setTimeout(resolve, 800))
         }
       }
       attempts += 1
@@ -513,85 +749,18 @@ export default function MeetPatientsPage() {
   }
 
   const openPrescriptionModal = async () => {
-    // First, try to use patient info already received via data channel
-    const existingInfo = patientInfo
-    if (existingInfo && typeof existingInfo.id === "string") {
-      setPrescriptionForm((prev) => ({
-        ...prev,
-        patientId: existingInfo.id,
-        consultationId: null,
-        roomId: currentRoomId || null,
-      }))
-      setShowPrescriptionModal(true)
+    const info = await ensurePatientInfoForForms()
+    if (!info?.id) {
+      toast.info("Waiting for patient info… try again in a second.")
       return
     }
 
-    // If data channel is ready, request patient info and wait briefly before falling back
-    if (dataChannel && dataChannel.readyState === "open") {
-      try {
-        dataChannel.send(
-          JSON.stringify({
-            type: "request-patient-info",
-            timestamp: Date.now(),
-          })
-        )
-        await new Promise((resolve) => setTimeout(resolve, 1200))
-        const infoAfterRequest = patientInfo
-        if (infoAfterRequest && typeof infoAfterRequest.id === "string") {
-          setPrescriptionForm((prev) => ({
-            ...prev,
-            patientId: infoAfterRequest.id,
-            consultationId: null,
-            roomId: currentRoomId || null,
-          }))
-          setShowPrescriptionModal(true)
-          return
-        }
-      } catch (error) {
-        console.error("Error sending request-patient-info:", error)
-      }
-    }
-
-    // Fallback to API if no patient info from data channel
-    if (!currentRoomId) {
-      toast.error("No active meeting room")
-      return
-    }
-
-    setLoadingPatientInfo(true)
-    let attempts = 0
-    const maxRetries = 2
-    while (attempts <= maxRetries) {
-      try {
-        const response = await patientsApi.getPatientByRoomId(currentRoomId)
-        if (response.success && response.data) {
-          const data = response.data as PatientInfo
-          setPatientInfo(data)
-          setPrescriptionForm((prev) => ({
-            ...prev,
-            patientId: data.id,
-            consultationId: null,
-            roomId: currentRoomId || null,
-          }))
-          setShowPrescriptionModal(true)
-          break
-        } else if (response.error === "PATIENT_NOT_FOUND" && attempts < maxRetries) {
-          await new Promise((resolve) => setTimeout(resolve, 1200))
-        } else {
-          toast.error(response.message || "Failed to fetch patient information")
-          break
-        }
-      } catch (error: unknown) {
-        console.error("Error fetching patient info:", error)
-        if (attempts >= maxRetries) {
-          toast.error("An error occurred while fetching patient information")
-        } else {
-          await new Promise((resolve) => setTimeout(resolve, 1200))
-        }
-      }
-      attempts += 1
-    }
-    setLoadingPatientInfo(false)
+    setPrescriptionForm((prev) => ({
+      ...prev,
+      patientId: info.id,
+      consultationId: null,
+      roomId: currentRoomId || null,
+    }))
   }
 
   const handlePrescriptionSubmit = async (e: React.FormEvent) => {
@@ -650,79 +819,18 @@ export default function MeetPatientsPage() {
   }
 
   const openDiagnosisModal = async () => {
-    const existingInfo = patientInfo
-    if (existingInfo && typeof existingInfo.id === "string") {
-      setDiagnosisForm((prev) => ({
-        ...prev,
-        patientId: existingInfo.id,
-        consultationId: null,
-      }))
-      setShowDiagnosisModal(true)
+    const info = await ensurePatientInfoForForms()
+    if (!info?.id) {
+      toast.info("Waiting for patient info… try again in a second.")
       return
     }
 
-    if (dataChannel && dataChannel.readyState === "open") {
-      try {
-        dataChannel.send(
-          JSON.stringify({
-            type: "request-patient-info",
-            timestamp: Date.now(),
-          })
-        )
-        await new Promise((resolve) => setTimeout(resolve, 1200))
-        const infoAfterRequest = patientInfo
-        if (infoAfterRequest && typeof infoAfterRequest.id === "string") {
-          setDiagnosisForm((prev) => ({
-            ...prev,
-            patientId: infoAfterRequest.id,
-            consultationId: null,
-          }))
-          setShowDiagnosisModal(true)
-          return
-        }
-      } catch (error) {
-        console.error("Error sending request-patient-info:", error)
-      }
-    }
-
-    if (!currentRoomId) {
-      toast.error("No active meeting room")
-      return
-    }
-
-    setLoadingPatientInfo(true)
-    let attempts = 0
-    const maxRetries = 2
-    while (attempts <= maxRetries) {
-      try {
-        const response = await patientsApi.getPatientByRoomId(currentRoomId)
-        if (response.success && response.data) {
-          const data = response.data as PatientInfo
-          setPatientInfo(data)
-          setDiagnosisForm((prev) => ({
-            ...prev,
-            patientId: data.id,
-            consultationId: null,
-          }))
-          setShowDiagnosisModal(true)
-          break
-        } else if (response.error === "PATIENT_NOT_FOUND" && attempts < maxRetries) {
-          await new Promise((resolve) => setTimeout(resolve, 1200))
-        } else {
-          toast.error(response.message || "Failed to fetch patient information")
-          break
-        }
-      } catch (error: unknown) {
-        console.error("Error fetching patient info:", error)
-        if (attempts >= maxRetries) {
-          toast.error("An error occurred while fetching patient information")
-        } else {
-          await new Promise((resolve) => setTimeout(resolve, 1200))
-        }
-      }
-      attempts += 1
-    }
-    setLoadingPatientInfo(false)
+    setDiagnosisForm((prev) => ({
+      ...prev,
+      patientId: info.id,
+      consultationId: null,
+      roomId: currentRoomId || null,
+    }))
   }
 
   const handleDiagnosisSubmit = async (e: React.FormEvent) => {
@@ -781,85 +889,29 @@ export default function MeetPatientsPage() {
   }
 
   const openLabRequestModal = async () => {
-    const ctx = await ensureDoctorContext()
-    if (!ctx) {
-      toast.error("Doctor context not found. Please rejoin the room and try again.")
-      return
-    }
+    // Open modal immediately - don't wait for patient info
+    setShowLabRequestModal(true)
 
-    const existingInfo = patientInfo
-    if (existingInfo && typeof existingInfo.id === "string") {
-      setLabRequestForm((prev) => ({
-        ...prev,
-        patientId: existingInfo.id,
-        roomId: currentRoomId || null,
-      }))
-      setShowLabRequestModal(true)
-      return
-    }
-
-    if (dataChannel && dataChannel.readyState === "open") {
-      try {
-        dataChannel.send(
-          JSON.stringify({
-            type: "request-patient-info",
-            timestamp: Date.now(),
-          })
-        )
-        await new Promise((resolve) => setTimeout(resolve, 1200))
-        const infoAfterRequest = patientInfo
-        if (infoAfterRequest && typeof infoAfterRequest.id === "string") {
-          setLabRequestForm((prev) => ({
-            ...prev,
-            patientId: infoAfterRequest.id,
-            roomId: currentRoomId || null,
-          }))
-          setShowLabRequestModal(true)
-          return
-        }
-      } catch (error) {
-        console.error("Error sending request-patient-info:", error)
+    // Try to get doctor context in background (non-blocking)
+    ensureDoctorContext().then((ctx) => {
+      if (!ctx && currentRoomId) {
+        toast.warning("Doctor context not found. Some fields may need manual entry.")
       }
-    }
+    }).catch(() => {
+      // Ignore errors
+    })
 
-    if (!currentRoomId) {
-      toast.error("No active meeting room")
+    const info = await ensurePatientInfoForForms()
+    if (!info?.id) {
+      toast.info("Waiting for patient info… try again in a second.")
       return
     }
 
-    setLoadingPatientInfo(true)
-    let attempts = 0
-    const maxRetries = 2
-    while (attempts <= maxRetries) {
-      try {
-        const response = await patientsApi.getPatientByRoomId(currentRoomId)
-        if (response.success && response.data) {
-          const data = response.data as PatientInfo
-          setPatientInfo(data)
-          setLabRequestForm((prev) => ({
-            ...prev,
-            patientId: data.id,
-            roomId: currentRoomId || null,
-          }))
-          setShowLabRequestModal(true)
-          break
-        } else if (response.error === "PATIENT_NOT_FOUND" && attempts < maxRetries) {
-          await new Promise((resolve) => setTimeout(resolve, 1200))
-        } else {
-          toast.error(response.message || "Failed to fetch patient information")
-          break
-        }
-      } catch (error: unknown) {
-        console.error("Error fetching patient info:", error)
-        if (attempts >= maxRetries) {
-          toast.error("An error occurred while fetching patient information")
-        } else {
-          await new Promise((resolve) => setTimeout(resolve, 1200))
-        }
-      }
-      attempts += 1
-    }
-    setLoadingPatientInfo(false)
+    setLabRequestForm((prev) => ({
+      ...prev,
+      patientId: info.id,
+      roomId: currentRoomId || null,
+    }))
   }
 
   const handleLabRequestSubmit = async (e: React.FormEvent) => {
@@ -877,6 +929,26 @@ export default function MeetPatientsPage() {
 
     setIsSubmittingLabRequest(true)
     try {
+      // Determine organizationId - it's REQUIRED (NOT NULL in database)
+      let organizationId: string
+      if (labRequestForm.targetType === "ORGANIZATION") {
+        // If sending to organization, use that organization
+        organizationId = labRequestForm.targetId
+      } else {
+        // If sending to doctor, we need an organizationId
+        // Use doctor's organization from context, or fallback to targetId if it's an org
+        if (ctx?.organizationId) {
+          organizationId = ctx.organizationId
+        } else {
+          toast.error("Organization ID is required. Please ensure you're associated with an organization.")
+          setIsSubmittingLabRequest(false)
+          return
+        }
+      }
+
+      // Determine doctorId for the target (if sending to a doctor)
+      const targetDoctorId = labRequestForm.targetType === "DOCTOR" ? labRequestForm.targetId : undefined
+
       const payload = {
         ...labRequestForm,
         roomId: labRequestForm.roomId || currentRoomId || null,
@@ -884,11 +956,9 @@ export default function MeetPatientsPage() {
         requestedTests: labRequestForm.requestedTests || undefined,
         instructions: labRequestForm.instructions || undefined,
         priority: labRequestForm.priority || "NORMAL",
-        // Backend requires doctorId (requestor) and organizationId; use room doctor context.
-        doctorId: ctx.doctorId,
-        organizationId:
-          ctx.organizationId ||
-          (labRequestForm.targetType === "ORGANIZATION" ? labRequestForm.targetId : undefined),
+        // Backend requires doctorId (requestor) and organizationId (NOT NULL)
+        doctorId: targetDoctorId || ctx.doctorId, // Use target doctor if sending to doctor, otherwise use requesting doctor
+        organizationId, // Always required
       }
       const response = await labRequestsApi.createLabRequest(payload)
       if (response.success) {
@@ -951,8 +1021,8 @@ export default function MeetPatientsPage() {
     >
       <SidebarWrapper role="doctor" variant="inset" />
       <SidebarInset>
-        <RoleHeader 
-          title="Meet Patients" 
+        <RoleHeader
+          title="Meet Patients"
           description="Video consultations and patient meetings"
         />
         <div className="flex flex-1 flex-col">
@@ -988,7 +1058,11 @@ export default function MeetPatientsPage() {
                           <div className="flex gap-2">
                             <Input
                               value={meetingCode}
-                              onChange={(e) => setMeetingCode(e.target.value.toUpperCase())}
+                              onChange={(e) => {
+                                // Only allow alphanumeric, convert to uppercase, trim
+                                const value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6)
+                                setMeetingCode(value)
+                              }}
                               placeholder="Enter or generate code"
                               className="flex-1 text-center font-mono text-lg"
                               maxLength={6}
@@ -1016,8 +1090,8 @@ export default function MeetPatientsPage() {
                         </div>
 
                         {/* Start Meeting Button */}
-                        <Button 
-                          className="w-full mb-3" 
+                        <Button
+                          className="w-full mb-3"
                           size="lg"
                           onClick={startMeeting}
                           disabled={!meetingCode || meetingCode.length !== 6 || isInitializing}
@@ -1044,6 +1118,32 @@ export default function MeetPatientsPage() {
                   </div>
                 ) : (
                   <div className="flex flex-col gap-4">
+                    {/* In-call actions */}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="text-sm text-muted-foreground">
+                        Room: <span className="font-mono">{currentRoomId || meetingCode || "—"}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={openRecordsModal}
+                          disabled={!patientInfo?.id}
+                        >
+                          <IconFolder className="mr-2 h-4 w-4" />
+                          View Records
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={startNewConsultation}
+                          disabled={!patientInfo?.id}
+                        >
+                          <IconPlus className="mr-2 h-4 w-4" />
+                          New Consultation
+                        </Button>
+                      </div>
+                    </div>
                     {/* Video Call Interface */}
                     <div className="relative w-full h-[calc(100vh-300px)] bg-black rounded-lg overflow-hidden">
                       {/* Remote Video (Patient) */}
@@ -1057,11 +1157,32 @@ export default function MeetPatientsPage() {
                         }}
                         onPlay={() => {
                           console.log("▶️ Remote video started playing")
+                          setRemoteNeedsPlay(false)
                         }}
                         onError={(e) => {
                           console.error("❌ Remote video error:", e)
                         }}
                       />
+
+                      {remoteNeedsPlay && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/60">
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            onClick={() => {
+                              const el = remoteVideoRef.current
+                              if (!el) return
+                              el.play()
+                                .then(() => setRemoteNeedsPlay(false))
+                                .catch((err) => {
+                                  console.error("❌ Manual play() failed:", err)
+                                })
+                            }}
+                          >
+                            Click to start remote video
+                          </Button>
+                        </div>
+                      )}
 
                       {/* Local Video (Doctor) - Picture in Picture */}
                       <div className="absolute top-4 right-4 w-64 h-48 bg-black rounded-lg overflow-hidden border-2 border-white shadow-lg">
@@ -1131,57 +1252,69 @@ export default function MeetPatientsPage() {
                       </Button>
 
                       <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="outline"
-                            size="lg"
-                            className="rounded-full h-14 w-14"
-                            title="Patient actions"
-                          >
-                            <IconMenu2 className="h-6 w-6" />
-                            <span className="sr-only">Patient actions</span>
-                          </Button>
+                        <DropdownMenuTrigger
+                          className="rounded-full h-14 w-14 border border-border bg-background hover:bg-muted hover:text-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:border-ring inline-flex items-center justify-center whitespace-nowrap transition-all disabled:pointer-events-none disabled:opacity-50 outline-none"
+                          title="Patient actions"
+                        >
+                          <IconMenu2 className="h-6 w-6" />
+                          <span className="sr-only">Patient actions</span>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="center" side="top" sideOffset={12} className="w-56">
                           <DropdownMenuItem
-                            disabled={loadingPatientInfo || !remoteStream}
+                            disabled={loadingPatientInfo}
                             onSelect={(event) => {
                               event.preventDefault()
-                              if (loadingPatientInfo || !remoteStream) return
-                              fetchPatientInfo()
+                              if (loadingPatientInfo) return
+                              if (isInCall && currentRoomId) {
+                                fetchPatientInfo()
+                              } else {
+                                toast.info("Please start a meeting first to view patient info")
+                              }
                             }}
                           >
                             <IconUser className="mr-2 h-4 w-4" />
                             View patient
                           </DropdownMenuItem>
                           <DropdownMenuItem
-                            disabled={!remoteStream}
-                            onSelect={(event) => {
+                            onClick={(event) => {
                               event.preventDefault()
-                              if (!remoteStream) return
-                              openDiagnosisModal()
+                              event.stopPropagation()
+                              // Open modal immediately
+                              setShowDiagnosisModal(true)
+                              // Then populate patient info in background
+                              setTimeout(() => {
+                                openDiagnosisModal()
+                              }, 0)
                             }}
                           >
                             <IconFilePlus className="mr-2 h-4 w-4" />
                             Diagnosis
                           </DropdownMenuItem>
                           <DropdownMenuItem
-                            disabled={!remoteStream}
-                            onSelect={(event) => {
+                            onClick={(event) => {
                               event.preventDefault()
-                              if (!remoteStream) return
-                              openPrescriptionModal()
+                              event.stopPropagation()
+                              // Open modal immediately
+                              setShowPrescriptionModal(true)
+                              // Then populate patient info in background
+                              setTimeout(() => {
+                                openPrescriptionModal()
+                              }, 0)
                             }}
                           >
                             <IconPill className="mr-2 h-4 w-4" />
                             Prescription
                           </DropdownMenuItem>
                           <DropdownMenuItem
-                            disabled={!remoteStream}
-                            onSelect={(event) => {
+                            onClick={(event) => {
                               event.preventDefault()
-                              if (!remoteStream) return
-                              openLabRequestModal()
+                              event.stopPropagation()
+                              // Open modal immediately
+                              setShowLabRequestModal(true)
+                              // Then populate patient info in background
+                              setTimeout(() => {
+                                openLabRequestModal()
+                              }, 0)
                             }}
                           >
                             <IconFilePlus className="mr-2 h-4 w-4" />
@@ -1205,6 +1338,99 @@ export default function MeetPatientsPage() {
             </div>
           </div>
         </div>
+
+        {/* View Records Modal */}
+        <Dialog open={showRecordsModal} onOpenChange={setShowRecordsModal}>
+          <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-hidden">
+            <DialogHeader>
+              <DialogTitle className="text-2xl">Patient Records</DialogTitle>
+              <DialogDescription>
+                Diagnoses, prescriptions, and lab requests logged for this patient
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="flex items-center justify-between gap-2 py-2">
+              <div className="min-w-0">
+                <p className="text-sm font-medium truncate">
+                  {getPatientDisplayName(patientInfo) || "Patient"}
+                </p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {patientInfo?.email || ""}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Select
+                  value={recordsFilter}
+                  onValueChange={(v) => {
+                    const next = v ?? "ALL"
+                    setRecordsFilter(next)
+                    void loadMedicalRecords({ recordType: next })
+                  }}
+                >
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">All records</SelectItem>
+                    <SelectItem value="DIAGNOSIS">Diagnoses</SelectItem>
+                    <SelectItem value="MEDICATION">Prescriptions</SelectItem>
+                    <SelectItem value="LAB_RESULTS">Lab requests/results</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => loadMedicalRecords({ recordType: recordsFilter })}
+                  disabled={recordsLoading}
+                >
+                  <IconRefresh className="mr-2 h-4 w-4" />
+                  Refresh
+                </Button>
+              </div>
+            </div>
+
+            <div className="border rounded-lg overflow-hidden">
+              <ScrollArea className="h-[55vh]">
+                <div className="p-4 space-y-4">
+                  {recordsLoading ? (
+                    <div className="text-sm text-muted-foreground">Loading…</div>
+                  ) : records.length === 0 ? (
+                    <div className="text-sm text-muted-foreground">
+                      No records yet for this patient.
+                    </div>
+                  ) : (
+                    records.map((r) => (
+                      <div key={r.id} className="border rounded-lg p-4 space-y-2">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="font-semibold truncate">{r.title}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {r.createdAt ? new Date(r.createdAt).toLocaleString() : ""}
+                            </p>
+                          </div>
+                          <Badge variant="outline" className="shrink-0">
+                            {r.recordType}
+                          </Badge>
+                        </div>
+                        <pre className="text-xs bg-muted rounded-md p-3 whitespace-pre-wrap break-words">
+                          {safeFormatRecordContent(r.content)}
+                        </pre>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </ScrollArea>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4">
+              <Button type="button" variant="outline" onClick={() => setShowRecordsModal(false)}>
+                Close
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Patient Information Modal */}
         <Dialog open={showPatientInfo} onOpenChange={setShowPatientInfo}>
@@ -1374,14 +1600,34 @@ export default function MeetPatientsPage() {
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handlePrescriptionSubmit} className="space-y-4 py-4">
-              {/* Patient Info Display */}
-              {patientInfo && (
+              {/* Patient Info Display or Input */}
+              {patientInfo ? (
                 <div className="p-4 bg-muted rounded-lg">
                   <Label className="text-sm font-medium text-muted-foreground">Patient</Label>
-                  <p className="text-base font-medium">
-                    {patientInfo.patientInfo?.firstName || ""} {patientInfo.patientInfo?.middleName || ""} {patientInfo.patientInfo?.lastName || ""}
-                    {patientInfo.email && ` (${patientInfo.email})`}
-                  </p>
+                  <div className="space-y-1">
+                    <p className="text-base font-semibold">
+                      {getPatientDisplayName(patientInfo) || "Patient"}
+                    </p>
+                    <p className="text-sm text-muted-foreground">{patientInfo.email}</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label htmlFor="patientId">
+                    Patient ID <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="patientId"
+                    value={prescriptionForm.patientId}
+                    onChange={(e) =>
+                      setPrescriptionForm((prev) => ({
+                        ...prev,
+                        patientId: e.target.value,
+                      }))
+                    }
+                    placeholder="Enter patient ID"
+                    required
+                  />
                 </div>
               )}
 
@@ -1432,13 +1678,13 @@ export default function MeetPatientsPage() {
                     onValueChange={(value) =>
                       setPrescriptionForm((prev) => ({
                         ...prev,
-                        frequency: value,
+                        frequency: value ?? "",
                       }))
                     }
                     required
                   >
                     <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select frequency" />
+                      <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="once daily">Once Daily</SelectItem>
@@ -1587,13 +1833,33 @@ export default function MeetPatientsPage() {
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleDiagnosisSubmit} className="space-y-4 py-4">
-              {patientInfo && (
+              {patientInfo ? (
                 <div className="p-4 bg-muted rounded-lg">
                   <Label className="text-sm font-medium text-muted-foreground">Patient</Label>
-                  <p className="text-base font-medium">
-                    {(patientInfo.patientInfo?.firstName || "")} {(patientInfo.patientInfo?.middleName || "")} {(patientInfo.patientInfo?.lastName || "")}
-                    {patientInfo.email && ` (${patientInfo.email})`}
-                  </p>
+                  <div className="space-y-1">
+                    <p className="text-base font-semibold">
+                      {getPatientDisplayName(patientInfo) || "Patient"}
+                    </p>
+                    <p className="text-sm text-muted-foreground">{patientInfo.email}</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label htmlFor="diagnosisPatientId">
+                    Patient ID <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="diagnosisPatientId"
+                    value={diagnosisForm.patientId}
+                    onChange={(e) =>
+                      setDiagnosisForm((prev) => ({
+                        ...prev,
+                        patientId: e.target.value,
+                      }))
+                    }
+                    placeholder="Enter patient ID"
+                    required
+                  />
                 </div>
               )}
 
@@ -1642,7 +1908,7 @@ export default function MeetPatientsPage() {
                     }
                   >
                     <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select severity" />
+                      <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="MILD">Mild</SelectItem>
@@ -1667,7 +1933,7 @@ export default function MeetPatientsPage() {
                     }
                   >
                     <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select status" />
+                      <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="ACTIVE">Active</SelectItem>
@@ -1788,13 +2054,33 @@ export default function MeetPatientsPage() {
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleLabRequestSubmit} className="space-y-4 py-4">
-              {patientInfo && (
+              {patientInfo ? (
                 <div className="p-4 bg-muted rounded-lg">
                   <Label className="text-sm font-medium text-muted-foreground">Patient</Label>
-                  <p className="text-base font-medium">
-                    {(patientInfo.patientInfo?.firstName || "")} {(patientInfo.patientInfo?.middleName || "")} {(patientInfo.patientInfo?.lastName || "")}
-                    {patientInfo.email && ` (${patientInfo.email})`}
-                  </p>
+                  <div className="space-y-1">
+                    <p className="text-base font-semibold">
+                      {getPatientDisplayName(patientInfo) || "Patient"}
+                    </p>
+                    <p className="text-sm text-muted-foreground">{patientInfo.email}</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label htmlFor="labRequestPatientId">
+                    Patient ID <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="labRequestPatientId"
+                    value={labRequestForm.patientId}
+                    onChange={(e) =>
+                      setLabRequestForm((prev) => ({
+                        ...prev,
+                        patientId: e.target.value,
+                      }))
+                    }
+                    placeholder="Enter patient ID"
+                    required
+                  />
                 </div>
               )}
 
@@ -1805,7 +2091,7 @@ export default function MeetPatientsPage() {
                   onValueChange={(value) =>
                     setLabRequestForm((prev) => ({
                       ...prev,
-                      targetType: value as "ORGANIZATION" | "DOCTOR",
+                      targetType: (value ?? "ORGANIZATION") as "ORGANIZATION" | "DOCTOR",
                       targetId: "",
                     }))
                   }
@@ -1816,7 +2102,7 @@ export default function MeetPatientsPage() {
                   }}
                 >
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select recipient type" />
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="ORGANIZATION">Organization</SelectItem>
@@ -1834,7 +2120,7 @@ export default function MeetPatientsPage() {
                   onValueChange={(value) =>
                     setLabRequestForm((prev) => ({
                       ...prev,
-                      targetId: value,
+                      targetId: value ?? "",
                     }))
                   }
                   onOpenChange={(open) => {
@@ -1844,7 +2130,7 @@ export default function MeetPatientsPage() {
                   }}
                 >
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder={`Select ${labRequestForm.targetType === "ORGANIZATION" ? "organization" : "doctor"}`} />
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     {(labRequestForm.targetType === "ORGANIZATION" ? organizationOptions : doctorOptions).map((opt) => (
@@ -1916,7 +2202,7 @@ export default function MeetPatientsPage() {
                   }
                 >
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select priority" />
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="LOW">Low</SelectItem>

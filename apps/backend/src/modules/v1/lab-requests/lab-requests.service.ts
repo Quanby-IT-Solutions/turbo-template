@@ -1,7 +1,7 @@
-import {  ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common"
-import { and, desc, eq, inArray } from "drizzle-orm"
+import { Inject, Injectable, InternalServerErrorException } from "@nestjs/common"
+import { eq, inArray } from "drizzle-orm"
 
-import { labRequests, organizations, patientInfos, users } from "@repo/db/schema"
+import { labRequests, organizations, patientInfos, patientMedicalHistories, users } from "@repo/db/schema"
 
 import { DB, type DBType } from "@/common/database/database-providers"
 import { CreateLabRequestDto, LabRequestQueryDto } from "@repo/contracts"
@@ -9,31 +9,30 @@ import { CreateLabRequestDto, LabRequestQueryDto } from "@repo/contracts"
 @Injectable()
 export class LabRequestsService {
 	constructor(@Inject(DB) private readonly db: DBType) {}
-	  private serializeLabRequest(labRequest: any) {
-    return {
-      ...labRequest,
-      createdAt: labRequest.createdAt.toISOString(),
-      updatedAt: labRequest.updatedAt.toISOString(),
-    };
-  }
 
-async findAll() {
-		return this.db.select().from(labRequests)
+	private serialize(r: any) {
+		if (!r) return r
+		const toIso = (v: any) => (v instanceof Date ? v.toISOString() : v)
+		return {
+			...r,
+			createdAt: toIso(r.createdAt),
+			updatedAt: toIso(r.updatedAt),
+		}
 	}
 
-	  async findOne(id: string) {
-    const [labRequest] = await this.db
-      .select()
-      .from(labRequests)
-      .where(eq(labRequests.id, id))
-      .limit(1);
+	async findAll() {
+		const rows = await this.db.select().from(labRequests)
+		return rows.map(r => this.serialize(r))
+	}
 
-    if (!labRequest) {
-      throw new NotFoundException(`Lab request with ID ${id} not found`);
-    }
-
-    return this.serializeLabRequest(labRequest);
-  }
+	async findOne(id: string) {
+		const [result] = await this.db
+			.select()
+			.from(labRequests)
+			.where(eq(labRequests.id, id))
+			.limit(1)
+		return this.serialize(result)
+	}
 
 	async getDoctorLabRequests(doctorId: string) {
 		const requests = await this.db
@@ -95,100 +94,108 @@ async findAll() {
 			const patient = request.patientId ? patientsMap.get(request.patientId) : undefined
 			const org = request.organizationId ? orgsMap.get(request.organizationId) : undefined
 
-			return {
+			return this.serialize({
 				...request,
 				patientName: patient
 					? `${patient.patientFirstName || ""} ${patient.patientMiddleName || ""} ${patient.patientLastName || ""}`.trim()
 					: null,
 				organizationName: org?.name || null,
-			}
+			})
 		})
 	}
 
-async getPatientLabRequests(patientId: string, query: LabRequestQueryDto) {
-  const { organizationId, status, page = 1, limit = 10 } = query;
+	async getPatientLabRequests(patientId: string) {
+		const requests = await this.db
+			.select()
+			.from(labRequests)
+			.where(eq(labRequests.patientId, patientId))
 
-  const conditions = [eq(labRequests.patientId, patientId)];
+		return requests.map(r => this.serialize(r))
+	}
 
-  if (organizationId) {
-    conditions.push(eq(labRequests.organizationId, organizationId));
-  }
+	async getRoomLabRequests(roomId: string) {
+		const rows = await this.db
+			.select()
+			.from(labRequests)
+			.where(eq(labRequests.roomId, roomId))
+		return rows.map(r => this.serialize(r))
+	}
 
-  if (status) {
-    conditions.push(eq(labRequests.status, status));
-  }
+	async create(data: any) {
+		const [result] = await this.db
+			.insert(labRequests)
+			.values({
+				patientId: data.patientId,
+				organizationId: data.organizationId,
+				doctorId: data.doctorId || null,
+				roomId: data.roomId || null,
+				note: data.note || null,
+				status: data.status || "PENDING",
+				priority: data.priority || "NORMAL",
+				requestedTests: data.requestedTests || null,
+				instructions: data.instructions || null,
+				createdBy: data.createdBy || data.doctorId,
+				updatedBy: data.updatedBy || data.doctorId || null,
+			})
+			.returning()
 
-  const whereClause = and(...conditions);
+		if (!result) {
+			throw new InternalServerErrorException("Failed to create lab request")
+		}
 
-  const results = await this.db
-    .select()
-    .from(labRequests)
-    .where(whereClause)
-    .orderBy(desc(labRequests.createdAt))
-    .limit(limit)
-    .offset((page - 1) * limit);
+		// Populate patient medical records (for patient history screens)
+		// We use recordType "LAB_RESULTS" as the closest bucket for lab-related entries.
+		try {
+			await this.db.insert(patientMedicalHistories).values({
+				patientId: result.patientId,
+				consultationId: null,
+				recordType: "LAB_RESULTS",
+				title: "Lab Request",
+				content: JSON.stringify({
+					roomId: result.roomId,
+					labRequestId: result.id,
+					priority: result.priority,
+					status: result.status,
+					requestedTests: result.requestedTests,
+					instructions: result.instructions,
+					note: result.note,
+					organizationId: result.organizationId,
+					doctorId: result.doctorId,
+				}),
+				isPublic: false,
+				isSensitive: false,
+				createdBy: result.createdBy ?? result.doctorId ?? data.createdBy,
+			})
+		} catch {
+			// If medical record insert fails, don't block lab request creation.
+		}
 
-  // Serialize dates to ISO strings
-  return results.map(result => ({
-    ...result,
-    createdAt: result.createdAt.toISOString(),
-    updatedAt: result.updatedAt.toISOString(),
-  }));
-}
-
-  async create(data: CreateLabRequestDto, user: any) {
-    const userId = user?.userId || user?.id;
-
-    if (!data.organizationId) {
-      throw new ForbiddenException('Organization ID is required');
-    }
-
-    if (!data.patientId) {
-      throw new ForbiddenException('Patient ID is required');
-    }
-
-    const [result] = await this.db
-      .insert(labRequests)
-      .values({
-        patientId: data.patientId,
-        organizationId: data.organizationId,
-        doctorId: data.doctorId || null,
-        note: data.note || null,
-        requestedTests: data.requestedTests || null,
-        instructions: data.instructions || null,
-        status: 'PENDING',
-        priority: data.priority || 'NORMAL',
-        createdBy: userId,
-        updatedBy: userId,
-      })
-      .returning();
-
-    return this.serializeLabRequest(result);
-  }
+		return this.serialize(result)
+	}
 
 	async update(id: string, updateDto: Partial<CreateLabRequestDto>, user: any) {
-    const userId = user?.userId || user?.id;
-    
-    await this.findOne(id);
+		const userId = user?.userId || user?.id;
+		
+		await this.findOne(id);
 
-    const [updated] = await this.db
-      .update(labRequests)
-      .set({
-        ...updateDto,
-        updatedBy: userId,
-        updatedAt: new Date(),
-      })
-      .where(eq(labRequests.id, id))
-      .returning();
+		const [updated] = await this.db
+			.update(labRequests)
+			.set({
+				...updateDto,
+				updatedBy: userId,
+				updatedAt: new Date(),
+			})
+			.where(eq(labRequests.id, id))
+			.returning();
 
-    return this.serializeLabRequest(updated);
-  }
+		return this.serialize(updated);
+	}
 
-  async remove(id: string) {
-    await this.findOne(id);
+	async remove(id: string) {
+		await this.findOne(id);
 
-    await this.db
-      .delete(labRequests)
-      .where(eq(labRequests.id, id));
-  }
+		await this.db
+			.delete(labRequests)
+			.where(eq(labRequests.id, id));
+	}
 }

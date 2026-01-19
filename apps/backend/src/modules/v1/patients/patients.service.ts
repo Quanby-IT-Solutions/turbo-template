@@ -18,6 +18,7 @@ export class PatientsService {
 		const whereConditions: any[] = [eq(users.role, "PATIENT" as any)]
 
 		if (query.search) {
+			
 			whereConditions.push(sql`${patientInfos.firstName} ILIKE ${`%${  query.search  }%`}`)
 		}
 
@@ -46,6 +47,10 @@ export class PatientsService {
 			email: patient.user.email,
 			patientInfo: {
 				...patient.patientInfo,
+				dateOfBirth:
+					patient.patientInfo.dateOfBirth instanceof Date
+						? patient.patientInfo.dateOfBirth.toISOString()
+						: (patient.patientInfo.dateOfBirth as any),
 				verificationStatusUpdatedAt: patient.patientInfo.verificationStatusUpdatedAt
 					? (patient.patientInfo.verificationStatusUpdatedAt instanceof Date
 							? patient.patientInfo.verificationStatusUpdatedAt.toISOString()
@@ -104,28 +109,20 @@ export class PatientsService {
 			email: patient.user.email,
 			patientInfo: {
 				...patient.patientInfo,
-				dateOfBirth: patient.patientInfo.dateOfBirth instanceof Date
-					? patient.patientInfo.dateOfBirth.toISOString()
-					: patient.patientInfo.dateOfBirth,
-				philHealthExpiry: patient.patientInfo.philHealthExpiry instanceof Date
-					? patient.patientInfo.philHealthExpiry.toISOString()
-					: patient.patientInfo.philHealthExpiry,
-				philHealthMemberSince: patient.patientInfo.philHealthMemberSince instanceof Date
-					? patient.patientInfo.philHealthMemberSince.toISOString()
-					: patient.patientInfo.philHealthMemberSince,
-				philHealthIdVerifiedAt: patient.patientInfo.philHealthIdVerifiedAt instanceof Date
-					? patient.patientInfo.philHealthIdVerifiedAt.toISOString()
-					: patient.patientInfo.philHealthIdVerifiedAt,
-				verificationStatusUpdatedAt: patient.patientInfo.verificationStatusUpdatedAt instanceof Date
-					? patient.patientInfo.verificationStatusUpdatedAt.toISOString()
-					: patient.patientInfo.verificationStatusUpdatedAt,
-				subscriptionStartDate: patient.patientInfo.subscriptionStartDate instanceof Date
-					? patient.patientInfo.subscriptionStartDate.toISOString()
-					: patient.patientInfo.subscriptionStartDate,
-				subscriptionEndDate: patient.patientInfo.subscriptionEndDate instanceof Date
-					? patient.patientInfo.subscriptionEndDate.toISOString()
-					: patient.patientInfo.subscriptionEndDate,
-				philHealthIdImage: convertImage(patient.patientInfo.philHealthIdImage),
+				dateOfBirth:
+					patient.patientInfo.dateOfBirth instanceof Date
+						? patient.patientInfo.dateOfBirth.toISOString()
+						: (patient.patientInfo.dateOfBirth as any),
+				verificationStatusUpdatedAt: patient.patientInfo.verificationStatusUpdatedAt
+					? (patient.patientInfo.verificationStatusUpdatedAt instanceof Date
+							? patient.patientInfo.verificationStatusUpdatedAt.toISOString()
+							: patient.patientInfo.verificationStatusUpdatedAt)
+					: null,
+				philHealthIdImage: patient.patientInfo.philHealthIdImage
+					? (Buffer.isBuffer(patient.patientInfo.philHealthIdImage)
+							? patient.patientInfo.philHealthIdImage.toString("base64")
+							: patient.patientInfo.philHealthIdImage)
+					: null,
 			},
 			createdAt:
 				patient.user.createdAt instanceof Date

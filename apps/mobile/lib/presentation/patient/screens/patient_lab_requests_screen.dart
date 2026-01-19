@@ -271,25 +271,22 @@ class _PatientLabRequestsScreenState
       child: Scaffold(
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         appBar: AppBar(
-          backgroundColor: colorScheme.surfaceContainerLow,
-          elevation: 0,
-          surfaceTintColor: Colors.transparent,
-          leading: IconButton(
-            icon: Icon(
-              Icons.arrow_back_ios_rounded,
-              color: colorScheme.primary,
-            ),
-            onPressed: () => context.pop(),
-          ),
-          title: Text(
-            'Lab Requests',
-            style: TextStyle(
-              color: colorScheme.onSurface,
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-              letterSpacing: -0.3,
-            ),
-          ),
+          title: Padding(
+                padding: const EdgeInsets.only(left: 8.0), 
+                child: Text(
+                  'Lab Requests',
+                  style: TextStyle(
+                    color: colorScheme.onSurface,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+              ),
+              centerTitle: false,
+              elevation: 0,
+              backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
+              automaticallyImplyLeading: false,
         ),
         floatingActionButton: FloatingActionButton.extended(
           onPressed: () {

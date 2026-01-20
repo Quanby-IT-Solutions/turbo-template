@@ -24,4 +24,4 @@ export const patientMedicalHistories = pgTable(
     isPublicIdx: index('patientMedicalHistory_isPublic_idx').on(table.isPublic),
     recordTypeIdx: index('patientMedicalHistory_recordType_idx').on(table.recordType),
   }),
-);
+).enableRLS();

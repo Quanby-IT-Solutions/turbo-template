@@ -36,4 +36,4 @@ export const healthScans = pgTable('HealthScan', {
   antiHypertensive: boolean('antiHypertensive'),
   historyBloodGlucose: boolean('historyBloodGlucose'),
   historyFamilyDiabetes: integer('historyFamilyDiabetes'),
-});
+}).enableRLS();

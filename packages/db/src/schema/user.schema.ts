@@ -35,4 +35,4 @@ export const users = pgTable(
     profilePictureVerifiedIdx: index('user_profilePictureVerified_idx').on(table.profilePictureVerified),
     profilePictureVerifiedByIdx: index('user_profilePictureVerifiedBy_idx').on(table.profilePictureVerifiedBy),
   }),
-);
+).enableRLS();

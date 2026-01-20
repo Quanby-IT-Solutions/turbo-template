@@ -15,4 +15,4 @@ export const usersToDoctorCategories = pgTable(
   (t) => ({
     pk: unique().on(t.userId, t.doctorCategoryId),
   }),
-);
+).enableRLS();

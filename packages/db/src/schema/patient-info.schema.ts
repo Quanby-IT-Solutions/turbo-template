@@ -50,4 +50,4 @@ export const patientInfos = pgTable(
     verificationStatusIdx: index('patientInfo_verificationStatus_idx').on(table.verificationStatus),
     verificationStatusUpdatedByIdx: index('patientInfo_verificationStatusUpdatedBy_idx').on(table.verificationStatusUpdatedBy),
   }),
-);
+).enableRLS();

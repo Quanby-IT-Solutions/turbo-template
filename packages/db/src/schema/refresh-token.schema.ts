@@ -10,4 +10,4 @@ export const refreshTokens = pgTable(
     expiresAt: timestamp('expiresAt').notNull(),
     createdAt: timestamp('createdAt').defaultNow().notNull(),
   },
-);
+).enableRLS();

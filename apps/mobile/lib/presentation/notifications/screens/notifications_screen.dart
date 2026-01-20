@@ -162,33 +162,22 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen>
       child: Scaffold(
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          surfaceTintColor: Colors.transparent,
-          automaticallyImplyLeading: false,
-          title: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Notifications',
-                style: TextStyle(
-                  color: colorScheme.onSurface,
-                  fontSize: 24,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.5,
-                ),
+          title: Padding(
+            padding: const EdgeInsets.only(left: 8.0),
+            child: Text(
+              'Notifications',
+              style: TextStyle(
+                color: colorScheme.onSurface,
+                fontSize: 24,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.5,
               ),
-              const SizedBox(height: 4),
-              Text(
-                'View and manage your notifications',
-                style: TextStyle(
-                  color: colorScheme.onSurface.withValues(alpha: 0.6),
-                  fontSize: 13,
-                  fontWeight: FontWeight.w400,
-                ),
-              ),
-            ],
+            ),
           ),
+          centerTitle: false,
+          elevation: 0,
+          backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
+              automaticallyImplyLeading: false,
           actions: [
             if (unreadNotifications.isNotEmpty)
               Padding(

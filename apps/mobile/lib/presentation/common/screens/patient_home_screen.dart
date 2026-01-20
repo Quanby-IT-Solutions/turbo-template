@@ -52,13 +52,17 @@ class PatientHomeScreen extends ConsumerWidget {
     }).value ?? {'upcoming': 0, 'pending': 0, 'completed': 0};
 
     return AnimatedNavWrapper(
-      child: Builder(
-        builder: (context) => Scaffold(
-          drawer: const PatientNavigationDrawer(),
-          body: Column(
-            children: [
-              AppBar(
-                title: Text(
+  child: 
+  // Builder(
+  //   builder: (context) => 
+      Scaffold(
+        // drawer: const PatientNavigationDrawer(),
+        body: Column(
+          children: [
+            AppBar(
+              title: Padding(
+                padding: const EdgeInsets.only(left: 8.0), 
+                child: Text(
                   'Dashboard',
                   style: TextStyle(
                     color: colorScheme.onSurface,
@@ -67,149 +71,153 @@ class PatientHomeScreen extends ConsumerWidget {
                     letterSpacing: -0.3,
                   ),
                 ),
-                elevation: 0,
-                backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
-                leading: IconButton(
-                  icon: Icon(
-                    Icons.menu_rounded,
-                    color: colorScheme.primary,
-                  ),
-                  onPressed: () => Scaffold.of(context).openDrawer(),
-                ),
-                actions: [
-                  const ThemeToggleButton(),
-                  ProfileMenuButton(
-                    onLogout: () => _showLogoutDialog(context, ref),
-                  ),
-                  const SizedBox(width: 8),
-                ],
               ),
-              Expanded(
-                child: RefreshIndicator(
-                  onRefresh: () async {
-                    ref.invalidate(appointmentsListProvider);
-                    ref.invalidate(currentPatientProvider);
-                    await Future.delayed(const Duration(milliseconds: 500));
-                  },
-                  child: CustomScrollView(
-                    slivers: [
-                      SliverPadding(
-                        padding: const EdgeInsets.all(24),
-                        sliver: SliverList(
-                          delegate: SliverChildListDelegate([
-                            Center(
-                              child: ConstrainedBox(
-                                constraints: BoxConstraints(
-                                  maxWidth: context.contentMaxWidth,
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    // Stats Grid (4 cards)
-                                    GridView.count(
-                                      shrinkWrap: true,
-                                      physics: const NeverScrollableScrollPhysics(),
-                                      crossAxisCount: 2,
-                                      childAspectRatio: 0.95,
-                                      crossAxisSpacing: 16,
-                                      mainAxisSpacing: 16,
+              centerTitle: false,
+              elevation: 0,
+              backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
+              automaticallyImplyLeading: false,
+              // leading: IconButton(
+              //   icon: Icon(
+              //     Icons.menu_rounded,
+              //     color: colorScheme.primary,
+              //   ),
+              //   onPressed: () => Scaffold.of(context).openDrawer(),
+              // ),
+              actions: [
+                const ThemeToggleButton(),
+                ProfileMenuButton(
+                  onLogout: () => _showLogoutDialog(context, ref),
+                ),
+                const SizedBox(width: 8),
+              ],
+            ),
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: () async {
+                  ref.invalidate(appointmentsListProvider);
+                  ref.invalidate(currentPatientProvider);
+                  await Future.delayed(const Duration(milliseconds: 500));
+                },
+                child: CustomScrollView(
+                  slivers: [
+                    SliverPadding(
+                      padding: const EdgeInsets.all(24),
+                      sliver: SliverList(
+                        delegate: SliverChildListDelegate([
+                          Center(
+                            child: ConstrainedBox(
+                              constraints: BoxConstraints(
+                                maxWidth: context.contentMaxWidth,
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Stats Grid (4 cards)
+                                  GridView.count(
+                                    shrinkWrap: true,
+                                    physics: const NeverScrollableScrollPhysics(),
+                                    crossAxisCount: 2,
+                                    childAspectRatio: 0.95,
+                                    crossAxisSpacing: 16,
+                                    mainAxisSpacing: 16,
+                                    children: [
+                                      StatCard(
+                                        title: 'Upcoming',
+                                        value: stats['upcoming']!.toString(),
+                                        icon: Icons.calendar_today_rounded,
+                                        color: colorScheme.primary,
+                                        onTap: () => context.push(
+                                          '/patient-schedule',
+                                        ),
+                                      ),
+                                      StatCard(
+                                        title: 'Pending',
+                                        value: stats['pending']!.toString(),
+                                        icon: Icons.pending_rounded,
+                                        color: colorScheme.secondary,
+                                        onTap: () => context.push(
+                                          '/patient-schedule',
+                                        ),
+                                      ),
+                                      StatCard(
+                                        title: 'Completed',
+                                        value: stats['completed']!.toString(),
+                                        icon: Icons.check_circle_rounded,
+                                        color: colorScheme.tertiary,
+                                        onTap: () => context.push(
+                                          '/patient-schedule',
+                                        ),
+                                      ),
+                                      StatCard(
+                                        title: 'Health Status',
+                                        value: 'Active',
+                                        icon: Icons.favorite_rounded,
+                                        color: colorScheme.primary,
+                                        onTap: null,
+                                      ),
+                                    ],
+                                  ),
+
+                                  const SizedBox(height: 32),
+
+                                  // Your next appointment card
+                                  _buildNextAppointmentCard(
+                                    context,
+                                    appointmentsAsync,
+                                    colorScheme,
+                                  ),
+
+                                  const SizedBox(height: 32),
+
+                                  // Health Services Section
+                                  SectionContainer(
+                                    color: colorScheme.primary,
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
-                                        StatCard(
-                                          title: 'Upcoming',
-                                          value: stats['upcoming']!.toString(),
-                                          icon: Icons.calendar_today_rounded,
+                                        SectionHeader(
+                                          icon: Icons.health_and_safety_rounded,
+                                          title: 'Health Services',
+                                          subtitle:
+                                              'Essential health services for your wellbeing',
                                           color: colorScheme.primary,
-                                          onTap: () => context.push(
-                                            '/patient-schedule',
-                                          ),
                                         ),
-                                        StatCard(
-                                          title: 'Pending',
-                                          value: stats['pending']!.toString(),
-                                          icon: Icons.pending_rounded,
-                                          color: colorScheme.secondary,
-                                          onTap: () => context.push(
-                                            '/patient-schedule',
-                                          ),
-                                        ),
-                                        StatCard(
-                                          title: 'Completed',
-                                          value: stats['completed']!.toString(),
-                                          icon: Icons.check_circle_rounded,
-                                          color: colorScheme.tertiary,
-                                          onTap: () => context.push(
-                                            '/patient-schedule',
-                                          ),
-                                        ),
-                                        StatCard(
-                                          title: 'Health Status',
-                                          value: 'Active',
-                                          icon: Icons.favorite_rounded,
-                                          color: colorScheme.primary,
-                                          onTap: null,
-                                        ),
+                                        const SizedBox(height: 20),
+                                        _buildHealthServicesGrid(context),
                                       ],
                                     ),
+                                  ),
 
-                                    const SizedBox(height: 32),
+                                  const SizedBox(height: 32),
 
-                                    // Your next appointment card
-                                    _buildNextAppointmentCard(
-                                      context,
-                                      appointmentsAsync,
-                                      colorScheme,
-                                    ),
+                                  // Recent check-ins Section
+                                  _buildRecentCheckInsSection(
+                                    context,
+                                    appointmentsAsync,
+                                    colorScheme,
+                                  ),
 
-                                    const SizedBox(height: 32),
-
-                                    // Health Services Section
-                                    SectionContainer(
-                                      color: colorScheme.primary,
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          SectionHeader(
-                                            icon: Icons.health_and_safety_rounded,
-                                            title: 'Health Services',
-                                            subtitle:
-                                                'Essential health services for your wellbeing',
-                                            color: colorScheme.primary,
-                                          ),
-                                          const SizedBox(height: 20),
-                                          _buildHealthServicesGrid(context),
-                                        ],
-                                      ),
-                                    ),
-
-                                    const SizedBox(height: 32),
-
-                                    // Recent check-ins Section
-                                    _buildRecentCheckInsSection(
-                                      context,
-                                      appointmentsAsync,
-                                      colorScheme,
-                                    ),
-
-                                    const SizedBox(
-                                      height: 100,
-                                    ), // Bottom nav padding
-                                  ],
-                                ),
+                                  const SizedBox(
+                                    height: 100,
+                                  ), // Bottom nav padding
+                                ],
                               ),
                             ),
-                          ]),
-                        ),
+                          ),
+                        ]),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
-    );
+  //   ),
+  // ),
+);
   }
 
   // Placeholder data for face scan self-checks (matching web format)

@@ -78,37 +78,42 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
       child: Scaffold(
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         appBar: AppBar(
-          backgroundColor: colorScheme.surfaceContainerLow,
-          elevation: 0,
-          surfaceTintColor: Colors.transparent,
-          leading: IconButton(
-            icon: Icon(
-              Icons.arrow_back_ios_rounded,
-              color: colorScheme.primary,
-            ),
-            onPressed: () => context.pop(),
-          ),
-          title: Text(
-            'Medical Records',
-            style: TextStyle(
-              color: colorScheme.onSurface,
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-              letterSpacing: -0.3,
-            ),
-          ),
-          bottom: TabBar(
-            controller: _tabController,
-            tabs: const [
-              Tab(text: 'Overview'),
-              Tab(text: 'Health Trends'),
-              Tab(text: 'Consultations'),
-              Tab(text: 'Self Check History'),
-            ],
-            labelColor: colorScheme.primary,
-            unselectedLabelColor: colorScheme.onSurface.withValues(alpha: 0.6),
-            indicatorColor: colorScheme.primary,
-          ),
+          title: Padding(
+                padding: const EdgeInsets.only(left: 8.0), 
+                child: Text(
+                  'Medical Records',
+                  style: TextStyle(
+                    color: colorScheme.onSurface,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+              ),
+              centerTitle: false,
+              elevation: 0,
+              backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
+              automaticallyImplyLeading: false,
+          // leading: IconButton(
+          //   icon: Icon(
+          //     Icons.arrow_back_ios_rounded,
+          //     color: colorScheme.primary,
+          //   ),
+          //   onPressed: () => context.pop(),
+          // ),
+        
+          // bottom: TabBar(
+          //   controller: _tabController,
+          //   tabs: const [
+          //     Tab(text: 'Overview'),
+          //     Tab(text: 'Health Trends'),
+          //     Tab(text: 'Consultations'),
+          //     Tab(text: 'Self Check History'),
+          //   ],
+          //   labelColor: colorScheme.primary,
+          //   unselectedLabelColor: colorScheme.onSurface.withValues(alpha: 0.6),
+          //   indicatorColor: colorScheme.primary,
+          // ),
         ),
         body: patientAsync.when(
           data: (patient) {
@@ -154,7 +159,40 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
                     const SizedBox(height: 16),
 
                     // Summary Statistics Cards
+                    // _buildStatisticsCards(context, patient, colorScheme),
+                    // const SizedBox(height: 16),
+
+                    // // Tab Content
+                    // SizedBox(
+                    //   height: MediaQuery.of(context).size.height * 0.6,
+                    //   child: TabBarView(
+                    //     controller: _tabController,
+                    //     children: [
+                    //       _buildOverviewTab(context, patient, colorScheme),
+                    //       _buildHealthTrendsTab(context, patient, colorScheme),
+                    //       _buildConsultationsTab(context, patient, colorScheme),
+                    //       _buildSelfCheckTab(context, patient, colorScheme),
+                    //     ],
+                    //   ),
+                    // ),
+
+                    // Summary Statistics Cards
                     _buildStatisticsCards(context, patient, colorScheme),
+                    const SizedBox(height: 24),
+
+                    // Tab Bar (moved here)
+                    TabBar(
+                      controller: _tabController,
+                      tabs: const [
+                        Tab(text: 'Overview'),
+                        Tab(text: 'Health Trends'),
+                        Tab(text: 'Consultations'),
+                        Tab(text: 'Self Check History'),
+                      ],
+                      labelColor: colorScheme.primary,
+                      unselectedLabelColor: colorScheme.onSurface.withValues(alpha: 0.6),
+                      indicatorColor: colorScheme.primary,
+                    ),
                     const SizedBox(height: 16),
 
                     // Tab Content

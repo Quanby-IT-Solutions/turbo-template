@@ -1041,10 +1041,28 @@ class HttpService {
 
       if (response.statusCode == 200) {
         final responseData = response.data as Map<String, dynamic>;
-        // Backend returns {success: true, data: {items: [...], total, page, limit, totalPages}}
+
+        // ✅ Handle both response formats
         if (responseData['success'] == true && responseData['data'] != null) {
-          return responseData['data'] as Map<String, dynamic>;
+          final data = responseData['data'];
+
+          // If data is a List, wrap it in the expected format
+          if (data is List) {
+            return {
+              'data': data, // Keep it as 'data' key with the list
+              'total': data.length,
+              'page': page ?? 1,
+              'limit': limit ?? data.length,
+              'totalPages': 1,
+            };
+          }
+
+          // If data is already a Map with items, return it as is
+          if (data is Map<String, dynamic>) {
+            return data;
+          }
         }
+
         return responseData;
       } else {
         throw _handleError(response);

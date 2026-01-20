@@ -62,11 +62,11 @@ class _PatientLabRequestsScreenState
   }
 
   // Method to navigate to lab request booking screen
-  void _navigateToLabRequestBooking(BuildContext context) {
+  void _navigateToOrganizationSearchScreen(BuildContext context) {
     final user = ref.read(currentUserProvider);
 
     context.push(
-      '/lab-request-booking',
+      '/organization-search',
       extra: {'patientId': user?.id, 'organizationId': null, 'doctorId': null},
     );
   }
@@ -265,24 +265,24 @@ class _PatientLabRequestsScreenState
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         appBar: AppBar(
           title: Padding(
-                padding: const EdgeInsets.only(left: 8.0), 
-                child: Text(
-                  'Lab Requests',
-                  style: TextStyle(
-                    color: colorScheme.onSurface,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.3,
-                  ),
-                ),
+            padding: const EdgeInsets.only(left: 8.0),
+            child: Text(
+              'Lab Requests',
+              style: TextStyle(
+                color: colorScheme.onSurface,
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.3,
               ),
-              centerTitle: false,
-              elevation: 0,
-              backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
-              automaticallyImplyLeading: false,
+            ),
+          ),
+          centerTitle: false,
+          elevation: 0,
+          backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
+          automaticallyImplyLeading: false,
         ),
         floatingActionButton: FloatingActionButton.extended(
-          onPressed: () => _navigateToLabRequestBooking(context),
+          onPressed: () => _navigateToOrganizationSearchScreen(context),
           icon: const Icon(Icons.add_rounded),
           label: const Text('Request Test'),
           backgroundColor: colorScheme.primary,
@@ -341,7 +341,7 @@ class _PatientLabRequestsScreenState
                         const SizedBox(width: 12),
                         ElevatedButton.icon(
                           onPressed: () =>
-                              _navigateToLabRequestBooking(context),
+                              _navigateToOrganizationSearchScreen(context),
                           icon: const Icon(Icons.description_rounded, size: 18),
                           label: const Text('Request'),
                           style: ElevatedButton.styleFrom(
@@ -617,7 +617,7 @@ class _PatientLabRequestsScreenState
           if (!isSearch) ...[
             const SizedBox(height: 24),
             ElevatedButton.icon(
-              onPressed: () => _navigateToLabRequestBooking(context),
+              onPressed: () => _navigateToOrganizationSearchScreen(context),
               icon: const Icon(Icons.description_rounded),
               label: const Text('Request Lab Test'),
               style: ElevatedButton.styleFrom(

@@ -5,15 +5,13 @@ import 'package:mobile/core/services/toast_service.dart';
 import 'package:mobile/presentation/patient/providers/patient_lab_requests_provider.dart';
 
 class LabRequestBookingScreen extends ConsumerStatefulWidget {
-  final String? patientId;
   final String? organizationId;
-  final String? doctorId;
+  final String? organizationName;
 
   const LabRequestBookingScreen({
     super.key,
-    this.patientId,
     this.organizationId,
-    this.doctorId,
+    this.organizationName,
   });
 
   @override
@@ -24,81 +22,13 @@ class LabRequestBookingScreen extends ConsumerStatefulWidget {
 class _LabRequestBookingScreenState
     extends ConsumerState<LabRequestBookingScreen> {
   String _selectedPriority = 'NORMAL';
-  final _noteController = TextEditingController();
+  String? _selectedDoctorId;
+  final _requestedTestsController = TextEditingController();
   final _instructionsController = TextEditingController();
-  final List<String> _selectedTests = [];
-
-  // Test categories with their respective tests
-  final Map<String, List<Map<String, dynamic>>> _testCategories = {
-    'Blood Tests': [
-      {
-        'name': 'Complete Blood Count (CBC)',
-        'description': 'Measures different components of blood',
-        'icon': Icons.bloodtype,
-      },
-      {
-        'name': 'Blood Glucose',
-        'description': 'Checks blood sugar levels',
-        'icon': Icons.health_and_safety,
-      },
-      {
-        'name': 'Lipid Profile',
-        'description': 'Cholesterol and triglycerides',
-        'icon': Icons.favorite,
-      },
-      {
-        'name': 'Liver Function Test',
-        'description': 'Checks liver health',
-        'icon': Icons.medical_services,
-      },
-    ],
-    'Imaging': [
-      {
-        'name': 'X-Ray',
-        'description': 'Radiographic imaging',
-        'icon': Icons.local_hospital,
-      },
-      {
-        'name': 'CT Scan',
-        'description': 'Computed tomography scan',
-        'icon': Icons.mediation,
-      },
-      {
-        'name': 'MRI',
-        'description': 'Magnetic resonance imaging',
-        'icon': Icons.psychology,
-      },
-      {
-        'name': 'Ultrasound',
-        'description': 'Sonography imaging',
-        'icon': Icons.child_care,
-      },
-    ],
-    'Urine Tests': [
-      {
-        'name': 'Urinalysis',
-        'description': 'Complete urine analysis',
-        'icon': Icons.science,
-      },
-      {
-        'name': 'Urine Culture',
-        'description': 'Bacterial infection detection',
-        'icon': Icons.biotech,
-      },
-    ],
-    'Other Tests': [
-      {
-        'name': 'ECG',
-        'description': 'Electrocardiogram',
-        'icon': Icons.monitor_heart,
-      },
-      {
-        'name': 'Thyroid Function Test',
-        'description': 'TSH, T3, T4 levels',
-        'icon': Icons.airline_seat_recline_normal,
-      },
-    ],
-  };
+  final _notesController = TextEditingController();
+  final _roomController = TextEditingController();
+  bool _isLoadingDoctors = false;
+  List<DoctorOption> _availableDoctors = [];
 
   final List<Map<String, dynamic>> _priorityOptions = [
     {
@@ -125,37 +55,86 @@ class _LabRequestBookingScreenState
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _loadDoctors();
+  }
+
+  @override
   void dispose() {
-    _noteController.dispose();
+    _requestedTestsController.dispose();
     _instructionsController.dispose();
+    _notesController.dispose();
+    _roomController.dispose();
     super.dispose();
   }
 
-  void _toggleTest(String testName) {
-    setState(() {
-      if (_selectedTests.contains(testName)) {
-        _selectedTests.remove(testName);
-      } else {
-        _selectedTests.add(testName);
+  Future<void> _loadDoctors() async {
+    if (widget.organizationId == null) return;
+
+    setState(() => _isLoadingDoctors = true);
+
+    try {
+      // TODO: Replace with actual API call to get doctors by organization
+      // For now using mock data
+      await Future.delayed(const Duration(seconds: 1));
+
+      setState(() {
+        _availableDoctors = [
+          DoctorOption(
+            id: 'doc-1',
+            name: 'Dr. Sarah Anderson',
+            specialization: 'Pathology',
+          ),
+          DoctorOption(
+            id: 'doc-2',
+            name: 'Dr. Michael Chen',
+            specialization: 'Radiology',
+          ),
+          DoctorOption(
+            id: 'doc-3',
+            name: 'Dr. Emily Thompson',
+            specialization: 'Laboratory Medicine',
+          ),
+        ];
+      });
+    } catch (e) {
+      if (mounted) {
+        ToastService.showError(
+          context: context,
+          title: 'Failed to load doctors',
+          description: e.toString(),
+        );
       }
-    });
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingDoctors = false);
+      }
+    }
   }
 
   Future<void> _submitRequest() async {
-    if (_selectedTests.isEmpty) {
+    if (_requestedTestsController.text.trim().isEmpty) {
       ToastService.showError(
         context: context,
         title: 'Tests Required',
-        description: 'Please select at least one test',
+        description: 'Please specify the requested tests',
       );
       return;
     }
 
-    if (_noteController.text.trim().isEmpty) {
+    // Parse requested tests from comma-separated input
+    final requestedTests = _requestedTestsController.text
+        .split(',')
+        .map((test) => test.trim())
+        .where((test) => test.isNotEmpty)
+        .toList();
+
+    if (requestedTests.isEmpty) {
       ToastService.showError(
         context: context,
-        title: 'Note Required',
-        description: 'Please provide a note for the lab request',
+        title: 'Tests Required',
+        description: 'Please specify at least one test',
       );
       return;
     }
@@ -163,12 +142,17 @@ class _LabRequestBookingScreenState
     final labRequest = await ref
         .read(labRequestBookingProvider.notifier)
         .createLabRequest(
-          patientId: widget.patientId ?? 'temp-patient-id',
+          patientId: 'temp-patient-id', // TODO: Get from auth state
           organizationId: widget.organizationId ?? 'temp-org-id',
-          doctorId: widget.doctorId,
-          note: _noteController.text.trim(),
+          doctorId: _selectedDoctorId,
+          roomId: _roomController.text.trim().isNotEmpty
+              ? _roomController.text.trim()
+              : null,
+          note: _notesController.text.trim().isNotEmpty
+              ? _notesController.text.trim()
+              : null,
           priority: _selectedPriority,
-          requestedTests: _selectedTests,
+          requestedTests: requestedTests,
           instructions: _instructionsController.text.trim().isNotEmpty
               ? _instructionsController.text.trim()
               : null,
@@ -227,7 +211,7 @@ class _LabRequestBookingScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Info Card
+            // Organization Info Card
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -265,7 +249,7 @@ class _LabRequestBookingScreenState
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Medical Laboratory',
+                          widget.organizationName ?? 'Medical Laboratory',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w700,
@@ -275,16 +259,150 @@ class _LabRequestBookingScreenState
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Select tests and provide details',
+                          'Healthcare Facility',
                           style: TextStyle(
                             fontSize: 14,
-                            color: colorScheme.onSurface.withValues(alpha: 0.6),
+                            color: colorScheme.primary,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ],
                     ),
                   ),
                 ],
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            // Doctor Selection
+            Text(
+              'Referring Doctor (Optional)',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: colorScheme.onSurface,
+                letterSpacing: -0.2,
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            Container(
+              decoration: BoxDecoration(
+                color: colorScheme.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: colorScheme.outline.withValues(alpha: 0.1),
+                ),
+              ),
+              child: _isLoadingDoctors
+                  ? const Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Center(child: CircularProgressIndicator()),
+                    )
+                  : DropdownButtonFormField<String>(
+                      value: _selectedDoctorId,
+                      decoration: InputDecoration(
+                        hintText: 'Select a doctor (optional)',
+                        hintStyle: TextStyle(
+                          color: colorScheme.onSurface.withValues(alpha: 0.4),
+                        ),
+                        prefixIcon: Icon(
+                          Icons.person_rounded,
+                          color: colorScheme.primary,
+                        ),
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 16,
+                        ),
+                      ),
+                      items: [
+                        DropdownMenuItem<String>(
+                          value: null,
+                          child: Text(
+                            'No doctor selected',
+                            style: TextStyle(
+                              color: colorScheme.onSurface.withValues(
+                                alpha: 0.6,
+                              ),
+                            ),
+                          ),
+                        ),
+                        ..._availableDoctors.map((doctor) {
+                          return DropdownMenuItem<String>(
+                            value: doctor.id,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  doctor.name,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    color: colorScheme.onSurface,
+                                  ),
+                                ),
+                                Text(
+                                  doctor.specialization,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: colorScheme.onSurface.withValues(
+                                      alpha: 0.6,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
+                      ],
+                      onChanged: (value) {
+                        setState(() => _selectedDoctorId = value);
+                      },
+                    ),
+            ),
+
+            const SizedBox(height: 24),
+
+            // Room Number
+            Text(
+              'Room Number (Optional)',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: colorScheme.onSurface,
+                letterSpacing: -0.2,
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            Container(
+              decoration: BoxDecoration(
+                color: colorScheme.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: colorScheme.outline.withValues(alpha: 0.1),
+                ),
+              ),
+              child: TextField(
+                controller: _roomController,
+                decoration: InputDecoration(
+                  hintText: 'E.g., Room 301, Ward B',
+                  hintStyle: TextStyle(
+                    color: colorScheme.onSurface.withValues(alpha: 0.4),
+                  ),
+                  prefixIcon: Icon(
+                    Icons.meeting_room_rounded,
+                    color: colorScheme.primary,
+                  ),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 16,
+                  ),
+                ),
+                style: TextStyle(fontSize: 15, color: colorScheme.onSurface),
               ),
             ),
 
@@ -370,123 +488,9 @@ class _LabRequestBookingScreenState
 
             const SizedBox(height: 24),
 
-            // Test Selection
+            // Requested Tests Input
             Text(
-              'Select Tests (${_selectedTests.length} selected)',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: colorScheme.onSurface,
-                letterSpacing: -0.2,
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            ..._testCategories.entries.map((category) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8, top: 8),
-                    child: Text(
-                      category.key,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: colorScheme.primary,
-                      ),
-                    ),
-                  ),
-                  ...category.value.map((test) {
-                    final isSelected = _selectedTests.contains(test['name']);
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? colorScheme.primary.withValues(alpha: 0.1)
-                            : colorScheme.surfaceContainerLow,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: isSelected
-                              ? colorScheme.primary
-                              : colorScheme.outline.withValues(alpha: 0.1),
-                          width: isSelected ? 2 : 1,
-                        ),
-                      ),
-                      child: Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          onTap: () => _toggleTest(test['name']),
-                          borderRadius: BorderRadius.circular(16),
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: isSelected
-                                        ? colorScheme.primary
-                                        : colorScheme.primary.withValues(
-                                            alpha: 0.1,
-                                          ),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Icon(
-                                    test['icon'],
-                                    color: isSelected
-                                        ? Colors.white
-                                        : colorScheme.primary,
-                                    size: 24,
-                                  ),
-                                ),
-                                const SizedBox(width: 16),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        test['name'],
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w600,
-                                          color: colorScheme.onSurface,
-                                        ),
-                                      ),
-                                      Text(
-                                        test['description'],
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          color: colorScheme.onSurface
-                                              .withValues(alpha: 0.6),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                if (isSelected)
-                                  Icon(
-                                    Icons.check_circle_rounded,
-                                    color: colorScheme.primary,
-                                    size: 24,
-                                  ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  }),
-                ],
-              );
-            }),
-
-            const SizedBox(height: 24),
-
-            // Note
-            Text(
-              'Note',
+              'Requested Tests',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
@@ -505,10 +509,11 @@ class _LabRequestBookingScreenState
                 ),
               ),
               child: TextField(
-                controller: _noteController,
-                maxLines: 3,
+                controller: _requestedTestsController,
+                maxLines: 4,
                 decoration: InputDecoration(
-                  hintText: 'Describe symptoms or reason for tests...',
+                  hintText:
+                      'Enter tests separated by commas\nE.g., CBC, Blood Glucose, X-Ray, Urinalysis',
                   hintStyle: TextStyle(
                     color: colorScheme.onSurface.withValues(alpha: 0.4),
                   ),
@@ -521,9 +526,9 @@ class _LabRequestBookingScreenState
 
             const SizedBox(height: 24),
 
-            // Special Instructions (Optional)
+            // Instructions
             Text(
-              'Special Instructions (Optional)',
+              'Instructions',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
@@ -545,7 +550,45 @@ class _LabRequestBookingScreenState
                 controller: _instructionsController,
                 maxLines: 3,
                 decoration: InputDecoration(
-                  hintText: 'E.g., fasting required, morning sample...',
+                  hintText:
+                      'Special instructions for the lab\nE.g., Fasting required, Morning sample only',
+                  hintStyle: TextStyle(
+                    color: colorScheme.onSurface.withValues(alpha: 0.4),
+                  ),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.all(16),
+                ),
+                style: TextStyle(fontSize: 15, color: colorScheme.onSurface),
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            // Additional Notes
+            Text(
+              'Additional Notes (Optional)',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: colorScheme.onSurface,
+                letterSpacing: -0.2,
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            Container(
+              decoration: BoxDecoration(
+                color: colorScheme.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: colorScheme.outline.withValues(alpha: 0.1),
+                ),
+              ),
+              child: TextField(
+                controller: _notesController,
+                maxLines: 3,
+                decoration: InputDecoration(
+                  hintText: 'Any additional information or notes...',
                   hintStyle: TextStyle(
                     color: colorScheme.onSurface.withValues(alpha: 0.4),
                   ),
@@ -608,4 +651,16 @@ class _LabRequestBookingScreenState
       ),
     );
   }
+}
+
+class DoctorOption {
+  final String id;
+  final String name;
+  final String specialization;
+
+  DoctorOption({
+    required this.id,
+    required this.name,
+    required this.specialization,
+  });
 }

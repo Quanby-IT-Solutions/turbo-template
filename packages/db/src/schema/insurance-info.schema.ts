@@ -10,4 +10,4 @@ export const insuranceInfos = pgTable(
     policyNumber: varchar('policyNumber', { length: 255 }).notNull(),
     insuranceContact: varchar('insuranceContact', { length: 255 }).notNull(),
   },
-);
+).enableRLS();

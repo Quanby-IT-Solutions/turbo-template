@@ -23,4 +23,4 @@ export const adminInfos = pgTable(
     employeeIdIdx: index('adminInfo_employeeId_idx').on(table.employeeId),
     departmentIdx: index('adminInfo_department_idx').on(table.department),
   }),
-);
+).enableRLS();

@@ -14,4 +14,4 @@ export const doctorSchedules = pgTable(
   (table) => ({
     uniqueDoctorDay: unique().on(table.doctorId, table.dayOfWeek),
   }),
-);
+).enableRLS();

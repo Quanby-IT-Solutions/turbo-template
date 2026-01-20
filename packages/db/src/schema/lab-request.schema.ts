@@ -30,4 +30,4 @@ export const labRequests = pgTable(
     priorityIdx: index('labRequest_priority_idx').on(table.priority),
     createdAtIdx: index('labRequest_createdAt_idx').on(table.createdAt),
   }),
-);
+).enableRLS();

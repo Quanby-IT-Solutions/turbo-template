@@ -15,4 +15,4 @@ export const faceScanResults = pgTable(
     emailIdx: index('faceScanResult_email_idx').on(table.email),
     createdAtIdx: index('faceScanResult_createdAt_idx').on(table.createdAt),
   }),
-);
+).enableRLS();

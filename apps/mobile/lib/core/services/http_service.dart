@@ -377,7 +377,8 @@ class HttpService {
   /// Create a new appointment
   static Future<Map<String, dynamic>> createAppointment({
     required String doctorId,
-    required String scheduledAt,
+    required String requestedDate,
+    required String requestedTime,
     String? reason,
     String? notes,
     String? priority,
@@ -385,23 +386,22 @@ class HttpService {
   }) async {
     try {
       final dio = await _getDio();
-      // Parse scheduledAt ISO string to DateTime
-      final scheduledDateTime = DateTime.parse(scheduledAt);
 
-      // Format date and time for backend
-      final requestedDate = scheduledDateTime.toIso8601String();
-      final requestedTime = scheduledDateTime.toIso8601String();
+      final requestData = {
+        'doctorId': doctorId,
+        'requestedDate': requestedDate,
+        'requestedTime': requestedTime,
+        'reason': reason ?? '',
+        'priority': priority ?? 'NORMAL',
+        if (notes != null) 'notes': notes,
+      };
+
+      debugPrint('Creating appointment with data: $requestData');
+      debugPrint('requestedDate type: ${requestedDate.runtimeType}');
 
       final response = await dio.post(
         '$_appointmentsEndpoint/request',
-        data: {
-          'doctorId': doctorId,
-          'requestedDate': requestedDate,
-          'requestedTime': requestedTime,
-          'reason': reason ?? '',
-          'priority': priority ?? 'MEDIUM',
-          if (notes != null) 'notes': notes,
-        },
+        data: requestData,
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
@@ -1342,7 +1342,7 @@ class HttpService {
   // ===================
 
   /// Get patient lab requests
-  static Future<Map<String, dynamic>> getPatientLabRequests(
+  static Future<List<Map<String, dynamic>>> getPatientLabRequests(
     String patientId,
   ) async {
     try {
@@ -1355,14 +1355,226 @@ class HttpService {
         final responseData = response.data as Map<String, dynamic>;
         // Backend returns {success: true, data: [...]}
         if (responseData['success'] == true && responseData['data'] != null) {
-          return responseData;
+          final data = responseData['data'];
+          if (data is List) {
+            return data.cast<Map<String, dynamic>>();
+          }
+          return [];
+        }
+        return [];
+      } else {
+        throw _handleError(response);
+      }
+    } catch (e) {
+      debugPrint('Get patient lab requests error: $e');
+      rethrow;
+    }
+  }
+
+  static Future<List<Map<String, dynamic>>> getAllLabRequests() async {
+    try {
+      final dio = await _getDio();
+      final response = await dio.get(_labRequestsEndpoint);
+
+      if (response.statusCode == 200) {
+        final responseData = response.data as Map<String, dynamic>;
+        // Backend returns {success: true, data: [...]}
+        if (responseData['success'] == true && responseData['data'] != null) {
+          final data = responseData['data'];
+          if (data is List) {
+            return data.cast<Map<String, dynamic>>();
+          }
+          return [];
+        }
+        return [];
+      } else {
+        throw _handleError(response);
+      }
+    } catch (e) {
+      debugPrint('Get all lab requests error: $e');
+      rethrow;
+    }
+  }
+
+  /// Create a new lab request
+  static Future<Map<String, dynamic>> createLabRequest({
+    required String patientId,
+    required String organizationId,
+    String? doctorId,
+    String? roomId,
+    String? note,
+    String? status,
+    String? priority,
+    List<String>? requestedTests,
+    String? instructions,
+  }) async {
+    try {
+      final dio = await _getDio();
+      final response = await dio.post(
+        _labRequestsEndpoint,
+        data: {
+          'patientId': patientId,
+          'organizationId': organizationId,
+          if (doctorId != null) 'doctorId': doctorId,
+          if (roomId != null) 'roomId': roomId,
+          if (note != null) 'note': note,
+          'status': status ?? 'PENDING',
+          'priority': priority ?? 'NORMAL',
+          if (requestedTests != null) 'requestedTests': requestedTests,
+          if (instructions != null) 'instructions': instructions,
+        },
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final responseData = response.data as Map<String, dynamic>;
+        // Backend returns {success: true, data: labRequest}
+        if (responseData['success'] == true && responseData['data'] != null) {
+          return responseData['data'] as Map<String, dynamic>;
         }
         return responseData;
       } else {
         throw _handleError(response);
       }
     } catch (e) {
-      debugPrint('Get patient lab requests error: $e');
+      debugPrint('Create lab request error: $e');
+      rethrow;
+    }
+  }
+
+  /// Get doctor lab requests
+  static Future<List<Map<String, dynamic>>> getDoctorLabRequests(
+    String doctorId,
+  ) async {
+    try {
+      final dio = await _getDio();
+      final response = await dio.get('$_labRequestsEndpoint/doctor/$doctorId');
+
+      if (response.statusCode == 200) {
+        final responseData = response.data as Map<String, dynamic>;
+        // Backend returns {success: true, data: [...]}
+        if (responseData['success'] == true && responseData['data'] != null) {
+          final data = responseData['data'];
+          if (data is List) {
+            return data.cast<Map<String, dynamic>>();
+          }
+          return [];
+        }
+        return [];
+      } else {
+        throw _handleError(response);
+      }
+    } catch (e) {
+      debugPrint('Get doctor lab requests error: $e');
+      rethrow;
+    }
+  }
+
+  /// Get room lab requests
+  static Future<List<Map<String, dynamic>>> getRoomLabRequests(
+    String roomId,
+  ) async {
+    try {
+      final dio = await _getDio();
+      final response = await dio.get('$_labRequestsEndpoint/room/$roomId');
+
+      if (response.statusCode == 200) {
+        final responseData = response.data as Map<String, dynamic>;
+        // Backend returns {success: true, data: [...]}
+        if (responseData['success'] == true && responseData['data'] != null) {
+          final data = responseData['data'];
+          if (data is List) {
+            return data.cast<Map<String, dynamic>>();
+          }
+          return [];
+        }
+        return [];
+      } else {
+        throw _handleError(response);
+      }
+    } catch (e) {
+      debugPrint('Get room lab requests error: $e');
+      rethrow;
+    }
+  }
+
+  /// Get a single lab request by ID
+  static Future<Map<String, dynamic>> getLabRequest(String id) async {
+    try {
+      final dio = await _getDio();
+      final response = await dio.get('$_labRequestsEndpoint/$id');
+
+      if (response.statusCode == 200) {
+        final responseData = response.data as Map<String, dynamic>;
+        // Backend returns {success: true, data: labRequest}
+        if (responseData['success'] == true && responseData['data'] != null) {
+          return responseData['data'] as Map<String, dynamic>;
+        }
+        return responseData;
+      } else {
+        throw _handleError(response);
+      }
+    } catch (e) {
+      debugPrint('Get lab request error: $e');
+      rethrow;
+    }
+  }
+
+  /// Update a lab request
+  static Future<Map<String, dynamic>> updateLabRequest({
+    required String id,
+    String? patientId,
+    String? organizationId,
+    String? doctorId,
+    String? roomId,
+    String? note,
+    String? status,
+    String? priority,
+    List<String>? requestedTests,
+    String? instructions,
+  }) async {
+    try {
+      final dio = await _getDio();
+
+      final data = <String, dynamic>{};
+      if (patientId != null) data['patientId'] = patientId;
+      if (organizationId != null) data['organizationId'] = organizationId;
+      if (doctorId != null) data['doctorId'] = doctorId;
+      if (roomId != null) data['roomId'] = roomId;
+      if (note != null) data['note'] = note;
+      if (status != null) data['status'] = status.toUpperCase();
+      if (priority != null) data['priority'] = priority.toUpperCase();
+      if (requestedTests != null) data['requestedTests'] = requestedTests;
+      if (instructions != null) data['instructions'] = instructions;
+
+      final response = await dio.put('$_labRequestsEndpoint/$id', data: data);
+
+      if (response.statusCode == 200) {
+        final responseData = response.data as Map<String, dynamic>;
+        // Backend returns {success: true, data: labRequest}
+        if (responseData['success'] == true && responseData['data'] != null) {
+          return responseData['data'] as Map<String, dynamic>;
+        }
+        return responseData;
+      } else {
+        throw _handleError(response);
+      }
+    } catch (e) {
+      debugPrint('Update lab request error: $e');
+      rethrow;
+    }
+  }
+
+  /// Delete a lab request
+  static Future<void> deleteLabRequest(String id) async {
+    try {
+      final dio = await _getDio();
+      final response = await dio.delete('$_labRequestsEndpoint/$id');
+
+      if (response.statusCode != 200) {
+        throw _handleError(response);
+      }
+    } catch (e) {
+      debugPrint('Delete lab request error: $e');
       rethrow;
     }
   }

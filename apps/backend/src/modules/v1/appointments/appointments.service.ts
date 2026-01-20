@@ -403,15 +403,25 @@ async getDoctorAvailableTimeSlots(doctorId: string, date: string) {
     throw new ForbiddenException("Doctor not found")
   }
 
-  // Parse the date and get day of week
-  const selectedDate = new Date(`${date}T00:00:00Z`) // Parse as UTC
+  // Parse date components to avoid timezone issues
+  const dateParts = date.split('-').map(Number)
+  const year = dateParts[0]
+  const month = dateParts[1]
+  const day = dateParts[2]
+  
+  if (!year || !month || !day) {
+    throw new BadRequestException("Invalid date format")
+  }
+  
+  // Create date in LOCAL timezone (not UTC)
+  const selectedDate = new Date(year, month - 1, day)
+  
   const dayOfWeekMap = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY']
-  const dayIndex = selectedDate.getUTCDay() // Use UTC day
+  const dayIndex = selectedDate.getDay()
   const dayOfWeek = dayOfWeekMap[dayIndex]
 
-  // Ensure dayOfWeek is defined
   if (!dayOfWeek) {
-    throw new ForbiddenException("Invalid date")
+    throw new BadRequestException("Invalid date")
   }
 
   console.log('Looking for schedule on:', dayOfWeek, 'for date:', date)
@@ -423,7 +433,7 @@ async getDoctorAvailableTimeSlots(doctorId: string, date: string) {
     .where(
       and(
         eq(doctorSchedules.doctorId, doctorId),
-        eq(doctorSchedules.dayOfWeek, dayOfWeek),
+        eq(doctorSchedules.dayOfWeek, dayOfWeek), // ✅ Now TypeScript knows it's not undefined
         eq(doctorSchedules.isAvailable, true)
       )
     )
@@ -539,26 +549,31 @@ async create(data: any, user: any) {
         throw new BadRequestException("Requested date and time are required");
     }
 
-    // Parse the requested date
-    const requestedDate = new Date(data.requestedDate);
-    const dateStr = requestedDate.toISOString().split('T')[0];
+    const dateStr = data.requestedDate.split('T')[0];
+    
+    // Validate format
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+        throw new BadRequestException("Invalid date format. Expected YYYY-MM-DD");
+    }
+    
+    // Create UTC date at midnight
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const requestedDate = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
 
-    // Verify doctor exists using existing method (will throw if doctor not found)
+    // Verify doctor exists
     const availability = await this.getDoctorAvailability(data.doctorId);
     
     if (availability.length === 0) {
         throw new BadRequestException("Doctor has no available schedule");
     }
 
-    // Get available time slots for the requested date using existing method
-	if (!data.doctorId || !dateStr) {
-		throw new BadRequestException("Doctor ID and requested date are required");
-	}
-	const availableSlots = await this.getDoctorAvailableTimeSlots(data.doctorId, dateStr);
+    // Get available time slots
+    const availableSlots = await this.getDoctorAvailableTimeSlots(data.doctorId, dateStr);
 
     if (availableSlots.length === 0) {
-        const dayOfWeekMap = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-        const dayOfWeek = dayOfWeekMap[requestedDate.getUTCDay()];
+        const tempDate = new Date(year, month - 1, day);
+        const dayOfWeekMap = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
+        const dayOfWeek = dayOfWeekMap[tempDate.getDay()];
         throw new BadRequestException(
             `Doctor is not available on ${dayOfWeek}s or has no available slots on this date`
         );
@@ -572,19 +587,32 @@ async create(data: any, user: any) {
     }
 
     // All validations passed - create the appointment
-    return this.db
-        .insert(appointmentRequests)
-        .values({
-            patientId: userId,
-            doctorId: data.doctorId,
-            requestedDate: new Date(data.requestedDate),
-            requestedTime: data.requestedTime,
-            reason: data.reason,
-            status: "PENDING",
-            priority: data.priority || "MEDIUM",
-            notes: data.notes,
-        })
-        .returning();
+    try {
+        const result = await this.db
+            .insert(appointmentRequests)
+            .values({
+                patientId: userId,
+                doctorId: data.doctorId,
+                requestedDate,
+                requestedTime: data.requestedTime,
+                reason: data.reason,
+                status: "PENDING",
+                priority: data.priority || "NORMAL",
+                notes: data.notes,
+            })
+            .returning();
+        
+        return result;
+	} catch (error) {
+		console.error('Database insert error:', error);
+		console.error('Error details:', {
+			code: (error as any).code,
+			detail: (error as any).detail,
+			message: (error as any).message,
+			constraint: (error as any).constraint,
+		});
+		throw new BadRequestException(`Failed to create appointment: ${(error as any).message || 'Unknown error'}`);
+	}
 }
 
 	async cancelAppointment(appointmentId: string, reason: string | undefined, user: any) {

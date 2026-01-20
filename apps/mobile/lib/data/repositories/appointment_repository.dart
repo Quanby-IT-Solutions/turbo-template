@@ -8,7 +8,8 @@ class AppointmentRepository {
   /// Create a new appointment
   Future<Appointment> createAppointment({
     required String doctorId,
-    required String scheduledAt,
+    required String requestedDate,
+    required String requestedTime,
     String? reason,
     String? priority,
     String? notes,
@@ -16,7 +17,8 @@ class AppointmentRepository {
     try {
       final response = await HttpService.createAppointment(
         doctorId: doctorId,
-        scheduledAt: scheduledAt,
+        requestedDate: requestedDate,
+        requestedTime: requestedTime,
         reason: reason,
         priority: priority,
         notes: notes,
@@ -35,6 +37,7 @@ class AppointmentRepository {
     }
   }
 
+
   /// Get doctor's weekly availability schedule
   Future<List<DoctorAvailability>> getDoctorWeeklyAvailability(
     String doctorId,
@@ -42,7 +45,7 @@ class AppointmentRepository {
     try {
       final response = await HttpService.getDoctorAvailability(
         doctorId: doctorId,
-        date: '', // Not needed for weekly availability endpoint
+        date: '',
       );
 
       // Backend returns array of availability by day
@@ -58,7 +61,6 @@ class AppointmentRepository {
   }
 
   /// Get available time slots for a specific date
-  /// Get available time slots for a specific date
   Future<List<String>> getDoctorAvailableSlots({
     required String doctorId,
     required String date,
@@ -69,7 +71,6 @@ class AppointmentRepository {
         date: date,
       );
 
-      // Backend returns: { success: true, data: ["09:00", "09:30", ...] }
       if (response is Map && response['data'] != null) {
         return List<String>.from(response['data'] as List);
       } else if (response is List) {
@@ -97,7 +98,6 @@ class AppointmentRepository {
         limit: limit,
       );
 
-      // Backend returns: {items: [...], count: X} or {appointments: [...], meta: {...}}
       final List<dynamic> appointmentsList;
       if (response['items'] != null) {
         appointmentsList = response['items'] as List<dynamic>;
@@ -133,8 +133,12 @@ class AppointmentRepository {
     required DateTime date,
   }) async {
     try {
-      // Format date as YYYY-MM-DD
-      final dateString = date.toIso8601String().split('T').first;
+      // ✅ FIX: Format date without timezone conversion
+      final dateString =
+          '${date.year.toString().padLeft(4, '0')}-'
+          '${date.month.toString().padLeft(2, '0')}-'
+          '${date.day.toString().padLeft(2, '0')}';
+
       final response = await HttpService.getDoctorAvailability(
         doctorId: doctorId,
         date: dateString,

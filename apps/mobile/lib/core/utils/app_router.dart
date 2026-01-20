@@ -9,6 +9,7 @@ import 'package:mobile/presentation/auth/screens/credential_upload_screen.dart';
 import 'package:mobile/presentation/auth/screens/kyc_verification_screen.dart';
 import 'package:mobile/presentation/auth/screens/philhealth_id_upload_screen.dart';
 import 'package:mobile/presentation/onboarding/onboarding_screen.dart';
+import 'package:mobile/presentation/patient/screens/patient_lab_requests_booking_screen.dart';
 import 'package:mobile/presentation/profile/screens/profile_screen.dart';
 import 'package:mobile/presentation/profile/screens/profile_edit_screen.dart';
 import 'package:mobile/presentation/scheduling/screens/appointment_requests_screen.dart';
@@ -445,6 +446,14 @@ final GoRouter appRouter = GoRouter(
           _requireRole(requireDoctor: true, requirePatient: false),
       builder: (context, state) =>
           _animateRoute(const LabRequestScreen(), 'slideInUp'),
+    ),
+    GoRoute(
+      path: '/lab-request-booking',
+      name: 'lab-request-booking',
+      redirect: (context, state) =>
+          _requireRole(requireDoctor: false, requirePatient: true),
+      builder: (context, state) =>
+          _animateRoute(const LabRequestBookingScreen(), 'slideInUp'),
     ),
     GoRoute(
       path: '/vitals-scanner',

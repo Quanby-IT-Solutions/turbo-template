@@ -2,66 +2,67 @@
 	"$schema": "https://openapi.vercel.sh/vercel.json",
 	"buildCommand": "pnpm turbo run build --filter=@repo/web",
 	"installCommand": "pnpm install --frozen-lockfile",
-	"outputDirectory": ".next",
+	"outputDirectory": "apps/web/.next",
 	"framework": "nextjs",
 	"git": {
 		"deploymentEnabled": true
-  },
-  "headers": [
-    {
-      "source": "/(.*)",
-      "headers": [
-        {
-          "key": "Cross-Origin-Opener-Policy",
-          "value": "same-origin"
-        },
-        {
-          "key": "Cross-Origin-Embedder-Policy",
-          "value": "require-corp"
-        }
-      ]
-    },
-    {
-      "source": "/a.wasm.gz",
-      "headers": [
-        {
-          "key": "Content-Type",
-          "value": "application/wasm"
-        },
-        {
-          "key": "Content-Encoding",
-          "value": "gzip"
-        },
-        {
-          "key": "Cross-Origin-Resource-Policy",
-          "value": "cross-origin"
-        },
-        {
-          "key": "Access-Control-Allow-Origin",
-          "value": "*"
-        }
-      ]
-    },
-    {
-      "source": "/a.worker.js",
-      "headers": [
-        {
-          "key": "Content-Type",
-          "value": "application/javascript"
-        },
-        {
-          "key": "Cross-Origin-Embedder-Policy",
-          "value": "require-corp"
-        }
-      ]
-    },
-    {
-      "source": "/models/(.*)",
-      "headers": [
-        {
-          "key": "Cross-Origin-Resource-Policy",
-          "value": "cross-origin"
-        }
-      ]
-    }
-  ]
+	},
+	"headers": [
+		{
+			"source": "/(.*)",
+			"headers": [
+				{
+					"key": "Cross-Origin-Opener-Policy",
+					"value": "same-origin"
+				},
+				{
+					"key": "Cross-Origin-Embedder-Policy",
+					"value": "require-corp"
+				}
+			]
+		},
+		{
+			"source": "/a.wasm.gz",
+			"headers": [
+				{
+					"key": "Content-Type",
+					"value": "application/wasm"
+				},
+				{
+					"key": "Content-Encoding",
+					"value": "gzip"
+				},
+				{
+					"key": "Cross-Origin-Resource-Policy",
+					"value": "cross-origin"
+				},
+				{
+					"key": "Access-Control-Allow-Origin",
+					"value": "*"
+				}
+			]
+		},
+		{
+			"source": "/a.worker.js",
+			"headers": [
+				{
+					"key": "Content-Type",
+					"value": "application/javascript"
+				},
+				{
+					"key": "Cross-Origin-Embedder-Policy",
+					"value": "require-corp"
+				}
+			]
+		},
+		{
+			"source": "/models/(.*)",
+			"headers": [
+				{
+					"key": "Cross-Origin-Resource-Policy",
+					"value": "cross-origin"
+				}
+			]
+		}
+	]
+}

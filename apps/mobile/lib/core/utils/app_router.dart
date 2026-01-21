@@ -8,7 +8,9 @@ import 'package:mobile/presentation/auth/screens/mfa_verification_screen.dart';
 import 'package:mobile/presentation/auth/screens/credential_upload_screen.dart';
 import 'package:mobile/presentation/auth/screens/kyc_verification_screen.dart';
 import 'package:mobile/presentation/auth/screens/philhealth_id_upload_screen.dart';
+import 'package:mobile/presentation/clinical_tools/screens/lab_request_screen.dart';
 import 'package:mobile/presentation/onboarding/onboarding_screen.dart';
+import 'package:mobile/presentation/patient/screens/patient_lab_requests_booking_screen.dart';
 import 'package:mobile/presentation/profile/screens/profile_screen.dart';
 import 'package:mobile/presentation/profile/screens/profile_edit_screen.dart';
 import 'package:mobile/presentation/scheduling/screens/appointment_requests_screen.dart';
@@ -27,7 +29,7 @@ import 'package:mobile/presentation/medical_records/screens/health_trends_screen
 import 'package:mobile/presentation/clinical_tools/screens/face_scan_screen.dart';
 import 'package:mobile/presentation/clinical_tools/screens/prescription_form_screen.dart';
 import 'package:mobile/presentation/clinical_tools/screens/diagnosis_form_screen.dart';
-import 'package:mobile/presentation/clinical_tools/screens/lab_request_screen.dart';
+import 'package:mobile/presentation/lab_requests/organization_search_screen.dart';
 import 'package:mobile/presentation/clinical_tools/screens/vitals_scanner_screen.dart';
 import 'package:mobile/presentation/notifications/screens/notifications_screen.dart';
 import 'package:mobile/presentation/notifications/screens/messaging_screen.dart';
@@ -445,6 +447,22 @@ final GoRouter appRouter = GoRouter(
           _requireRole(requireDoctor: true, requirePatient: false),
       builder: (context, state) =>
           _animateRoute(const LabRequestScreen(), 'slideInUp'),
+    ),
+    GoRoute(
+      path: '/lab-request-booking',
+      name: 'lab-request-booking',
+      redirect: (context, state) =>
+          _requireRole(requireDoctor: false, requirePatient: true),
+      builder: (context, state) =>
+          _animateRoute(const LabRequestBookingScreen(), 'slideInUp'),
+    ),
+    GoRoute(
+      path: '/organization-search',
+      name: 'organization-search',
+      redirect: (context, state) =>
+          _requireRole(requireDoctor: false, requirePatient: true),
+      builder: (context, state) =>
+          _animateRoute(const OrganizationSearchScreen(), 'slideInUp'),
     ),
     GoRoute(
       path: '/vitals-scanner',

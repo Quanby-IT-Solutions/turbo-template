@@ -210,20 +210,27 @@ class AppointmentBookingNotifier extends Notifier<BookingState> {
   }
 
   /// Book a new appointment
-  /// Book a new appointment
   Future<Appointment?> bookAppointment({
     required String doctorId,
     required DateTime scheduledAt,
-    String? reason,
-    String? priority,
+    required String requestedTime,
+    required String reason,
     String? notes,
+    required String priority,
   }) async {
     state = BookingState.loading();
 
     try {
+      // Format date as YYYY-MM-DD to avoid timezone issues
+      final dateStr =
+          '${scheduledAt.year.toString().padLeft(4, '0')}-'
+          '${scheduledAt.month.toString().padLeft(2, '0')}-'
+          '${scheduledAt.day.toString().padLeft(2, '0')}';
+
       final appointment = await _repository.createAppointment(
         doctorId: doctorId,
-        scheduledAt: scheduledAt.toIso8601String(),
+        requestedDate: dateStr,
+        requestedTime: requestedTime,
         reason: reason,
         priority: priority,
         notes: notes,

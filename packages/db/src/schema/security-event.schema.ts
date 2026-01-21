@@ -25,4 +25,4 @@ export const securityEvents = pgTable(
     severityIdx: index('securityEvents_severity_idx').on(table.severity),
     resolvedIdx: index('securityEvents_resolved_idx').on(table.resolved),
   }),
-);
+).enableRLS();

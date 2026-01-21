@@ -3,7 +3,7 @@ import { ExpressAdapter } from "@nestjs/platform-express"
 import type { VercelRequest, VercelResponse } from "@vercel/node"
 import express from "express"
 
-import { MainModule } from "@/main.module"
+import { MainModule } from "../apps/backend/dist/main.module"
 
 // Cache the NestJS app instance across function invocations
 let cachedApp: express.Application | null = null

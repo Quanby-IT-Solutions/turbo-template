@@ -11,4 +11,4 @@ export const emergencyContacts = pgTable(
     contactNumber: varchar('contactNumber', { length: 50 }).notNull(),
     contactAddress: text('contactAddress'),
   },
-);
+).enableRLS();

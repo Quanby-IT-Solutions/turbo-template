@@ -1,22 +1,9 @@
 {
 	"$schema": "https://openapi.vercel.sh/vercel.json",
-	"buildCommand": "pnpm turbo run build --filter=@repo/web --filter=@repo/backend",
+	"buildCommand": "pnpm turbo run build --filter=@repo/web",
 	"installCommand": "pnpm install --frozen-lockfile",
-	"outputDirectory": "apps/web/.next",
+	"outputDirectory": ".next",
 	"framework": "nextjs",
-	"ignoreCommand": "git diff --quiet HEAD^ HEAD ./apps/ ./packages/ ./tooling/ ./turbo.json ./pnpm-workspace.yaml ./api/",
-	"functions": {
-		"api/**/*.ts": {
-			"runtime": "nodejs20.x",
-			"includeFiles": "apps/backend/dist/**"
-		}
-	},
-	"rewrites": [
-		{
-			"source": "/api/:path*",
-			"destination": "/api"
-		}
-	],
 	"git": {
 		"deploymentEnabled": true
 	}

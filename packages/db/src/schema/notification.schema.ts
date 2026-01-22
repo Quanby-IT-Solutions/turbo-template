@@ -31,4 +31,4 @@ export const notifications = pgTable(
     createdAtIdx: index('notifications_createdAt_idx').on(table.createdAt),
     userIdIsReadIdx: index('notifications_userId_isRead_idx').on(table.userId, table.isRead),
   }),
-);
+).enableRLS();

@@ -33,4 +33,4 @@ export const diagnoses = pgTable(
     statusIdx: index('diagnosis_status_idx').on(table.status),
     diagnosedAtIdx: index('diagnosis_diagnosedAt_idx').on(table.diagnosedAt),
   }),
-);
+).enableRLS();

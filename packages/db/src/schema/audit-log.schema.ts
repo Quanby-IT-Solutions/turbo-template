@@ -25,4 +25,4 @@ export const auditLogs = pgTable(
     categoryIdx: index('auditLogs_category_idx').on(table.category),
     levelIdx: index('auditLogs_level_idx').on(table.level),
   }),
-);
+).enableRLS();

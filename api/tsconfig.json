@@ -10,10 +10,7 @@
 		"skipLibCheck": true,
 		"strict": true,
 		"resolveJsonModule": true,
-		"moduleResolution": "node",
-		"paths": {
-			"@/*": ["../apps/backend/src/*"]
-		}
+		"moduleResolution": "node"
 	},
 	"include": ["./**/*.ts"],
 	"exclude": ["node_modules", "dist"]

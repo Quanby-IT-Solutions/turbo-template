@@ -32,4 +32,4 @@ export const organizations = pgTable(
     isSubscriptionActiveIdx: index('organization_isSubscriptionActive_idx').on(table.isSubscriptionActive),
     approvalStatusIdx: index('organization_approvalStatus_idx').on(table.approvalStatus),
   }),
-);
+).enableRLS();

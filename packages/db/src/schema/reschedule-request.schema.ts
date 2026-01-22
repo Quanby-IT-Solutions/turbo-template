@@ -28,4 +28,4 @@ export const rescheduleRequests = pgTable(
     statusIdx: index('rescheduleRequest_status_idx').on(table.status),
     newDateIdx: index('rescheduleRequest_newDate_idx').on(table.newDate),
   }),
-);
+).enableRLS();

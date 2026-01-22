@@ -19,6 +19,7 @@ import { SelfCheckModule } from "./self-check/self-check.module"
 import { SubscriptionTiersModule } from "./subscription-tiers/subscription-tiers.module"
 import { SubscriptionsModule } from "./subscriptions/subscriptions.module"
 import { SuperAdminModule } from "./super-admin/super-admin.module"
+import { UsersModule } from "./users/users.module"
 import { WebRtcModule } from "./webrtc/webrtc.module"
 
 @Module({
@@ -38,6 +39,7 @@ import { WebRtcModule } from "./webrtc/webrtc.module"
 		SuperAdminModule,
 		SubscriptionsModule,
 		SubscriptionTiersModule,
+		UsersModule,
 		WebRtcModule,
 		FaceScanModule,
 		MedicalRecordsModule,

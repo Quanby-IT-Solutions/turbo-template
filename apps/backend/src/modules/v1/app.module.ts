@@ -13,6 +13,7 @@ import { LabRequestsModule } from "./lab-requests/lab-requests.module"
 import { MedicalRecordsModule } from "./medical-records/medical-records.module"
 import { NotificationsModule } from "./notifications/notifications.module"
 import { OrganizationsModule } from "./organizations/organizations.module"
+import { OrganizationSettingsModule } from "./organization-settings/organization-settings.module"
 import { PatientsModule } from "./patients/patients.module"
 import { PrescriptionsModule } from "./prescriptions/prescriptions.module"
 import { SelfCheckModule } from "./self-check/self-check.module"
@@ -33,6 +34,7 @@ import { WebRtcModule } from "./webrtc/webrtc.module"
 		PrescriptionsModule,
 		DiagnosesModule,
 		OrganizationsModule,
+		OrganizationSettingsModule,
 		LabRequestsModule,
 		NotificationsModule,
 		AuditModule,

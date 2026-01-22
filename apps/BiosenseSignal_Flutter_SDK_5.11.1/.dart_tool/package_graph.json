@@ -43,9 +43,11 @@
     },
     {
       "name": "uuid",
-      "version": "3.0.7",
+      "version": "4.5.2",
       "dependencies": [
-        "crypto"
+        "crypto",
+        "fixnum",
+        "meta"
       ]
     },
     {
@@ -81,7 +83,7 @@
     },
     {
       "name": "meta",
-      "version": "1.17.0",
+      "version": "1.16.0",
       "dependencies": []
     },
     {
@@ -143,7 +145,7 @@
     },
     {
       "name": "test_api",
-      "version": "0.7.7",
+      "version": "0.7.6",
       "dependencies": [
         "async",
         "boolean_selector",
@@ -155,6 +157,11 @@
         "string_scanner",
         "term_glyph"
       ]
+    },
+    {
+      "name": "fixnum",
+      "version": "1.1.1",
+      "dependencies": []
     },
     {
       "name": "crypto",

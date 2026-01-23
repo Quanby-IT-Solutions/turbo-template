@@ -7,7 +7,7 @@ import { apiReference } from "@scalar/nestjs-api-reference"
 import compression from "compression"
 import * as express from "express"
 import helmet from "helmet"
-import { cleanupOpenApiDoc } from "nestjs-zod"
+import { cleanupOpenApiDoc, ZodValidationPipe } from "nestjs-zod"
 
 import { MainModule } from "@/main.module"
 

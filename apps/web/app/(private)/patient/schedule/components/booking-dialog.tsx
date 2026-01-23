@@ -1,5 +1,7 @@
 import * as React from "react"
 import { toast } from "sonner"
+
+import { Button } from "@/core/components/ui/button"
 import {
 	Dialog,
 	DialogContent,
@@ -8,7 +10,6 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/core/components/ui/dialog"
-import { Button } from "@/core/components/ui/button"
 import { Field, FieldDescription, FieldLabel } from "@/core/components/ui/field"
 import { Input } from "@/core/components/ui/input"
 import {
@@ -19,21 +20,33 @@ import {
 	SelectValue,
 } from "@/core/components/ui/select"
 import { getUser } from "@/services/api/client"
-import { appointmentsApi } from "@/features/appointments/api/appointments-api"
 import type { DoctorAvailability } from "@/services/api/types"
-import { formatTime, getMinDate } from "../utils/date-formatters"
+import { appointmentsApi } from "@/features/appointments/api/appointments-api"
+
 import { generateTimeSlots } from "../utils/appointment-helpers"
+import { formatTime, getMinDate } from "../utils/date-formatters"
 import { DatePickerWithCalendar } from "./date-picker-with-calendar"
 
 interface BookingDialogProps {
 	open: boolean
 	onOpenChange: (open: boolean) => void
 	doctors: Array<{ id: string; name: string; specialization: string }>
-	existingAppointments?: Array<{ requestedDate: string; requestedTime: string; doctorId: string; status: string }>
+	existingAppointments?: Array<{
+		requestedDate: string
+		requestedTime: string
+		doctorId: string
+		status: string
+	}>
 	onSuccess: () => void
 }
 
-export function BookingDialog({ open, onOpenChange, doctors, existingAppointments = [], onSuccess }: BookingDialogProps) {
+export function BookingDialog({
+	open,
+	onOpenChange,
+	doctors,
+	existingAppointments = [],
+	onSuccess,
+}: BookingDialogProps) {
 	const [selectedDoctorId, setSelectedDoctorId] = React.useState("")
 	const [selectedDate, setSelectedDate] = React.useState<Date | undefined>()
 	const [selectedTime, setSelectedTime] = React.useState("")
@@ -106,7 +119,12 @@ export function BookingDialog({ open, onOpenChange, doctors, existingAppointment
 
 				// Try to get available slots from backend
 				try {
-					const dateString = selectedDate.toISOString().split("T")[0] || ""
+					// ✅ FIX: Format date without timezone conversion
+					const year = selectedDate.getFullYear()
+					const month = String(selectedDate.getMonth() + 1).padStart(2, "0")
+					const day = String(selectedDate.getDate()).padStart(2, "0")
+					const dateString = `${year}-${month}-${day}`
+
 					const slotsResponse = await appointmentsApi.getDoctorAvailableTimeSlots(
 						selectedDoctorId,
 						dateString
@@ -119,7 +137,6 @@ export function BookingDialog({ open, onOpenChange, doctors, existingAppointment
 							setIsLoadingTimeSlots(false)
 							return
 						} else {
-							// Don't return here - fall through to fallback generation
 							console.log("No slots available from backend, using fallback")
 						}
 					}
@@ -188,16 +205,25 @@ export function BookingDialog({ open, onOpenChange, doctors, existingAppointment
 		})
 
 		if (duplicateAppointment) {
-			toast.error("You already have an appointment with this doctor at the same date and time. Please select a different date or time.")
+			toast.error(
+				"You already have an appointment with this doctor at the same date and time. Please select a different date or time."
+			)
 			return
 		}
 
 		try {
 			setIsSubmitting(true)
+
+			// ✅ FIX: Format date without timezone conversion
+			const year = selectedDate.getFullYear()
+			const month = String(selectedDate.getMonth() + 1).padStart(2, "0")
+			const day = String(selectedDate.getDate()).padStart(2, "0")
+			const requestedDate = `${year}-${month}-${day}`
+
 			const response = await appointmentsApi.createAppointment({
 				patientId: user.id,
 				doctorId: selectedDoctorId,
-				requestedDate: selectedDate.toISOString(),
+				requestedDate, // Send as YYYY-MM-DD string
 				requestedTime: selectedTime,
 				reason: reason.trim(),
 				notes: notes.trim() || undefined,
@@ -232,7 +258,10 @@ export function BookingDialog({ open, onOpenChange, doctors, existingAppointment
 				<div className="space-y-4 py-4">
 					<Field>
 						<FieldLabel>Select Doctor *</FieldLabel>
-						<Select value={selectedDoctorId} onValueChange={(value) => setSelectedDoctorId(value ?? "")}>
+						<Select
+							value={selectedDoctorId}
+							onValueChange={value => setSelectedDoctorId(value ?? "")}
+						>
 							<SelectTrigger className="w-full">
 								<SelectValue>
 									{selectedDoctorId && doctors.length > 0
@@ -285,7 +314,7 @@ export function BookingDialog({ open, onOpenChange, doctors, existingAppointment
 									Loading available time slots...
 								</div>
 							) : availableTimes.length > 0 ? (
-								<Select value={selectedTime} onValueChange={(value) => setSelectedTime(value ?? "")}>
+								<Select value={selectedTime} onValueChange={value => setSelectedTime(value ?? "")}>
 									<SelectTrigger>
 										<SelectValue>{selectedTime ? undefined : "Choose a time slot"}</SelectValue>
 									</SelectTrigger>
@@ -346,11 +375,7 @@ export function BookingDialog({ open, onOpenChange, doctors, existingAppointment
 					<Button
 						onClick={handleSubmit}
 						disabled={
-							isSubmitting ||
-							!selectedDoctorId ||
-							!selectedDate ||
-							!selectedTime ||
-							!reason.trim()
+							isSubmitting || !selectedDoctorId || !selectedDate || !selectedTime || !reason.trim()
 						}
 					>
 						{isSubmitting ? "Booking..." : "Book Appointment"}

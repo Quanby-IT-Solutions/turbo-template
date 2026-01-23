@@ -25,7 +25,6 @@ class _AppointmentBookingScreenState
   final _reasonController = TextEditingController();
   final _notesController = TextEditingController();
 
-  // Use temporary doctorId if not provided (for testing)
   String get _doctorId => widget.doctorId ?? 'doctor-temp-id';
   String get _doctorName => widget.doctorName ?? 'Dr. Sarah Anderson';
 
@@ -62,8 +61,8 @@ class _AppointmentBookingScreenState
       'color': Colors.blue,
     },
     {
-      'value': 'MEDIUM',
-      'label': 'Medium',
+      'value': 'NORMAL',
+      'label': 'Normal',
       'icon': Icons.flag,
       'description': 'Standard appointment',
       'color': Colors.orange,
@@ -71,9 +70,16 @@ class _AppointmentBookingScreenState
     {
       'value': 'HIGH',
       'label': 'High',
-      'icon': Icons.flag_rounded,
+      'icon': Icons.fmd_bad,
       'description': 'Urgent consultation',
       'color': Colors.red,
+    },
+    {
+      'value': 'URGENT',
+      'label': 'Urgent',
+      'icon': Icons.warning_rounded,
+      'description': 'Emergency consultation',
+      'color': Colors.red[900]!,
     },
   ];
 
@@ -85,7 +91,6 @@ class _AppointmentBookingScreenState
   }
 
   Future<void> _selectDate() async {
-    // Get doctor's weekly availability
     ref.read(doctorWeeklyAvailabilityProvider(_doctorId));
     await Future.delayed(const Duration(milliseconds: 100));
 
@@ -98,7 +103,6 @@ class _AppointmentBookingScreenState
       orElse: () => [],
     );
 
-    // Create set of available day indices (0=Sunday, 6=Saturday)
     final availableDays = availability
         .where((a) => a.isAvailable)
         .map((a) => a.dayIndex)
@@ -112,17 +116,12 @@ class _AppointmentBookingScreenState
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 90)),
       selectableDayPredicate: (DateTime date) {
-        // Disable dates in the past
         if (date.isBefore(DateTime.now())) {
           return false;
         }
 
-        // If no availability data loaded, allow all future dates
         if (availability.isEmpty) return true;
 
-        // Only enable days where doctor is available
-        // Flutter's weekday: 1=Monday, 7=Sunday
-        // Convert to: 0=Sunday, 6=Saturday
         final dayIndex = date.weekday % 7;
         return availableDays.contains(dayIndex);
       },
@@ -159,7 +158,6 @@ class _AppointmentBookingScreenState
     final dateStr = _selectedDate!.toIso8601String().split('T')[0];
     final params = AvailableSlotsParams(doctorId: _doctorId, date: dateStr);
 
-    // Show loading indicator
     if (!mounted) return;
     showDialog(
       context: context,
@@ -170,7 +168,6 @@ class _AppointmentBookingScreenState
     List<String> availableSlots = [];
 
     try {
-      // Trigger provider and wait for data
       ref.invalidate(availableSlotsProvider(params));
       await Future.delayed(const Duration(milliseconds: 200));
 
@@ -179,7 +176,7 @@ class _AppointmentBookingScreenState
       availableSlots = await slotsAsync.when(
         data: (data) async => data,
         loading: () async {
-          // Wait for actual data
+
           await Future.delayed(const Duration(seconds: 2));
           final retryAsync = ref.read(availableSlotsProvider(params));
           return retryAsync.maybeWhen(
@@ -303,19 +300,15 @@ class _AppointmentBookingScreenState
       return;
     }
 
-    final scheduledAt = DateTime(
-      _selectedDate!.year,
-      _selectedDate!.month,
-      _selectedDate!.day,
-      _selectedTime!.hour,
-      _selectedTime!.minute,
-    );
+    final timeString =
+        '${_selectedTime!.hour.toString().padLeft(2, '0')}:${_selectedTime!.minute.toString().padLeft(2, '0')}';
 
     final appointment = await ref
         .read(appointmentBookingProvider.notifier)
         .bookAppointment(
           doctorId: _doctorId,
-          scheduledAt: scheduledAt,
+          scheduledAt: _selectedDate!,
+          requestedTime: timeString,
           reason: _reasonController.text.trim(),
           notes: _notesController.text.trim().isNotEmpty
               ? _notesController.text.trim()
@@ -334,7 +327,6 @@ class _AppointmentBookingScreenState
       );
       context.pop();
     } else {
-      // Get the actual error message from provider state
       final errorState = ref.read(appointmentBookingProvider);
       final errorMessage =
           errorState.error ?? 'Failed to book appointment. Please try again.';

@@ -44,6 +44,12 @@
       "languageVersion": "3.3"
     },
     {
+      "name": "fixnum",
+      "rootUri": "file:///C:/Users/USER/AppData/Local/Pub/Cache/hosted/pub.dev/fixnum-1.1.1",
+      "packageUri": "lib/",
+      "languageVersion": "3.1"
+    },
+    {
       "name": "flutter",
       "rootUri": "file:///C:/dev/flutter/packages/flutter",
       "packageUri": "lib/",
@@ -165,9 +171,9 @@
     },
     {
       "name": "uuid",
-      "rootUri": "file:///C:/Users/USER/AppData/Local/Pub/Cache/hosted/pub.dev/uuid-3.0.7",
+      "rootUri": "file:///C:/Users/USER/AppData/Local/Pub/Cache/hosted/pub.dev/uuid-4.5.2",
       "packageUri": "lib/",
-      "languageVersion": "2.12"
+      "languageVersion": "3.0"
     },
     {
       "name": "vector_math",

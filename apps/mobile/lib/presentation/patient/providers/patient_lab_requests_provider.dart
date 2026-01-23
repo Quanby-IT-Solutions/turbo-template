@@ -22,10 +22,11 @@ class LabRequest {
   final String? roomId;
   final String? note;
   final String status;
+  final String createdBy;
+  final String updatedBy;
   final String priority;
   final List<String>? requestedTests;
   final String? instructions;
-  final String? patientName;
   final String? organizationName;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -41,8 +42,9 @@ class LabRequest {
     required this.priority,
     this.requestedTests,
     this.instructions,
-    this.patientName,
     this.organizationName,
+    required this.createdBy,
+    required this.updatedBy,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -61,8 +63,9 @@ class LabRequest {
           ? List<String>.from(json['requestedTests'] as List)
           : null,
       instructions: json['instructions'] as String?,
-      patientName: json['patientName'] as String?,
       organizationName: json['organizationName'] as String?,
+      createdBy: json['createdBy'] as String,
+      updatedBy: json['updatedBy'] as String,
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),
     );
@@ -80,7 +83,8 @@ class LabRequest {
       'priority': priority,
       'requestedTests': requestedTests,
       'instructions': instructions,
-      'patientName': patientName,
+      'createdBy': createdBy,
+      'updatedBy': updatedBy,
       'organizationName': organizationName,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),

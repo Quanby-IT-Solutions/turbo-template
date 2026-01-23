@@ -1,9 +1,10 @@
 import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common"
 import { and, desc, eq, inArray, sql } from "drizzle-orm"
 
-import { appointmentRequests, doctorInfos, doctorSchedules, patientInfos, users } from "@repo/db/schema"
+import { appointmentRequests, doctorInfos, doctorSchedules, patientInfos, users, organizationSettings } from "@repo/db/schema"
 
 import { DB, type DBType } from "@/common/database/database-providers"
+import { AppointmentValidator } from "@/shared/validators/appointment.validator"
 
 @Injectable()
 export class AppointmentsService {
@@ -559,6 +560,43 @@ async create(data: any, user: any) {
     // Create UTC date at midnight
     const [year, month, day] = dateStr.split('-').map(Number);
     const requestedDate = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+
+    // Get doctor's organization
+    const [doctor] = await this.db
+        .select({ organizationId: users.organizationId })
+        .from(users)
+        .where(eq(users.id, data.doctorId))
+        .limit(1);
+
+    if (!doctor?.organizationId) {
+        throw new BadRequestException("Doctor is not associated with an organization");
+    }
+
+    // Get organization settings and validate appointment against them
+    const [orgSettings] = await this.db
+        .select()
+        .from(organizationSettings)
+        .where(eq(organizationSettings.organizationId, doctor.organizationId))
+        .limit(1);
+
+    if (orgSettings) {
+        // Validate appointment against organization settings
+        try {
+            AppointmentValidator.validateAppointment(
+                requestedDate,
+                data.requestedTime,
+                {
+                    ...orgSettings,
+                    workingDays: Array.isArray(orgSettings.workingDays) 
+                        ? orgSettings.workingDays as string[]
+                        : (orgSettings.workingDays as any) || []
+                }
+            );
+        } catch (error) {
+            // Re-throw validation errors with clear message
+            throw new BadRequestException((error as any).message);
+        }
+    }
 
     // Verify doctor exists
     const availability = await this.getDoctorAvailability(data.doctorId);

@@ -49,13 +49,13 @@ const config: NextConfig = {
 				asyncWebAssembly: true,
 			}
 
-			// Handle .wasm.gz files
+			// Handle .wasm.gz files - SDK will fetch these from public directory
 			config.module.rules.push({
 				test: /\.wasm\.gz$/,
 				type: "asset/resource",
 			})
 
-			// Handle worker files
+			// Handle worker files - SDK will fetch these from public directory
 			config.module.rules.push({
 				test: /\.worker\.js$/,
 				type: "asset/resource",
@@ -67,6 +67,13 @@ const config: NextConfig = {
 				fs: false,
 				net: false,
 				tls: false,
+			}
+			
+			// Ensure SDK files are copied to public directory during build
+			config.resolve.alias = {
+				...config.resolve.alias,
+				'@biosensesignal/web-sdk/dist/a.wasm.gz$': '/a.wasm.gz',
+				'@biosensesignal/web-sdk/dist/a.worker.js$': '/a.worker.js',
 			}
 		}
 		return config

@@ -17,6 +17,7 @@ import { OrganizationsModule } from "./organizations/organizations.module"
 import { OrganizationSettingsModule } from "./organization-settings/organization-settings.module"
 import { PatientsModule } from "./patients/patients.module"
 import { PrescriptionsModule } from "./prescriptions/prescriptions.module"
+import { ReportsModule } from "./reports/reports.module"
 import { SelfCheckModule } from "./self-check/self-check.module"
 import { SubscriptionTiersModule } from "./subscription-tiers/subscription-tiers.module"
 import { SubscriptionsModule } from "./subscriptions/subscriptions.module"
@@ -47,6 +48,7 @@ import { WebRtcModule } from "./webrtc/webrtc.module"
 		WebRtcModule,
 		FaceScanModule,
 		MedicalRecordsModule,
+		ReportsModule,
 		SelfCheckModule,
 		EmailModule,
 	],

@@ -27,7 +27,7 @@ export class LabRequestsController {
 
 	@Post()
 	@ZodSerializerDto(LabRequestResponseDto)
-	@Roles("DOCTOR", "ADMIN", "SUPER_ADMIN")
+	@Roles("DOCTOR", "ADMIN", "SUPER_ADMIN", "PATIENT")
 	async create(@Body() data: any, @User() user: any) {
 		const doctorId = user?.userId || user?.id
 		if (!doctorId) {

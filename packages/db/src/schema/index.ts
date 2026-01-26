@@ -36,6 +36,7 @@ export * from './subscription-tier-setting.schema.js';
 export * from './face-scan-result.schema.js';
 export * from './patient-medical-history.schema.js';
 export * from './organization-settings.schema.js';
+export * from './system-report.schema.js';
 
 // Keep todos exports for backward compatibility (if needed)
 import * as todos from "./todos.js"
@@ -65,6 +66,7 @@ import * as subscriptionTierSettingSchema from "./subscription-tier-setting.sche
 import * as faceScanResultSchema from "./face-scan-result.schema.js"
 import * as patientMedicalHistorySchema from "./patient-medical-history.schema.js"
 import * as organizationSettingsSchema from "./organization-settings.schema.js"
+import * as systemReportSchema from "./system-report.schema.js"
 
 // Note: auth.ts is not exported - we use user.schema.ts and better-auth.schema.ts instead
 
@@ -96,6 +98,7 @@ export const schema = {
 	...faceScanResultSchema,
 	...patientMedicalHistorySchema,
 	...organizationSettingsSchema,
+	...systemReportSchema,
 }
 
 export type Schema = typeof schema

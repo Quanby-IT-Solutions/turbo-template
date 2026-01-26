@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common"
 
+import { DoctorSchedulesModule } from "./admin/doctor-schedules/doctor-schedules.module"
 import { AppointmentsModule } from "./appointments/appointments.module"
 import { AuditModule } from "./audit/audit.module"
 import { AuthModule } from "./auth/auth.module"
@@ -16,6 +17,7 @@ import { OrganizationsModule } from "./organizations/organizations.module"
 import { OrganizationSettingsModule } from "./organization-settings/organization-settings.module"
 import { PatientsModule } from "./patients/patients.module"
 import { PrescriptionsModule } from "./prescriptions/prescriptions.module"
+import { ReportsModule } from "./reports/reports.module"
 import { SelfCheckModule } from "./self-check/self-check.module"
 import { SubscriptionTiersModule } from "./subscription-tiers/subscription-tiers.module"
 import { SubscriptionsModule } from "./subscriptions/subscriptions.module"
@@ -28,6 +30,7 @@ import { WebRtcModule } from "./webrtc/webrtc.module"
 		ExamplesModule,
 		AuthModule,
 		DoctorsModule,
+		DoctorSchedulesModule,
 		PatientsModule,
 		AppointmentsModule,
 		ConsultationsModule,
@@ -45,6 +48,7 @@ import { WebRtcModule } from "./webrtc/webrtc.module"
 		WebRtcModule,
 		FaceScanModule,
 		MedicalRecordsModule,
+		ReportsModule,
 		SelfCheckModule,
 		EmailModule,
 	],

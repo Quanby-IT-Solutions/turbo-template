@@ -30,11 +30,39 @@ const config: NextConfig = {
 	},
 
 	// Serve static files from uploads folder when using local storage
+	// Also rewrite SDK files to root for all nested paths (SDK uses relative publicPath "./")
 	async rewrites() {
 		return [
 			{
 				source: "/uploads/:path*",
 				destination: "/uploads/:path*",
+			},
+			// BiosenseSignal SDK rewrites - the SDK uses relative paths ("./")
+			// so when page is at /patient/self-check/, it tries to fetch ./a.wasm.gz
+			// which becomes /patient/self-check/a.wasm.gz - we need to redirect to root
+			{
+				source: "/:path*/a.wasm.gz",
+				destination: "/a.wasm.gz",
+			},
+			{
+				source: "/:path*/a.wasm",
+				destination: "/a.wasm",
+			},
+			{
+				source: "/:path*/a.js",
+				destination: "/a.js",
+			},
+			{
+				source: "/:path*/a.worker.js",
+				destination: "/a.worker.js",
+			},
+			{
+				source: "/:path*/799.js",
+				destination: "/799.js",
+			},
+			{
+				source: "/:path*/models/:model*",
+				destination: "/models/:model*",
 			},
 		]
 	},

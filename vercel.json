@@ -7,6 +7,32 @@
 	"git": {
 		"deploymentEnabled": true
 	},
+	"rewrites": [
+		{
+			"source": "/:path*/a.wasm.gz",
+			"destination": "/a.wasm.gz"
+		},
+		{
+			"source": "/:path*/a.wasm",
+			"destination": "/a.wasm"
+		},
+		{
+			"source": "/:path*/a.js",
+			"destination": "/a.js"
+		},
+		{
+			"source": "/:path*/a.worker.js",
+			"destination": "/a.worker.js"
+		},
+		{
+			"source": "/:path*/799.js",
+			"destination": "/799.js"
+		},
+		{
+			"source": "/:path*/models/:model*",
+			"destination": "/models/:model*"
+		}
+	],
 	"headers": [
 		{
 			"source": "/(.*)",

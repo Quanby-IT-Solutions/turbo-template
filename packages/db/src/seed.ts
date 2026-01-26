@@ -16,6 +16,8 @@ import { doctorInfos } from "./schema/doctor-info.schema.js"
 import { patientInfos } from "./schema/patient-info.schema.js"
 import { usersToDoctorCategories } from "./schema/user-doctor-category.schema.js"
 import { account } from "./schema/better-auth.schema.js"
+import { appointmentRequests } from "./schema/appointment-request.schema.js"
+import { consultations } from "./schema/consultation.schema.js"
 
 /**
  * Create Better Auth account for a user
@@ -493,6 +495,133 @@ async function seed() {
 					})
 				}
 			}
+		}
+
+		console.log("✅ Users seeded successfully")
+
+		// Seed Appointment Requests
+		console.log("📅 Seeding appointment requests...")
+		if (quanbyOrg && quanbyDoctor && testPatient) {
+			// Create multiple patients for more realistic data
+			const patients = [testPatient]
+			
+			// Create additional patients
+			for (let i = 1; i <= 5; i++) {
+				const existingPatient = await db.query.users.findFirst({
+					where: (users, { eq }) => eq(users.email, `patient${i}@example.com`),
+				})
+				
+				if (!existingPatient) {
+					const [newPatient] = await db
+						.insert(users)
+						.values({
+							name: `Patient ${i}`,
+							email: `patient${i}@example.com`,
+							password: patientPassword,
+							emailVerified: true,
+							role: "PATIENT",
+							organizationId: quanbyOrg.id,
+						})
+						.returning()
+					
+					if (newPatient) {
+						await createBetterAuthAccount(db, newPatient.id, newPatient.email, "patient123")
+						
+						const bloodTypes = ["A+", "B+", "O+", "AB+", "A-", "B-", "O-", "AB-"]
+						const selectedBloodType = bloodTypes[i % bloodTypes.length] || "O+"
+						
+						await db.insert(patientInfos).values({
+							userId: newPatient.id,
+							firstName: `Patient`,
+							lastName: `${i}`,
+							gender: i % 2 === 0 ? "FEMALE" : "MALE",
+							dateOfBirth: new Date(`199${i}-0${i}-15`),
+							contactNumber: `+1-555-050${i}`,
+							address: `${100 + i} Patient Lane, Health City, HC 5432${i}`,
+							weight: 60 + i * 5,
+							height: 160 + i * 2,
+							bloodType: selectedBloodType,
+						})
+						
+						patients.push(newPatient)
+					}
+				} else {
+					patients.push(existingPatient)
+				}
+			}
+
+			// Create appointments with different statuses across different time periods
+			type AppointmentStatus = "PENDING" | "CONFIRMED" | "COMPLETED" | "CANCELLED" | "REJECTED" | "RESCHEDULED"
+			const appointmentStatuses: AppointmentStatus[] = ["COMPLETED", "COMPLETED", "COMPLETED", "PENDING", "CANCELLED"]
+			const now = new Date()
+			
+			for (let i = 0; i < 20; i++) {
+				const patient = patients[i % patients.length]
+				if (!patient) continue
+				const status = appointmentStatuses[i % appointmentStatuses.length]
+				
+				// Distribute appointments across last 90 days
+				const daysAgo = Math.floor(Math.random() * 90)
+				const createdAt = new Date(now.getTime() - daysAgo * 24 * 60 * 60 * 1000)
+				
+				const existingAppointment = await db.query.appointmentRequests.findFirst({
+					where: (appointments, { and, eq }) => 
+						and(
+							eq(appointments.patientId, patient.id),
+							eq(appointments.doctorId, quanbyDoctor.id)
+						),
+				})
+				
+				if (!existingAppointment || i > 0) {
+					await db.insert(appointmentRequests).values({
+						patientId: patient.id,
+						doctorId: quanbyDoctor.id,
+						requestedDate: new Date(createdAt.getTime() + 7 * 24 * 60 * 60 * 1000),
+						requestedTime: `${9 + (i % 8)}:00`,
+						reason: `Routine checkup ${i + 1}`,
+						status,
+						createdAt,
+						updatedAt: createdAt,
+					})
+				}
+			}
+			console.log("✅ Appointment requests seeded")
+
+			// Seed Consultations
+			console.log("💬 Seeding consultations...")
+			for (let i = 0; i < 15; i++) {
+				const patient = patients[i % patients.length]
+				if (!patient) continue
+				
+				// Distribute consultations across last 60 days
+				const daysAgo = Math.floor(Math.random() * 60)
+				const createdAt = new Date(now.getTime() - daysAgo * 24 * 60 * 60 * 1000)
+				
+				const existingConsultation = await db.query.consultations.findFirst({
+					where: (consultations, { and, eq }) => 
+						and(
+							eq(consultations.patientId, patient.id),
+							eq(consultations.doctorId, quanbyDoctor.id)
+						),
+				})
+				
+				if (!existingConsultation || i > 0) {
+					await db.insert(consultations).values({
+						patientId: patient.id,
+						doctorId: quanbyDoctor.id,
+						startTime: createdAt,
+						endTime: new Date(createdAt.getTime() + 30 * 60 * 1000),
+						consultationCode: `CONS-${Date.now()}-${i}`,
+						isPublic: false,
+						notes: `Medical concern ${i + 1}`,
+						diagnosis: `Diagnosis ${i + 1}`,
+						treatment: `Treatment plan ${i + 1}`,
+						createdAt,
+						updatedAt: createdAt,
+					})
+				}
+			}
+			console.log("✅ Consultations seeded")
 		}
 
 		console.log("✅ Users seeded successfully")

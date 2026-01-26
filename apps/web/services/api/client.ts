@@ -87,15 +87,19 @@ export async function apiRequest<T>(
 		const data = await response.json()
 
 		if (!response.ok) {
-			console.error("❌ API request failed", {
-				url,
-				status: response.status,
-				statusText: response.statusText,
-				error: data.error,
-				message: data.message,
-				hasSessionToken: !!sessionToken,
-				hasAuthHeader: !!config.headers?.["Authorization"],
-			})
+			// Only log server errors (5xx) and client errors other than validation (400)
+			// 400 Bad Request errors are validation errors handled by toast notifications
+			if (response.status !== 400) {
+				console.error("❌ API request failed", {
+					url,
+					status: response.status,
+					statusText: response.statusText,
+					error: data.error,
+					message: data.message,
+					hasSessionToken: !!sessionToken,
+					hasAuthHeader: !!config.headers?.["Authorization"],
+				})
+			}
 
 			// Handle 401 Unauthorized - token might be expired or invalid
 			if (response.status === 401) {

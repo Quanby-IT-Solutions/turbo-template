@@ -24,3 +24,8 @@ plugins {
 }
 
 include(":app")
+
+// NOTE:
+// We intentionally do NOT apply any custom init scripts here.
+// Gradle 8+ is sensitive to early provider access; forcing Android extension evaluation
+// can break some Flutter plugins (e.g. permission_handler_android) during task wiring.

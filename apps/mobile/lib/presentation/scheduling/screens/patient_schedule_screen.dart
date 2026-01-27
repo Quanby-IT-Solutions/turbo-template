@@ -14,8 +14,7 @@ class PatientScheduleScreen extends ConsumerStatefulWidget {
       _PatientScheduleScreenState();
 }
 
-class _PatientScheduleScreenState
-    extends ConsumerState<PatientScheduleScreen> {
+class _PatientScheduleScreenState extends ConsumerState<PatientScheduleScreen> {
   String _filterStatus = 'all';
   int _currentPage = 1;
   static const int _itemsPerPage = 10;
@@ -32,7 +31,9 @@ class _PatientScheduleScreenState
     if (status == 'all') {
       return appointments.length;
     }
-    return appointments.where((a) => a.status.toLowerCase() == status.toLowerCase()).length;
+    return appointments
+        .where((a) => a.status.toLowerCase() == status.toLowerCase())
+        .length;
   }
 
   List<Appointment> _filterAppointments(
@@ -45,15 +46,14 @@ class _PatientScheduleScreenState
     switch (filterType) {
       case 'upcoming':
         return appointments
-            .where((a) =>
-                (a.isConfirmed || a.isPending) &&
-                a.scheduledAt.isAfter(now))
+            .where(
+              (a) =>
+                  (a.isConfirmed || a.isPending) && a.scheduledAt.isAfter(now),
+            )
             .toList()
           ..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
       case 'past':
-        return appointments
-            .where((a) => a.scheduledAt.isBefore(today))
-            .toList()
+        return appointments.where((a) => a.scheduledAt.isBefore(today)).toList()
           ..sort((a, b) => b.scheduledAt.compareTo(a.scheduledAt));
       case 'pending':
         return appointments.where((a) => a.isPending).toList()
@@ -84,9 +84,7 @@ class _PatientScheduleScreenState
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.red,
-            ),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: const Text('Yes, Cancel'),
           ),
         ],
@@ -134,15 +132,7 @@ class _PatientScheduleScreenState
       'Nov',
       'Dec',
     ];
-    final weekdays = [
-      'Mon',
-      'Tue',
-      'Wed',
-      'Thu',
-      'Fri',
-      'Sat',
-      'Sun',
-    ];
+    final weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     final weekday = weekdays[dateTime.weekday - 1];
     final hour = dateTime.hour > 12 ? dateTime.hour - 12 : dateTime.hour;
     final ampm = dateTime.hour >= 12 ? 'PM' : 'AM';
@@ -195,11 +185,12 @@ class _PatientScheduleScreenState
           ),
           actions: [
             IconButton(
-              icon: Icon(
-                Icons.filter_list_rounded,
-                color: colorScheme.primary,
+              icon: Icon(Icons.filter_list_rounded, color: colorScheme.primary),
+              onPressed: () => _showFilterBottomSheet(
+                context,
+                appointmentsAsync,
+                colorScheme,
               ),
-              onPressed: () => _showFilterBottomSheet(context, appointmentsAsync, colorScheme),
             ),
             const SizedBox(width: 8),
           ],
@@ -208,10 +199,13 @@ class _PatientScheduleScreenState
             child: Container(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
               child: appointmentsAsync.maybeWhen(
-                    data: (appointments) {
+                data: (appointments) {
                   final allCount = _getStatusCount(appointments, 'all');
                   final pendingCount = _getStatusCount(appointments, 'pending');
-                  final confirmedCount = _getStatusCount(appointments, 'confirmed');
+                  final confirmedCount = _getStatusCount(
+                    appointments,
+                    'confirmed',
+                  );
 
                   return SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
@@ -364,7 +358,10 @@ class _PatientScheduleScreenState
             );
           },
           data: (appointments) {
-            final filteredAppointments = _filterAppointments(appointments, _filterStatus);
+            final filteredAppointments = _filterAppointments(
+              appointments,
+              _filterStatus,
+            );
 
             return RefreshIndicator(
               onRefresh: () async {
@@ -392,7 +389,9 @@ class _PatientScheduleScreenState
         constraints: const BoxConstraints(minHeight: 40),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? colorScheme.primary : colorScheme.surfaceContainerHigh,
+          color: isSelected
+              ? colorScheme.primary
+              : colorScheme.surfaceContainerHigh,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: isSelected
@@ -404,7 +403,7 @@ class _PatientScheduleScreenState
         child: Row(
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
-                children: [
+          children: [
             Icon(
               icon,
               size: 16,
@@ -437,9 +436,7 @@ class _PatientScheduleScreenState
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
-                  color: isSelected
-                      ? Colors.white
-                      : colorScheme.primary,
+                  color: isSelected ? Colors.white : colorScheme.primary,
                 ),
               ),
             ),
@@ -489,9 +486,18 @@ class _PatientScheduleScreenState
               data: (appointments) {
                 final allCount = _getStatusCount(appointments, 'all');
                 final pendingCount = _getStatusCount(appointments, 'pending');
-                final confirmedCount = _getStatusCount(appointments, 'confirmed');
-                final cancelledCount = _getStatusCount(appointments, 'cancelled');
-                final rescheduledCount = _getStatusCount(appointments, 'rescheduled');
+                final confirmedCount = _getStatusCount(
+                  appointments,
+                  'confirmed',
+                );
+                final cancelledCount = _getStatusCount(
+                  appointments,
+                  'cancelled',
+                );
+                final rescheduledCount = _getStatusCount(
+                  appointments,
+                  'rescheduled',
+                );
 
                 return Column(
                   children: [
@@ -603,9 +609,7 @@ class _PatientScheduleScreenState
               : colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected
-                ? colorScheme.primary
-                : Colors.transparent,
+            color: isSelected ? colorScheme.primary : Colors.transparent,
             width: 1.5,
           ),
         ),
@@ -697,21 +701,21 @@ class _PatientScheduleScreenState
             ),
             const SizedBox(height: 8),
             Text(
-              _filterStatus == 'all' 
-                ? 'Book an appointment to get started'
-                : 'No ${_filterStatus} appointments found',
+              _filterStatus == 'all'
+                  ? 'Book an appointment to get started'
+                  : 'No $_filterStatus appointments found',
               style: TextStyle(
                 fontSize: 14,
                 color: colorScheme.onSurface.withValues(alpha: 0.6),
               ),
             ),
             if (_filterStatus == 'all') ...[
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: () => context.push('/doctor-search'),
-              icon: const Icon(Icons.add_rounded),
-              label: const Text('Book Appointment'),
-            ),
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: () => context.push('/doctor-search'),
+                icon: const Icon(Icons.add_rounded),
+                label: const Text('Book Appointment'),
+              ),
             ],
           ],
         ),
@@ -733,24 +737,25 @@ class _PatientScheduleScreenState
           child: ListView.builder(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
             itemCount: paginatedAppointments.length,
-      itemBuilder: (context, index) {
+            itemBuilder: (context, index) {
               final appointment = paginatedAppointments[index];
-        return _buildAppointmentCard(appointment);
-      },
+              return _buildAppointmentCard(appointment);
+            },
           ),
         ),
-        if (totalPages > 1) _buildPaginationControls(
-          currentPage: _currentPage,
-          totalPages: totalPages,
-          totalItems: appointments.length,
-          startIndex: startIndex,
-          endIndex: endIndex,
-          onPageChanged: (page) {
-            setState(() {
-              _currentPage = page;
-            });
-          },
-        ),
+        if (totalPages > 1)
+          _buildPaginationControls(
+            currentPage: _currentPage,
+            totalPages: totalPages,
+            totalItems: appointments.length,
+            startIndex: startIndex,
+            endIndex: endIndex,
+            onPageChanged: (page) {
+              setState(() {
+                _currentPage = page;
+              });
+            },
+          ),
       ],
     );
   }
@@ -795,16 +800,14 @@ class _PatientScheduleScreenState
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-              IconButton(
-                icon: const Icon(Icons.chevron_left_rounded),
-                onPressed: currentPage > 1
-                    ? () => onPageChanged(currentPage - 1)
-                    : null,
-                iconSize: 20,
-              ),
-              ...List.generate(
-                totalPages > 5 ? 5 : totalPages,
-                (index) {
+                IconButton(
+                  icon: const Icon(Icons.chevron_left_rounded),
+                  onPressed: currentPage > 1
+                      ? () => onPageChanged(currentPage - 1)
+                      : null,
+                  iconSize: 20,
+                ),
+                ...List.generate(totalPages > 5 ? 5 : totalPages, (index) {
                   int page;
                   if (totalPages <= 5) {
                     page = index + 1;
@@ -815,8 +818,11 @@ class _PatientScheduleScreenState
                   } else {
                     page = currentPage - 2 + index;
                   }
-                  
-                  if (totalPages > 5 && index == 2 && currentPage > 3 && currentPage < totalPages - 2) {
+
+                  if (totalPages > 5 &&
+                      index == 2 &&
+                      currentPage > 3 &&
+                      currentPage < totalPages - 2) {
                     return Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 4),
                       child: Text(
@@ -827,7 +833,7 @@ class _PatientScheduleScreenState
                       ),
                     );
                   }
-                  
+
                   return Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 4),
                     child: GestureDetector(
@@ -857,19 +863,18 @@ class _PatientScheduleScreenState
                       ),
                     ),
                   );
-                },
-              ),
-              IconButton(
-                icon: const Icon(Icons.chevron_right_rounded),
-                onPressed: currentPage < totalPages
-                    ? () => onPageChanged(currentPage + 1)
-                    : null,
-                iconSize: 20,
-              ),
-            ],
-          ),
-        ],
-      ),
+                }),
+                IconButton(
+                  icon: const Icon(Icons.chevron_right_rounded),
+                  onPressed: currentPage < totalPages
+                      ? () => onPageChanged(currentPage + 1)
+                      : null,
+                  iconSize: 20,
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -884,10 +889,7 @@ class _PatientScheduleScreenState
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: statusColor.withValues(alpha: 0.2),
-          width: 1,
-        ),
+        border: Border.all(color: statusColor.withValues(alpha: 0.2), width: 1),
         boxShadow: [
           BoxShadow(
             color: colorScheme.shadow.withValues(alpha: 0.06),
@@ -974,27 +976,28 @@ class _PatientScheduleScreenState
               // Reason for Visit
               if (appointment.reasonForVisit != null) ...[
                 const SizedBox(height: 16),
-                      Text(
+                Text(
                   'Reason: ${appointment.reasonForVisit!}',
-                        style: TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
                     color: colorScheme.onSurface.withValues(alpha: 0.7),
-                        ),
-                      ),
+                  ),
+                ),
               ],
               // Specialization
               if (appointment.doctorSpecialization != null) ...[
                 const SizedBox(height: 8),
-                      Text(
+                Text(
                   'Specialization: ${appointment.doctorSpecialization!}',
-                        style: TextStyle(
-                          fontSize: 14,
+                  style: TextStyle(
+                    fontSize: 14,
                     color: colorScheme.onSurface.withValues(alpha: 0.7),
-                        ),
-                      ),
-                    ],
+                  ),
+                ),
+              ],
               // Notes
-              if (appointment.notes != null && appointment.notes!.isNotEmpty) ...[
+              if (appointment.notes != null &&
+                  appointment.notes!.isNotEmpty) ...[
                 const SizedBox(height: 8),
                 Text(
                   'Notes: ${appointment.notes!}',
@@ -1005,14 +1008,18 @@ class _PatientScheduleScreenState
                 ),
               ],
               // Reschedule Requests
-              if (appointment.rescheduleRequests != null && appointment.rescheduleRequests!.isNotEmpty) ...[
+              if (appointment.rescheduleRequests != null &&
+                  appointment.rescheduleRequests!.isNotEmpty) ...[
                 const SizedBox(height: 16),
                 ...appointment.rescheduleRequests!
                     .where((req) => req.status == 'PENDING')
-                    .map((req) => _buildRescheduleRequestCard(req, appointment)),
+                    .map(
+                      (req) => _buildRescheduleRequestCard(req, appointment),
+                    ),
               ],
               // Action Buttons
-              if ((appointment.isPending || appointment.isConfirmed) && !isPast) ...[
+              if ((appointment.isPending || appointment.isConfirmed) &&
+                  !isPast) ...[
                 const SizedBox(height: 16),
                 Row(
                   children: [
@@ -1027,17 +1034,17 @@ class _PatientScheduleScreenState
                             side: BorderSide(
                               color: Colors.red.withValues(alpha: 0.5),
                             ),
-                            padding:
-                                const EdgeInsets.symmetric(vertical: 12),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
                           ),
                         ),
                       ),
-                    if (appointment.isConfirmed && !appointment.hasPendingRescheduleRequest) ...[
+                    if (appointment.isConfirmed &&
+                        !appointment.hasPendingRescheduleRequest) ...[
                       if (appointment.isPending || appointment.isConfirmed)
-                      const SizedBox(width: 8),
+                        const SizedBox(width: 8),
                       Expanded(
                         child: OutlinedButton.icon(
                           onPressed: appointment.hasPendingRescheduleRequest
@@ -1050,8 +1057,7 @@ class _PatientScheduleScreenState
                             side: BorderSide(
                               color: colorScheme.primary.withValues(alpha: 0.5),
                             ),
-                            padding:
-                                const EdgeInsets.symmetric(vertical: 12),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
@@ -1069,14 +1075,38 @@ class _PatientScheduleScreenState
     );
   }
 
-  Widget _buildRescheduleRequestCard(RescheduleRequest request, Appointment appointment) {
+  Widget _buildRescheduleRequestCard(
+    RescheduleRequest request,
+    Appointment appointment,
+  ) {
     final canApproveReject = request.requestedByRole != 'PATIENT';
 
     String formatDate(String dateString) {
       try {
         final date = DateTime.parse(dateString);
-        final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        final weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+        final months = [
+          'Jan',
+          'Feb',
+          'Mar',
+          'Apr',
+          'May',
+          'Jun',
+          'Jul',
+          'Aug',
+          'Sep',
+          'Oct',
+          'Nov',
+          'Dec',
+        ];
+        final weekdays = [
+          'Monday',
+          'Tuesday',
+          'Wednesday',
+          'Thursday',
+          'Friday',
+          'Saturday',
+          'Sunday',
+        ];
         return '${weekdays[date.weekday - 1]}, ${months[date.month - 1]} ${date.day}, ${date.year}';
       } catch (e) {
         return dateString;
@@ -1123,19 +1153,13 @@ class _PatientScheduleScreenState
           const SizedBox(height: 8),
           Text(
             'Requested: ${formatDate(request.newDate)} at ${formatTime(request.newTime)}',
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.orange.shade700,
-            ),
+            style: TextStyle(fontSize: 12, color: Colors.orange.shade700),
           ),
           if (request.reason.isNotEmpty) ...[
             const SizedBox(height: 4),
             Text(
               'Reason: ${request.reason}',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.orange.shade700,
-              ),
+              style: TextStyle(fontSize: 12, color: Colors.orange.shade700),
             ),
           ],
           if (canApproveReject) ...[
@@ -1144,7 +1168,8 @@ class _PatientScheduleScreenState
               children: [
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: () => _approveRescheduleRequest(appointment, request),
+                    onPressed: () =>
+                        _approveRescheduleRequest(appointment, request),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
                       foregroundColor: Colors.white,
@@ -1155,14 +1180,18 @@ class _PatientScheduleScreenState
                     ),
                     child: const Text(
                       'Approve',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: () => _rejectRescheduleRequest(appointment, request),
+                    onPressed: () =>
+                        _rejectRescheduleRequest(appointment, request),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.red,
                       foregroundColor: Colors.white,
@@ -1173,7 +1202,10 @@ class _PatientScheduleScreenState
                     ),
                     child: const Text(
                       'Reject',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ),
@@ -1195,7 +1227,10 @@ class _PatientScheduleScreenState
     );
   }
 
-  Future<void> _approveRescheduleRequest(Appointment appointment, RescheduleRequest request) async {
+  Future<void> _approveRescheduleRequest(
+    Appointment appointment,
+    RescheduleRequest request,
+  ) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -1210,9 +1245,7 @@ class _PatientScheduleScreenState
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.green,
-            ),
+            style: TextButton.styleFrom(foregroundColor: Colors.green),
             child: const Text('Yes, Approve'),
           ),
         ],
@@ -1241,14 +1274,18 @@ class _PatientScheduleScreenState
           ToastService.showError(
             context: context,
             title: 'Approval Failed',
-            description: 'Failed to approve reschedule request: ${e.toString()}',
+            description:
+                'Failed to approve reschedule request: ${e.toString()}',
           );
         }
       }
     }
   }
 
-  Future<void> _rejectRescheduleRequest(Appointment appointment, RescheduleRequest request) async {
+  Future<void> _rejectRescheduleRequest(
+    Appointment appointment,
+    RescheduleRequest request,
+  ) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -1263,9 +1300,7 @@ class _PatientScheduleScreenState
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.red,
-            ),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: const Text('Yes, Reject'),
           ),
         ],
@@ -1307,8 +1342,29 @@ class _PatientScheduleScreenState
     String formatDateLong(String dateString) {
       try {
         final date = DateTime.parse(dateString);
-        final months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-        final weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+        final months = [
+          'January',
+          'February',
+          'March',
+          'April',
+          'May',
+          'June',
+          'July',
+          'August',
+          'September',
+          'October',
+          'November',
+          'December',
+        ];
+        final weekdays = [
+          'Monday',
+          'Tuesday',
+          'Wednesday',
+          'Thursday',
+          'Friday',
+          'Saturday',
+          'Sunday',
+        ];
         return '${weekdays[date.weekday - 1]}, ${months[date.month - 1]} ${date.day}, ${date.year}';
       } catch (e) {
         return dateString;
@@ -1357,23 +1413,23 @@ class _PatientScheduleScreenState
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
               child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Appointment Details',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                      color: colorScheme.onSurface,
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Appointment Details',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: colorScheme.onSurface,
+                      ),
                     ),
                   ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close_rounded),
-                  onPressed: () => Navigator.of(context).pop(),
-                ),
-              ],
-            ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ],
+              ),
             ),
             // Scrollable content
             Flexible(
@@ -1395,34 +1451,36 @@ class _PatientScheduleScreenState
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                        color: colorScheme.surfaceContainerHighest.withValues(
+                          alpha: 0.5,
+                        ),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-            _buildDetailRow(
+                          _buildDetailRow(
                             'Doctor Name',
                             appointment.doctorDisplayName,
-              Icons.person_rounded,
-              colorScheme,
-            ),
+                            Icons.person_rounded,
+                            colorScheme,
+                          ),
                           if (appointment.doctorSpecialization != null) ...[
                             const SizedBox(height: 12),
-            _buildDetailRow(
+                            _buildDetailRow(
                               'Specialization',
                               appointment.doctorSpecialization!,
                               Icons.medical_services_rounded,
-              colorScheme,
-            ),
+                              colorScheme,
+                            ),
                           ],
                           if (appointment.doctor?.email != null) ...[
                             const SizedBox(height: 12),
-            _buildDetailRow(
+                            _buildDetailRow(
                               'Email',
                               appointment.doctor!.email!,
                               Icons.email_rounded,
-              colorScheme,
+                              colorScheme,
                             ),
                           ],
                         ],
@@ -1439,7 +1497,12 @@ class _PatientScheduleScreenState
                       ),
                     ),
                     const SizedBox(height: 12),
-                    _buildAppointmentTimeline(appointment, colorScheme, formatDateLong, formatTime),
+                    _buildAppointmentTimeline(
+                      appointment,
+                      colorScheme,
+                      formatDateLong,
+                      formatTime,
+                    ),
                     const SizedBox(height: 24),
                     // Reason & Notes
                     Text(
@@ -1454,35 +1517,40 @@ class _PatientScheduleScreenState
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                        color: colorScheme.surfaceContainerHighest.withValues(
+                          alpha: 0.5,
+                        ),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-            if (appointment.reasonForVisit != null) ...[
-              _buildDetailRow(
+                          if (appointment.reasonForVisit != null) ...[
+                            _buildDetailRow(
                               'Reason for Visit',
-                appointment.reasonForVisit!,
-                Icons.note_rounded,
-                colorScheme,
-              ),
-            ],
-            if (appointment.notes != null && appointment.notes!.isNotEmpty) ...[
-                            if (appointment.reasonForVisit != null) const SizedBox(height: 12),
-              _buildDetailRow(
+                              appointment.reasonForVisit!,
+                              Icons.note_rounded,
+                              colorScheme,
+                            ),
+                          ],
+                          if (appointment.notes != null &&
+                              appointment.notes!.isNotEmpty) ...[
+                            if (appointment.reasonForVisit != null)
+                              const SizedBox(height: 12),
+                            _buildDetailRow(
                               'Additional Notes',
-                appointment.notes!,
-                Icons.description_rounded,
-                colorScheme,
-              ),
-            ],
+                              appointment.notes!,
+                              Icons.description_rounded,
+                              colorScheme,
+                            ),
+                          ],
                         ],
                       ),
                     ),
                     // Reschedule History
-                    if (appointment.rescheduleRequests != null && appointment.rescheduleRequests!.isNotEmpty) ...[
-            const SizedBox(height: 24),
+                    if (appointment.rescheduleRequests != null &&
+                        appointment.rescheduleRequests!.isNotEmpty) ...[
+                      const SizedBox(height: 24),
                       Text(
                         'Reschedule History',
                         style: TextStyle(
@@ -1492,10 +1560,18 @@ class _PatientScheduleScreenState
                         ),
                       ),
                       const SizedBox(height: 12),
-                      ...appointment.rescheduleRequests!.map((req) => _buildRescheduleHistoryCard(req, colorScheme, formatDateLong, formatTime)),
+                      ...appointment.rescheduleRequests!.map(
+                        (req) => _buildRescheduleHistoryCard(
+                          req,
+                          colorScheme,
+                          formatDateLong,
+                          formatTime,
+                        ),
+                      ),
                     ],
                     // Actions
-                    if ((appointment.isPending || appointment.isConfirmed) && !appointment.scheduledAt.isBefore(DateTime.now())) ...[
+                    if ((appointment.isPending || appointment.isConfirmed) &&
+                        !appointment.scheduledAt.isBefore(DateTime.now())) ...[
                       const SizedBox(height: 24),
                       Row(
                         children: [
@@ -1513,15 +1589,19 @@ class _PatientScheduleScreenState
                                   side: BorderSide(
                                     color: Colors.red.withValues(alpha: 0.5),
                                   ),
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                  ),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                 ),
                               ),
                             ),
-                          if (appointment.isConfirmed && !appointment.hasPendingRescheduleRequest) ...[
-                            if (appointment.isPending || appointment.isConfirmed)
+                          if (appointment.isConfirmed &&
+                              !appointment.hasPendingRescheduleRequest) ...[
+                            if (appointment.isPending ||
+                                appointment.isConfirmed)
                               const SizedBox(width: 12),
                             Expanded(
                               child: OutlinedButton.icon(
@@ -1529,14 +1609,21 @@ class _PatientScheduleScreenState
                                   Navigator.of(context).pop();
                                   _rescheduleAppointment(appointment);
                                 },
-                                icon: const Icon(Icons.schedule_rounded, size: 18),
+                                icon: const Icon(
+                                  Icons.schedule_rounded,
+                                  size: 18,
+                                ),
                                 label: const Text('Request Reschedule'),
                                 style: OutlinedButton.styleFrom(
                                   foregroundColor: colorScheme.primary,
                                   side: BorderSide(
-                                    color: colorScheme.primary.withValues(alpha: 0.5),
+                                    color: colorScheme.primary.withValues(
+                                      alpha: 0.5,
+                                    ),
                                   ),
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                  ),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12),
                                   ),
@@ -1567,16 +1654,42 @@ class _PatientScheduleScreenState
     final isRescheduled = appointment.status == 'rescheduled';
     final approvedReschedule = appointment.rescheduleRequests?.firstWhere(
       (req) => req.status == 'APPROVED',
-      orElse: () => appointment.rescheduleRequests?.firstWhere(
-        (req) => req.currentDate != null && req.currentTime != null,
-        orElse: () => appointment.rescheduleRequests!.first,
-      ) ?? appointment.rescheduleRequests!.first,
+      orElse: () =>
+          appointment.rescheduleRequests?.firstWhere(
+            (req) => req.currentDate != null && req.currentTime != null,
+            orElse: () => appointment.rescheduleRequests!.first,
+          ) ??
+          appointment.rescheduleRequests!.first,
     );
-    final hasOriginalDate = approvedReschedule != null && approvedReschedule.currentDate != null && approvedReschedule.currentTime != null;
+    final hasOriginalDate =
+        approvedReschedule != null &&
+        approvedReschedule.currentDate != null &&
+        approvedReschedule.currentTime != null;
 
     String formatDateTime(DateTime dateTime) {
-      final months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-      final weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+      final months = [
+        'January',
+        'February',
+        'March',
+        'April',
+        'May',
+        'June',
+        'July',
+        'August',
+        'September',
+        'October',
+        'November',
+        'December',
+      ];
+      final weekdays = [
+        'Monday',
+        'Tuesday',
+        'Wednesday',
+        'Thursday',
+        'Friday',
+        'Saturday',
+        'Sunday',
+      ];
       return '${weekdays[dateTime.weekday - 1]}, ${months[dateTime.month - 1]} ${dateTime.day}, ${dateTime.year}';
     }
 
@@ -1600,7 +1713,8 @@ class _PatientScheduleScreenState
           _buildTimelineStep(
             stepNumber: 1,
             label: 'REQUESTED ON',
-            value: '${formatDateTime(appointment.createdAt)} at ${formatTimeFromDateTime(appointment.createdAt)}',
+            value:
+                '${formatDateTime(appointment.createdAt)} at ${formatTimeFromDateTime(appointment.createdAt)}',
             description: 'Appointment request created',
             color: colorScheme.primary,
             showConnector: true,
@@ -1613,7 +1727,8 @@ class _PatientScheduleScreenState
             _buildTimelineStep(
               stepNumber: 2,
               label: 'ORIGINAL DATE & TIME',
-              value: '${formatDateLong(approvedReschedule.currentDate!)} at ${formatTime(approvedReschedule.currentTime!)}',
+              value:
+                  '${formatDateLong(approvedReschedule.currentDate!)} at ${formatTime(approvedReschedule.currentTime!)}',
               description: 'Originally scheduled',
               color: Colors.orange,
               showConnector: true,
@@ -1622,18 +1737,24 @@ class _PatientScheduleScreenState
           // Step 2/3: Scheduled/Rescheduled
           _buildTimelineStep(
             stepNumber: isRescheduled && hasOriginalDate ? 3 : 2,
-            label: isRescheduled ? 'RESCHEDULED DATE & TIME' : 'SCHEDULED DATE & TIME',
-            value: '${formatDateTime(appointment.scheduledAt)} at ${formatTimeFromDateTime(appointment.scheduledAt)}',
-            description: isRescheduled ? 'Appointment rescheduled' : 'Appointment scheduled',
+            label: isRescheduled
+                ? 'RESCHEDULED DATE & TIME'
+                : 'SCHEDULED DATE & TIME',
+            value:
+                '${formatDateTime(appointment.scheduledAt)} at ${formatTimeFromDateTime(appointment.scheduledAt)}',
+            description: isRescheduled
+                ? 'Appointment rescheduled'
+                : 'Appointment scheduled',
             color: appointment.status == 'confirmed'
                 ? Colors.green
                 : appointment.status == 'pending'
-                    ? Colors.orange
-                    : appointment.status == 'cancelled' || appointment.status == 'rejected'
-                        ? Colors.red
-                        : isRescheduled
-                            ? Colors.purple
-                            : colorScheme.surfaceContainerHighest,
+                ? Colors.orange
+                : appointment.status == 'cancelled' ||
+                      appointment.status == 'rejected'
+                ? Colors.red
+                : isRescheduled
+                ? Colors.purple
+                : colorScheme.surfaceContainerHighest,
             showConnector: false,
             colorScheme: colorScheme,
           ),
@@ -1664,10 +1785,7 @@ class _PatientScheduleScreenState
               decoration: BoxDecoration(
                 color: color,
                 shape: BoxShape.circle,
-                border: Border.all(
-                  color: color,
-                  width: 2,
-                ),
+                border: Border.all(color: color, width: 2),
               ),
               child: Center(
                 child: Text(
@@ -1725,12 +1843,19 @@ class _PatientScheduleScreenState
                 if (showStatus && appointment != null) ...[
                   const SizedBox(height: 12),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
-                      color: _getStatusColor(appointment.status).withValues(alpha: 0.1),
+                      color: _getStatusColor(
+                        appointment.status,
+                      ).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(6),
                       border: Border.all(
-                        color: _getStatusColor(appointment.status).withValues(alpha: 0.3),
+                        color: _getStatusColor(
+                          appointment.status,
+                        ).withValues(alpha: 0.3),
                       ),
                     ),
                     child: Row(
@@ -1820,7 +1945,9 @@ class _PatientScheduleScreenState
                   color: getStatusColor(request.status).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(6),
                   border: Border.all(
-                    color: getStatusColor(request.status).withValues(alpha: 0.3),
+                    color: getStatusColor(
+                      request.status,
+                    ).withValues(alpha: 0.3),
                   ),
                 ),
                 child: Text(
@@ -1933,10 +2060,7 @@ class _PatientScheduleScreenState
             const SizedBox(height: 4),
             Text(
               request.reason,
-              style: TextStyle(
-                fontSize: 12,
-                color: colorScheme.onSurface,
-              ),
+              style: TextStyle(fontSize: 12, color: colorScheme.onSurface),
             ),
           ],
           const SizedBox(height: 8),
@@ -1962,11 +2086,7 @@ class _PatientScheduleScreenState
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(
-          icon,
-          size: 20,
-          color: statusColor ?? colorScheme.primary,
-        ),
+        Icon(icon, size: 20, color: statusColor ?? colorScheme.primary),
         const SizedBox(width: 12),
         Expanded(
           child: Column(

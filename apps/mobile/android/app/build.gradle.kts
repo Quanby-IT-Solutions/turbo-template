@@ -7,16 +7,18 @@ plugins {
 
 android {
     namespace = "com.example.mobile"
-    compileSdk = flutter.compileSdkVersion
+    // Pin to an installed Android SDK platform (android-35 is present but missing android.jar)
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        // Match the modern Flutter Android template (and what many plugins expect).
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_11.toString()
+        jvmTarget = JavaVersion.VERSION_17.toString()
     }
 
     defaultConfig {
@@ -26,7 +28,7 @@ android {
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         // BiosenseSignal SDK requires minSdkVersion 27
         minSdk = 27
-        targetSdk = flutter.targetSdkVersion
+        targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }

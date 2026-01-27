@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:mobile/core/services/toast_service.dart';
 import 'package:mobile/core/widgets/animated_nav_wrapper.dart';
@@ -52,13 +51,13 @@ class _PatientLabRequestsScreenState
     }
     final query = searchQuery.toLowerCase();
     return requests.where((req) {
-      return (req['requestedTests'] as String? ?? '')
-              .toLowerCase()
-              .contains(query) ||
+      return (req['requestedTests'] as String? ?? '').toLowerCase().contains(
+            query,
+          ) ||
           (req['doctorName'] as String? ?? '').toLowerCase().contains(query) ||
-          (req['organizationName'] as String? ?? '')
-              .toLowerCase()
-              .contains(query);
+          (req['organizationName'] as String? ?? '').toLowerCase().contains(
+            query,
+          );
     }).toList();
   }
 
@@ -70,9 +69,7 @@ class _PatientLabRequestsScreenState
           decoration: BoxDecoration(
             color: Colors.green.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: Colors.green.withValues(alpha: 0.2),
-            ),
+            border: Border.all(color: Colors.green.withValues(alpha: 0.2)),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -96,9 +93,7 @@ class _PatientLabRequestsScreenState
           decoration: BoxDecoration(
             color: Colors.orange.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: Colors.orange.withValues(alpha: 0.2),
-            ),
+            border: Border.all(color: Colors.orange.withValues(alpha: 0.2)),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -122,9 +117,7 @@ class _PatientLabRequestsScreenState
           decoration: BoxDecoration(
             color: Colors.blue.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: Colors.blue.withValues(alpha: 0.2),
-            ),
+            border: Border.all(color: Colors.blue.withValues(alpha: 0.2)),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -148,9 +141,7 @@ class _PatientLabRequestsScreenState
           decoration: BoxDecoration(
             color: Colors.red.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: Colors.red.withValues(alpha: 0.2),
-            ),
+            border: Border.all(color: Colors.red.withValues(alpha: 0.2)),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -199,9 +190,7 @@ class _PatientLabRequestsScreenState
           decoration: BoxDecoration(
             color: Colors.red.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(4),
-            border: Border.all(
-              color: Colors.red.withValues(alpha: 0.3),
-            ),
+            border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
           ),
           child: Text(
             'URGENT',
@@ -219,9 +208,7 @@ class _PatientLabRequestsScreenState
           decoration: BoxDecoration(
             color: Colors.red.withValues(alpha: 0.05),
             borderRadius: BorderRadius.circular(4),
-            border: Border.all(
-              color: Colors.red.withValues(alpha: 0.2),
-            ),
+            border: Border.all(color: Colors.red.withValues(alpha: 0.2)),
           ),
           child: Text(
             'HIGH',
@@ -239,9 +226,7 @@ class _PatientLabRequestsScreenState
           decoration: BoxDecoration(
             color: Colors.grey.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(4),
-            border: Border.all(
-              color: Colors.grey.withValues(alpha: 0.2),
-            ),
+            border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
           ),
           child: Text(
             'LOW',
@@ -263,30 +248,28 @@ class _PatientLabRequestsScreenState
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final user = ref.watch(currentUserProvider);
-    final labRequestsAsync = ref.watch(
-      patientLabRequestsProvider(user?.id),
-    );
+    final labRequestsAsync = ref.watch(patientLabRequestsProvider(user?.id));
 
     return AnimatedNavWrapper(
       child: Scaffold(
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         appBar: AppBar(
           title: Padding(
-                padding: const EdgeInsets.only(left: 8.0), 
-                child: Text(
-                  'Lab Requests',
-                  style: TextStyle(
-                    color: colorScheme.onSurface,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.3,
-                  ),
-                ),
+            padding: const EdgeInsets.only(left: 8.0),
+            child: Text(
+              'Lab Requests',
+              style: TextStyle(
+                color: colorScheme.onSurface,
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.3,
               ),
-              centerTitle: false,
-              elevation: 0,
-              backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
-              automaticallyImplyLeading: false,
+            ),
+          ),
+          centerTitle: false,
+          elevation: 0,
+          backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
+          automaticallyImplyLeading: false,
         ),
         floatingActionButton: FloatingActionButton.extended(
           onPressed: () {
@@ -417,13 +400,16 @@ class _PatientLabRequestsScreenState
 
                     // Lab Requests List
                     if (filteredRequests.isEmpty)
-                      _buildEmptyState(context, colorScheme, _searchController.text.isNotEmpty)
+                      _buildEmptyState(
+                        context,
+                        colorScheme,
+                        _searchController.text.isNotEmpty,
+                      )
                     else
-                      ...filteredRequests.map((request) => _buildLabRequestCard(
-                            context,
-                            request,
-                            colorScheme,
-                          )),
+                      ...filteredRequests.map(
+                        (request) =>
+                            _buildLabRequestCard(context, request, colorScheme),
+                      ),
                     const SizedBox(height: 100),
                   ],
                 ),
@@ -443,10 +429,7 @@ class _PatientLabRequestsScreenState
                 const SizedBox(height: 16),
                 Text(
                   'Error loading lab requests',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: colorScheme.error,
-                  ),
+                  style: TextStyle(fontSize: 16, color: colorScheme.error),
                 ),
                 const SizedBox(height: 8),
                 ElevatedButton(
@@ -477,9 +460,7 @@ class _PatientLabRequestsScreenState
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: colorScheme.outline.withValues(alpha: 0.1),
-        ),
+        border: Border.all(color: colorScheme.outline.withValues(alpha: 0.1)),
       ),
       child: Row(
         children: [
@@ -535,9 +516,7 @@ class _PatientLabRequestsScreenState
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: colorScheme.outline.withValues(alpha: 0.1),
-        ),
+        border: Border.all(color: colorScheme.outline.withValues(alpha: 0.1)),
       ),
       child: Column(
         children: [
@@ -601,9 +580,7 @@ class _PatientLabRequestsScreenState
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: colorScheme.outline.withValues(alpha: 0.1),
-        ),
+        border: Border.all(color: colorScheme.outline.withValues(alpha: 0.1)),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -647,7 +624,8 @@ class _PatientLabRequestsScreenState
                 ToastService.showInfo(
                   context: context,
                   title: 'Request Lab Test',
-                  description: 'Lab request functionality will be available soon.',
+                  description:
+                      'Lab request functionality will be available soon.',
                 );
               },
               icon: const Icon(Icons.description_rounded),
@@ -676,9 +654,7 @@ class _PatientLabRequestsScreenState
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: colorScheme.outline.withValues(alpha: 0.1),
-        ),
+        border: Border.all(color: colorScheme.outline.withValues(alpha: 0.1)),
         boxShadow: [
           BoxShadow(
             color: colorScheme.shadow.withValues(alpha: 0.04),
@@ -738,7 +714,8 @@ class _PatientLabRequestsScreenState
                             ),
                             if (priority != null) ...[
                               const SizedBox(width: 8),
-                              _buildPriorityBadge(priority) ?? const SizedBox.shrink(),
+                              _buildPriorityBadge(priority) ??
+                                  const SizedBox.shrink(),
                             ],
                           ],
                         ),
@@ -754,14 +731,20 @@ class _PatientLabRequestsScreenState
                                 Icon(
                                   Icons.calendar_today_rounded,
                                   size: 14,
-                                  color: colorScheme.onSurface.withValues(alpha: 0.6),
+                                  color: colorScheme.onSurface.withValues(
+                                    alpha: 0.6,
+                                  ),
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
-                                  _formatDate(request['createdAt'] as String? ?? ''),
+                                  _formatDate(
+                                    request['createdAt'] as String? ?? '',
+                                  ),
                                   style: TextStyle(
                                     fontSize: 12,
-                                    color: colorScheme.onSurface.withValues(alpha: 0.6),
+                                    color: colorScheme.onSurface.withValues(
+                                      alpha: 0.6,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -773,14 +756,18 @@ class _PatientLabRequestsScreenState
                                   Icon(
                                     Icons.person_rounded,
                                     size: 14,
-                                    color: colorScheme.onSurface.withValues(alpha: 0.6),
+                                    color: colorScheme.onSurface.withValues(
+                                      alpha: 0.6,
+                                    ),
                                   ),
                                   const SizedBox(width: 4),
                                   Text(
                                     request['doctorName'] as String,
                                     style: TextStyle(
                                       fontSize: 12,
-                                      color: colorScheme.onSurface.withValues(alpha: 0.6),
+                                      color: colorScheme.onSurface.withValues(
+                                        alpha: 0.6,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -793,7 +780,9 @@ class _PatientLabRequestsScreenState
                                   Icon(
                                     Icons.business_rounded,
                                     size: 14,
-                                    color: colorScheme.onSurface.withValues(alpha: 0.6),
+                                    color: colorScheme.onSurface.withValues(
+                                      alpha: 0.6,
+                                    ),
                                   ),
                                   const SizedBox(width: 4),
                                   Flexible(
@@ -801,7 +790,9 @@ class _PatientLabRequestsScreenState
                                       request['organizationName'] as String,
                                       style: TextStyle(
                                         fontSize: 12,
-                                        color: colorScheme.onSurface.withValues(alpha: 0.6),
+                                        color: colorScheme.onSurface.withValues(
+                                          alpha: 0.6,
+                                        ),
                                       ),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
@@ -837,7 +828,9 @@ class _PatientLabRequestsScreenState
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
-                              status == 'COMPLETED' ? 'View Results' : 'View Details',
+                              status == 'COMPLETED'
+                                  ? 'View Results'
+                                  : 'View Details',
                               style: const TextStyle(fontSize: 12),
                             ),
                             const SizedBox(width: 4),
@@ -864,15 +857,13 @@ class _PatientLabRequestsScreenState
                     Expanded(
                       child: Text(
                         'Results available • Completed ${_formatDate(request['updatedAt'] as String? ?? request['createdAt'] as String? ?? '')}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.green,
-                        ),
+                        style: TextStyle(fontSize: 12, color: Colors.green),
                       ),
                     ),
                   ],
                 )
-              else if (request['note'] != null && request['note'].toString().isNotEmpty)
+              else if (request['note'] != null &&
+                  request['note'].toString().isNotEmpty)
                 Text(
                   request['note'].toString(),
                   style: TextStyle(
@@ -985,7 +976,8 @@ class _PatientLabRequestsScreenState
                 colorScheme,
               ),
             ],
-            if (request['note'] != null && request['note'].toString().isNotEmpty) ...[
+            if (request['note'] != null &&
+                request['note'].toString().isNotEmpty) ...[
               const SizedBox(height: 16),
               _buildDetailRow(
                 'Notes',
@@ -994,7 +986,8 @@ class _PatientLabRequestsScreenState
                 colorScheme,
               ),
             ],
-            if (request['instructions'] != null && request['instructions'].toString().isNotEmpty) ...[
+            if (request['instructions'] != null &&
+                request['instructions'].toString().isNotEmpty) ...[
               const SizedBox(height: 16),
               _buildDetailRow(
                 'Instructions',
@@ -1045,11 +1038,7 @@ class _PatientLabRequestsScreenState
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(
-          icon,
-          size: 20,
-          color: statusColor ?? colorScheme.primary,
-        ),
+        Icon(icon, size: 20, color: statusColor ?? colorScheme.primary),
         const SizedBox(width: 12),
         Expanded(
           child: Column(

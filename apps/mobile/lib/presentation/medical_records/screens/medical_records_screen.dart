@@ -62,9 +62,9 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
   Future<void> _copyToClipboard(String text, String label) async {
     await Clipboard.setData(ClipboardData(text: text));
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$label copied to clipboard')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('$label copied to clipboard')));
     }
   }
 
@@ -79,21 +79,21 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         appBar: AppBar(
           title: Padding(
-                padding: const EdgeInsets.only(left: 8.0), 
-                child: Text(
-                  'Medical Records',
-                  style: TextStyle(
-                    color: colorScheme.onSurface,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.3,
-                  ),
-                ),
+            padding: const EdgeInsets.only(left: 8.0),
+            child: Text(
+              'Medical Records',
+              style: TextStyle(
+                color: colorScheme.onSurface,
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.3,
               ),
-              centerTitle: false,
-              elevation: 0,
-              backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
-              automaticallyImplyLeading: false,
+            ),
+          ),
+          centerTitle: false,
+          elevation: 0,
+          backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
+          automaticallyImplyLeading: false,
           // leading: IconButton(
           //   icon: Icon(
           //     Icons.arrow_back_ios_rounded,
@@ -101,7 +101,7 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
           //   ),
           //   onPressed: () => context.pop(),
           // ),
-        
+
           // bottom: TabBar(
           //   controller: _tabController,
           //   tabs: const [
@@ -147,7 +147,12 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Patient Summary Card
-                    _buildPatientSummaryCard(context, patient, user, colorScheme),
+                    _buildPatientSummaryCard(
+                      context,
+                      patient,
+                      user,
+                      colorScheme,
+                    ),
                     const SizedBox(height: 16),
 
                     // Key Metrics Cards
@@ -190,7 +195,9 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
                         Tab(text: 'Self Check History'),
                       ],
                       labelColor: colorScheme.primary,
-                      unselectedLabelColor: colorScheme.onSurface.withValues(alpha: 0.6),
+                      unselectedLabelColor: colorScheme.onSurface.withValues(
+                        alpha: 0.6,
+                      ),
                       indicatorColor: colorScheme.primary,
                     ),
                     const SizedBox(height: 16),
@@ -259,9 +266,7 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: colorScheme.outline.withValues(alpha: 0.1),
-        ),
+        border: Border.all(color: colorScheme.outline.withValues(alpha: 0.1)),
       ),
       child: Row(
         children: [
@@ -277,11 +282,18 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
                     child: Image.network(
                       profileImageUrl,
                       fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) =>
-                          Icon(Icons.person_rounded, size: 40, color: colorScheme.primary),
+                      errorBuilder: (context, error, stackTrace) => Icon(
+                        Icons.person_rounded,
+                        size: 40,
+                        color: colorScheme.primary,
+                      ),
                     ),
                   )
-                : Icon(Icons.person_rounded, size: 40, color: colorScheme.primary),
+                : Icon(
+                    Icons.person_rounded,
+                    size: 40,
+                    color: colorScheme.primary,
+                  ),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -355,14 +367,14 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
         _buildMetricCard(
           context,
           'Height',
-          '${patient.height.toStringAsFixed(0)}',
+          patient.height.toStringAsFixed(0),
           'cm',
           colorScheme,
         ),
         _buildMetricCard(
           context,
           'Weight',
-          '${patient.weight.toStringAsFixed(1)}',
+          patient.weight.toStringAsFixed(1),
           'kg',
           colorScheme,
         ),
@@ -396,9 +408,7 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: colorScheme.outline.withValues(alpha: 0.1),
-        ),
+        border: Border.all(color: colorScheme.outline.withValues(alpha: 0.1)),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -463,9 +473,17 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
                 ),
               ),
               const SizedBox(height: 12),
-              _buildInfoRow(Icons.phone_rounded, patient.contactNumber, colorScheme),
+              _buildInfoRow(
+                Icons.phone_rounded,
+                patient.contactNumber,
+                colorScheme,
+              ),
               const SizedBox(height: 8),
-              _buildInfoRow(Icons.location_on_rounded, patient.address, colorScheme),
+              _buildInfoRow(
+                Icons.location_on_rounded,
+                patient.address,
+                colorScheme,
+              ),
               const SizedBox(height: 8),
               _buildInfoRow(
                 Icons.calendar_today_rounded,
@@ -526,15 +544,16 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 16, color: colorScheme.onSurface.withValues(alpha: 0.6)),
+        Icon(
+          icon,
+          size: 16,
+          color: colorScheme.onSurface.withValues(alpha: 0.6),
+        ),
         const SizedBox(width: 8),
         Expanded(
           child: Text(
             text,
-            style: TextStyle(
-              fontSize: 14,
-              color: colorScheme.onSurface,
-            ),
+            style: TextStyle(fontSize: 14, color: colorScheme.onSurface),
           ),
         ),
       ],
@@ -566,13 +585,12 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
         final vitalsList = vitalsHistory['items'] as List<dynamic>? ?? [];
 
         final lastConsultation = consultations.isNotEmpty
-            ? consultations.reduce((a, b) =>
-                a.startTime.isAfter(b.startTime) ? a : b)
+            ? consultations.reduce(
+                (a, b) => a.startTime.isAfter(b.startTime) ? a : b,
+              )
             : null;
 
-        final lastHealthScan = vitalsList.isNotEmpty
-            ? vitalsList.first
-            : null;
+        final lastHealthScan = vitalsList.isNotEmpty ? vitalsList.first : null;
 
         return SingleChildScrollView(
           scrollDirection: Axis.horizontal,
@@ -608,8 +626,12 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
                 context,
                 Icons.favorite_border_rounded,
                 lastHealthScan != null
-                    ? _formatDateShort(DateTime.parse(
-                        (lastHealthScan as Map)['createdAt'] as String? ?? DateTime.now().toIso8601String()))
+                    ? _formatDateShort(
+                        DateTime.parse(
+                          (lastHealthScan as Map)['createdAt'] as String? ??
+                              DateTime.now().toIso8601String(),
+                        ),
+                      )
                     : 'N/A',
                 'LAST HEALTH SCAN',
                 colorScheme,
@@ -626,7 +648,10 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
           ),
         );
       },
-      loading: () => const SizedBox(height: 80, child: Center(child: CircularProgressIndicator())),
+      loading: () => const SizedBox(
+        height: 80,
+        child: Center(child: CircularProgressIndicator()),
+      ),
       error: (_, __) => const SizedBox.shrink(),
     );
   }
@@ -644,13 +669,15 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: colorScheme.outline.withValues(alpha: 0.1),
-        ),
+        border: Border.all(color: colorScheme.outline.withValues(alpha: 0.1)),
       ),
       child: Row(
         children: [
-          Icon(icon, size: 20, color: colorScheme.onSurface.withValues(alpha: 0.6)),
+          Icon(
+            icon,
+            size: 20,
+            color: colorScheme.onSurface.withValues(alpha: 0.6),
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -702,103 +729,100 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
       child: Column(
         children: [
           // Personal Information
-          _buildInfoCard(
-            context,
-            'Personal Information',
-            [
-              _buildInfoField('NAME', patient.displayName, colorScheme),
-              _buildInfoField('GENDER', patient.gender, colorScheme),
-              _buildInfoField('DATE OF BIRTH', _formatDate(patient.dateOfBirth), colorScheme),
-              _buildInfoField('BLOOD TYPE', patient.bloodType, colorScheme),
-              _buildInfoField('HEIGHT', '${patient.height.toStringAsFixed(0)} cm', colorScheme),
-              _buildInfoField('WEIGHT', '${patient.weight.toStringAsFixed(1)} kg', colorScheme),
-              _buildInfoField('BMI', '${bmi.toStringAsFixed(1)} ($bmiCategory)', colorScheme),
-            ],
-            colorScheme,
-          ),
+          _buildInfoCard(context, 'Personal Information', [
+            _buildInfoField('NAME', patient.displayName, colorScheme),
+            _buildInfoField('GENDER', patient.gender, colorScheme),
+            _buildInfoField(
+              'DATE OF BIRTH',
+              _formatDate(patient.dateOfBirth),
+              colorScheme,
+            ),
+            _buildInfoField('BLOOD TYPE', patient.bloodType, colorScheme),
+            _buildInfoField(
+              'HEIGHT',
+              '${patient.height.toStringAsFixed(0)} cm',
+              colorScheme,
+            ),
+            _buildInfoField(
+              'WEIGHT',
+              '${patient.weight.toStringAsFixed(1)} kg',
+              colorScheme,
+            ),
+            _buildInfoField(
+              'BMI',
+              '${bmi.toStringAsFixed(1)} ($bmiCategory)',
+              colorScheme,
+            ),
+          ], colorScheme),
           const SizedBox(height: 16),
           // Medical History
-          _buildInfoCard(
-            context,
-            'Medical History',
-            [
-              _buildInfoField(
-                'MEDICAL HISTORY',
-                patient.medicalHistory ?? 'No significant medical history',
-                colorScheme,
+          _buildInfoCard(context, 'Medical History', [
+            _buildInfoField(
+              'MEDICAL HISTORY',
+              patient.medicalHistory ?? 'No significant medical history',
+              colorScheme,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'ALLERGIES',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                color: colorScheme.onSurface.withValues(alpha: 0.5),
+                letterSpacing: 1,
               ),
-              const SizedBox(height: 12),
-              Text(
-                'ALLERGIES',
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  color: colorScheme.onSurface.withValues(alpha: 0.5),
-                  letterSpacing: 1,
-                ),
+            ),
+            const SizedBox(height: 4),
+            Wrap(
+              spacing: 8,
+              children: [
+                if (patient.allergies != null && patient.allergies!.isNotEmpty)
+                  _buildBadge(patient.allergies!, colorScheme)
+                else
+                  _buildBadge('None', colorScheme),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'CURRENT MEDICATIONS',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                color: colorScheme.onSurface.withValues(alpha: 0.5),
+                letterSpacing: 1,
               ),
-              const SizedBox(height: 4),
-              Wrap(
-                spacing: 8,
-                children: [
-                  if (patient.allergies != null && patient.allergies!.isNotEmpty)
-                    _buildBadge(patient.allergies!, colorScheme)
-                  else
-                    _buildBadge('None', colorScheme),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'CURRENT MEDICATIONS',
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  color: colorScheme.onSurface.withValues(alpha: 0.5),
-                  letterSpacing: 1,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Wrap(
-                spacing: 8,
-                children: [
-                  if (patient.medications != null && patient.medications!.isNotEmpty)
-                    _buildBadge(patient.medications!, colorScheme)
-                  else
-                    _buildBadge('None', colorScheme),
-                ],
-              ),
-            ],
-            colorScheme,
-          ),
+            ),
+            const SizedBox(height: 4),
+            Wrap(
+              spacing: 8,
+              children: [
+                if (patient.medications != null &&
+                    patient.medications!.isNotEmpty)
+                  _buildBadge(patient.medications!, colorScheme)
+                else
+                  _buildBadge('None', colorScheme),
+              ],
+            ),
+          ], colorScheme),
           const SizedBox(height: 16),
           // Emergency Contact (placeholder)
-          _buildInfoCard(
-            context,
-            'Emergency Contact',
-            [
-              _buildInfoField('NAME', 'Not provided', colorScheme),
-              _buildInfoField('RELATIONSHIP', 'Not provided', colorScheme),
-              _buildInfoField('PHONE', 'Not provided', colorScheme),
-              _buildInfoField('ADDRESS', 'Not provided', colorScheme),
-            ],
-            colorScheme,
-          ),
+          _buildInfoCard(context, 'Emergency Contact', [
+            _buildInfoField('NAME', 'Not provided', colorScheme),
+            _buildInfoField('RELATIONSHIP', 'Not provided', colorScheme),
+            _buildInfoField('PHONE', 'Not provided', colorScheme),
+            _buildInfoField('ADDRESS', 'Not provided', colorScheme),
+          ], colorScheme),
           const SizedBox(height: 16),
           // Insurance Information (using PhilHealth)
-          _buildInfoCard(
-            context,
-            'Insurance Information',
-            [
-              _buildInfoField('PROVIDER', 'PhilHealth', colorScheme),
-              _buildInfoField(
-                'POLICY NUMBER',
-                patient.philHealthId ?? 'Not provided',
-                colorScheme,
-              ),
-              _buildInfoField('CONTACT', 'Not provided', colorScheme),
-            ],
-            colorScheme,
-          ),
+          _buildInfoCard(context, 'Insurance Information', [
+            _buildInfoField('PROVIDER', 'PhilHealth', colorScheme),
+            _buildInfoField(
+              'POLICY NUMBER',
+              patient.philHealthId ?? 'Not provided',
+              colorScheme,
+            ),
+            _buildInfoField('CONTACT', 'Not provided', colorScheme),
+          ], colorScheme),
         ],
       ),
     );
@@ -815,9 +839,7 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: colorScheme.outline.withValues(alpha: 0.1),
-        ),
+        border: Border.all(color: colorScheme.outline.withValues(alpha: 0.1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -855,10 +877,7 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
           const SizedBox(height: 4),
           Text(
             value,
-            style: TextStyle(
-              fontSize: 14,
-              color: colorScheme.onSurface,
-            ),
+            style: TextStyle(fontSize: 14, color: colorScheme.onSurface),
           ),
         ],
       ),
@@ -871,9 +890,7 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
       decoration: BoxDecoration(
         color: colorScheme.primaryContainer,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: colorScheme.primary.withValues(alpha: 0.2),
-        ),
+        border: Border.all(color: colorScheme.primary.withValues(alpha: 0.2)),
       ),
       child: Text(
         text,
@@ -892,7 +909,9 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
     Patient patient,
     ColorScheme colorScheme,
   ) {
-    final vitalsHistoryAsync = ref.watch(patientVitalsHistoryProvider(patient.id));
+    final vitalsHistoryAsync = ref.watch(
+      patientVitalsHistoryProvider(patient.id),
+    );
 
     return vitalsHistoryAsync.when(
       data: (vitalsHistory) {
@@ -909,12 +928,54 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
                 crossAxisSpacing: 8,
                 mainAxisSpacing: 8,
                 children: [
-                  _buildTrendCard('Heart Rate', '+6.9%', 'bpm', Icons.trending_up_rounded, Colors.green, colorScheme),
-                  _buildTrendCard('Blood Pressure', '-5%', 'mmHg', Icons.remove_rounded, Colors.blue, colorScheme),
-                  _buildTrendCard('SpO2', '-1%', '%', Icons.remove_rounded, Colors.blue, colorScheme),
-                  _buildTrendCard('Weight', '+6.9%', 'kg', Icons.trending_up_rounded, Colors.green, colorScheme),
-                  _buildTrendCard('Stress Level', '-4.8%', '', Icons.remove_rounded, Colors.blue, colorScheme),
-                  _buildTrendCard('General Wellness', '+4.5%', '', Icons.remove_rounded, Colors.blue, colorScheme),
+                  _buildTrendCard(
+                    'Heart Rate',
+                    '+6.9%',
+                    'bpm',
+                    Icons.trending_up_rounded,
+                    Colors.green,
+                    colorScheme,
+                  ),
+                  _buildTrendCard(
+                    'Blood Pressure',
+                    '-5%',
+                    'mmHg',
+                    Icons.remove_rounded,
+                    Colors.blue,
+                    colorScheme,
+                  ),
+                  _buildTrendCard(
+                    'SpO2',
+                    '-1%',
+                    '%',
+                    Icons.remove_rounded,
+                    Colors.blue,
+                    colorScheme,
+                  ),
+                  _buildTrendCard(
+                    'Weight',
+                    '+6.9%',
+                    'kg',
+                    Icons.trending_up_rounded,
+                    Colors.green,
+                    colorScheme,
+                  ),
+                  _buildTrendCard(
+                    'Stress Level',
+                    '-4.8%',
+                    '',
+                    Icons.remove_rounded,
+                    Colors.blue,
+                    colorScheme,
+                  ),
+                  _buildTrendCard(
+                    'General Wellness',
+                    '+4.5%',
+                    '',
+                    Icons.remove_rounded,
+                    Colors.blue,
+                    colorScheme,
+                  ),
                 ],
               ),
               const SizedBox(height: 16),
@@ -947,9 +1008,7 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: colorScheme.outline.withValues(alpha: 0.1),
-        ),
+        border: Border.all(color: colorScheme.outline.withValues(alpha: 0.1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -994,9 +1053,7 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(4),
-              border: Border.all(
-                color: color.withValues(alpha: 0.2),
-              ),
+              border: Border.all(color: color.withValues(alpha: 0.2)),
             ),
             child: Text(
               change.contains('+') ? 'Improving' : 'Stable',
@@ -1025,14 +1082,20 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
       // Sort by date
       final sorted = List<Map<String, dynamic>>.from(vitalsList)
         ..sort((a, b) {
-          final dateA = DateTime.parse(a['createdAt'] as String? ?? DateTime.now().toIso8601String());
-          final dateB = DateTime.parse(b['createdAt'] as String? ?? DateTime.now().toIso8601String());
+          final dateA = DateTime.parse(
+            a['createdAt'] as String? ?? DateTime.now().toIso8601String(),
+          );
+          final dateB = DateTime.parse(
+            b['createdAt'] as String? ?? DateTime.now().toIso8601String(),
+          );
           return dateA.compareTo(dateB);
         });
 
       for (int i = 0; i < sorted.length && i < 10; i++) {
         final item = sorted[i];
-        final date = DateTime.parse(item['createdAt'] as String? ?? DateTime.now().toIso8601String());
+        final date = DateTime.parse(
+          item['createdAt'] as String? ?? DateTime.now().toIso8601String(),
+        );
         final value = (item['heartRate'] as num?)?.toDouble() ?? 70.0;
         chartData.add(FlSpot(i.toDouble(), value));
         dates.add(DateFormat('MMM dd').format(date));
@@ -1050,7 +1113,15 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
         FlSpot(5, 69),
         FlSpot(6, 71),
       ]);
-      dates.addAll(['Jan 15', 'Jan 20', 'Jan 28', 'Oct 16', 'Oct 17', 'Oct 21', 'Oct 28']);
+      dates.addAll([
+        'Jan 15',
+        'Jan 20',
+        'Jan 28',
+        'Oct 16',
+        'Oct 17',
+        'Oct 21',
+        'Oct 28',
+      ]);
     }
 
     return Container(
@@ -1058,9 +1129,7 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: colorScheme.outline.withValues(alpha: 0.1),
-        ),
+        border: Border.all(color: colorScheme.outline.withValues(alpha: 0.1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1091,12 +1160,24 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
               DropdownButton<String>(
                 value: _selectedMetric,
                 items: const [
-                  DropdownMenuItem(value: 'heart-rate', child: Text('Heart Rate')),
-                  DropdownMenuItem(value: 'blood-pressure', child: Text('Blood Pressure')),
+                  DropdownMenuItem(
+                    value: 'heart-rate',
+                    child: Text('Heart Rate'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'blood-pressure',
+                    child: Text('Blood Pressure'),
+                  ),
                   DropdownMenuItem(value: 'spo2', child: Text('SpO2')),
                   DropdownMenuItem(value: 'weight', child: Text('Weight')),
-                  DropdownMenuItem(value: 'stress', child: Text('Stress Level')),
-                  DropdownMenuItem(value: 'wellness', child: Text('General Wellness')),
+                  DropdownMenuItem(
+                    value: 'stress',
+                    child: Text('Stress Level'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'wellness',
+                    child: Text('General Wellness'),
+                  ),
                 ],
                 onChanged: (value) {
                   if (value != null) {
@@ -1129,7 +1210,9 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
                               dates[index],
                               style: TextStyle(
                                 fontSize: 10,
-                                color: colorScheme.onSurface.withValues(alpha: 0.6),
+                                color: colorScheme.onSurface.withValues(
+                                  alpha: 0.6,
+                                ),
                               ),
                             ),
                           );
@@ -1138,8 +1221,12 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
                       },
                     ),
                   ),
-                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
                 ),
                 borderData: FlBorderData(show: true),
                 lineBarsData: [
@@ -1240,11 +1327,10 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
               ),
               const SizedBox(height: 16),
               // Consultation Cards
-              ...consultations.map((consultation) => _buildConsultationCard(
-                    context,
-                    consultation,
-                    colorScheme,
-                  )),
+              ...consultations.map(
+                (consultation) =>
+                    _buildConsultationCard(context, consultation, colorScheme),
+              ),
             ],
           ),
         );
@@ -1272,9 +1358,7 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: colorScheme.outline.withValues(alpha: 0.1),
-        ),
+        border: Border.all(color: colorScheme.outline.withValues(alpha: 0.1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1283,7 +1367,7 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Date/Time Column
-              Container(
+              SizedBox(
                 width: 80,
                 child: Column(
                   children: [
@@ -1304,7 +1388,9 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
                       ),
                     ),
                     Text(
-                      DateFormat('EEE').format(consultation.startTime).toUpperCase(),
+                      DateFormat(
+                        'EEE',
+                      ).format(consultation.startTime).toUpperCase(),
                       style: TextStyle(
                         fontSize: 10,
                         color: colorScheme.onSurface.withValues(alpha: 0.6),
@@ -1332,7 +1418,9 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
                               ),
                               child: Icon(
                                 Icons.person_rounded,
-                                color: colorScheme.onSurface.withValues(alpha: 0.6),
+                                color: colorScheme.onSurface.withValues(
+                                  alpha: 0.6,
+                                ),
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -1353,7 +1441,9 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
                                       doctor.specialization,
                                       style: TextStyle(
                                         fontSize: 12,
-                                        color: colorScheme.onSurface.withValues(alpha: 0.6),
+                                        color: colorScheme.onSurface.withValues(
+                                          alpha: 0.6,
+                                        ),
                                       ),
                                     ),
                                 ],
@@ -1362,7 +1452,10 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
                           ],
                         );
                       },
-                      loading: () => const SizedBox(height: 48, child: CircularProgressIndicator()),
+                      loading: () => const SizedBox(
+                        height: 48,
+                        child: CircularProgressIndicator(),
+                      ),
                       error: (_, __) => const SizedBox.shrink(),
                     ),
                     const SizedBox(height: 12),
@@ -1400,7 +1493,10 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
                           style: ElevatedButton.styleFrom(
                             backgroundColor: colorScheme.primary,
                             foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
                           ),
                         ),
                         OutlinedButton.icon(
@@ -1411,7 +1507,10 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
                           icon: const Icon(Icons.copy_rounded, size: 16),
                           label: const Text('Copy Code'),
                           style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
                           ),
                         ),
                         if (consultation.endTime == null)
@@ -1419,10 +1518,16 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
                             onPressed: () {
                               // Join meeting
                             },
-                            icon: const Icon(Icons.video_call_rounded, size: 16),
+                            icon: const Icon(
+                              Icons.video_call_rounded,
+                              size: 16,
+                            ),
                             label: const Text('Join Now'),
                             style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
                             ),
                           ),
                       ],
@@ -1449,7 +1554,9 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
-                    color: consultation.endTime == null ? Colors.blue : Colors.green,
+                    color: consultation.endTime == null
+                        ? Colors.blue
+                        : Colors.green,
                   ),
                 ),
               ),
@@ -1466,8 +1573,12 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
     Patient patient,
     ColorScheme colorScheme,
   ) {
-    final medicalRecordsAsync = ref.watch(patientMedicalRecordsProvider(patient.id));
-    final vitalsHistoryAsync = ref.watch(patientVitalsHistoryProvider(patient.id));
+    final medicalRecordsAsync = ref.watch(
+      patientMedicalRecordsProvider(patient.id),
+    );
+    final vitalsHistoryAsync = ref.watch(
+      patientVitalsHistoryProvider(patient.id),
+    );
 
     return medicalRecordsAsync.when(
       data: (medicalRecords) {
@@ -1476,9 +1587,11 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
 
         // Filter self-check records
         final selfCheckRecords = medicalRecords
-            .where((record) =>
-                record.recordType.contains('SELF_CHECK') ||
-                record.title.contains('Self-Check'))
+            .where(
+              (record) =>
+                  record.recordType.contains('SELF_CHECK') ||
+                  record.title.contains('Self-Check'),
+            )
             .toList();
 
         // Combine with vitals history
@@ -1504,7 +1617,8 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
             'id': vitalMap['id'] as String? ?? '',
             'title': 'Self-Check Health Scan Results',
             'date': DateTime.parse(
-              vitalMap['createdAt'] as String? ?? DateTime.now().toIso8601String(),
+              vitalMap['createdAt'] as String? ??
+                  DateTime.now().toIso8601String(),
             ),
             'createdBy': patient.email,
             'isPrivate': true,
@@ -1513,18 +1627,16 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
         }
 
         // Sort by date (newest first)
-        allSelfChecks.sort((a, b) => (b['date'] as DateTime).compareTo(a['date'] as DateTime));
+        allSelfChecks.sort(
+          (a, b) => (b['date'] as DateTime).compareTo(a['date'] as DateTime),
+        );
 
         if (allSelfChecks.isEmpty) {
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  Icons.notes_rounded,
-                  size: 64,
-                  color: colorScheme.outline,
-                ),
+                Icon(Icons.notes_rounded, size: 64, color: colorScheme.outline),
                 const SizedBox(height: 16),
                 Text(
                   'No self-check history found',
@@ -1541,11 +1653,7 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
         return SingleChildScrollView(
           child: Column(
             children: allSelfChecks.map((selfCheck) {
-              return _buildSelfCheckCard(
-                context,
-                selfCheck,
-                colorScheme,
-              );
+              return _buildSelfCheckCard(context, selfCheck, colorScheme);
             }).toList(),
           ),
         );
@@ -1574,9 +1682,7 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: colorScheme.outline.withValues(alpha: 0.1),
-        ),
+        border: Border.all(color: colorScheme.outline.withValues(alpha: 0.1)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1641,18 +1747,12 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
                 decoration: BoxDecoration(
                   color: Colors.blue.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: Colors.blue.withValues(alpha: 0.2),
-                  ),
+                  border: Border.all(color: Colors.blue.withValues(alpha: 0.2)),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
-                      Icons.lock_rounded,
-                      size: 12,
-                      color: Colors.blue,
-                    ),
+                    Icon(Icons.lock_rounded, size: 12, color: Colors.blue),
                     const SizedBox(width: 4),
                     Text(
                       'Private',

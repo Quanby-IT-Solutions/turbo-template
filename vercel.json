@@ -6,62 +6,89 @@
 	"framework": "nextjs",
 	"git": {
 		"deploymentEnabled": true
-  },
-  "headers": [
-    {
-      "source": "/(.*)",
-      "headers": [
-        {
-          "key": "Cross-Origin-Opener-Policy",
-          "value": "same-origin"
-        },
-        {
-          "key": "Cross-Origin-Embedder-Policy",
-          "value": "require-corp"
-        }
-      ]
-    },
-    {
-      "source": "/a.wasm.gz",
-      "headers": [
-        {
-          "key": "Content-Type",
-          "value": "application/wasm"
-        },
-        {
-          "key": "Content-Encoding",
-          "value": "gzip"
-        },
-        {
-          "key": "Cross-Origin-Resource-Policy",
-          "value": "cross-origin"
-        },
-        {
-          "key": "Access-Control-Allow-Origin",
-          "value": "*"
-        }
-      ]
-    },
-    {
-      "source": "/a.worker.js",
-      "headers": [
-        {
-          "key": "Content-Type",
-          "value": "application/javascript"
-        },
-        {
-          "key": "Cross-Origin-Embedder-Policy",
-          "value": "require-corp"
-        }
-      ]
-    },
-    {
-      "source": "/models/(.*)",
-      "headers": [
-        {
-          "key": "Cross-Origin-Resource-Policy",
-          "value": "cross-origin"
-        }
-      ]
-    }
-  ]
+	},
+	"rewrites": [
+		{
+			"source": "/:path*/a.wasm.gz",
+			"destination": "/a.wasm.gz"
+		},
+		{
+			"source": "/:path*/a.wasm",
+			"destination": "/a.wasm"
+		},
+		{
+			"source": "/:path*/a.js",
+			"destination": "/a.js"
+		},
+		{
+			"source": "/:path*/a.worker.js",
+			"destination": "/a.worker.js"
+		},
+		{
+			"source": "/:path*/799.js",
+			"destination": "/799.js"
+		},
+		{
+			"source": "/:path*/models/:model*",
+			"destination": "/models/:model*"
+		}
+	],
+	"headers": [
+		{
+			"source": "/(.*)",
+			"headers": [
+				{
+					"key": "Cross-Origin-Opener-Policy",
+					"value": "same-origin"
+				},
+				{
+					"key": "Cross-Origin-Embedder-Policy",
+					"value": "require-corp"
+				}
+			]
+		},
+		{
+			"source": "/a.wasm.gz",
+			"headers": [
+				{
+					"key": "Content-Type",
+					"value": "application/wasm"
+				},
+				{
+					"key": "Content-Encoding",
+					"value": "gzip"
+				},
+				{
+					"key": "Cross-Origin-Resource-Policy",
+					"value": "cross-origin"
+				},
+				{
+					"key": "Access-Control-Allow-Origin",
+					"value": "*"
+				}
+			]
+		},
+		{
+			"source": "/a.worker.js",
+			"headers": [
+				{
+					"key": "Content-Type",
+					"value": "application/javascript"
+				},
+				{
+					"key": "Cross-Origin-Embedder-Policy",
+					"value": "require-corp"
+				}
+			]
+		},
+		{
+			"source": "/models/(.*)",
+			"headers": [
+				{
+					"key": "Cross-Origin-Resource-Policy",
+					"value": "cross-origin"
+				}
+			]
+		}
+	]
+}

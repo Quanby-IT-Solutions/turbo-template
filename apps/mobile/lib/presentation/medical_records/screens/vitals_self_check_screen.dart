@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:biosensesignal_flutter_sdk/session/user_information.dart';
 import 'package:biosensesignal_flutter_sdk/session/session_state.dart';
 import 'package:biosensesignal_flutter_sdk/ui/camera_preview_view.dart';
 import 'package:biosensesignal_flutter_sdk/vital_signs/vital_sign_types.dart';
@@ -653,18 +652,17 @@ class _VitalsSelfCheckScreenState extends ConsumerState<VitalsSelfCheckScreen>
   void dispose() {
     _measurementTimer?.cancel();
     _pulseController.dispose();
-    
+
     final service = ref.read(bioSenseServiceProviderSelfCheck);
-    
+
     // Remove listeners
     service.finalResultsNotifier.removeListener(_onResultsReceived);
     service.sessionStateNotifier.removeListener(_onSessionStateChanged);
     service.errorNotifier.removeListener(_onErrorReceived);
-    
-    
+
     // Terminate session
     service.terminateSession();
-    
+
     super.dispose();
   }
 
@@ -676,126 +674,126 @@ class _VitalsSelfCheckScreenState extends ConsumerState<VitalsSelfCheckScreen>
     }
   }
 
-Future<void> _initializeSession() async {
-  debugPrint('══════════════════════════════════════');
-  debugPrint('🚀 INITIALIZE SESSION STARTED');
-  debugPrint('══════════════════════════════════════');
-  
-  if (_isSessionCreated || _isInitializing) {
-    debugPrint('⚠️ Already initialized or initializing');
-    return;
-  }
+  Future<void> _initializeSession() async {
+    debugPrint('══════════════════════════════════════');
+    debugPrint('🚀 INITIALIZE SESSION STARTED');
+    debugPrint('══════════════════════════════════════');
 
-  setState(() {
-    _isInitializing = true;
-  });
-
-  try {
-    // Step 1: Check camera permission
-    debugPrint('📸 Step 1: Checking camera permission...');
-    var cameraStatus = await Permission.camera.status;
-    debugPrint('📸 Initial camera status: $cameraStatus');
-
-    if (!cameraStatus.isGranted) {
-      cameraStatus = await Permission.camera.request();
-      if (!cameraStatus.isGranted) {
-        if (mounted) {
-          setState(() => _isInitializing = false);
-          _showError('Camera permission required');
-        }
-        return;
-      }
+    if (_isSessionCreated || _isInitializing) {
+      debugPrint('⚠️ Already initialized or initializing');
+      return;
     }
 
-    debugPrint('✅ Camera permission granted');
+    setState(() {
+      _isInitializing = true;
+    });
 
-    // Step 2: Get service
-    final service = ref.read(bioSenseServiceProviderSelfCheck);
-    debugPrint('✅ Service retrieved');
-
-    // Step 3: Setup listeners
-    debugPrint('👂 Setting up listeners...');
     try {
-      service.finalResultsNotifier.removeListener(_onResultsReceived);
-      service.sessionStateNotifier.removeListener(_onSessionStateChanged);
-      service.errorNotifier.removeListener(_onErrorReceived);
-    } catch (_) {}
-    
-    service.finalResultsNotifier.addListener(_onResultsReceived);
-    service.sessionStateNotifier.addListener(_onSessionStateChanged);
-    service.errorNotifier.addListener(_onErrorReceived);
-    debugPrint('✅ All listeners added');
+      // Step 1: Check camera permission
+      debugPrint('📸 Step 1: Checking camera permission...');
+      var cameraStatus = await Permission.camera.status;
+      debugPrint('📸 Initial camera status: $cameraStatus');
 
-    // Step 4: Get user information and calculate age
-    debugPrint('👤 Step 4: Getting user information...');
-    final user = ref.read(currentUserProvider);
-
-    // Calculate age properly
-    int? estimatedAge;
-    if (user != null) {
-      final age = DateTime.now().year - user.createdAt.year;
-      debugPrint('👤 Calculated age: $age');
-      
-      // Only use age if it's valid (SDK requires 18-110)
-      if (age >= 18 && age <= 110) {
-        estimatedAge = age;
-        debugPrint('✅ Using valid age: $age');
-      } else {
-        debugPrint('⚠️ Invalid age ($age), creating session without age');
+      if (!cameraStatus.isGranted) {
+        cameraStatus = await Permission.camera.request();
+        if (!cameraStatus.isGranted) {
+          if (mounted) {
+            setState(() => _isInitializing = false);
+            _showError('Camera permission required');
+          }
+          return;
+        }
       }
-    } else {
-      debugPrint('⚠️ No user found, creating session without user info');
-    }
 
-    debugPrint('👤 User ID: ${user?.id}, Estimated age: $estimatedAge');
+      debugPrint('✅ Camera permission granted');
 
-    // Step 5: Create session - SINGLE CALL ONLY
-    debugPrint('🎬 Step 5: Creating BioSense face session...');
-    
-    // CRITICAL: Only call createFaceSession ONCE
-    // Try WITHOUT user info first to avoid SDK crashes
-    await service.createFaceSession(
-      userInformation: null, // Pass null to avoid age-related crashes
-    );
+      // Step 2: Get service
+      final service = ref.read(bioSenseServiceProviderSelfCheck);
+      debugPrint('✅ Service retrieved');
 
-    debugPrint('✅ Face session created successfully!');
-    
-    // Small delay to let SDK initialize properly
-    await Future.delayed(const Duration(milliseconds: 500));
-    
-    if (mounted) {
-      setState(() {
-        _isInitializing = false;
-      });
-    }
-    
-    debugPrint('══════════════════════════════════════');
-    debugPrint('🎉 INITIALIZE SESSION COMPLETED');
-    debugPrint('══════════════════════════════════════');
-  } catch (e, stackTrace) {
-    debugPrint('══════════════════════════════════════');
-    debugPrint('💥 INITIALIZE SESSION FAILED');
-    debugPrint('══════════════════════════════════════');
-    debugPrint('❌ Error: $e');
-    debugPrint('❌ Stack trace: ${stackTrace.toString()}');
-    
-    if (mounted) {
-      setState(() {
-        _isInitializing = false;
-        _isSessionCreated = false;
-      });
-      _showError('SDK initialization failed. Please check your license key.');
+      // Step 3: Setup listeners
+      debugPrint('👂 Setting up listeners...');
+      try {
+        service.finalResultsNotifier.removeListener(_onResultsReceived);
+        service.sessionStateNotifier.removeListener(_onSessionStateChanged);
+        service.errorNotifier.removeListener(_onErrorReceived);
+      } catch (_) {}
+
+      service.finalResultsNotifier.addListener(_onResultsReceived);
+      service.sessionStateNotifier.addListener(_onSessionStateChanged);
+      service.errorNotifier.addListener(_onErrorReceived);
+      debugPrint('✅ All listeners added');
+
+      // Step 4: Get user information and calculate age
+      debugPrint('👤 Step 4: Getting user information...');
+      final user = ref.read(currentUserProvider);
+
+      // Calculate age properly
+      int? estimatedAge;
+      if (user != null) {
+        final age = DateTime.now().year - user.createdAt.year;
+        debugPrint('👤 Calculated age: $age');
+
+        // Only use age if it's valid (SDK requires 18-110)
+        if (age >= 18 && age <= 110) {
+          estimatedAge = age;
+          debugPrint('✅ Using valid age: $age');
+        } else {
+          debugPrint('⚠️ Invalid age ($age), creating session without age');
+        }
+      } else {
+        debugPrint('⚠️ No user found, creating session without user info');
+      }
+
+      debugPrint('👤 User ID: ${user?.id}, Estimated age: $estimatedAge');
+
+      // Step 5: Create session - SINGLE CALL ONLY
+      debugPrint('🎬 Step 5: Creating BioSense face session...');
+
+      // CRITICAL: Only call createFaceSession ONCE
+      // Try WITHOUT user info first to avoid SDK crashes
+      await service.createFaceSession(
+        userInformation: null, // Pass null to avoid age-related crashes
+      );
+
+      debugPrint('✅ Face session created successfully!');
+
+      // Small delay to let SDK initialize properly
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      if (mounted) {
+        setState(() {
+          _isInitializing = false;
+        });
+      }
+
+      debugPrint('══════════════════════════════════════');
+      debugPrint('🎉 INITIALIZE SESSION COMPLETED');
+      debugPrint('══════════════════════════════════════');
+    } catch (e, stackTrace) {
+      debugPrint('══════════════════════════════════════');
+      debugPrint('💥 INITIALIZE SESSION FAILED');
+      debugPrint('══════════════════════════════════════');
+      debugPrint('❌ Error: $e');
+      debugPrint('❌ Stack trace: ${stackTrace.toString()}');
+
+      if (mounted) {
+        setState(() {
+          _isInitializing = false;
+          _isSessionCreated = false;
+        });
+        _showError('SDK initialization failed. Please check your license key.');
+      }
     }
   }
-}
 
   // Add this new method to handle session state changes
   void _onSessionStateChanged() {
     final service = ref.read(bioSenseServiceProviderSelfCheck);
     final state = service.sessionStateNotifier.value;
-    
+
     debugPrint('📊 Session state changed to: $state');
-    
+
     if (state == SessionState.ready && mounted) {
       setState(() {
         _isSessionCreated = true;
@@ -811,19 +809,19 @@ Future<void> _initializeSession() async {
 
   // Add this new method to handle errors
   void _onErrorReceived() {
-  final service = ref.read(bioSenseServiceProviderSelfCheck);
-  final error = service.errorNotifier.value;
-  
-  debugPrint('❌ ERROR RECEIVED: $error'); // Add this
-  
-  if (error != null && mounted) {
-    _showError(error);
-    setState(() {
-      _isInitializing = false;
-      _isSessionCreated = false;
-    });
+    final service = ref.read(bioSenseServiceProviderSelfCheck);
+    final error = service.errorNotifier.value;
+
+    debugPrint('❌ ERROR RECEIVED: $error'); // Add this
+
+    if (error != null && mounted) {
+      _showError(error);
+      setState(() {
+        _isInitializing = false;
+        _isSessionCreated = false;
+      });
+    }
   }
-}
 
   Future<void> _startScan() async {
     if (!_isSessionCreated) {

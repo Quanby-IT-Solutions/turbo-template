@@ -62,9 +62,9 @@ async function createBetterAuthAccount(
  * Main seed function
  */
 async function seed() {
-	const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL
+	const connectionString = process.env.POSTGRES_URL
 	if (!connectionString) {
-		throw new Error("POSTGRES_URL or DATABASE_URL is not defined in environment variables")
+		throw new Error("POSTGRES_URL is not defined in environment variables")
 	}
 
 	const pool = new Pool({
@@ -89,103 +89,103 @@ async function seed() {
 			maxPatientsPerDoctor?: number
 			maxFaceScansPerDoctor?: number
 		}> = [
-			{
-				tier: "FREE",
-				entityType: "ORGANIZATION",
-				displayName: "Free Organization",
-				description: "Default free organization tier",
-				maxDoctors: 5,
-				maxPatientsPerDoctor: 10,
-				maxFaceScansPerDoctor: 30,
-			},
-			{
-				tier: "BASIC",
-				entityType: "ORGANIZATION",
-				displayName: "Basic Organization",
-				description: "Basic paid plan for organizations",
-				maxDoctors: 15,
-				maxPatientsPerDoctor: 25,
-				maxFaceScansPerDoctor: 100,
-			},
-			{
-				tier: "PREMIUM",
-				entityType: "ORGANIZATION",
-				displayName: "Premium Organization",
-				description: "Premium organization tier with higher doctor limits",
-				maxDoctors: 40,
-				maxPatientsPerDoctor: 60,
-				maxFaceScansPerDoctor: 250,
-			},
-			{
-				tier: "ENTERPRISE",
-				entityType: "ORGANIZATION",
-				displayName: "Enterprise Organization",
-				description: "Enterprise tier with very high doctor capacity",
-				maxDoctors: 100,
-				maxPatientsPerDoctor: 150,
-				maxFaceScansPerDoctor: 600,
-			},
-			{
-				tier: "FREE",
-				entityType: "DOCTOR",
-				displayName: "Free Doctor",
-				description: "Default free tier for doctors",
-				maxPatients: 50,
-				maxFaceScans: 200,
-			},
-			{
-				tier: "BASIC",
-				entityType: "DOCTOR",
-				displayName: "Basic Doctor",
-				description: "Basic tier for growing practices",
-				maxPatients: 150,
-				maxFaceScans: 400,
-			},
-			{
-				tier: "PREMIUM",
-				entityType: "DOCTOR",
-				displayName: "Premium Doctor",
-				description: "Premium tier for established doctors",
-				maxPatients: 300,
-				maxFaceScans: 900,
-			},
-			{
-				tier: "ENTERPRISE",
-				entityType: "DOCTOR",
-				displayName: "Enterprise Doctor",
-				description: "Enterprise tier for clinics with large patient loads",
-				maxPatients: 600,
-				maxFaceScans: 1500,
-			},
-			{
-				tier: "FREE",
-				entityType: "PATIENT",
-				displayName: "Free Patient",
-				description: "Default patient access",
-				maxFaceScans: 20,
-			},
-			{
-				tier: "BASIC",
-				entityType: "PATIENT",
-				displayName: "Basic Patient",
-				description: "Basic patient subscription",
-				maxFaceScans: 60,
-			},
-			{
-				tier: "PREMIUM",
-				entityType: "PATIENT",
-				displayName: "Premium Patient",
-				description: "Premium patient subscription with more scans",
-				maxFaceScans: 150,
-			},
-			{
-				tier: "ENTERPRISE",
-				entityType: "PATIENT",
-				displayName: "Enterprise Patient",
-				description: "Enterprise patient plan for corporate programs",
-				maxFaceScans: 300,
-			},
-		]
+				{
+					tier: "FREE",
+					entityType: "ORGANIZATION",
+					displayName: "Free Organization",
+					description: "Default free organization tier",
+					maxDoctors: 5,
+					maxPatientsPerDoctor: 10,
+					maxFaceScansPerDoctor: 30,
+				},
+				{
+					tier: "BASIC",
+					entityType: "ORGANIZATION",
+					displayName: "Basic Organization",
+					description: "Basic paid plan for organizations",
+					maxDoctors: 15,
+					maxPatientsPerDoctor: 25,
+					maxFaceScansPerDoctor: 100,
+				},
+				{
+					tier: "PREMIUM",
+					entityType: "ORGANIZATION",
+					displayName: "Premium Organization",
+					description: "Premium organization tier with higher doctor limits",
+					maxDoctors: 40,
+					maxPatientsPerDoctor: 60,
+					maxFaceScansPerDoctor: 250,
+				},
+				{
+					tier: "ENTERPRISE",
+					entityType: "ORGANIZATION",
+					displayName: "Enterprise Organization",
+					description: "Enterprise tier with very high doctor capacity",
+					maxDoctors: 100,
+					maxPatientsPerDoctor: 150,
+					maxFaceScansPerDoctor: 600,
+				},
+				{
+					tier: "FREE",
+					entityType: "DOCTOR",
+					displayName: "Free Doctor",
+					description: "Default free tier for doctors",
+					maxPatients: 50,
+					maxFaceScans: 200,
+				},
+				{
+					tier: "BASIC",
+					entityType: "DOCTOR",
+					displayName: "Basic Doctor",
+					description: "Basic tier for growing practices",
+					maxPatients: 150,
+					maxFaceScans: 400,
+				},
+				{
+					tier: "PREMIUM",
+					entityType: "DOCTOR",
+					displayName: "Premium Doctor",
+					description: "Premium tier for established doctors",
+					maxPatients: 300,
+					maxFaceScans: 900,
+				},
+				{
+					tier: "ENTERPRISE",
+					entityType: "DOCTOR",
+					displayName: "Enterprise Doctor",
+					description: "Enterprise tier for clinics with large patient loads",
+					maxPatients: 600,
+					maxFaceScans: 1500,
+				},
+				{
+					tier: "FREE",
+					entityType: "PATIENT",
+					displayName: "Free Patient",
+					description: "Default patient access",
+					maxFaceScans: 20,
+				},
+				{
+					tier: "BASIC",
+					entityType: "PATIENT",
+					displayName: "Basic Patient",
+					description: "Basic patient subscription",
+					maxFaceScans: 60,
+				},
+				{
+					tier: "PREMIUM",
+					entityType: "PATIENT",
+					displayName: "Premium Patient",
+					description: "Premium patient subscription with more scans",
+					maxFaceScans: 150,
+				},
+				{
+					tier: "ENTERPRISE",
+					entityType: "PATIENT",
+					displayName: "Enterprise Patient",
+					description: "Enterprise patient plan for corporate programs",
+					maxFaceScans: 300,
+				},
+			]
 
 		for (const setting of subscriptionTierSettingsData) {
 			const existing = await db.query.subscriptionTierSettings.findFirst({
@@ -504,13 +504,13 @@ async function seed() {
 		if (quanbyOrg && quanbyDoctor && testPatient) {
 			// Create multiple patients for more realistic data
 			const patients = [testPatient]
-			
+
 			// Create additional patients
 			for (let i = 1; i <= 5; i++) {
 				const existingPatient = await db.query.users.findFirst({
 					where: (users, { eq }) => eq(users.email, `patient${i}@example.com`),
 				})
-				
+
 				if (!existingPatient) {
 					const [newPatient] = await db
 						.insert(users)
@@ -523,13 +523,13 @@ async function seed() {
 							organizationId: quanbyOrg.id,
 						})
 						.returning()
-					
+
 					if (newPatient) {
 						await createBetterAuthAccount(db, newPatient.id, newPatient.email, "patient123")
-						
+
 						const bloodTypes = ["A+", "B+", "O+", "AB+", "A-", "B-", "O-", "AB-"]
 						const selectedBloodType = bloodTypes[i % bloodTypes.length] || "O+"
-						
+
 						await db.insert(patientInfos).values({
 							userId: newPatient.id,
 							firstName: `Patient`,
@@ -542,7 +542,7 @@ async function seed() {
 							height: 160 + i * 2,
 							bloodType: selectedBloodType,
 						})
-						
+
 						patients.push(newPatient)
 					}
 				} else {
@@ -554,24 +554,24 @@ async function seed() {
 			type AppointmentStatus = "PENDING" | "CONFIRMED" | "COMPLETED" | "CANCELLED" | "REJECTED" | "RESCHEDULED"
 			const appointmentStatuses: AppointmentStatus[] = ["COMPLETED", "COMPLETED", "COMPLETED", "PENDING", "CANCELLED"]
 			const now = new Date()
-			
+
 			for (let i = 0; i < 20; i++) {
 				const patient = patients[i % patients.length]
 				if (!patient) continue
 				const status = appointmentStatuses[i % appointmentStatuses.length]
-				
+
 				// Distribute appointments across last 90 days
 				const daysAgo = Math.floor(Math.random() * 90)
 				const createdAt = new Date(now.getTime() - daysAgo * 24 * 60 * 60 * 1000)
-				
+
 				const existingAppointment = await db.query.appointmentRequests.findFirst({
-					where: (appointments, { and, eq }) => 
+					where: (appointments, { and, eq }) =>
 						and(
 							eq(appointments.patientId, patient.id),
 							eq(appointments.doctorId, quanbyDoctor.id)
 						),
 				})
-				
+
 				if (!existingAppointment || i > 0) {
 					await db.insert(appointmentRequests).values({
 						patientId: patient.id,
@@ -592,19 +592,19 @@ async function seed() {
 			for (let i = 0; i < 15; i++) {
 				const patient = patients[i % patients.length]
 				if (!patient) continue
-				
+
 				// Distribute consultations across last 60 days
 				const daysAgo = Math.floor(Math.random() * 60)
 				const createdAt = new Date(now.getTime() - daysAgo * 24 * 60 * 60 * 1000)
-				
+
 				const existingConsultation = await db.query.consultations.findFirst({
-					where: (consultations, { and, eq }) => 
+					where: (consultations, { and, eq }) =>
 						and(
 							eq(consultations.patientId, patient.id),
 							eq(consultations.doctorId, quanbyDoctor.id)
 						),
 				})
-				
+
 				if (!existingConsultation || i > 0) {
 					await db.insert(consultations).values({
 						patientId: patient.id,

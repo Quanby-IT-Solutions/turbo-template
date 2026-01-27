@@ -1618,8 +1618,9 @@ class HttpService {
       if (isRead != null) queryParams['isRead'] = isRead;
       if (isArchived != null) queryParams['isArchived'] = isArchived;
       if (type != null && type.isNotEmpty) queryParams['type'] = type;
-      if (priority != null && priority.isNotEmpty)
+      if (priority != null && priority.isNotEmpty) {
         queryParams['priority'] = priority;
+      }
       if (limit != null) queryParams['limit'] = limit;
       if (offset != null) queryParams['offset'] = offset;
 

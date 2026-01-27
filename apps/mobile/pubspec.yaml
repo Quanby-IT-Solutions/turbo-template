@@ -50,7 +50,6 @@ dependencies:
   font_awesome_flutter: ^10.9.1
   awesome_snackbar_content: ^0.1.1
   toastification: ^3.0.3
-  flutter_native_splash: ^2.4.6
   introduction_screen: ^4.0.0
   awesome_notifications: ^0.10.1
   draggable_home: ^1.0.5

@@ -54,7 +54,7 @@ import { DB, POOL, type DBType } from "./database-providers"
 	exports: [DB, POOL],
 })
 export class DBModule implements OnModuleDestroy {
-	constructor(@Inject(POOL) private readonly pool: Pool) {}
+	constructor(@Inject(POOL) private readonly pool: Pool) { }
 
 	async onModuleDestroy(): Promise<void> {
 		await this.pool.end()

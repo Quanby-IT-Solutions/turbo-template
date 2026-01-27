@@ -3,7 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile/core/theme/app_theme.dart';
 import 'package:mobile/core/theme/theme_provider.dart';
 import 'package:mobile/core/utils/app_router.dart';
-import 'package:flutter_native_splash/flutter_native_splash.dart';
+// Temporarily disabled due to Gradle build error
+// import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:mobile/core/services/onboarding_service.dart';
 import 'package:mobile/core/services/notification_service.dart';
 import 'package:mobile/core/controllers/notification_controller.dart';
@@ -16,7 +17,8 @@ import 'package:mobile/domain/entities/user.dart';
 
 void main() async {
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
-  FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
+  // Temporarily disabled due to Gradle build error
+  // FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
   // Load environment variables
   await dotenv.load(fileName: ".env");
@@ -56,7 +58,8 @@ class _TeleMedAppState extends ConsumerState<TeleMedApp> {
       }
 
       // Transition from native splash to branded loading state
-      FlutterNativeSplash.remove();
+      // Temporarily disabled due to Gradle build error
+      // FlutterNativeSplash.remove();
 
       // Fetch onboarding + session state in parallel
       final onboardingFuture = OnboardingService.hasCompletedOnboarding();
@@ -88,7 +91,7 @@ class _TeleMedAppState extends ConsumerState<TeleMedApp> {
     } catch (error, stackTrace) {
       debugPrint('App initialization error: $error');
       debugPrint(stackTrace.toString());
-      FlutterNativeSplash.remove();
+      // FlutterNativeSplash.remove(); // (disabled while flutter_native_splash is not included)
       if (!mounted) return;
       setState(() {
         _showLoadingScreen = false;

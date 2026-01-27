@@ -11,13 +11,14 @@ export class LabRequestsService {
 	constructor(@Inject(DB) private readonly db: DBType) {}
 
 	private serialize(r: any) {
-		if (!r) return r
-		const toIso = (v: any) => (v instanceof Date ? v.toISOString() : v)
+		if (!r) return r;
+		const toIso = (v: any) => (v instanceof Date ? v.toISOString() : v);
 		return {
 			...r,
+			requestedTests: r.requestedTests ?? "",
 			createdAt: toIso(r.createdAt),
 			updatedAt: toIso(r.updatedAt),
-		}
+		};
 	}
 
 	async findAll() {

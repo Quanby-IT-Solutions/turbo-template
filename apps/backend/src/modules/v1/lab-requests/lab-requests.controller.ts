@@ -25,21 +25,29 @@ export class LabRequestsController {
 		return { success: true, data: labRequests }
 	}
 
-	@Post()
-	@ZodSerializerDto(LabRequestResponseDto)
-	@Roles("DOCTOR", "ADMIN", "SUPER_ADMIN", "PATIENT")
-	async create(@Body() data: any, @User() user: any) {
-		const doctorId = user?.userId || user?.id
-		if (!doctorId) {
-			throw new Error("Doctor ID not found")
-		}
-		const labRequest = await this.labRequestsService.create({
-			...data,
-			doctorId,
-			createdBy: doctorId,
-		})
-		return { success: true, data: labRequest }
-	}
+@Post()
+@ZodSerializerDto(LabRequestResponseDto)
+@Roles("DOCTOR", "ADMIN", "SUPER_ADMIN", "PATIENT")
+async create(@Body() data: any, @User() user: any) {
+    const userId = user?.userId || user?.id;
+    
+    if (!userId) {
+        throw new Error("User ID not found");
+    }
+    const patientId = user?.role === 'PATIENT' ? userId : data.patientId;
+    
+    if (!patientId) {
+        throw new Error("Patient ID is required");
+    }
+    
+    const labRequest = await this.labRequestsService.create({
+        ...data,
+        patientId,
+        createdBy: userId,
+    });
+    
+    return { success: true, data: labRequest };
+}
 
 	// These routes must come before @Get(':id') to avoid conflicts
 	@Get("doctor/:doctorId")

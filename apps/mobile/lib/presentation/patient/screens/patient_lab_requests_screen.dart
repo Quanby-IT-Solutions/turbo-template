@@ -51,13 +51,12 @@ class _PatientLabRequestsScreenState
     }
     final query = searchQuery.toLowerCase();
     return requests.where((req) {
-      return (req['requestedTests'] as String? ?? '').toLowerCase().contains(
-            query,
-          ) ||
-          (req['doctorName'] as String? ?? '').toLowerCase().contains(query) ||
-          (req['organizationName'] as String? ?? '').toLowerCase().contains(
-            query,
-          );
+      final tests = req['requestedTests'] as String? ?? '';
+      final doctor = req['doctorName'] as String? ?? '';
+      final org = req['organizationName'] as String? ?? '';
+      return tests.toLowerCase().contains(query) ||
+          doctor.toLowerCase().contains(query) ||
+          org.toLowerCase().contains(query);
     }).toList();
   }
 
@@ -691,7 +690,7 @@ class _PatientLabRequestsScreenState
                           children: [
                             Expanded(
                               child: Text(
-                                request['requestedTests'] as String? ??
+                                (request['requestedTests'] as String?) ??
                                     'Untitled Lab Test',
                                 style: TextStyle(
                                   fontSize: 18,
@@ -918,7 +917,7 @@ class _PatientLabRequestsScreenState
             const SizedBox(height: 24),
             _buildDetailRow(
               'Test',
-              request['requestedTests'] as String? ?? 'N/A',
+              (request['requestedTests'] as String?) ?? 'N/A',
               Icons.science_rounded,
               colorScheme,
             ),

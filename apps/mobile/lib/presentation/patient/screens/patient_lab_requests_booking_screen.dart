@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/core/services/toast_service.dart';
+import 'package:mobile/presentation/auth/providers/auth_providers.dart';
 import 'package:mobile/presentation/patient/providers/patient_lab_requests_provider.dart';
 
 class LabRequestBookingScreen extends ConsumerStatefulWidget {
@@ -54,10 +55,33 @@ class _LabRequestBookingScreenState
     },
   ];
 
+  String? _organizationName;
+  String? _organizationType;
+
   @override
   void initState() {
     super.initState();
+    _loadOrganization();
     _loadDoctors();
+  }
+
+  Future<void> _loadOrganization() async {
+    if (widget.organizationId == null) return;
+
+    try {
+      final repository = ref.read(labRequestRepositoryProvider);
+      final orgData = await repository.getOrganization(widget.organizationId!);
+
+      if (mounted) {
+        setState(() {
+          _organizationName = orgData['name'] as String?;
+          _organizationType = orgData['type'] as String?;
+        });
+      }
+    } catch (e) {
+      debugPrint('Failed to load organization: $e');
+      // Don't show error, just use fallback name
+    }
   }
 
   @override
@@ -75,29 +99,28 @@ class _LabRequestBookingScreenState
     setState(() => _isLoadingDoctors = true);
 
     try {
-      // TODO: Replace with actual API call to get doctors by organization
-      // For now using mock data
-      await Future.delayed(const Duration(seconds: 1));
+      final repository = ref.read(labRequestRepositoryProvider);
+      final doctorsData = await repository.getDoctorsByOrganization(
+        widget.organizationId!,
+      );
 
-      setState(() {
-        _availableDoctors = [
-          DoctorOption(
-            id: 'doc-1',
-            name: 'Dr. Sarah Anderson',
-            specialization: 'Pathology',
-          ),
-          DoctorOption(
-            id: 'doc-2',
-            name: 'Dr. Michael Chen',
-            specialization: 'Radiology',
-          ),
-          DoctorOption(
-            id: 'doc-3',
-            name: 'Dr. Emily Thompson',
-            specialization: 'Laboratory Medicine',
-          ),
-        ];
-      });
+      if (mounted) {
+        setState(() {
+          _availableDoctors = doctorsData.map((doc) {
+            final doctorInfo = doc['doctorInfo'] as Map<String, dynamic>?;
+            final firstName = doctorInfo?['firstName'] ?? '';
+            final lastName = doctorInfo?['lastName'] ?? '';
+            final specialization =
+                doctorInfo?['specialization'] ?? 'General Practice';
+
+            return DoctorOption(
+              id: doc['id'] as String,
+              name: 'Dr. $firstName $lastName',
+              specialization: specialization,
+            );
+          }).toList();
+        });
+      }
     } catch (e) {
       if (mounted) {
         ToastService.showError(
@@ -114,6 +137,18 @@ class _LabRequestBookingScreenState
   }
 
   Future<void> _submitRequest() async {
+    final user = ref.read(currentUserProvider);
+    final userId = user?.id;
+
+    if (userId == null) {
+      ToastService.showError(
+        context: context,
+        title: 'Authentication Required',
+        description: 'Please log in to submit a lab request',
+      );
+      return;
+    }
+
     if (_requestedTestsController.text.trim().isEmpty) {
       ToastService.showError(
         context: context,
@@ -123,27 +158,14 @@ class _LabRequestBookingScreenState
       return;
     }
 
-    // Parse requested tests from comma-separated input
-    final requestedTests = _requestedTestsController.text
-        .split(',')
-        .map((test) => test.trim())
-        .where((test) => test.isNotEmpty)
-        .toList();
-
-    if (requestedTests.isEmpty) {
-      ToastService.showError(
-        context: context,
-        title: 'Tests Required',
-        description: 'Please specify at least one test',
-      );
-      return;
-    }
+    // Send requestedTests as a STRING
+    final requestedTestsString = _requestedTestsController.text.trim();
 
     final labRequest = await ref
         .read(labRequestBookingProvider.notifier)
         .createLabRequest(
-          patientId: 'temp-patient-id', // TODO: Get from auth state
-          organizationId: widget.organizationId ?? 'temp-org-id',
+          patientId: userId,
+          organizationId: widget.organizationId ?? '',
           doctorId: _selectedDoctorId,
           roomId: _roomController.text.trim().isNotEmpty
               ? _roomController.text.trim()
@@ -152,7 +174,7 @@ class _LabRequestBookingScreenState
               ? _notesController.text.trim()
               : null,
           priority: _selectedPriority,
-          requestedTests: requestedTests,
+          requestedTests: requestedTestsString,
           instructions: _instructionsController.text.trim().isNotEmpty
               ? _instructionsController.text.trim()
               : null,
@@ -168,7 +190,10 @@ class _LabRequestBookingScreenState
         description: 'Your lab request has been submitted successfully',
         isSuccess: true,
       );
-      context.pop();
+
+      ref.invalidate(patientLabRequestsProvider(userId));
+
+      context.go('/lab-request');
     } else {
       final errorState = ref.read(labRequestBookingProvider);
       final errorMessage =
@@ -249,7 +274,9 @@ class _LabRequestBookingScreenState
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          widget.organizationName ?? 'Medical Laboratory',
+                          _organizationName ??
+                              widget.organizationName ??
+                              'Medical Laboratory',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w700,
@@ -259,7 +286,7 @@ class _LabRequestBookingScreenState
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Healthcare Facility',
+                          _organizationType ?? 'Healthcare Facility',
                           style: TextStyle(
                             fontSize: 14,
                             color: colorScheme.primary,

@@ -22,10 +22,10 @@ class LabRequest {
   final String? roomId;
   final String? note;
   final String status;
-  final String createdBy;
-  final String updatedBy;
+  final String? createdBy; // Make nullable
+  final String? updatedBy;
   final String priority;
-  final List<String>? requestedTests;
+  final String? requestedTests;
   final String? instructions;
   final String? organizationName;
   final DateTime createdAt;
@@ -43,8 +43,8 @@ class LabRequest {
     this.requestedTests,
     this.instructions,
     this.organizationName,
-    required this.createdBy,
-    required this.updatedBy,
+    this.createdBy, // Nullable
+    this.updatedBy,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -59,13 +59,11 @@ class LabRequest {
       note: json['note'] as String?,
       status: json['status'] as String,
       priority: json['priority'] as String,
-      requestedTests: json['requestedTests'] != null
-          ? List<String>.from(json['requestedTests'] as List)
-          : null,
+      requestedTests: json['requestedTests'] as String?,
       instructions: json['instructions'] as String?,
       organizationName: json['organizationName'] as String?,
-      createdBy: json['createdBy'] as String,
-      updatedBy: json['updatedBy'] as String,
+      createdBy: json['createdBy'] as String?,
+      updatedBy: json['updatedBy'] as String?,
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),
     );
@@ -276,7 +274,7 @@ class LabRequestBookingNotifier extends Notifier<LabRequestBookingState> {
     String? note,
     String? status,
     String? priority,
-    List<String>? requestedTests,
+    String? requestedTests, // Changed from List<String>?
     String? instructions,
   }) async {
     state = LabRequestBookingState.loading();
@@ -297,12 +295,10 @@ class LabRequestBookingNotifier extends Notifier<LabRequestBookingState> {
       final labRequest = LabRequest.fromJson(labRequestJson);
       state = LabRequestBookingState.success(labRequest);
 
-      // Add to lab requests list
       ref.read(labRequestsListProvider.notifier).addLabRequest(labRequest);
 
       return labRequest;
     } catch (e) {
-      // Extract clean error message from Exception
       String errorMessage = e.toString();
       if (errorMessage.startsWith('Exception: ')) {
         errorMessage = errorMessage.substring('Exception: '.length);
@@ -349,7 +345,7 @@ class LabRequestActionsNotifier extends Notifier<AsyncValue<void>> {
     String? note,
     String? status,
     String? priority,
-    List<String>? requestedTests,
+    String? requestedTests, // Changed from List<String>? to String?
     String? instructions,
   }) async {
     state = const AsyncLoading();

@@ -3,6 +3,7 @@ import { and, eq } from "drizzle-orm"
 
 import { doctorSchedules, users, doctorInfos, organizationSettings } from "@repo/db/schema"
 
+
 import { DB, type DBType } from "@/common/database/database-providers"
 
 @Injectable()

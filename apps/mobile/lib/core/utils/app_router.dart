@@ -8,7 +8,6 @@ import 'package:mobile/presentation/auth/screens/mfa_verification_screen.dart';
 import 'package:mobile/presentation/auth/screens/credential_upload_screen.dart';
 import 'package:mobile/presentation/auth/screens/kyc_verification_screen.dart';
 import 'package:mobile/presentation/auth/screens/philhealth_id_upload_screen.dart';
-import 'package:mobile/presentation/clinical_tools/screens/lab_request_screen.dart';
 import 'package:mobile/presentation/onboarding/onboarding_screen.dart';
 import 'package:mobile/presentation/patient/screens/patient_lab_requests_booking_screen.dart';
 import 'package:mobile/presentation/profile/screens/profile_screen.dart';
@@ -446,15 +445,19 @@ final GoRouter appRouter = GoRouter(
       redirect: (context, state) =>
           _requireRole(requireDoctor: true, requirePatient: false),
       builder: (context, state) =>
-          _animateRoute(const LabRequestScreen(), 'slideInUp'),
+          _animateRoute(const PatientLabRequestsScreen(), 'slideInUp'),
     ),
     GoRoute(
       path: '/lab-request-booking',
-      name: 'lab-request-booking',
-      redirect: (context, state) =>
-          _requireRole(requireDoctor: false, requirePatient: true),
-      builder: (context, state) =>
-          _animateRoute(const LabRequestBookingScreen(), 'slideInUp'),
+      builder: (context, state) {
+        final orgId = state.uri.queryParameters['orgId'];
+        final orgName = state.uri.queryParameters['orgName'];
+
+        return LabRequestBookingScreen(
+          organizationId: orgId,
+          organizationName: orgName,
+        );
+      },
     ),
     GoRoute(
       path: '/organization-search',

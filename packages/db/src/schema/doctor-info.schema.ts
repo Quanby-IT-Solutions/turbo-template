@@ -62,4 +62,4 @@ export const doctorInfos = pgTable(
     idDocumentsVerifiedByIdx: index('doctorInfo_idDocumentsVerifiedBy_idx').on(table.idDocumentsVerifiedBy),
     approvalStatusIdx: index('doctorInfo_approvalStatus_idx').on(table.approvalStatus),
   }),
-);
+).enableRLS();

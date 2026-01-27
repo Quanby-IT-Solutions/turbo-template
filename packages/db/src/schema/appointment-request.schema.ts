@@ -25,4 +25,4 @@ export const appointmentRequests = pgTable(
     statusIdx: index('appointmentRequest_status_idx').on(table.status),
     requestedDateIdx: index('appointmentRequest_requestedDate_idx').on(table.requestedDate),
   }),
-);
+).enableRLS();

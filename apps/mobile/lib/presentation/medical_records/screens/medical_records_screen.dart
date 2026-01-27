@@ -141,81 +141,89 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
               onRefresh: () async {
                 ref.invalidate(currentPatientProvider);
               },
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              child: NestedScrollView(
+                headerSliverBuilder:
+                    (BuildContext context, bool innerBoxIsScrolled) {
+                      return <Widget>[
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Patient Summary Card
+                                _buildPatientSummaryCard(
+                                  context,
+                                  patient,
+                                  user,
+                                  colorScheme,
+                                ),
+                                const SizedBox(height: 16),
+
+                                // Key Metrics Cards
+                                _buildMetricsCards(
+                                  context,
+                                  patient,
+                                  colorScheme,
+                                ),
+                                const SizedBox(height: 16),
+
+                                // Contact & Medical Information
+                                _buildContactMedicalCards(
+                                  context,
+                                  patient,
+                                  colorScheme,
+                                ),
+                                const SizedBox(height: 16),
+
+                                // Summary Statistics Cards
+                                _buildStatisticsCards(
+                                  context,
+                                  patient,
+                                  colorScheme,
+                                ),
+                                const SizedBox(height: 16),
+                              ],
+                            ),
+                          ),
+                        ),
+                        SliverPersistentHeader(
+                          pinned: true,
+                          delegate: _StickyTabBarDelegate(
+                            TabBar(
+                              controller: _tabController,
+                              isScrollable: true,
+                              tabAlignment: TabAlignment.start,
+                              padding: EdgeInsets.zero,
+                              labelPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                              ),
+                              indicatorPadding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                              ),
+                              tabs: const [
+                                Tab(text: 'Overview'),
+                                Tab(text: 'Health Trends'),
+                                Tab(text: 'Consultations'),
+                                Tab(text: 'Self Check History'),
+                              ],
+                              labelColor: colorScheme.primary,
+                              unselectedLabelColor: colorScheme.onSurface
+                                  .withOpacity(0.6),
+                              indicatorColor: colorScheme.primary,
+                            ),
+                            colorScheme,
+                          ),
+                        ),
+                      ];
+                    },
+                body: TabBarView(
+                  controller: _tabController,
                   children: [
-                    // Patient Summary Card
-                    _buildPatientSummaryCard(
-                      context,
-                      patient,
-                      user,
-                      colorScheme,
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Key Metrics Cards
-                    _buildMetricsCards(context, patient, colorScheme),
-                    const SizedBox(height: 16),
-
-                    // Contact & Medical Information
-                    _buildContactMedicalCards(context, patient, colorScheme),
-                    const SizedBox(height: 16),
-
-                    // Summary Statistics Cards
-                    // _buildStatisticsCards(context, patient, colorScheme),
-                    // const SizedBox(height: 16),
-
-                    // // Tab Content
-                    // SizedBox(
-                    //   height: MediaQuery.of(context).size.height * 0.6,
-                    //   child: TabBarView(
-                    //     controller: _tabController,
-                    //     children: [
-                    //       _buildOverviewTab(context, patient, colorScheme),
-                    //       _buildHealthTrendsTab(context, patient, colorScheme),
-                    //       _buildConsultationsTab(context, patient, colorScheme),
-                    //       _buildSelfCheckTab(context, patient, colorScheme),
-                    //     ],
-                    //   ),
-                    // ),
-
-                    // Summary Statistics Cards
-                    _buildStatisticsCards(context, patient, colorScheme),
-                    const SizedBox(height: 24),
-
-                    // Tab Bar (moved here)
-                    TabBar(
-                      controller: _tabController,
-                      tabs: const [
-                        Tab(text: 'Overview'),
-                        Tab(text: 'Health Trends'),
-                        Tab(text: 'Consultations'),
-                        Tab(text: 'Self Check History'),
-                      ],
-                      labelColor: colorScheme.primary,
-                      unselectedLabelColor: colorScheme.onSurface.withValues(
-                        alpha: 0.6,
-                      ),
-                      indicatorColor: colorScheme.primary,
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Tab Content
-                    SizedBox(
-                      height: MediaQuery.of(context).size.height * 0.6,
-                      child: TabBarView(
-                        controller: _tabController,
-                        children: [
-                          _buildOverviewTab(context, patient, colorScheme),
-                          _buildHealthTrendsTab(context, patient, colorScheme),
-                          _buildConsultationsTab(context, patient, colorScheme),
-                          _buildSelfCheckTab(context, patient, colorScheme),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 100),
+                    _buildOverviewTab(context, patient, colorScheme),
+                    _buildHealthTrendsTab(context, patient, colorScheme),
+                    _buildConsultationsTab(context, patient, colorScheme),
+                    _buildSelfCheckTab(context, patient, colorScheme),
                   ],
                 ),
               ),
@@ -367,14 +375,14 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
         _buildMetricCard(
           context,
           'Height',
-          patient.height.toStringAsFixed(0),
+          '${patient.height.toStringAsFixed(0)}',
           'cm',
           colorScheme,
         ),
         _buildMetricCard(
           context,
           'Weight',
-          patient.weight.toStringAsFixed(1),
+          '${patient.weight.toStringAsFixed(1)}',
           'kg',
           colorScheme,
         ),
@@ -592,60 +600,69 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
 
         final lastHealthScan = vitalsList.isNotEmpty ? vitalsList.first : null;
 
-        return SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: [
-              _buildStatCard(
-                context,
-                Icons.calendar_today_rounded,
-                '${consultations.length}',
-                'TOTAL CONSULTATIONS',
-                colorScheme,
-              ),
-              const SizedBox(width: 12),
-              _buildStatCard(
-                context,
-                Icons.favorite_rounded,
-                '${vitalsList.length}',
-                'HEALTH SCANS',
-                colorScheme,
-              ),
-              const SizedBox(width: 12),
-              _buildStatCard(
-                context,
-                Icons.access_time_rounded,
-                lastConsultation != null
-                    ? _formatDateShort(lastConsultation.startTime)
-                    : 'N/A',
-                'LAST CONSULTATION',
-                colorScheme,
-              ),
-              const SizedBox(width: 12),
-              _buildStatCard(
-                context,
-                Icons.favorite_border_rounded,
-                lastHealthScan != null
-                    ? _formatDateShort(
-                        DateTime.parse(
-                          (lastHealthScan as Map)['createdAt'] as String? ??
-                              DateTime.now().toIso8601String(),
-                        ),
-                      )
-                    : 'N/A',
-                'LAST HEALTH SCAN',
-                colorScheme,
-              ),
-              const SizedBox(width: 12),
-              _buildStatCard(
-                context,
-                Icons.description_rounded,
-                '${medicalRecords.length}',
-                'MEDICAL RECORDS',
-                colorScheme,
-              ),
-            ],
-          ),
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // FULL WIDTH — Total Consultations
+            // FULL WIDTH — Total Consultations
+            _buildStatCard(
+              context,
+              Icons.calendar_today_rounded,
+              '${consultations.length}',
+              'TOTAL CONSULTATIONS',
+              colorScheme,
+            ),
+
+            const SizedBox(height: 12),
+
+            // 2-COLUMN GRID — rest of stats
+            GridView.count(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: 2,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: 1.8, // taller
+              children: [
+                _buildStatCard(
+                  context,
+                  Icons.favorite_rounded,
+                  '${vitalsList.length}',
+                  'HEALTH SCANS',
+                  colorScheme,
+                ),
+                _buildStatCard(
+                  context,
+                  Icons.access_time_rounded,
+                  lastConsultation != null
+                      ? _formatDateShort(lastConsultation.startTime)
+                      : 'N/A',
+                  'LAST CONSULTATION',
+                  colorScheme,
+                ),
+                _buildStatCard(
+                  context,
+                  Icons.favorite_border_rounded,
+                  lastHealthScan != null
+                      ? _formatDateShort(
+                          DateTime.parse(
+                            (lastHealthScan as Map)['createdAt'] as String,
+                          ),
+                        )
+                      : 'N/A',
+                  'LAST HEALTH SCAN',
+                  colorScheme,
+                ),
+                _buildStatCard(
+                  context,
+                  Icons.description_rounded,
+                  '${medicalRecords.length}',
+                  'MEDICAL RECORDS',
+                  colorScheme,
+                ),
+              ],
+            ),
+          ],
         );
       },
       loading: () => const SizedBox(
@@ -664,7 +681,6 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
     ColorScheme colorScheme,
   ) {
     return Container(
-      width: 140,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerLow,
@@ -682,6 +698,7 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   value,
@@ -693,6 +710,7 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
+                const SizedBox(height: 2),
                 Text(
                   label,
                   style: TextStyle(
@@ -726,6 +744,7 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
     }
 
     return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(25, 25, 25, 25),
       child: Column(
         children: [
           // Personal Information
@@ -773,15 +792,18 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
               ),
             ),
             const SizedBox(height: 4),
-            Wrap(
-              spacing: 8,
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (patient.allergies != null && patient.allergies!.isNotEmpty)
-                  _buildBadge(patient.allergies!, colorScheme)
-                else
-                  _buildBadge('None', colorScheme),
+                _buildBadge(
+                  (patient.allergies != null && patient.allergies!.isNotEmpty)
+                      ? patient.allergies!
+                      : 'None',
+                  colorScheme,
+                ),
               ],
             ),
+
             const SizedBox(height: 12),
             Text(
               'CURRENT MEDICATIONS',
@@ -793,14 +815,16 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
               ),
             ),
             const SizedBox(height: 4),
-            Wrap(
-              spacing: 8,
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (patient.medications != null &&
-                    patient.medications!.isNotEmpty)
-                  _buildBadge(patient.medications!, colorScheme)
-                else
-                  _buildBadge('None', colorScheme),
+                _buildBadge(
+                  (patient.medications != null &&
+                          patient.medications!.isNotEmpty)
+                      ? patient.medications!
+                      : 'None',
+                  colorScheme,
+                ),
               ],
             ),
           ], colorScheme),
@@ -834,27 +858,30 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
     List<Widget> children,
     ColorScheme colorScheme,
   ) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colorScheme.outline.withValues(alpha: 0.1)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: colorScheme.onSurface,
+    return SizedBox(
+      width: double.infinity, // 👈 FULL WIDTH, NO EXCUSES
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: colorScheme.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: colorScheme.outline.withValues(alpha: 0.1)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: colorScheme.onSurface,
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
-          ...children,
-        ],
+            const SizedBox(height: 16),
+            ...children,
+          ],
+        ),
       ),
     );
   }
@@ -885,19 +912,22 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
   }
 
   Widget _buildBadge(String text, ColorScheme colorScheme) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: colorScheme.primaryContainer,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: colorScheme.primary.withValues(alpha: 0.2)),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: colorScheme.primary,
+    return SizedBox(
+      width: double.infinity,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: colorScheme.primaryContainer,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: colorScheme.primary.withValues(alpha: 0.2)),
+        ),
+        child: Text(
+          text,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: colorScheme.primary,
+          ),
         ),
       ),
     );
@@ -917,6 +947,7 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
       data: (vitalsHistory) {
         final vitalsList = vitalsHistory['items'] as List<dynamic>? ?? [];
         return SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(25, 25, 25, 25),
           child: Column(
             children: [
               // Metric Trend Cards
@@ -1017,11 +1048,15 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: colorScheme.onSurface.withValues(alpha: 0.7),
+              Flexible(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: colorScheme.onSurface.withValues(alpha: 0.7),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               Icon(icon, size: 14, color: color),
@@ -1287,6 +1322,7 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
         }
 
         return SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(25, 25, 25, 25),
           child: Column(
             children: [
               // Header
@@ -1651,6 +1687,7 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
         }
 
         return SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(25, 25, 25, 25),
           child: Column(
             children: allSelfChecks.map((selfCheck) {
               return _buildSelfCheckCard(context, selfCheck, colorScheme);
@@ -1789,5 +1826,36 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
         ],
       ),
     );
+  }
+}
+
+class _StickyTabBarDelegate extends SliverPersistentHeaderDelegate {
+  final TabBar tabBar;
+  final ColorScheme colorScheme;
+
+  _StickyTabBarDelegate(this.tabBar, this.colorScheme);
+
+  @override
+  double get minExtent => tabBar.preferredSize.height;
+
+  @override
+  double get maxExtent => tabBar.preferredSize.height;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    return Container(
+      color: Theme.of(context).scaffoldBackgroundColor,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: tabBar,
+    );
+  }
+
+  @override
+  bool shouldRebuild(_StickyTabBarDelegate oldDelegate) {
+    return false;
   }
 }

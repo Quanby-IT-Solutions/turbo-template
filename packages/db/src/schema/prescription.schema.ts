@@ -32,4 +32,4 @@ export const prescriptions = pgTable(
     isActiveIdx: index('prescription_isActive_idx').on(table.isActive),
     prescribedAtIdx: index('prescription_prescribedAt_idx').on(table.prescribedAt),
   }),
-);
+).enableRLS();

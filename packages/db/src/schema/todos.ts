@@ -6,4 +6,4 @@ export const todos = pgTable("todos", {
 	completed: boolean("completed").notNull().default(false),
 	createdAt: timestamp("created_at").notNull().defaultNow(),
 	updatedAt: timestamp("updated_at").notNull().defaultNow(),
-})
+}).enableRLS();

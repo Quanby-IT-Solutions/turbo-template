@@ -270,6 +270,38 @@ export default function PatientSelfCheckClient() {
       try {
         setIsInitializing(true)
 
+        // Check cross-origin isolation (required for SharedArrayBuffer/WASM)
+        if (typeof window !== "undefined" && !window.crossOriginIsolated) {
+          console.error("❌ Cross-origin isolation not enabled!")
+          console.error("SharedArrayBuffer will not be available - WASM cannot load")
+          console.error("Verify COOP/COEP headers are properly configured")
+          const message = "Browser environment not configured for face scanning. Please check deployment headers."
+          toast.error(message)
+          setLicenseDebug((prev) => (prev ? prev + " | Cross-origin isolation: FAILED" : "Cross-origin isolation: FAILED"))
+          setIsInitializing(false)
+          return
+        }
+
+        console.log("✅ Cross-origin isolation verified")
+        setLicenseDebug((prev) => (prev ? prev + " | Cross-origin: OK" : "Cross-origin: OK"))
+
+        // Verify WASM file is accessible
+        try {
+          const wasmCheck = await fetch('/a.wasm.gz', { method: 'HEAD' })
+          if (!wasmCheck.ok) {
+            console.error("❌ WASM file not accessible at /a.wasm.gz", wasmCheck.status)
+            toast.error("WASM file not found. Please ensure SDK files are properly deployed.")
+            setLicenseDebug((prev) => (prev ? prev + " | WASM file check: FAILED" : "WASM file check: FAILED"))
+            setIsInitializing(false)
+            return
+          }
+          console.log("✅ WASM file accessible")
+          setLicenseDebug((prev) => (prev ? prev + " | WASM file: OK" : "WASM file: OK"))
+        } catch (wasmErr) {
+          console.error("❌ Error checking WASM file:", wasmErr)
+          setLicenseDebug((prev) => (prev ? prev + ` | WASM check error: ${wasmErr}` : `WASM check error: ${wasmErr}`))
+        }
+
         await healthMonitorManager.initialize({
           licenseKey: trimmedLicenseKey,
           licenseInfo: {

@@ -19,7 +19,7 @@ export const session = pgTable('session', {
   userId: text('user_id').notNull(), // UUID stored as text to reference our User table
   // Note: We use text instead of foreign key to avoid type mismatch (UUID vs text)
   // Better Auth will handle the reference via string conversion
-});
+}).enableRLS();
 
 // Account table (for OAuth providers and password storage)
 // Better Auth stores passwords here, not in the user table
@@ -37,7 +37,7 @@ export const account = pgTable('account', {
   password: text('password'), // Better Auth stores password here, not in user table
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
-});
+}).enableRLS();
 
 // Verification table (for email verification)
 export const verification = pgTable('verification', {
@@ -47,4 +47,4 @@ export const verification = pgTable('verification', {
   expiresAt: timestamp('expires_at').notNull(),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
-});
+}).enableRLS();

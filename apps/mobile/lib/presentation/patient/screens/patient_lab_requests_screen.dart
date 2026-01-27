@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import 'package:mobile/core/services/toast_service.dart';
 import 'package:mobile/core/widgets/animated_nav_wrapper.dart';
 import 'package:mobile/presentation/patient/providers/patient_providers.dart';
 import 'package:mobile/presentation/auth/providers/auth_providers.dart';
@@ -59,6 +59,16 @@ class _PatientLabRequestsScreenState
             query,
           );
     }).toList();
+  }
+
+  // Method to navigate to lab request booking screen
+  void _navigateToOrganizationSearchScreen(BuildContext context) {
+    final user = ref.read(currentUserProvider);
+
+    context.push(
+      '/organization-search',
+      extra: {'patientId': user?.id, 'organizationId': null, 'doctorId': null},
+    );
   }
 
   Widget _buildStatusBadge(String status, ColorScheme colorScheme) {
@@ -272,14 +282,7 @@ class _PatientLabRequestsScreenState
           automaticallyImplyLeading: false,
         ),
         floatingActionButton: FloatingActionButton.extended(
-          onPressed: () {
-            ToastService.showInfo(
-              context: context,
-              title: 'Request Lab Test',
-              description:
-                  'Lab request functionality will be available soon. Please contact your doctor to request lab tests.',
-            );
-          },
+          onPressed: () => _navigateToOrganizationSearchScreen(context),
           icon: const Icon(Icons.add_rounded),
           label: const Text('Request Test'),
           backgroundColor: colorScheme.primary,
@@ -337,14 +340,8 @@ class _PatientLabRequestsScreenState
                         ),
                         const SizedBox(width: 12),
                         ElevatedButton.icon(
-                          onPressed: () {
-                            ToastService.showInfo(
-                              context: context,
-                              title: 'Request Lab Test',
-                              description:
-                                  'Lab request functionality will be available soon.',
-                            );
-                          },
+                          onPressed: () =>
+                              _navigateToOrganizationSearchScreen(context),
                           icon: const Icon(Icons.description_rounded, size: 18),
                           label: const Text('Request'),
                           style: ElevatedButton.styleFrom(
@@ -620,14 +617,7 @@ class _PatientLabRequestsScreenState
           if (!isSearch) ...[
             const SizedBox(height: 24),
             ElevatedButton.icon(
-              onPressed: () {
-                ToastService.showInfo(
-                  context: context,
-                  title: 'Request Lab Test',
-                  description:
-                      'Lab request functionality will be available soon.',
-                );
-              },
+              onPressed: () => _navigateToOrganizationSearchScreen(context),
               icon: const Icon(Icons.description_rounded),
               label: const Text('Request Lab Test'),
               style: ElevatedButton.styleFrom(

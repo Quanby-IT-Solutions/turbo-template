@@ -20,4 +20,4 @@ export const subscriptionTierSettings = pgTable(
   (table) => ({
     uniqueTierEntity: unique().on(table.tier, table.entityType),
   }),
-);
+).enableRLS();

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { cn } from "@/core/lib/utils"
 import { SidebarWrapper } from "@/core/components/sidebar-wrapper"
 import { RoleHeader } from "@/core/components/role-header"
 import { ReportsCharts } from "@/core/components/reports-charts"
@@ -37,6 +38,17 @@ import { Badge } from "@/core/components/ui/badge"
 import { Input } from "@/core/components/ui/input"
 import { Label } from "@/core/components/ui/label"
 import { Textarea } from "@/core/components/ui/textarea"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/core/components/ui/alert-dialog"
 import {
   FileText,
   Plus,
@@ -108,10 +120,8 @@ export default function ReportsPage() {
   }
 
   const handleDeleteReport = async (reportId: string) => {
-    if (confirm("Are you sure you want to delete this report?")) {
-      await deleteReportMutation.mutateAsync(reportId)
-      refetchReports()
-    }
+    await deleteReportMutation.mutateAsync(reportId)
+    refetchReports()
   }
 
   const handleViewReport = (report: any) => {
@@ -143,6 +153,33 @@ export default function ReportsPage() {
       default:
         return <FileText className="h-4 w-4" />
     }
+  }
+
+  const getReportTypeBadge = (type: string) => {
+    const config: Record<string, { color: string; bg: string; border: string }> = {
+      ORGANIZATIONAL_OVERVIEW: { color: "text-blue-700", bg: "bg-blue-50", border: "border-blue-200" },
+      APPOINTMENTS_SUMMARY: { color: "text-purple-700", bg: "bg-purple-50", border: "border-purple-200" },
+      USER_ACTIVITY: { color: "text-amber-700", bg: "bg-amber-50", border: "border-amber-200" },
+      CONSULTATION_METRICS: { color: "text-emerald-700", bg: "bg-emerald-50", border: "border-emerald-200" },
+      SYSTEM_PERFORMANCE: { color: "text-rose-700", bg: "bg-rose-50", border: "border-rose-200" },
+      DEPARTMENT_STATISTICS: { color: "text-indigo-700", bg: "bg-indigo-50", border: "border-indigo-200" },
+    }
+
+    const style = config[type] || { color: "text-slate-700", bg: "bg-slate-50", border: "border-slate-200" }
+
+    return (
+      <Badge 
+        variant="outline" 
+        className={cn(
+          "font-semibold shadow-sm px-2.5 py-0.5 whitespace-nowrap", 
+          style.bg, 
+          style.color, 
+          style.border
+        )}
+      >
+        {type.replace(/_/g, " ")}
+      </Badge>
+    )
   }
 
   // Calculate summary statistics from completed reports
@@ -200,7 +237,7 @@ export default function ReportsPage() {
                         Create Report
                       </Button>
                     </DialogTrigger>
-                    <DialogContent className="sm:max-w-[500px]">\n                      <DialogHeader className="space-y-3">
+                    <DialogContent className="sm:max-w-[500px]">                     <DialogHeader className="space-y-3">
                         <div className="flex items-center gap-2">
                           <div className="p-2 bg-sky-100 rounded-lg">
                             <FileText className="h-5 w-5 text-sky-600" />
@@ -496,9 +533,12 @@ export default function ReportsPage() {
                                   </div>
                                 </TableCell>
                                 <TableCell>
-                                  <Badge variant="secondary" className="bg-sky-100 text-sky-700 hover:bg-sky-100">
-                                    {report.reportType.replace(/_/g, " ")}
-                                  </Badge>
+                                  <div className="flex flex-col gap-1.5">
+                                    <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                                      Type
+                                    </span>
+                                    {getReportTypeBadge(report.reportType)}
+                                  </div>
                                 </TableCell>
                                 <TableCell>{getStatusBadge(report.status)}</TableCell>
                                 <TableCell className="text-slate-600">
@@ -535,20 +575,52 @@ export default function ReportsPage() {
                                         View
                                       </Button>
                                     )}
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      onClick={() => handleDeleteReport(report.id)}
-                                      disabled={deleteReportMutation.isPending}
-                                      className="text-red-600 hover:bg-red-50 hover:text-red-700"
-                                    >
-                                      {deleteReportMutation.isPending ? (
-                                        <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
-                                      ) : (
-                                        <Trash2 className="h-3 w-3 mr-1" />
-                                      )}
-                                      Delete
-                                    </Button>
+                                    <AlertDialog>
+                                      <AlertDialogTrigger>
+                                        <Button
+                                          size="sm"
+                                          variant="ghost"
+                                          disabled={deleteReportMutation.isPending}
+                                          className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                                        >
+                                          {deleteReportMutation.isPending ? (
+                                            <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                                          ) : (
+                                            <Trash2 className="h-3 w-3 mr-1" />
+                                          )}
+                                          Delete
+                                        </Button>
+                                      </AlertDialogTrigger>
+                                      <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                          <AlertDialogTitle>Delete Report</AlertDialogTitle>
+                                          <AlertDialogDescription>
+                                            Are you sure you want to delete the report <span className="font-bold text-slate-900">&quot;{report.name}&quot;</span>?
+                                            
+                                            <div className="mt-4 p-3 bg-amber-50 border border-amber-100 rounded-lg flex flex-col gap-1">
+                                              <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600">Report Type to be Deleted</span>
+                                              <div className="flex items-center gap-2">
+                                                {getReportTypeIcon(report.reportType)}
+                                                <span className="font-bold text-amber-900">{report.reportType.replace(/_/g, " ")}</span>
+                                              </div>
+                                            </div>
+
+                                            <p className="mt-4">
+                                              This action cannot be undone and will permanently remove the report from the system.
+                                            </p>
+                                          </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                          <AlertDialogAction
+                                            onClick={() => handleDeleteReport(report.id)}
+                                            className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+                                          >
+                                            Delete
+                                          </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                      </AlertDialogContent>
+                                    </AlertDialog>
                                   </div>
                                 </TableCell>
                               </TableRow>

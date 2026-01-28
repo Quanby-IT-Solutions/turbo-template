@@ -3,15 +3,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/core/services/toast_service.dart';
 import 'package:mobile/presentation/auth/providers/auth_providers.dart';
-import 'package:mobile/presentation/lab_requests/widgets/doctor_option.dart';
-import 'package:mobile/presentation/lab_requests/field/doctor_selection_field.dart';
-import 'package:mobile/presentation/lab_requests/field/instructions_field.dart';
-import 'package:mobile/presentation/lab_requests/field/notes_field.dart';
-import 'package:mobile/presentation/lab_requests/field/requested_test_field.dart';
-import 'package:mobile/presentation/lab_requests/field/room_no_field.dart';
-import 'package:mobile/presentation/lab_requests/widgets/organization_info.dart';
-import 'package:mobile/presentation/lab_requests/widgets/priority_selector.dart';
-import 'package:mobile/presentation/lab_requests/widgets/submit_button.dart';
+import 'package:mobile/presentation/lab_requests/booking/widgets/doctor_option.dart';
+import 'package:mobile/presentation/lab_requests/booking/field/doctor_selection_field.dart';
+import 'package:mobile/presentation/lab_requests/booking/field/instructions_field.dart';
+import 'package:mobile/presentation/lab_requests/booking/field/notes_field.dart';
+import 'package:mobile/presentation/lab_requests/booking/field/requested_test_field.dart';
+import 'package:mobile/presentation/lab_requests/booking/field/room_no_field.dart';
+import 'package:mobile/presentation/lab_requests/booking/widgets/organization_info.dart';
+import 'package:mobile/presentation/lab_requests/booking/widgets/priority_selector.dart';
+import 'package:mobile/presentation/lab_requests/booking/widgets/submit_button.dart';
 import 'package:mobile/presentation/lab_requests/providers/patient_lab_requests_provider.dart';
 
 class LabRequestBookingScreen extends ConsumerStatefulWidget {

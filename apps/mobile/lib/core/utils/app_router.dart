@@ -9,7 +9,7 @@ import 'package:mobile/presentation/auth/screens/credential_upload_screen.dart';
 import 'package:mobile/presentation/auth/screens/kyc_verification_screen.dart';
 import 'package:mobile/presentation/auth/screens/philhealth_id_upload_screen.dart';
 import 'package:mobile/presentation/onboarding/onboarding_screen.dart';
-import 'package:mobile/presentation/lab_requests/patient_lab_requests_booking_screen.dart';
+import 'package:mobile/presentation/lab_requests/booking/patient_lab_requests_booking_screen.dart';
 import 'package:mobile/presentation/profile/screens/profile_screen.dart';
 import 'package:mobile/presentation/profile/screens/profile_edit_screen.dart';
 import 'package:mobile/presentation/scheduling/screens/appointment_requests_screen/appointment_requests_screen.dart';
@@ -28,7 +28,7 @@ import 'package:mobile/presentation/medical_records/screens/health_trends_screen
 import 'package:mobile/presentation/clinical_tools/screens/face_scan_screen.dart';
 import 'package:mobile/presentation/clinical_tools/screens/prescription_form_screen.dart';
 import 'package:mobile/presentation/clinical_tools/screens/diagnosis_form_screen.dart';
-import 'package:mobile/presentation/lab_requests/widgets/organization_search_screen.dart';
+import 'package:mobile/presentation/lab_requests/booking/widgets/organization_search_screen.dart';
 import 'package:mobile/presentation/clinical_tools/screens/vitals_scanner_screen.dart';
 import 'package:mobile/presentation/notifications/screens/notifications_screen.dart';
 import 'package:mobile/presentation/notifications/screens/messaging_screen.dart';
@@ -43,7 +43,7 @@ import 'package:mobile/presentation/patient/screens/patient_profile_screen.dart'
 import 'package:mobile/presentation/patient/screens/patient_profile_edit_screen.dart';
 import 'package:mobile/presentation/scheduling/screens/patient_schedule_screen/patient_schedule_screen.dart';
 import 'package:mobile/presentation/video_call/screens/patient_meet_doctor_screen.dart';
-import 'package:mobile/presentation/lab_requests/patient_lab_requests_screen.dart';
+import 'package:mobile/presentation/lab_requests/screen/patient_lab_requests_screen.dart';
 
 // Store user role globally for redirect logic (set by auth provider)
 String? _currentUserRole;

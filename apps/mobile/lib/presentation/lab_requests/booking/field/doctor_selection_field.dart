@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:mobile/presentation/lab_requests/widgets/doctor_option.dart';
+import 'package:mobile/presentation/lab_requests/booking/widgets/doctor_option.dart';
 
 class DoctorSelectionField extends StatelessWidget {
   final String? selectedDoctorId;

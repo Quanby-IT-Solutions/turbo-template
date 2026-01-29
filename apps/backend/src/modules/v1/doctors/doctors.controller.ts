@@ -30,7 +30,7 @@ export class DoctorsController {
 
 	@Post()
 	@ZodSerializerDto(DoctorResponseDto)
-	@Roles("SUPER_ADMIN")
+	@Roles("SUPER_ADMIN", "ADMIN")
 	async create(@Body() data: any) {
 		const doctor = await this.doctorsService.create(data)
 		return { success: true, data: doctor }
@@ -73,7 +73,7 @@ export class DoctorsController {
 	}
 
 	@Delete(":id")
-	@Roles("SUPER_ADMIN")
+	@Roles("SUPER_ADMIN", "ADMIN")
 	async delete(@Param("id") id: string) {
 		await this.doctorsService.delete(id)
 		return { success: true, message: "Doctor deleted successfully" }

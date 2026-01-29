@@ -209,9 +209,16 @@ export default function ReportsPage() {
                 
                 {/* Header Actions */}
                 <div className="mb-6 flex items-center justify-between">
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Shield className="h-4 w-4 text-green-600" />
+                    <span>PHI Protected</span>
+                    <Database className="h-4 w-4 text-blue-600 ml-2" />
+                    <span>Aggregated Data Only</span>
+                  </div>
+                  
+                  <div className="flex items-center gap-3">
                     <Select value={timePeriod} onValueChange={(value) => setTimePeriod(value as TimePeriod)}>
-                      <SelectTrigger className="w-48">
+                      <SelectTrigger className="w-48 border-slate-300">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -222,21 +229,13 @@ export default function ReportsPage() {
                       </SelectContent>
                     </Select>
                     
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Shield className="h-4 w-4 text-green-600" />
-                      <span>PHI Protected</span>
-                      <Database className="h-4 w-4 text-blue-600 ml-2" />
-                      <span>Aggregated Data Only</span>
-                    </div>
-                  </div>
-                  
-                  <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-                    <DialogTrigger>
-                      <Button className="bg-sky-600 hover:bg-sky-700">
-                        <Plus className="mr-2 h-4 w-4" />
-                        Create Report
-                      </Button>
-                    </DialogTrigger>
+                    <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+                      <DialogTrigger>
+                        <Button className="bg-sky-600 hover:bg-sky-700">
+                          <Plus className="mr-2 h-4 w-4" />
+                          Create Report
+                        </Button>
+                      </DialogTrigger>
                     <DialogContent className="sm:max-w-[500px]">                     <DialogHeader className="space-y-3">
                         <div className="flex items-center gap-2">
                           <div className="p-2 bg-sky-100 rounded-lg">
@@ -363,6 +362,7 @@ export default function ReportsPage() {
                     </DialogContent>
                   </Dialog>
                 </div>
+              </div>
 
                 {/* Summary Cards */}
                 {reportData && (

@@ -1,9 +1,14 @@
 import { Inject, Injectable } from "@nestjs/common"
-import { and, desc, eq, gte, lte, sql } from "drizzle-orm"
+import { and, desc, eq, gte, lte, sql, count, avg, isNotNull } from "drizzle-orm"
 
 import {
 	appointmentRequests,
 	consultations,
+	diagnoses,
+	healthScans,
+	labRequests,
+	patientInfos,
+	prescriptions,
 	reportTemplates,
 	systemReports,
 	users,
@@ -213,6 +218,25 @@ export class ReportsService {
 				case "ORGANIZATIONAL_OVERVIEW":
 					reportData = await this.generateOrganizationalOverview(organizationId, startDate, endDate)
 					break
+				// New healthcare-focused report types
+				case "PATIENT_REGISTRATIONS":
+					reportData = await this.generatePatientRegistrations(organizationId, startDate, endDate)
+					break
+				case "APPOINTMENTS_VISITS":
+					reportData = await this.generateAppointmentsVisits(organizationId, startDate, endDate)
+					break
+				case "DIAGNOSES_TREATMENTS":
+					reportData = await this.generateDiagnosesTreatments(organizationId, startDate, endDate)
+					break
+				case "LAB_TEST_UTILIZATION":
+					reportData = await this.generateLabTestUtilization(organizationId, startDate, endDate)
+					break
+				case "PRESCRIPTION_PHARMACY":
+					reportData = await this.generatePrescriptionPharmacy(organizationId, startDate, endDate)
+					break
+				case "LONGEVITY_PROGRAM":
+					reportData = await this.generateLongevityProgram(organizationId, startDate, endDate)
+					break
 				default:
 					reportData = { message: "Report type not implemented" }
 			}
@@ -390,6 +414,776 @@ export class ReportsService {
 				return new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000)
 			default:
 				return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+		}
+	}
+
+	/**
+	 * Helper to generate trend data for a period
+	 */
+	private generateTrendDates(startDate: Date, endDate: Date): string[] {
+		const dates: string[] = []
+		const diffDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
+		
+		// Group by week if more than 30 days, otherwise by day
+		const interval = diffDays > 30 ? 7 : 1
+		const current = new Date(startDate)
+		
+		while (current <= endDate) {
+			dates.push(current.toISOString().split('T')[0] as string)
+			current.setDate(current.getDate() + interval)
+		}
+		
+		return dates
+	}
+
+	// ============================================================================
+	// NEW HEALTHCARE-FOCUSED REPORT GENERATORS
+	// ============================================================================
+
+	/**
+	 * Generate Patient Registrations Report (non-PHI)
+	 */
+	private async generatePatientRegistrations(organizationId: string, startDate: Date, endDate: Date) {
+		// Total patients in organization
+		const [totalPatients] = await this.db
+			.select({ count: sql<number>`count(*)::int` })
+			.from(users)
+			.where(
+				and(
+					eq(users.organizationId, organizationId),
+					eq(users.role, "PATIENT"),
+				),
+			)
+
+		// New patients in period
+		const [newPatients] = await this.db
+			.select({ count: sql<number>`count(*)::int` })
+			.from(users)
+			.where(
+				and(
+					eq(users.organizationId, organizationId),
+					eq(users.role, "PATIENT"),
+					gte(users.createdAt, startDate),
+					lte(users.createdAt, endDate),
+				),
+			)
+
+		// Verified patients
+		const [verifiedPatients] = await this.db
+			.select({ count: sql<number>`count(*)::int` })
+			.from(patientInfos)
+			.innerJoin(users, eq(patientInfos.userId, users.id))
+			.where(
+				and(
+					eq(users.organizationId, organizationId),
+					eq(patientInfos.verificationStatus, "VERIFIED"),
+				),
+			)
+
+		// Pending verification
+		const [pendingVerification] = await this.db
+			.select({ count: sql<number>`count(*)::int` })
+			.from(patientInfos)
+			.innerJoin(users, eq(patientInfos.userId, users.id))
+			.where(
+				and(
+					eq(users.organizationId, organizationId),
+					eq(patientInfos.verificationStatus, "PENDING"),
+				),
+			)
+
+		// By subscription tier
+		const subscriptionTiers = await this.db
+			.select({
+				tier: patientInfos.subscriptionTier,
+				count: sql<number>`count(*)::int`,
+			})
+			.from(patientInfos)
+			.innerJoin(users, eq(patientInfos.userId, users.id))
+			.where(eq(users.organizationId, organizationId))
+			.groupBy(patientInfos.subscriptionTier)
+
+		const bySubscriptionTier: Record<string, number> = {}
+		subscriptionTiers.forEach((t) => {
+			bySubscriptionTier[t.tier] = t.count
+		})
+
+		// Registration trend
+		const trendDates = this.generateTrendDates(startDate, endDate)
+		const registrationTrend = await Promise.all(
+			trendDates.map(async (date) => {
+				const dayStart = new Date(date)
+				const dayEnd = new Date(date)
+				dayEnd.setDate(dayEnd.getDate() + 1)
+				
+				const [result] = await this.db
+					.select({ count: sql<number>`count(*)::int` })
+					.from(users)
+					.where(
+						and(
+							eq(users.organizationId, organizationId),
+							eq(users.role, "PATIENT"),
+							gte(users.createdAt, dayStart),
+							lte(users.createdAt, dayEnd),
+						),
+					)
+				
+				return { date, count: result?.count || 0 }
+			})
+		)
+
+		return {
+			patientRegistrations: {
+				totalPatients: totalPatients?.count || 0,
+				newPatients: newPatients?.count || 0,
+				verifiedPatients: verifiedPatients?.count || 0,
+				pendingVerification: pendingVerification?.count || 0,
+				bySubscriptionTier,
+				registrationTrend,
+			},
+			period: {
+				startDate: startDate.toISOString(),
+				endDate: endDate.toISOString(),
+			},
+		}
+	}
+
+	/**
+	 * Generate Appointments & Visits Report (non-PHI)
+	 */
+	private async generateAppointmentsVisits(organizationId: string, startDate: Date, endDate: Date) {
+		// Total appointments
+		const [totalResult] = await this.db
+			.select({ count: sql<number>`count(*)::int` })
+			.from(appointmentRequests)
+			.innerJoin(users, eq(appointmentRequests.patientId, users.id))
+			.where(
+				and(
+					eq(users.organizationId, organizationId),
+					gte(appointmentRequests.createdAt, startDate),
+					lte(appointmentRequests.createdAt, endDate),
+				),
+			)
+
+		// Get counts by status
+		const statusCounts = await this.db
+			.select({
+				status: appointmentRequests.status,
+				count: sql<number>`count(*)::int`,
+			})
+			.from(appointmentRequests)
+			.innerJoin(users, eq(appointmentRequests.patientId, users.id))
+			.where(
+				and(
+					eq(users.organizationId, organizationId),
+					gte(appointmentRequests.createdAt, startDate),
+					lte(appointmentRequests.createdAt, endDate),
+				),
+			)
+			.groupBy(appointmentRequests.status)
+
+		const byStatus: Record<string, number> = {}
+		let completedVisits = 0
+		let cancelledAppointments = 0
+		let pendingAppointments = 0
+		let confirmedAppointments = 0
+		let rescheduledAppointments = 0
+
+		statusCounts.forEach((s) => {
+			byStatus[s.status] = s.count
+			switch (s.status) {
+				case "COMPLETED":
+					completedVisits = s.count
+					break
+				case "CANCELLED":
+					cancelledAppointments = s.count
+					break
+				case "PENDING":
+					pendingAppointments = s.count
+					break
+				case "CONFIRMED":
+					confirmedAppointments = s.count
+					break
+				case "RESCHEDULED":
+					rescheduledAppointments = s.count
+					break
+			}
+		})
+
+		// Appointment trend
+		const trendDates = this.generateTrendDates(startDate, endDate)
+		const appointmentTrend = await Promise.all(
+			trendDates.map(async (date) => {
+				const dayStart = new Date(date)
+				const dayEnd = new Date(date)
+				dayEnd.setDate(dayEnd.getDate() + 1)
+				
+				const [scheduled] = await this.db
+					.select({ count: sql<number>`count(*)::int` })
+					.from(appointmentRequests)
+					.innerJoin(users, eq(appointmentRequests.patientId, users.id))
+					.where(
+						and(
+							eq(users.organizationId, organizationId),
+							gte(appointmentRequests.createdAt, dayStart),
+							lte(appointmentRequests.createdAt, dayEnd),
+						),
+					)
+
+				const [completed] = await this.db
+					.select({ count: sql<number>`count(*)::int` })
+					.from(appointmentRequests)
+					.innerJoin(users, eq(appointmentRequests.patientId, users.id))
+					.where(
+						and(
+							eq(users.organizationId, organizationId),
+							eq(appointmentRequests.status, "COMPLETED"),
+							gte(appointmentRequests.createdAt, dayStart),
+							lte(appointmentRequests.createdAt, dayEnd),
+						),
+					)
+				
+				return {
+					date,
+					scheduled: scheduled?.count || 0,
+					completed: completed?.count || 0,
+				}
+			})
+		)
+
+		return {
+			appointmentsVisits: {
+				totalAppointments: totalResult?.count || 0,
+				completedVisits,
+				cancelledAppointments,
+				pendingAppointments,
+				confirmedAppointments,
+				rescheduledAppointments,
+				byStatus,
+				appointmentTrend,
+			},
+			period: {
+				startDate: startDate.toISOString(),
+				endDate: endDate.toISOString(),
+			},
+		}
+	}
+
+	/**
+	 * Generate Diagnoses & Treatments Report (non-PHI)
+	 */
+	private async generateDiagnosesTreatments(organizationId: string, startDate: Date, endDate: Date) {
+		// Total diagnoses
+		const [totalDiagnoses] = await this.db
+			.select({ count: sql<number>`count(*)::int` })
+			.from(diagnoses)
+			.innerJoin(users, eq(diagnoses.patientId, users.id))
+			.where(
+				and(
+					eq(users.organizationId, organizationId),
+					gte(diagnoses.diagnosedAt, startDate),
+					lte(diagnoses.diagnosedAt, endDate),
+				),
+			)
+
+		// Active diagnoses
+		const [activeDiagnoses] = await this.db
+			.select({ count: sql<number>`count(*)::int` })
+			.from(diagnoses)
+			.innerJoin(users, eq(diagnoses.patientId, users.id))
+			.where(
+				and(
+					eq(users.organizationId, organizationId),
+					eq(diagnoses.status, "ACTIVE"),
+					gte(diagnoses.diagnosedAt, startDate),
+					lte(diagnoses.diagnosedAt, endDate),
+				),
+			)
+
+		// Resolved diagnoses
+		const [resolvedDiagnoses] = await this.db
+			.select({ count: sql<number>`count(*)::int` })
+			.from(diagnoses)
+			.innerJoin(users, eq(diagnoses.patientId, users.id))
+			.where(
+				and(
+					eq(users.organizationId, organizationId),
+					eq(diagnoses.status, "RESOLVED"),
+					gte(diagnoses.diagnosedAt, startDate),
+					lte(diagnoses.diagnosedAt, endDate),
+				),
+			)
+
+		// By severity
+		const severityCounts = await this.db
+			.select({
+				severity: diagnoses.severity,
+				count: sql<number>`count(*)::int`,
+			})
+			.from(diagnoses)
+			.innerJoin(users, eq(diagnoses.patientId, users.id))
+			.where(
+				and(
+					eq(users.organizationId, organizationId),
+					gte(diagnoses.diagnosedAt, startDate),
+					lte(diagnoses.diagnosedAt, endDate),
+				),
+			)
+			.groupBy(diagnoses.severity)
+
+		const bySeverity: Record<string, number> = {}
+		severityCounts.forEach((s) => {
+			bySeverity[s.severity] = s.count
+		})
+
+		// Top diagnoses (by name, aggregated - no PHI)
+		const topDiagnosesResult = await this.db
+			.select({
+				name: diagnoses.diagnosisName,
+				count: sql<number>`count(*)::int`,
+			})
+			.from(diagnoses)
+			.innerJoin(users, eq(diagnoses.patientId, users.id))
+			.where(
+				and(
+					eq(users.organizationId, organizationId),
+					gte(diagnoses.diagnosedAt, startDate),
+					lte(diagnoses.diagnosedAt, endDate),
+				),
+			)
+			.groupBy(diagnoses.diagnosisName)
+			.orderBy(sql`count(*) desc`)
+			.limit(10)
+
+		const topDiagnoses = topDiagnosesResult.map((d) => ({
+			name: d.name,
+			count: d.count,
+		}))
+
+		// Diagnosis trend
+		const trendDates = this.generateTrendDates(startDate, endDate)
+		const diagnosisTrend = await Promise.all(
+			trendDates.map(async (date) => {
+				const dayStart = new Date(date)
+				const dayEnd = new Date(date)
+				dayEnd.setDate(dayEnd.getDate() + 1)
+				
+				const [result] = await this.db
+					.select({ count: sql<number>`count(*)::int` })
+					.from(diagnoses)
+					.innerJoin(users, eq(diagnoses.patientId, users.id))
+					.where(
+						and(
+							eq(users.organizationId, organizationId),
+							gte(diagnoses.diagnosedAt, dayStart),
+							lte(diagnoses.diagnosedAt, dayEnd),
+						),
+					)
+				
+				return { date, count: result?.count || 0 }
+			})
+		)
+
+		return {
+			diagnosesTreatments: {
+				totalDiagnoses: totalDiagnoses?.count || 0,
+				activeDiagnoses: activeDiagnoses?.count || 0,
+				resolvedDiagnoses: resolvedDiagnoses?.count || 0,
+				bySeverity,
+				topDiagnoses,
+				diagnosisTrend,
+			},
+			period: {
+				startDate: startDate.toISOString(),
+				endDate: endDate.toISOString(),
+			},
+		}
+	}
+
+	/**
+	 * Generate Lab Test Utilization Report (non-PHI)
+	 */
+	private async generateLabTestUtilization(organizationId: string, startDate: Date, endDate: Date) {
+		// Total lab requests
+		const [totalLabRequests] = await this.db
+			.select({ count: sql<number>`count(*)::int` })
+			.from(labRequests)
+			.where(
+				and(
+					eq(labRequests.organizationId, organizationId),
+					gte(labRequests.createdAt, startDate),
+					lte(labRequests.createdAt, endDate),
+				),
+			)
+
+		// By status
+		const statusCounts = await this.db
+			.select({
+				status: labRequests.status,
+				count: sql<number>`count(*)::int`,
+			})
+			.from(labRequests)
+			.where(
+				and(
+					eq(labRequests.organizationId, organizationId),
+					gte(labRequests.createdAt, startDate),
+					lte(labRequests.createdAt, endDate),
+				),
+			)
+			.groupBy(labRequests.status)
+
+		const byStatus: Record<string, number> = {}
+		let completedTests = 0
+		let pendingTests = 0
+
+		statusCounts.forEach((s) => {
+			byStatus[s.status] = s.count
+			if (s.status === "COMPLETED") completedTests = s.count
+			if (s.status === "PENDING") pendingTests = s.count
+		})
+
+		// By priority
+		const priorityCounts = await this.db
+			.select({
+				priority: labRequests.priority,
+				count: sql<number>`count(*)::int`,
+			})
+			.from(labRequests)
+			.where(
+				and(
+					eq(labRequests.organizationId, organizationId),
+					gte(labRequests.createdAt, startDate),
+					lte(labRequests.createdAt, endDate),
+				),
+			)
+			.groupBy(labRequests.priority)
+
+		const byPriority: Record<string, number> = {}
+		priorityCounts.forEach((p) => {
+			byPriority[p.priority] = p.count
+		})
+
+		// Lab request trend
+		const trendDates = this.generateTrendDates(startDate, endDate)
+		const labRequestTrend = await Promise.all(
+			trendDates.map(async (date) => {
+				const dayStart = new Date(date)
+				const dayEnd = new Date(date)
+				dayEnd.setDate(dayEnd.getDate() + 1)
+				
+				const [result] = await this.db
+					.select({ count: sql<number>`count(*)::int` })
+					.from(labRequests)
+					.where(
+						and(
+							eq(labRequests.organizationId, organizationId),
+							gte(labRequests.createdAt, dayStart),
+							lte(labRequests.createdAt, dayEnd),
+						),
+					)
+				
+				return { date, count: result?.count || 0 }
+			})
+		)
+
+		return {
+			labTestUtilization: {
+				totalLabRequests: totalLabRequests?.count || 0,
+				completedTests,
+				pendingTests,
+				byPriority,
+				byStatus,
+				labRequestTrend,
+			},
+			period: {
+				startDate: startDate.toISOString(),
+				endDate: endDate.toISOString(),
+			},
+		}
+	}
+
+	/**
+	 * Generate Prescription & Pharmacy Report (non-PHI)
+	 */
+	private async generatePrescriptionPharmacy(organizationId: string, startDate: Date, endDate: Date) {
+		// Total prescriptions
+		const [totalPrescriptions] = await this.db
+			.select({ count: sql<number>`count(*)::int` })
+			.from(prescriptions)
+			.innerJoin(users, eq(prescriptions.patientId, users.id))
+			.where(
+				and(
+					eq(users.organizationId, organizationId),
+					gte(prescriptions.prescribedAt, startDate),
+					lte(prescriptions.prescribedAt, endDate),
+				),
+			)
+
+		// Active prescriptions
+		const [activePrescriptions] = await this.db
+			.select({ count: sql<number>`count(*)::int` })
+			.from(prescriptions)
+			.innerJoin(users, eq(prescriptions.patientId, users.id))
+			.where(
+				and(
+					eq(users.organizationId, organizationId),
+					eq(prescriptions.isActive, true),
+					gte(prescriptions.prescribedAt, startDate),
+					lte(prescriptions.prescribedAt, endDate),
+				),
+			)
+
+		// Expired prescriptions (where expiresAt is in the past)
+		const [expiredPrescriptions] = await this.db
+			.select({ count: sql<number>`count(*)::int` })
+			.from(prescriptions)
+			.innerJoin(users, eq(prescriptions.patientId, users.id))
+			.where(
+				and(
+					eq(users.organizationId, organizationId),
+					isNotNull(prescriptions.expiresAt),
+					lte(prescriptions.expiresAt, new Date()),
+					gte(prescriptions.prescribedAt, startDate),
+					lte(prescriptions.prescribedAt, endDate),
+				),
+			)
+
+		// Total refills
+		const [totalRefills] = await this.db
+			.select({ sum: sql<number>`COALESCE(sum(${prescriptions.refills}), 0)::int` })
+			.from(prescriptions)
+			.innerJoin(users, eq(prescriptions.patientId, users.id))
+			.where(
+				and(
+					eq(users.organizationId, organizationId),
+					gte(prescriptions.prescribedAt, startDate),
+					lte(prescriptions.prescribedAt, endDate),
+				),
+			)
+
+		// Top medications (aggregated - no PHI)
+		const topMedicationsResult = await this.db
+			.select({
+				name: prescriptions.medicationName,
+				count: sql<number>`count(*)::int`,
+			})
+			.from(prescriptions)
+			.innerJoin(users, eq(prescriptions.patientId, users.id))
+			.where(
+				and(
+					eq(users.organizationId, organizationId),
+					gte(prescriptions.prescribedAt, startDate),
+					lte(prescriptions.prescribedAt, endDate),
+				),
+			)
+			.groupBy(prescriptions.medicationName)
+			.orderBy(sql`count(*) desc`)
+			.limit(10)
+
+		const topMedications = topMedicationsResult.map((m) => ({
+			name: m.name,
+			count: m.count,
+		}))
+
+		// Prescription trend
+		const trendDates = this.generateTrendDates(startDate, endDate)
+		const prescriptionTrend = await Promise.all(
+			trendDates.map(async (date) => {
+				const dayStart = new Date(date)
+				const dayEnd = new Date(date)
+				dayEnd.setDate(dayEnd.getDate() + 1)
+				
+				const [result] = await this.db
+					.select({ count: sql<number>`count(*)::int` })
+					.from(prescriptions)
+					.innerJoin(users, eq(prescriptions.patientId, users.id))
+					.where(
+						and(
+							eq(users.organizationId, organizationId),
+							gte(prescriptions.prescribedAt, dayStart),
+							lte(prescriptions.prescribedAt, dayEnd),
+						),
+					)
+				
+				return { date, count: result?.count || 0 }
+			})
+		)
+
+		return {
+			prescriptionPharmacy: {
+				totalPrescriptions: totalPrescriptions?.count || 0,
+				activePrescriptions: activePrescriptions?.count || 0,
+				expiredPrescriptions: expiredPrescriptions?.count || 0,
+				totalRefills: totalRefills?.sum || 0,
+				topMedications,
+				prescriptionTrend,
+			},
+			period: {
+				startDate: startDate.toISOString(),
+				endDate: endDate.toISOString(),
+			},
+		}
+	}
+
+	/**
+	 * Generate Longevity Program Report (Health Scans - non-PHI)
+	 */
+	private async generateLongevityProgram(organizationId: string, startDate: Date, endDate: Date) {
+		// Total health scans via consultations
+		const [totalHealthScans] = await this.db
+			.select({ count: sql<number>`count(*)::int` })
+			.from(healthScans)
+			.innerJoin(consultations, eq(healthScans.consultationId, consultations.id))
+			.innerJoin(users, eq(consultations.patientId, users.id))
+			.where(
+				and(
+					eq(users.organizationId, organizationId),
+					gte(consultations.createdAt, startDate),
+					lte(consultations.createdAt, endDate),
+				),
+			)
+
+		// Average wellness score
+		const [avgWellness] = await this.db
+			.select({ avg: sql<number>`COALESCE(avg(${healthScans.generalWellness}), 0)::float` })
+			.from(healthScans)
+			.innerJoin(consultations, eq(healthScans.consultationId, consultations.id))
+			.innerJoin(users, eq(consultations.patientId, users.id))
+			.where(
+				and(
+					eq(users.organizationId, organizationId),
+					gte(consultations.createdAt, startDate),
+					lte(consultations.createdAt, endDate),
+					isNotNull(healthScans.generalWellness),
+				),
+			)
+
+		// Average stress level
+		const [avgStress] = await this.db
+			.select({ avg: sql<number>`COALESCE(avg(${healthScans.stressLevel}), 0)::float` })
+			.from(healthScans)
+			.innerJoin(consultations, eq(healthScans.consultationId, consultations.id))
+			.innerJoin(users, eq(consultations.patientId, users.id))
+			.where(
+				and(
+					eq(users.organizationId, organizationId),
+					gte(consultations.createdAt, startDate),
+					lte(consultations.createdAt, endDate),
+					isNotNull(healthScans.stressLevel),
+				),
+			)
+
+		// Average heart rate
+		const [avgHeartRate] = await this.db
+			.select({ avg: sql<number>`COALESCE(avg(${healthScans.heartRate}), 0)::float` })
+			.from(healthScans)
+			.innerJoin(consultations, eq(healthScans.consultationId, consultations.id))
+			.innerJoin(users, eq(consultations.patientId, users.id))
+			.where(
+				and(
+					eq(users.organizationId, organizationId),
+					gte(consultations.createdAt, startDate),
+					lte(consultations.createdAt, endDate),
+					isNotNull(healthScans.heartRate),
+				),
+			)
+
+		// Risk distribution based on generalRisk score
+		const [lowRisk] = await this.db
+			.select({ count: sql<number>`count(*)::int` })
+			.from(healthScans)
+			.innerJoin(consultations, eq(healthScans.consultationId, consultations.id))
+			.innerJoin(users, eq(consultations.patientId, users.id))
+			.where(
+				and(
+					eq(users.organizationId, organizationId),
+					gte(consultations.createdAt, startDate),
+					lte(consultations.createdAt, endDate),
+					isNotNull(healthScans.generalRisk),
+					lte(healthScans.generalRisk, 30),
+				),
+			)
+
+		const [moderateRisk] = await this.db
+			.select({ count: sql<number>`count(*)::int` })
+			.from(healthScans)
+			.innerJoin(consultations, eq(healthScans.consultationId, consultations.id))
+			.innerJoin(users, eq(consultations.patientId, users.id))
+			.where(
+				and(
+					eq(users.organizationId, organizationId),
+					gte(consultations.createdAt, startDate),
+					lte(consultations.createdAt, endDate),
+					isNotNull(healthScans.generalRisk),
+					gte(healthScans.generalRisk, 31),
+					lte(healthScans.generalRisk, 60),
+				),
+			)
+
+		const [highRisk] = await this.db
+			.select({ count: sql<number>`count(*)::int` })
+			.from(healthScans)
+			.innerJoin(consultations, eq(healthScans.consultationId, consultations.id))
+			.innerJoin(users, eq(consultations.patientId, users.id))
+			.where(
+				and(
+					eq(users.organizationId, organizationId),
+					gte(consultations.createdAt, startDate),
+					lte(consultations.createdAt, endDate),
+					isNotNull(healthScans.generalRisk),
+					gte(healthScans.generalRisk, 61),
+				),
+			)
+
+		// Health metrics trend
+		const trendDates = this.generateTrendDates(startDate, endDate)
+		const healthMetricsTrend = await Promise.all(
+			trendDates.map(async (date) => {
+				const dayStart = new Date(date)
+				const dayEnd = new Date(date)
+				dayEnd.setDate(dayEnd.getDate() + 1)
+				
+				const [result] = await this.db
+					.select({
+						avgWellness: sql<number>`COALESCE(avg(${healthScans.generalWellness}), 0)::float`,
+						avgStress: sql<number>`COALESCE(avg(${healthScans.stressLevel}), 0)::float`,
+					})
+					.from(healthScans)
+					.innerJoin(consultations, eq(healthScans.consultationId, consultations.id))
+					.innerJoin(users, eq(consultations.patientId, users.id))
+					.where(
+						and(
+							eq(users.organizationId, organizationId),
+							gte(consultations.createdAt, dayStart),
+							lte(consultations.createdAt, dayEnd),
+						),
+					)
+				
+				return {
+					date,
+					wellnessScore: Math.round(result?.avgWellness || 0),
+					stressLevel: Math.round(result?.avgStress || 0),
+				}
+			})
+		)
+
+		return {
+			longevityProgram: {
+				totalHealthScans: totalHealthScans?.count || 0,
+				averageWellnessScore: Math.round(avgWellness?.avg || 0),
+				averageStressLevel: Math.round(avgStress?.avg || 0),
+				averageHeartRate: Math.round(avgHeartRate?.avg || 0),
+				riskDistribution: {
+					low: lowRisk?.count || 0,
+					moderate: moderateRisk?.count || 0,
+					high: highRisk?.count || 0,
+				},
+				healthMetricsTrend,
+			},
+			period: {
+				startDate: startDate.toISOString(),
+				endDate: endDate.toISOString(),
+			},
 		}
 	}
 }

@@ -15,6 +15,13 @@ export type ReportType =
 	| "CONSULTATION_METRICS"
 	| "ORGANIZATIONAL_OVERVIEW"
 	| "DEPARTMENT_STATISTICS"
+	// New healthcare-focused report types
+	| "PATIENT_REGISTRATIONS"
+	| "APPOINTMENTS_VISITS"
+	| "DIAGNOSES_TREATMENTS"
+	| "LAB_TEST_UTILIZATION"
+	| "PRESCRIPTION_PHARMACY"
+	| "LONGEVITY_PROGRAM"
 
 export type ReportStatus = "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED"
 
@@ -55,12 +62,88 @@ export interface SystemReport {
 	organizationId: string
 	createdBy: string
 	configuration: Record<string, any>
-	reportData?: Record<string, any> | null
+	reportData?: HealthcareAnalytics | Record<string, any> | null
 	status: ReportStatus
 	generatedAt?: string | null
 	scheduledFor?: string | null
 	createdAt: string
 	updatedAt: string
+}
+
+/**
+ * Healthcare Analytics Data Interfaces (Non-PHI)
+ */
+export interface PatientRegistrationsData {
+	totalPatients: number
+	newPatients: number
+	verifiedPatients: number
+	pendingVerification: number
+	bySubscriptionTier: Record<string, number>
+	registrationTrend: Array<{ date: string; count: number }>
+}
+
+export interface AppointmentsVisitsData {
+	totalAppointments: number
+	completedVisits: number
+	cancelledAppointments: number
+	pendingAppointments: number
+	confirmedAppointments: number
+	rescheduledAppointments: number
+	byStatus: Record<string, number>
+	appointmentTrend: Array<{ date: string; scheduled: number; completed: number }>
+}
+
+export interface DiagnosesTreatmentsData {
+	totalDiagnoses: number
+	activeDiagnoses: number
+	resolvedDiagnoses: number
+	bySeverity: Record<string, number>
+	topDiagnoses: Array<{ name: string; count: number }>
+	diagnosisTrend: Array<{ date: string; count: number }>
+}
+
+export interface LabTestUtilizationData {
+	totalLabRequests: number
+	completedTests: number
+	pendingTests: number
+	byPriority: Record<string, number>
+	byStatus: Record<string, number>
+	labRequestTrend: Array<{ date: string; count: number }>
+}
+
+export interface PrescriptionPharmacyData {
+	totalPrescriptions: number
+	activePrescriptions: number
+	expiredPrescriptions: number
+	totalRefills: number
+	topMedications: Array<{ name: string; count: number }>
+	prescriptionTrend: Array<{ date: string; count: number }>
+}
+
+export interface LongevityProgramData {
+	totalHealthScans: number
+	averageWellnessScore: number
+	averageStressLevel: number
+	averageHeartRate: number
+	riskDistribution: {
+		low: number
+		moderate: number
+		high: number
+	}
+	healthMetricsTrend: Array<{ date: string; wellnessScore: number; stressLevel: number }>
+}
+
+export interface HealthcareAnalytics {
+	patientRegistrations: PatientRegistrationsData
+	appointmentsVisits: AppointmentsVisitsData
+	diagnosesTreatments: DiagnosesTreatmentsData
+	labTestUtilization: LabTestUtilizationData
+	prescriptionPharmacy: PrescriptionPharmacyData
+	longevityProgram: LongevityProgramData
+	period: {
+		startDate: string
+		endDate: string
+	}
 }
 
 export interface CreateReportRequest {

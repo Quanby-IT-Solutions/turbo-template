@@ -11,6 +11,14 @@ android {
     compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
+    // Match BioSense SampleApp JNI packaging behavior:
+    // ensure native .so libs are extracted (legacy packaging) to avoid crashes during load on some devices.
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
+
     compileOptions {
         // Match the modern Flutter Android template (and what many plugins expect).
         sourceCompatibility = JavaVersion.VERSION_17

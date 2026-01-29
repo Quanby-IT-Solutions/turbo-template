@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:mobile/core/widgets/animated_nav_wrapper.dart';
@@ -375,14 +374,14 @@ class _MedicalRecordsScreenState extends ConsumerState<MedicalRecordsScreen>
         _buildMetricCard(
           context,
           'Height',
-          '${patient.height.toStringAsFixed(0)}',
+          patient.height.toStringAsFixed(0),
           'cm',
           colorScheme,
         ),
         _buildMetricCard(
           context,
           'Weight',
-          '${patient.weight.toStringAsFixed(1)}',
+          patient.weight.toStringAsFixed(1),
           'kg',
           colorScheme,
         ),

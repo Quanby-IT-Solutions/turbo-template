@@ -120,6 +120,10 @@ class _VitalsScannerScreenState extends ConsumerState<VitalsScannerScreen>
           ? DateTime.now().year - user.createdAt.year
           : null;
 
+      // Short delay so Activity/platform is ready before native session (avoids SIGSEGV on some devices e.g. MIUI)
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      if (!mounted) return;
+
       await service.createFaceSession(
         userInformation: estimatedAge != null
             ? UserInformation(age: estimatedAge.toDouble())
@@ -139,7 +143,14 @@ class _VitalsScannerScreenState extends ConsumerState<VitalsScannerScreen>
           _isInitializing = false;
           _isSessionCreated = false;
         });
-        _showError('Failed to initialize: ${e.toString().split(':').last}');
+        final msg = e.toString();
+        if (msg.contains('license') || msg.contains('BIOSENSESIGNAL')) {
+          _showError(
+            'SDK initialization failed. Please configure the license key.',
+          );
+        } else {
+          _showError('Failed to initialize: ${msg.split(':').last}');
+        }
       }
     }
   }
@@ -322,7 +333,10 @@ class _VitalsScannerScreenState extends ConsumerState<VitalsScannerScreen>
       }
 
       // Add new vitals record
-      vitalsHistory.insert(0, vitalsData); // Insert at beginning (most recent first)
+      vitalsHistory.insert(
+        0,
+        vitalsData,
+      ); // Insert at beginning (most recent first)
 
       // Keep only last 50 records to prevent storage bloat
       if (vitalsHistory.length > 50) {
@@ -332,7 +346,9 @@ class _VitalsScannerScreenState extends ConsumerState<VitalsScannerScreen>
       // Save back to storage
       await prefs.setString('vitals_history', jsonEncode(vitalsHistory));
 
-      debugPrint('✅ Vitals saved to local storage (${vitalsHistory.length} total records)');
+      debugPrint(
+        '✅ Vitals saved to local storage (${vitalsHistory.length} total records)',
+      );
     } catch (e) {
       debugPrint('⚠️ Failed to save to local storage: $e');
       // Don't throw - local storage is just a backup
@@ -1189,28 +1205,60 @@ class _VitalsScannerScreenState extends ConsumerState<VitalsScannerScreen>
                     borderRadius: BorderRadius.circular(24),
                     child: Stack(
                       children: [
-                        // Camera view or placeholder
+                        // Camera view or placeholder (Fix 5: show camera only when session past initializing, like SampleApp)
                         _isSessionCreated
-                            ? Stack(
-                                children: [
-                                  const CameraPreviewView(),
-                                  // Face guide overlay when not measuring
-                                  if (!_isMeasuring)
-                                    FaceGuideOverlay(
-                                      imageData: ref
-                                          .watch(bioSenseServiceProvider)
-                                          .imageDataNotifier
-                                          .value,
-                                    ),
-                                  // Scanning animation when measuring
-                                  if (_isMeasuring)
-                                    ScanningAnimationOverlay(
-                                      imageData: ref
-                                          .watch(bioSenseServiceProvider)
-                                          .imageDataNotifier
-                                          .value,
-                                    ),
-                                ],
+                            ? ValueListenableBuilder<SessionState?>(
+                                valueListenable: service.sessionStateNotifier,
+                                builder: (context, state, _) {
+                                  if (state == null ||
+                                      state == SessionState.initializing) {
+                                    return Container(
+                                      color: Colors.grey.shade900,
+                                      child: Center(
+                                        child: Column(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            const SizedBox(
+                                              width: 32,
+                                              height: 32,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 3,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 16),
+                                            Text(
+                                              'Preparing camera...',
+                                              style: TextStyle(
+                                                color: Colors.grey[400],
+                                                fontSize: 16,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                  return Stack(
+                                    children: [
+                                      const CameraPreviewView(),
+                                      if (!_isMeasuring)
+                                        FaceGuideOverlay(
+                                          imageData: ref
+                                              .watch(bioSenseServiceProvider)
+                                              .imageDataNotifier
+                                              .value,
+                                        ),
+                                      if (_isMeasuring)
+                                        ScanningAnimationOverlay(
+                                          imageData: ref
+                                              .watch(bioSenseServiceProvider)
+                                              .imageDataNotifier
+                                              .value,
+                                        ),
+                                    ],
+                                  );
+                                },
                               )
                             : Container(
                                 color: Colors.grey.shade900,

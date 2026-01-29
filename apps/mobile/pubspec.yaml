@@ -39,7 +39,7 @@ dependencies:
 
   # Utilities
   equatable: ^2.0.5
-  uuid: ^4.1.0
+  uuid: ^3.0.7
   url_launcher: ^6.2.2
   flex_color_scheme: ^8.3.0
   shared_preferences: ^2.5.3
@@ -54,6 +54,7 @@ dependencies:
   awesome_notifications: ^0.10.1
   draggable_home: ^1.0.5
   permission_handler: ^12.0.1
+  wakelock_plus: ^1.2.8
   animate_do: ^4.2.0
   qr_flutter: ^4.1.0
 
@@ -107,3 +108,7 @@ flutter_native_splash:
   # Positioning
   android_gravity: center
   ios_content_mode: center
+
+dependency_overrides:
+  # Force all packages (including toastification) to use the same uuid
+  uuid: ^3.0.7

@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/core/services/biosense_signal_service.dart';
+import 'package:mobile/core/services/biosense_config.dart';
 import 'package:mobile/core/services/http_service.dart';
 import 'package:mobile/core/services/toast_service.dart';
 import 'package:mobile/core/widgets/animated_nav_wrapper.dart';
@@ -30,9 +31,13 @@ class VitalsSelfCheckScreen extends ConsumerStatefulWidget {
 class _VitalsSelfCheckScreenState extends ConsumerState<VitalsSelfCheckScreen>
     with SingleTickerProviderStateMixin {
   bool _isSessionCreated = false;
+  bool _isSessionReady =
+      false; // true when SessionState.ready (enables Start Scan)
   bool _isScanning = false;
   bool _isInitializing = false;
   static const int _measurementDuration = 60;
+  static const int _sessionReadyTimeoutSeconds = 15;
+  Timer? _sessionReadyTimeoutTimer;
   int _elapsedSeconds = 0;
   Timer? _measurementTimer;
   late AnimationController _pulseController;
@@ -131,6 +136,18 @@ class _VitalsSelfCheckScreenState extends ConsumerState<VitalsSelfCheckScreen>
                                           .colorScheme
                                           .onSurface
                                           .withValues(alpha: 0.65),
+                                    ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                'On some devices (e.g. Android 15, POCO/Xiaomi) the app may close when starting. If so, contact support with your device model.',
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurface
+                                          .withValues(alpha: 0.5),
+                                      fontStyle: FontStyle.italic,
                                     ),
                               ),
                             ],
@@ -414,13 +431,17 @@ class _VitalsSelfCheckScreenState extends ConsumerState<VitalsSelfCheckScreen>
                     child: ElevatedButton.icon(
                       onPressed: _isInitializing
                           ? null
+                          : (_isSessionCreated && !_isSessionReady)
+                          ? null
                           : (_isScanning
                                 ? _stopScan
-                                : (_isSessionCreated
+                                : (_isSessionCreated && _isSessionReady
                                       ? _startScan
                                       : _initializeSession)),
                       icon: Icon(
                         _isInitializing
+                            ? Icons.hourglass_empty
+                            : (_isSessionCreated && !_isSessionReady)
                             ? Icons.hourglass_empty
                             : (_isScanning
                                   ? Icons.stop_rounded
@@ -429,9 +450,11 @@ class _VitalsSelfCheckScreenState extends ConsumerState<VitalsSelfCheckScreen>
                       label: Text(
                         _isInitializing
                             ? 'Initializing...'
+                            : (_isSessionCreated && !_isSessionReady)
+                            ? 'Preparing...'
                             : (_isScanning
                                   ? 'Stop Scan'
-                                  : (_isSessionCreated
+                                  : (_isSessionCreated && _isSessionReady
                                         ? 'Start Scan'
                                         : 'Initialize Camera')),
                         style: Theme.of(context).textTheme.titleMedium
@@ -651,6 +674,7 @@ class _VitalsSelfCheckScreenState extends ConsumerState<VitalsSelfCheckScreen>
   @override
   void dispose() {
     _measurementTimer?.cancel();
+    _sessionReadyTimeoutTimer?.cancel();
     _pulseController.dispose();
 
     final service = ref.read(bioSenseServiceProviderSelfCheck);
@@ -679,13 +703,23 @@ class _VitalsSelfCheckScreenState extends ConsumerState<VitalsSelfCheckScreen>
     debugPrint('🚀 INITIALIZE SESSION STARTED');
     debugPrint('══════════════════════════════════════');
 
+    // Fix 3: Do not re-initialize if session already exists or we're still waiting for ready
     if (_isSessionCreated || _isInitializing) {
       debugPrint('⚠️ Already initialized or initializing');
       return;
     }
 
+    // Global feature flag: allow disabling BioSense without code changes.
+    if (!FeatureFlags.enableBiosense) {
+      _showError(
+        'Camera-based vitals are temporarily unavailable. Please try again later.',
+      );
+      return;
+    }
+
     setState(() {
       _isInitializing = true;
+      _isSessionReady = false;
     });
 
     try {
@@ -747,28 +781,43 @@ class _VitalsSelfCheckScreenState extends ConsumerState<VitalsSelfCheckScreen>
 
       debugPrint('👤 User ID: ${user?.id}, Estimated age: $estimatedAge');
 
-      // Step 5: Create session - SINGLE CALL ONLY
+      // Step 5: Create session - defer to next frame + short delay so Activity/platform is ready (avoids SIGSEGV on some devices e.g. MIUI)
       debugPrint('🎬 Step 5: Creating BioSense face session...');
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      if (!mounted) return;
 
-      // CRITICAL: Only call createFaceSession ONCE
-      // Try WITHOUT user info first to avoid SDK crashes
       await service.createFaceSession(
         userInformation: null, // Pass null to avoid age-related crashes
       );
 
       debugPrint('✅ Face session created successfully!');
 
-      // Small delay to let SDK initialize properly
-      await Future.delayed(const Duration(milliseconds: 500));
-
+      // Fix 1: Set session created when createFaceSession returns so camera can show.
+      // Fix 2: _isInitializing stays true until SessionState.ready (see _onSessionStateChanged).
       if (mounted) {
         setState(() {
-          _isInitializing = false;
+          _isSessionCreated = true;
         });
       }
 
+      // Fix 2: Timeout if ready never arrives so user is not stuck
+      _sessionReadyTimeoutTimer?.cancel();
+      _sessionReadyTimeoutTimer = Timer(
+        const Duration(seconds: _sessionReadyTimeoutSeconds),
+        () {
+          if (!mounted) return;
+          final svc = ref.read(bioSenseServiceProviderSelfCheck);
+          if (svc.sessionStateNotifier.value != SessionState.ready) {
+            setState(() {
+              _isInitializing = false;
+            });
+            _showError('Session took too long to prepare. Try again.');
+          }
+        },
+      );
+
       debugPrint('══════════════════════════════════════');
-      debugPrint('🎉 INITIALIZE SESSION COMPLETED');
+      debugPrint('🎉 INITIALIZE SESSION COMPLETED (waiting for ready)');
       debugPrint('══════════════════════════════════════');
     } catch (e, stackTrace) {
       debugPrint('══════════════════════════════════════');
@@ -782,12 +831,13 @@ class _VitalsSelfCheckScreenState extends ConsumerState<VitalsSelfCheckScreen>
           _isInitializing = false;
           _isSessionCreated = false;
         });
-        _showError('SDK initialization failed. Please check your license key.');
+        _showError(
+          'SDK initialization failed. Please configure the license key.',
+        );
       }
     }
   }
 
-  // Add this new method to handle session state changes
   void _onSessionStateChanged() {
     final service = ref.read(bioSenseServiceProviderSelfCheck);
     final state = service.sessionStateNotifier.value;
@@ -795,30 +845,34 @@ class _VitalsSelfCheckScreenState extends ConsumerState<VitalsSelfCheckScreen>
     debugPrint('📊 Session state changed to: $state');
 
     if (state == SessionState.ready && mounted) {
+      _sessionReadyTimeoutTimer?.cancel();
       setState(() {
-        _isSessionCreated = true;
         _isInitializing = false;
+        _isSessionReady = true;
       });
-      debugPrint('✅ Session is READY - camera can now start');
+      debugPrint('✅ Session is READY - Start Scan enabled');
     } else if (state == SessionState.terminated && mounted) {
+      _sessionReadyTimeoutTimer?.cancel();
       setState(() {
         _isSessionCreated = false;
+        _isSessionReady = false;
       });
     }
   }
 
-  // Add this new method to handle errors
   void _onErrorReceived() {
     final service = ref.read(bioSenseServiceProviderSelfCheck);
     final error = service.errorNotifier.value;
 
-    debugPrint('❌ ERROR RECEIVED: $error'); // Add this
+    debugPrint('❌ ERROR RECEIVED: $error');
 
     if (error != null && mounted) {
+      _sessionReadyTimeoutTimer?.cancel();
       _showError(error);
       setState(() {
         _isInitializing = false;
         _isSessionCreated = false;
+        _isSessionReady = false;
       });
     }
   }
@@ -827,6 +881,10 @@ class _VitalsSelfCheckScreenState extends ConsumerState<VitalsSelfCheckScreen>
     if (!_isSessionCreated) {
       await _initializeSession();
       if (!_isSessionCreated) return;
+    }
+    if (!_isSessionReady) {
+      _showError('Session not ready yet. Please wait.');
+      return;
     }
 
     try {

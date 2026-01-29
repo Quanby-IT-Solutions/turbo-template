@@ -301,7 +301,7 @@ class _LabRequestBookingScreenState
                       child: Center(child: CircularProgressIndicator()),
                     )
                   : DropdownButtonFormField<String>(
-                      value: _selectedDoctorId,
+                      initialValue: _selectedDoctorId,
                       decoration: InputDecoration(
                         hintText: 'Select a doctor (optional)',
                         hintStyle: TextStyle(

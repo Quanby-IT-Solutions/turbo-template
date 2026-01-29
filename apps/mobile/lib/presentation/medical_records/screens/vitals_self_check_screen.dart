@@ -705,36 +705,30 @@ class _VitalsSelfCheckScreenState extends ConsumerState<VitalsSelfCheckScreen>
       return;
     }
 
+    final preInitService = ref.read(bioSenseServiceProviderSelfCheck);
+    await preInitService.terminateSession();
+
     setState(() {
       _isInitializing = true;
       _isSessionReady = false;
     });
 
     try {
-      // Step 1: Check camera permission
-      debugPrint('📸 Step 1: Checking camera permission...');
       var cameraStatus = await Permission.camera.status;
-      debugPrint('📸 Initial camera status: $cameraStatus');
 
       if (!cameraStatus.isGranted) {
         cameraStatus = await Permission.camera.request();
         if (!cameraStatus.isGranted) {
           if (mounted) {
             setState(() => _isInitializing = false);
-            _showError('Camera permission required');
           }
           return;
         }
       }
 
-      debugPrint('✅ Camera permission granted');
-
       // Step 2: Get service
       final service = ref.read(bioSenseServiceProviderSelfCheck);
-      debugPrint('✅ Service retrieved');
 
-      // Step 3: Setup listeners
-      debugPrint('👂 Setting up listeners...');
       try {
         service.finalResultsNotifier.removeListener(_onResultsReceived);
         service.sessionStateNotifier.removeListener(_onSessionStateChanged);
@@ -744,33 +738,7 @@ class _VitalsSelfCheckScreenState extends ConsumerState<VitalsSelfCheckScreen>
       service.finalResultsNotifier.addListener(_onResultsReceived);
       service.sessionStateNotifier.addListener(_onSessionStateChanged);
       service.errorNotifier.addListener(_onErrorReceived);
-      debugPrint('✅ All listeners added');
 
-      // Step 4: Get user information and calculate age
-      debugPrint('👤 Step 4: Getting user information...');
-      final user = ref.read(currentUserProvider);
-
-      // Calculate age properly
-      int? estimatedAge;
-      if (user != null) {
-        final age = DateTime.now().year - user.createdAt.year;
-        debugPrint('👤 Calculated age: $age');
-
-        // Only use age if it's valid (SDK requires 18-110)
-        if (age >= 18 && age <= 110) {
-          estimatedAge = age;
-          debugPrint('✅ Using valid age: $age');
-        } else {
-          debugPrint('⚠️ Invalid age ($age), creating session without age');
-        }
-      } else {
-        debugPrint('⚠️ No user found, creating session without user info');
-      }
-
-      debugPrint('👤 User ID: ${user?.id}, Estimated age: $estimatedAge');
-
-      // Step 5: Create session - defer to next frame + short delay so Activity/platform is ready (avoids SIGSEGV on some devices e.g. MIUI)
-      debugPrint('🎬 Step 5: Creating BioSense face session...');
       await Future<void>.delayed(const Duration(milliseconds: 300));
       if (!mounted) return;
 
@@ -778,10 +746,6 @@ class _VitalsSelfCheckScreenState extends ConsumerState<VitalsSelfCheckScreen>
         userInformation: null, // Pass null to avoid age-related crashes
       );
 
-      debugPrint('✅ Face session created successfully!');
-
-      // Fix 1: Set session created when createFaceSession returns so camera can show.
-      // Fix 2: _isInitializing stays true until SessionState.ready (see _onSessionStateChanged).
       if (mounted) {
         setState(() {
           _isSessionCreated = true;
@@ -820,15 +784,12 @@ class _VitalsSelfCheckScreenState extends ConsumerState<VitalsSelfCheckScreen>
     final service = ref.read(bioSenseServiceProviderSelfCheck);
     final state = service.sessionStateNotifier.value;
 
-    debugPrint('📊 Session state changed to: $state');
-
     if (state == SessionState.ready && mounted) {
       _sessionReadyTimeoutTimer?.cancel();
       setState(() {
         _isInitializing = false;
         _isSessionReady = true;
       });
-      debugPrint('✅ Session is READY - Start Scan enabled');
     } else if (state == SessionState.terminated && mounted) {
       _sessionReadyTimeoutTimer?.cancel();
       setState(() {
@@ -841,8 +802,6 @@ class _VitalsSelfCheckScreenState extends ConsumerState<VitalsSelfCheckScreen>
   void _onErrorReceived() {
     final service = ref.read(bioSenseServiceProviderSelfCheck);
     final error = service.errorNotifier.value;
-
-    debugPrint('❌ ERROR RECEIVED: $error');
 
     if (error != null && mounted) {
       _sessionReadyTimeoutTimer?.cancel();

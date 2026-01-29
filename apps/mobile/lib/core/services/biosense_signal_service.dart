@@ -35,7 +35,7 @@ class BioSenseSignalService
     }
 
     // Validate configuration before touching the native SDK.
-    if (!BiosenseConfig.isLicenseKeyValid()) {
+    if (!BiosenseConfig.isLicenseKeyValid) {
       throw Exception('Invalid BioSense license key configuration');
     }
 
@@ -58,11 +58,7 @@ class BioSenseSignalService
       ValueNotifier<VitalSignsResults?>(null);
   final ValueNotifier<String?> errorNotifier = ValueNotifier<String?>(null);
 
-  /// Create a face measurement session
-  ///
-  /// [userInformation] - Optional user demographics for enhanced measurements
   Future<void> createFaceSession({UserInformation? userInformation}) async {
-    // Global kill-switch for BioSense usage.
     if (!FeatureFlags.enableBiosense) {
       throw Exception('BioSense is temporarily disabled by configuration.');
     }
@@ -77,10 +73,11 @@ class BioSenseSignalService
     }
 
     try {
-      // Terminate existing session if any
       if (_session != null) {
         await _session!.terminate();
         _session = null;
+
+        await Future<void>.delayed(const Duration(milliseconds: 300));
       }
 
       // Reset state
@@ -92,15 +89,11 @@ class BioSenseSignalService
       // Create license details
       final licenseDetails = LicenseDetails(key);
 
-      // Build face session - chain FaceSessionBuilder methods first, then SessionBuilder methods
       var builder = FaceSessionBuilder();
 
-      // Add user information if provided (must be called first to preserve FaceSessionBuilder type)
       if (userInformation != null) {
         builder = builder.withUserInformation(userInformation);
       }
-
-      // Chain SessionBuilder methods (these return SessionBuilder but can be used on FaceSessionBuilder)
       _session = await builder
           .withImageDataListener(this)
           .withVitalSignsListener(this)
@@ -140,9 +133,6 @@ class BioSenseSignalService
     throw lastException;
   }
 
-  /// Start a measurement with the specified duration
-  ///
-  /// [duration] - Measurement duration in seconds (20-180 seconds)
   Future<void> startMeasurement({required int duration}) async {
     if (_session == null) {
       throw Exception('Session not initialized. Call createFaceSession first.');
@@ -230,14 +220,8 @@ class BioSenseSignalService
     errorNotifier.dispose();
   }
 
-  // ============================================================================
-  // VitalSignsListener implementation
-  // ============================================================================
-
   @override
   void onVitalSign(VitalSign vitalSign) {
-    // Instantaneous vital sign updates during measurement
-    // UI can listen to this if needed for real-time updates
     if (kDebugMode) {
       debugPrint('Vital sign received: ${vitalSign.type} = ${vitalSign.value}');
     }
@@ -245,7 +229,6 @@ class BioSenseSignalService
 
   @override
   void onFinalResults(VitalSignsResults results) {
-    // Final results are computed when measurement stops
     finalResultsNotifier.value = results;
     if (kDebugMode) {
       debugPrint(
@@ -253,10 +236,6 @@ class BioSenseSignalService
       );
     }
   }
-
-  // ============================================================================
-  // SessionInfoListener implementation
-  // ============================================================================
 
   @override
   void onSessionStateChange(SessionState sessionState) {
@@ -283,7 +262,6 @@ class BioSenseSignalService
         'SDK Warning: Domain=${warningData.domain}, Code=${warningData.code}',
       );
     }
-    // Warnings don't stop the measurement, but can be displayed to user if needed
   }
 
   @override
@@ -308,12 +286,7 @@ class BioSenseSignalService
     if (kDebugMode) {
       debugPrint('License info received');
     }
-    // License information can be used to check activation status, remaining measurements, etc.
   }
-
-  // ============================================================================
-  // ImageDataListener implementation
-  // ============================================================================
 
   @override
   void onImageData(ImageData imageData) {

@@ -333,9 +333,9 @@ export default function ReportsPage() {
                           Create Report
                         </Button>
                       </DialogTrigger>
-                      <DialogContent className="sm:max-w-[600px]">
-                        <DialogHeader className="space-y-3">
-                          <div className="flex items-center gap-2">
+                      <DialogContent className="sm:max-w-[620px] max-h-[90vh] overflow-y-auto">
+                        <DialogHeader className="space-y-2">
+                          <div className="flex items-center gap-3">
                             <div className="p-2 bg-sky-100 rounded-lg">
                               <BarChart3 className="h-5 w-5 text-sky-600" />
                             </div>
@@ -343,68 +343,74 @@ export default function ReportsPage() {
                               <DialogTitle className="text-xl font-semibold text-slate-800">
                                 Create Healthcare Report
                               </DialogTitle>
-                              <DialogDescription className="text-slate-600">
-                                Generate comprehensive analytics with aggregated, non-PHI data
+                              <DialogDescription className="text-sm text-slate-500">
+                                Aggregated, non-PHI healthcare analytics
                               </DialogDescription>
                             </div>
                           </div>
                         </DialogHeader>
-                        <div className="space-y-6 py-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="name" className="text-sm font-medium text-slate-700">
-                              Report Name *
-                            </Label>
-                            <Input
-                              id="name"
-                              value={reportName}
-                              onChange={(e) => setReportName(e.target.value)}
-                              placeholder="January 2026 Healthcare Analytics"
-                              className="border-slate-300 focus:border-sky-500 focus:ring-sky-500"
-                            />
+                        
+                        <div className="space-y-5 py-3">
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2 flex-1">
+                              <Label htmlFor="name" className="text-sm font-medium text-slate-700">
+                                Report Name *
+                              </Label>
+                              <Input
+                                id="name"
+                                value={reportName}
+                                onChange={(e) => setReportName(e.target.value)}
+                                placeholder="Monthly Report"
+                                className="h-10 border-slate-300 focus:border-sky-500 focus:ring-sky-500"
+                              />
+                            </div>
+                            
+                            <div className="space-y-2 flex-1">
+                              <Label htmlFor="description" className="text-sm font-medium text-slate-700">
+                                Description
+                              </Label>
+                              <Input
+                                id="description"
+                                value={reportDescription}
+                                onChange={(e) => setReportDescription(e.target.value)}
+                                placeholder="Optional description..."
+                                className="h-10 border-slate-300 focus:border-sky-500 focus:ring-sky-500"
+                              />
+                            </div>
                           </div>
                           
                           <div className="space-y-2">
-                            <Label htmlFor="description" className="text-sm font-medium text-slate-700">
-                              Description
-                            </Label>
-                            <Textarea
-                              id="description"
-                              value={reportDescription}
-                              onChange={(e) => setReportDescription(e.target.value)}
-                              placeholder="Monthly healthcare analytics covering all key metrics..."
-                              className="border-slate-300 focus:border-sky-500 focus:ring-sky-500 min-h-[80px]"
-                            />
-                          </div>
-                          
-                          <div className="space-y-3">
                             <Label className="text-sm font-medium text-slate-700">
                               Report Type
                             </Label>
-                            <div className="grid grid-cols-2 gap-3">
+                            <div className="grid grid-cols-2 gap-3 items-start">
                               {HEALTHCARE_REPORT_TYPES.map((type) => {
                                 const config = getReportTypeConfig(type)
+                                const isSelected = selectedReportType === type
                                 return (
                                   <button
                                     key={type}
                                     type="button"
                                     onClick={() => setSelectedReportType(type)}
                                     className={cn(
-                                      "flex items-start gap-3 p-3 rounded-lg border-2 transition-all text-left",
-                                      selectedReportType === type
-                                        ? `${config.border} ${config.bg} ring-2 ring-offset-1 ring-sky-500`
+                                      "flex items-start gap-3 p-3 rounded-lg border transition-all text-left self-start",
+                                      isSelected
+                                        ? `${config.border} ${config.bg} ring-1 ring-sky-500 shadow-sm`
                                         : "border-slate-200 hover:border-slate-300 hover:bg-slate-50"
                                     )}
                                   >
-                                    <div className={cn("p-2 rounded-md", config.bg)}>
+                                    <div className={cn("p-2 rounded-md shrink-0", config.bg)}>
                                       <span className={config.color}>{config.icon}</span>
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                      <div className={cn("font-medium text-sm", selectedReportType === type ? config.color : "text-slate-700")}>
+                                      <div className={cn("font-medium text-sm", isSelected ? config.color : "text-slate-700")}>
                                         {config.label}
                                       </div>
-                                      <div className="text-xs text-slate-500 mt-0.5 line-clamp-2">
-                                        {config.description}
-                                      </div>
+                                      {isSelected && (
+                                        <p className="text-xs text-slate-500 mt-1 leading-snug">
+                                          {config.description}
+                                        </p>
+                                      )}
                                     </div>
                                   </button>
                                 )
@@ -412,19 +418,18 @@ export default function ReportsPage() {
                             </div>
                           </div>
                           
-                          <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
-                            <div className="flex items-center gap-2 text-sm text-slate-600 mb-2">
+                          <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                            <div className="flex items-center gap-2 text-sm text-slate-600 mb-1">
                               <Shield className="h-4 w-4 text-green-600" />
                               <span className="font-medium">Privacy Protection</span>
                             </div>
-                            <p className="text-xs text-slate-500">
-                              This report will contain only aggregated statistics and will exclude all 
-                              Protected Health Information (PHI) as required by healthcare regulations.
+                            <p className="text-xs leading-relaxed text-slate-500">
+                              Contains only aggregated statistics. No Protected Health Information (PHI) included.
                             </p>
                           </div>
                         </div>
                         
-                        <div className="flex gap-3 pt-4 border-t border-slate-200">
+                        <div className="flex gap-3 pt-4 mt-2 border-t border-slate-200">
                           <Button 
                             variant="outline" 
                             onClick={() => setIsCreateDialogOpen(false)}

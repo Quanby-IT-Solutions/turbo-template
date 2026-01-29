@@ -23,6 +23,7 @@ class BiosenseSignalFlutterSdkPlugin: FlutterPlugin, ActivityAware, MethodCallHa
   private var eventChannel : EventChannel? = null
   private lateinit var pluginBinding: FlutterPlugin.FlutterPluginBinding
   private lateinit var applicationContext: Context
+  private var activityContext: Context? = null
   private var sessionManager: SessionManager? = null
 
   override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
@@ -31,6 +32,7 @@ class BiosenseSignalFlutterSdkPlugin: FlutterPlugin, ActivityAware, MethodCallHa
   }
 
   override fun onAttachedToActivity(binding: ActivityPluginBinding) {
+    activityContext = binding.activity
     pluginBinding.platformViewRegistry.registerViewFactory(BiosenseSignalPreviewFactory.cameraPreviewId, BiosenseSignalPreviewFactory)
     methodChannel = MethodChannel(pluginBinding.binaryMessenger, methodChannelId).also { channel ->
       channel.setMethodCallHandler(this)
@@ -51,6 +53,7 @@ class BiosenseSignalFlutterSdkPlugin: FlutterPlugin, ActivityAware, MethodCallHa
   }
 
   override fun onDetachedFromActivity() {
+    activityContext = null
     methodChannel?.setMethodCallHandler(null)
     eventChannel?.setStreamHandler(null)
   }
@@ -58,12 +61,17 @@ class BiosenseSignalFlutterSdkPlugin: FlutterPlugin, ActivityAware, MethodCallHa
   override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
   }
 
+  /** Context for camera session: Activity preferred (camera SDK often needs it), else application. */
+  private fun contextForCamera(): Context = activityContext ?: applicationContext
+
   override fun onMethodCall(call: MethodCall, result: Result) {
-    try {
-      when (call.method) {
-        NativeBridgeApi.createSession -> {
+    when (call.method) {
+      // createSession triggers first load of libbiosensesignalhrv.so; static init (license/hash) runs then.
+      // If you see SIGSEGV in libbiosensesignalhrv.so (generateHashKey/isMatch), report to BioSense with full backtrace.
+      NativeBridgeApi.createSession -> {
+        try {
           sessionManager?.createCameraSession(
-            applicationContext,
+            contextForCamera(),
             call.argument<String>("licenseKey") ?: "",
             call.argument<String>("productId"),
             call.argument<Int>("deviceOrientation"),
@@ -81,8 +89,12 @@ class BiosenseSignalFlutterSdkPlugin: FlutterPlugin, ActivityAware, MethodCallHa
             call.argument<Map<String, Any>>("options")
           )
           result.success(null)
+        } catch (e: HealthMonitorException) {
+          result.error(e.errorCode.toString(), e.domain, null)
         }
-        NativeBridgeApi.createPPGDeviceSession -> {
+      }
+      NativeBridgeApi.createPPGDeviceSession -> {
+        try {
           sessionManager?.createPPGDeviceSession(
             applicationContext,
             call.argument<String>("licenseKey") ?: "",
@@ -101,47 +113,55 @@ class BiosenseSignalFlutterSdkPlugin: FlutterPlugin, ActivityAware, MethodCallHa
             call.argument<Map<String, Any>>("options")
           )
           result.success(null)
-        }
-        NativeBridgeApi.startSession -> {
-          sessionManager?.startSession(call.argument<Int>("duration"))
-          result.success(null)
-        }
-        NativeBridgeApi.stopSession -> {
-          sessionManager?.stopSession()
-          result.success(null)
-        }
-        NativeBridgeApi.terminateSession -> {
-          sessionManager?.terminateSession()
-          result.success(null)
-        }
-        NativeBridgeApi.getSessionState -> {
-          result.success(sessionManager?.getSessionState()?.ordinal)
-        }
-        NativeBridgeApi.getNativeSdkVersion -> {
-          result.success(mapOf(
-            Pair("version", com.biosensesignal.sdk.BuildConfig.VERSION_NAME),
-            Pair("build", com.biosensesignal.sdk.BuildConfig.VERSION_CODE),
-          ))
-        }
-        NativeBridgeApi.getMinPolarVersion -> {
-          result.success(POLAR_MIN_VERSION)
-        }
-        NativeBridgeApi.startPPGDevicesScan -> {
-          sessionManager?.startPPGDevicesScan(
-            applicationContext,
-            call.argument<String>("scannerId") ?: "",
-            call.argument<Int>("deviceType") ?: 0,
-            call.argument<Int>("timeout")?.toLong(),
-          )
-          result.success(null)
-        }
-        NativeBridgeApi.stopPPGDeviceScan -> {
-          sessionManager?.stopPPGDeviceScan(call.argument<String>("scannerId") ?: "")
-          result.success(null)
+        } catch (e: HealthMonitorException) {
+          result.error(e.errorCode.toString(), e.domain, null)
         }
       }
-    } catch (e: HealthMonitorException) {
-      result.error(e.errorCode.toString(), e.domain, null)
+      NativeBridgeApi.startSession -> {
+        try {
+          sessionManager?.startSession(call.argument<Int>("duration"))
+          result.success(null)
+        } catch (e: HealthMonitorException) {
+          result.error(e.errorCode.toString(), e.domain, null)
+        }
+      }
+      NativeBridgeApi.stopSession -> {
+        try {
+          sessionManager?.stopSession()
+          result.success(null)
+        } catch (e: HealthMonitorException) {
+          result.error(e.errorCode.toString(), e.domain, null)
+        }
+      }
+      NativeBridgeApi.terminateSession -> {
+        sessionManager?.terminateSession()
+        result.success(null)
+      }
+      NativeBridgeApi.getSessionState -> {
+        result.success(sessionManager?.getSessionState()?.ordinal)
+      }
+      NativeBridgeApi.getNativeSdkVersion -> {
+        result.success(mapOf(
+          Pair("version", com.biosensesignal.sdk.BuildConfig.VERSION_NAME),
+          Pair("build", com.biosensesignal.sdk.BuildConfig.VERSION_CODE),
+        ))
+      }
+      NativeBridgeApi.getMinPolarVersion -> {
+        result.success(POLAR_MIN_VERSION)
+      }
+      NativeBridgeApi.startPPGDevicesScan -> {
+        sessionManager?.startPPGDevicesScan(
+          applicationContext,
+          call.argument<String>("scannerId") ?: "",
+          call.argument<Int>("deviceType") ?: 0,
+          call.argument<Int>("timeout")?.toLong(),
+        )
+        result.success(null)
+      }
+      NativeBridgeApi.stopPPGDeviceScan -> {
+        sessionManager?.stopPPGDeviceScan(call.argument<String>("scannerId") ?: "")
+        result.success(null)
+      }
     }
   }
 }

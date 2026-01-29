@@ -43,11 +43,9 @@
     },
     {
       "name": "uuid",
-      "version": "4.5.2",
+      "version": "3.0.7",
       "dependencies": [
-        "crypto",
-        "fixnum",
-        "meta"
+        "crypto"
       ]
     },
     {
@@ -157,11 +155,6 @@
         "string_scanner",
         "term_glyph"
       ]
-    },
-    {
-      "name": "fixnum",
-      "version": "1.1.1",
-      "dependencies": []
     },
     {
       "name": "crypto",

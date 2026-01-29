@@ -13,6 +13,7 @@ class LabRequestRepository {
   }
 
   /// Create a new lab request
+  /// [requestedTests]
   Future<Map<String, dynamic>> createLabRequest({
     required String patientId,
     required String organizationId,
@@ -21,7 +22,7 @@ class LabRequestRepository {
     String? note,
     String? status,
     String? priority,
-    List<String>? requestedTests,
+    String? requestedTests,
     String? instructions,
   }) async {
     try {
@@ -66,6 +67,30 @@ class LabRequestRepository {
     }
   }
 
+  /// Get doctors by organization
+  Future<List<Map<String, dynamic>>> getDoctorsByOrganization(
+    String organizationId,
+  ) async {
+    try {
+      final doctors = await HttpService.getDoctorsByOrganization(
+        organizationId,
+      );
+      return doctors;
+    } catch (e) {
+      throw Exception('Failed to get doctors by organization: ${e.toString()}');
+    }
+  }
+
+  /// Get organization by ID
+  Future<Map<String, dynamic>> getOrganization(String organizationId) async {
+    try {
+      final organization = await HttpService.getOrganization(organizationId);
+      return organization;
+    } catch (e) {
+      throw Exception('Failed to get organization: ${e.toString()}');
+    }
+  }
+
   /// Get room lab requests
   Future<List<Map<String, dynamic>>> getRoomLabRequests(String roomId) async {
     try {
@@ -86,7 +111,8 @@ class LabRequestRepository {
     }
   }
 
-  /// Update a lab request
+  /// Update an existing lab request
+  /// [requestedTests] should be a String (comma-separated if multiple tests)
   Future<Map<String, dynamic>> updateLabRequest({
     required String id,
     String? patientId,
@@ -96,7 +122,7 @@ class LabRequestRepository {
     String? note,
     String? status,
     String? priority,
-    List<String>? requestedTests,
+    String? requestedTests,
     String? instructions,
   }) async {
     try {

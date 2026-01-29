@@ -17,6 +17,13 @@ export const ReportTypeEnum = z.enum([
 	"CONSULTATION_METRICS",
 	"ORGANIZATIONAL_OVERVIEW",
 	"DEPARTMENT_STATISTICS",
+	// New healthcare-focused report types
+	"PATIENT_REGISTRATIONS",
+	"APPOINTMENTS_VISITS",
+	"DIAGNOSES_TREATMENTS",
+	"LAB_TEST_UTILIZATION",
+	"PRESCRIPTION_PHARMACY",
+	"LONGEVITY_PROGRAM",
 ])
 
 /**
@@ -142,6 +149,103 @@ export const ReportStatisticsSchema = z.object({
 	averageConsultationDuration: z.number(),
 	systemUptime: z.number(),
 	responseTime: z.number(),
+	period: z.object({
+		startDate: z.string().datetime(),
+		endDate: z.string().datetime(),
+	}),
+})
+
+/**
+ * Healthcare Analytics Statistics Schema (Aggregated, Non-PHI)
+ */
+export const HealthcareAnalyticsSchema = z.object({
+	// Patient Registrations
+	patientRegistrations: z.object({
+		totalPatients: z.number(),
+		newPatients: z.number(),
+		verifiedPatients: z.number(),
+		pendingVerification: z.number(),
+		bySubscriptionTier: z.record(z.string(), z.number()),
+		registrationTrend: z.array(z.object({
+			date: z.string(),
+			count: z.number(),
+		})),
+	}),
+	// Appointments and Visits
+	appointmentsVisits: z.object({
+		totalAppointments: z.number(),
+		completedVisits: z.number(),
+		cancelledAppointments: z.number(),
+		pendingAppointments: z.number(),
+		confirmedAppointments: z.number(),
+		rescheduledAppointments: z.number(),
+		byStatus: z.record(z.string(), z.number()),
+		appointmentTrend: z.array(z.object({
+			date: z.string(),
+			scheduled: z.number(),
+			completed: z.number(),
+		})),
+	}),
+	// Diagnoses and Treatments
+	diagnosesTreatments: z.object({
+		totalDiagnoses: z.number(),
+		activeDiagnoses: z.number(),
+		resolvedDiagnoses: z.number(),
+		bySeverity: z.record(z.string(), z.number()),
+		topDiagnoses: z.array(z.object({
+			name: z.string(),
+			count: z.number(),
+		})),
+		diagnosisTrend: z.array(z.object({
+			date: z.string(),
+			count: z.number(),
+		})),
+	}),
+	// Laboratory Test Utilization
+	labTestUtilization: z.object({
+		totalLabRequests: z.number(),
+		completedTests: z.number(),
+		pendingTests: z.number(),
+		byPriority: z.record(z.string(), z.number()),
+		byStatus: z.record(z.string(), z.number()),
+		labRequestTrend: z.array(z.object({
+			date: z.string(),
+			count: z.number(),
+		})),
+	}),
+	// Prescription and Pharmacy
+	prescriptionPharmacy: z.object({
+		totalPrescriptions: z.number(),
+		activePrescriptions: z.number(),
+		expiredPrescriptions: z.number(),
+		totalRefills: z.number(),
+		topMedications: z.array(z.object({
+			name: z.string(),
+			count: z.number(),
+		})),
+		prescriptionTrend: z.array(z.object({
+			date: z.string(),
+			count: z.number(),
+		})),
+	}),
+	// Longevity Program (Health Scans)
+	longevityProgram: z.object({
+		totalHealthScans: z.number(),
+		averageWellnessScore: z.number(),
+		averageStressLevel: z.number(),
+		averageHeartRate: z.number(),
+		riskDistribution: z.object({
+			low: z.number(),
+			moderate: z.number(),
+			high: z.number(),
+		}),
+		healthMetricsTrend: z.array(z.object({
+			date: z.string(),
+			wellnessScore: z.number(),
+			stressLevel: z.number(),
+		})),
+	}),
+	// Period
 	period: z.object({
 		startDate: z.string().datetime(),
 		endDate: z.string().datetime(),

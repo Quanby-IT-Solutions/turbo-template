@@ -8,6 +8,7 @@ import {
   IconTrash,
   IconChevronLeft,
   IconChevronRight,
+  IconLoader2,
 } from "@tabler/icons-react"
 import { SidebarWrapper } from "@/core/components/sidebar-wrapper"
 import { RoleHeader } from "@/core/components/role-header"
@@ -35,30 +36,22 @@ import {
   TableHeader,
   TableRow,
 } from "@/core/components/ui/table"
-
-// Mock data for doctors
-const doctors = [
-  {
-    id: 1,
-    name: "Carlos Miguel Rodriguez",
-    credentials: "MD, Diplomate of Pediatrics, Fellow in Pediatric Cardiology",
-    email: "dr.rodriguez@metrogeneral.com",
-    specialization: "Pediatric Cardiology & Neonatology",
-    experience: "10 years",
-    contact: "+63-917-567-8901",
-    status: "Active",
-  },
-  {
-    id: 2,
-    name: "Michael David Williams",
-    credentials: "MD, PhD, FAAN, Diplomate of Neurology, Fellow in Stroke Neurology",
-    email: "dr.williams@metrogeneral.com",
-    specialization: "Stroke Neurology & Neurocritical Care",
-    experience: "18 years",
-    contact: "+63-917-345-6789",
-    status: "Active",
-  },
-]
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/core/components/ui/alert-dialog"
+import { toast } from "sonner"
+import { useDoctors, useDoctorMutations } from "@/features/admin/hooks/use-doctors"
+import { AddDoctorDialog } from "@/features/admin/components/add-doctor-dialog"
+import { EditDoctorDialog } from "@/features/admin/components/edit-doctor-dialog"
+import type { Doctor } from "@/services/api/types"
 
 export default function DoctorsPage() {
   const [searchQuery, setSearchQuery] = React.useState("")
@@ -69,23 +62,32 @@ export default function DoctorsPage() {
   const [currentPage, setCurrentPage] = React.useState(1)
   const [itemsPerPage, setItemsPerPage] = React.useState(10)
 
-  const filteredDoctors = doctors.filter((doctor) => {
-    const matchesSearch = 
-      doctor.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      doctor.email.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesSpecialization = 
-      !specializationFilter || 
-      doctor.specialization.toLowerCase().includes(specializationFilter.toLowerCase())
-    const exp = parseInt(doctor.experience)
-    const matchesExperience = 
-      exp >= parseInt(minExperience) && exp <= parseInt(maxExperience)
-    return matchesSearch && matchesSpecialization && matchesExperience
+  // Use real API to fetch doctors
+  const { doctors, loading, error, pagination, refetch } = useDoctors({
+    page: currentPage,
+    limit: itemsPerPage,
+    search: searchQuery || undefined,
   })
 
-  const totalPages = Math.ceil(filteredDoctors.length / itemsPerPage)
+  const { deleteDoctor, loading: deleteLoading } = useDoctorMutations()
+  const [deletingId, setDeletingId] = React.useState<string | null>(null)
+
+  // Filter doctors locally for additional filters
+  const filteredDoctors = React.useMemo(() => {
+    return doctors.filter((doctor: Doctor) => {
+      const matchesSpecialization = 
+        !specializationFilter || 
+        doctor.doctorInfo?.specialization?.toLowerCase().includes(specializationFilter.toLowerCase())
+      const exp = doctor.doctorInfo?.experience || 0
+      const matchesExperience = 
+        exp >= parseInt(minExperience) && exp <= parseInt(maxExperience)
+      return matchesSpecialization && matchesExperience
+    })
+  }, [doctors, specializationFilter, minExperience, maxExperience])
+
+  const totalPages = pagination.totalPages
   const startIndex = (currentPage - 1) * itemsPerPage
   const endIndex = startIndex + itemsPerPage
-  const paginatedDoctors = filteredDoctors.slice(startIndex, endIndex)
   const startResult = filteredDoctors.length > 0 ? startIndex + 1 : 0
   const endResult = Math.min(endIndex, filteredDoctors.length)
 
@@ -96,6 +98,23 @@ export default function DoctorsPage() {
     setMinExperience("0")
     setMaxExperience("50")
     setCurrentPage(1)
+  }
+
+  const handleDeleteDoctor = async (id: string) => {
+    setDeletingId(id)
+    try {
+      await deleteDoctor(id)
+      toast.success("Doctor deleted successfully")
+      refetch()
+    } catch {
+      // Error handled by hook
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
+  const handleDoctorCreated = () => {
+    refetch()
   }
 
   return (
@@ -125,10 +144,15 @@ export default function DoctorsPage() {
                       Manage all doctors in the QHealth system
                     </p>
                   </div>
-                  <Button>
-                    <IconPlus className="h-4 w-4 mr-2" />
-                    Add New Doctor
-                  </Button>
+                  <AddDoctorDialog
+                    trigger={
+                      <Button>
+                        <IconPlus className="h-4 w-4 mr-2" />
+                        Add New Doctor
+                      </Button>
+                    }
+                    onSuccess={handleDoctorCreated}
+                  />
                 </div>
 
                 {/* Filter Section */}
@@ -170,7 +194,7 @@ export default function DoctorsPage() {
                         <Label htmlFor="category" className="mb-2 block text-sm font-medium">
                           Category
                         </Label>
-                        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                        <Select value={categoryFilter} onValueChange={(val) => setCategoryFilter(val ?? "all")}>
                           <SelectTrigger id="category">
                             <SelectValue placeholder="All Categories" />
                           </SelectTrigger>
@@ -226,71 +250,138 @@ export default function DoctorsPage() {
                       <div>
                         <CardTitle>Doctors</CardTitle>
                         <p className="text-sm text-muted-foreground mt-1">
-                          Showing {filteredDoctors.length} of {filteredDoctors.length} doctors
+                          Showing {filteredDoctors.length} of {pagination.total} doctors
                         </p>
                       </div>
                     </div>
                   </CardHeader>
                   <CardContent className="p-0">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>NAME</TableHead>
-                          <TableHead>EMAIL</TableHead>
-                          <TableHead>SPECIALIZATION</TableHead>
-                          <TableHead>EXPERIENCE</TableHead>
-                          <TableHead>CONTACT</TableHead>
-                          <TableHead>STATUS</TableHead>
-                          <TableHead className="text-right">ACTIONS</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {paginatedDoctors.length === 0 ? (
+                    {loading ? (
+                      <div className="flex items-center justify-center py-16">
+                        <IconLoader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                      </div>
+                    ) : error ? (
+                      <div className="py-8 text-center text-destructive">
+                        {error}
+                      </div>
+                    ) : (
+                      <Table>
+                        <TableHeader>
                           <TableRow>
-                            <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                              No doctors found
-                            </TableCell>
+                            <TableHead>NAME</TableHead>
+                            <TableHead>EMAIL</TableHead>
+                            <TableHead>SPECIALIZATION</TableHead>
+                            <TableHead>EXPERIENCE</TableHead>
+                            <TableHead>CONTACT</TableHead>
+                            <TableHead>STATUS</TableHead>
+                            <TableHead className="text-right">ACTIONS</TableHead>
                           </TableRow>
-                        ) : (
-                          paginatedDoctors.map((doctor) => (
-                            <TableRow key={doctor.id}>
-                              <TableCell>
-                                <div>
-                                  <p className="font-medium">{doctor.name}</p>
-                                  <p className="text-sm text-muted-foreground">{doctor.credentials}</p>
-                                </div>
-                              </TableCell>
-                              <TableCell>{doctor.email}</TableCell>
-                              <TableCell>
-                                <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
-                                  {doctor.specialization}
-                                </Badge>
-                              </TableCell>
-                              <TableCell>{doctor.experience}</TableCell>
-                              <TableCell>{doctor.contact}</TableCell>
-                              <TableCell>
-                                <Badge variant="outline" className="bg-green-500/10 text-green-700 border-green-500/20">
-                                  {doctor.status}
-                                </Badge>
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex items-center justify-end gap-2">
-                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:text-primary">
-                                    <IconEye className="h-4 w-4" />
-                                  </Button>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-orange-600 hover:text-orange-600">
-                                    <IconEdit className="h-4 w-4" />
-                                  </Button>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
-                                    <IconTrash className="h-4 w-4" />
-                                  </Button>
-                                </div>
+                        </TableHeader>
+                        <TableBody>
+                          {filteredDoctors.length === 0 ? (
+                            <TableRow>
+                              <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                                No doctors found
                               </TableCell>
                             </TableRow>
-                          ))
-                        )}
-                      </TableBody>
-                    </Table>
+                          ) : (
+                            filteredDoctors.map((doctor: Doctor) => {
+                              const fullName = [
+                                doctor.doctorInfo?.firstName,
+                                doctor.doctorInfo?.middleName,
+                                doctor.doctorInfo?.lastName,
+                              ].filter(Boolean).join(" ")
+                              
+                              const approvalStatus = doctor.doctorInfo?.approvalStatus || "PENDING"
+                              const statusColors: Record<string, string> = {
+                                APPROVED: "bg-green-500/10 text-green-700 border-green-500/20",
+                                PENDING: "bg-yellow-500/10 text-yellow-700 border-yellow-500/20",
+                                REJECTED: "bg-red-500/10 text-red-700 border-red-500/20",
+                              }
+
+                              return (
+                                <TableRow key={doctor.id}>
+                                  <TableCell>
+                                    <div>
+                                      <p className="font-medium">{fullName}</p>
+                                      <p className="text-sm text-muted-foreground">
+                                        {doctor.doctorInfo?.qualifications || "N/A"}
+                                      </p>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>{doctor.email}</TableCell>
+                                  <TableCell>
+                                    <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
+                                      {doctor.doctorInfo?.specialization || "N/A"}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell>
+                                    {doctor.doctorInfo?.experience ? `${doctor.doctorInfo.experience} years` : "N/A"}
+                                  </TableCell>
+                                  <TableCell>{doctor.doctorInfo?.contactNumber || "N/A"}</TableCell>
+                                  <TableCell>
+                                    <Badge variant="outline" className={statusColors[approvalStatus] || statusColors.PENDING}>
+                                      {approvalStatus}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="flex items-center justify-end gap-2">
+                                      <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:text-primary">
+                                        <IconEye className="h-4 w-4" />
+                                      </Button>
+                                      <EditDoctorDialog
+                                        trigger={
+                                          <Button variant="ghost" size="icon" className="h-8 w-8 text-orange-600 hover:text-orange-600">
+                                            <IconEdit className="h-4 w-4" />
+                                          </Button>
+                                        }
+                                        doctor={doctor}
+                                        onSuccess={refetch}
+                                      />
+                                      
+                                      <AlertDialog>
+                                        <AlertDialogTrigger render={
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8 text-destructive hover:text-destructive"
+                                            disabled={deleteLoading && deletingId === doctor.id}
+                                          >
+                                            {deleteLoading && deletingId === doctor.id ? (
+                                              <IconLoader2 className="h-4 w-4 animate-spin" />
+                                            ) : (
+                                              <IconTrash className="h-4 w-4" />
+                                            )}
+                                          </Button>
+                                        } />
+                                        <AlertDialogContent>
+                                          <AlertDialogHeader>
+                                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                              This action cannot be undone. This will permanently delete the doctor
+                                              account for {fullName} and remove their data from our servers.
+                                            </AlertDialogDescription>
+                                          </AlertDialogHeader>
+                                          <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction
+                                              variant="destructive"
+                                              onClick={() => handleDeleteDoctor(doctor.id)}
+                                            >
+                                              Delete Doctor
+                                            </AlertDialogAction>
+                                          </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                      </AlertDialog>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              )
+                            })
+                          )}
+                        </TableBody>
+                      </Table>
+                    )}
                   </CardContent>
                 </Card>
 
@@ -343,8 +434,10 @@ export default function DoctorsPage() {
                       <Select
                         value={itemsPerPage.toString()}
                         onValueChange={(value) => {
-                          setItemsPerPage(parseInt(value))
-                          setCurrentPage(1)
+                          if (value) {
+                            setItemsPerPage(parseInt(value))
+                            setCurrentPage(1)
+                          }
                         }}
                       >
                         <SelectTrigger className="w-20 h-8">

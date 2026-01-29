@@ -8,17 +8,16 @@ import 'package:mobile/presentation/auth/screens/mfa_verification_screen.dart';
 import 'package:mobile/presentation/auth/screens/credential_upload_screen.dart';
 import 'package:mobile/presentation/auth/screens/kyc_verification_screen.dart';
 import 'package:mobile/presentation/auth/screens/philhealth_id_upload_screen.dart';
-import 'package:mobile/presentation/clinical_tools/screens/lab_request_screen.dart';
 import 'package:mobile/presentation/onboarding/onboarding_screen.dart';
-import 'package:mobile/presentation/patient/screens/patient_lab_requests_booking_screen.dart';
+import 'package:mobile/presentation/lab_requests/booking/patient_lab_requests_booking_screen.dart';
 import 'package:mobile/presentation/profile/screens/profile_screen.dart';
 import 'package:mobile/presentation/profile/screens/profile_edit_screen.dart';
-import 'package:mobile/presentation/scheduling/screens/appointment_requests_screen.dart';
-import 'package:mobile/presentation/scheduling/screens/doctor_search_screen.dart';
-import 'package:mobile/presentation/scheduling/screens/appointment_booking_screen.dart';
-import 'package:mobile/presentation/scheduling/screens/doctor_availability_screen.dart';
-import 'package:mobile/presentation/scheduling/screens/reschedule_request_screen.dart';
-import 'package:mobile/presentation/scheduling/screens/reschedule_response_screen.dart';
+import 'package:mobile/presentation/scheduling/screens/appointment_requests_screen/appointment_requests_screen.dart';
+import 'package:mobile/presentation/scheduling/screens/doctor_search_screen/doctor_search_screen.dart';
+import 'package:mobile/presentation/scheduling/screens/appointment_booking_screen/appointment_booking_screen.dart';
+import 'package:mobile/presentation/scheduling/screens/doctor_availability_screen/doctor_availability_screen.dart';
+import 'package:mobile/presentation/scheduling/screens/reschedule_requests_screen/reschedule_request_screen.dart';
+import 'package:mobile/presentation/scheduling/screens/reschedule_respone_screen/reschedule_response_screen.dart';
 import 'package:mobile/presentation/video_call/screens/video_call_screen.dart';
 import 'package:mobile/presentation/video_call/screens/consultation_notes_screen.dart';
 import 'package:mobile/presentation/video_call/screens/incoming_call_screen.dart';
@@ -29,7 +28,7 @@ import 'package:mobile/presentation/medical_records/screens/health_trends_screen
 import 'package:mobile/presentation/clinical_tools/screens/face_scan_screen.dart';
 import 'package:mobile/presentation/clinical_tools/screens/prescription_form_screen.dart';
 import 'package:mobile/presentation/clinical_tools/screens/diagnosis_form_screen.dart';
-import 'package:mobile/presentation/lab_requests/organization_search_screen.dart';
+import 'package:mobile/presentation/lab_requests/booking/widgets/organization_search_screen.dart';
 import 'package:mobile/presentation/clinical_tools/screens/vitals_scanner_screen.dart';
 import 'package:mobile/presentation/notifications/screens/notifications_screen.dart';
 import 'package:mobile/presentation/notifications/screens/messaging_screen.dart';
@@ -42,9 +41,9 @@ import 'package:mobile/presentation/doctor/screens/doctor_profile_screen.dart';
 import 'package:mobile/presentation/patients/patients_screen.dart';
 import 'package:mobile/presentation/patient/screens/patient_profile_screen.dart';
 import 'package:mobile/presentation/patient/screens/patient_profile_edit_screen.dart';
-import 'package:mobile/presentation/scheduling/screens/patient_schedule_screen.dart';
+import 'package:mobile/presentation/scheduling/screens/patient_schedule_screen/patient_schedule_screen.dart';
 import 'package:mobile/presentation/video_call/screens/patient_meet_doctor_screen.dart';
-import 'package:mobile/presentation/patient/screens/patient_lab_requests_screen.dart';
+import 'package:mobile/presentation/lab_requests/screen/patient_lab_requests_screen.dart';
 
 // Store user role globally for redirect logic (set by auth provider)
 String? _currentUserRole;
@@ -446,15 +445,19 @@ final GoRouter appRouter = GoRouter(
       redirect: (context, state) =>
           _requireRole(requireDoctor: true, requirePatient: false),
       builder: (context, state) =>
-          _animateRoute(const LabRequestScreen(), 'slideInUp'),
+          _animateRoute(const PatientLabRequestsScreen(), 'slideInUp'),
     ),
     GoRoute(
       path: '/lab-request-booking',
-      name: 'lab-request-booking',
-      redirect: (context, state) =>
-          _requireRole(requireDoctor: false, requirePatient: true),
-      builder: (context, state) =>
-          _animateRoute(const LabRequestBookingScreen(), 'slideInUp'),
+      builder: (context, state) {
+        final orgId = state.uri.queryParameters['orgId'];
+        final orgName = state.uri.queryParameters['orgName'];
+
+        return LabRequestBookingScreen(
+          organizationId: orgId,
+          organizationName: orgName,
+        );
+      },
     ),
     GoRoute(
       path: '/organization-search',

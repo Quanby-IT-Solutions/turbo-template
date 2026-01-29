@@ -138,18 +138,6 @@ class _VitalsSelfCheckScreenState extends ConsumerState<VitalsSelfCheckScreen>
                                           .withValues(alpha: 0.65),
                                     ),
                               ),
-                              const SizedBox(height: 6),
-                              Text(
-                                'On some devices (e.g. Android 15, POCO/Xiaomi) the app may close when starting. If so, contact support with your device model.',
-                                style: Theme.of(context).textTheme.bodySmall
-                                    ?.copyWith(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onSurface
-                                          .withValues(alpha: 0.5),
-                                      fontStyle: FontStyle.italic,
-                                    ),
-                              ),
                             ],
                           ),
                         ),
@@ -815,17 +803,7 @@ class _VitalsSelfCheckScreenState extends ConsumerState<VitalsSelfCheckScreen>
           }
         },
       );
-
-      debugPrint('══════════════════════════════════════');
-      debugPrint('🎉 INITIALIZE SESSION COMPLETED (waiting for ready)');
-      debugPrint('══════════════════════════════════════');
-    } catch (e, stackTrace) {
-      debugPrint('══════════════════════════════════════');
-      debugPrint('💥 INITIALIZE SESSION FAILED');
-      debugPrint('══════════════════════════════════════');
-      debugPrint('❌ Error: $e');
-      debugPrint('❌ Stack trace: ${stackTrace.toString()}');
-
+    } catch (e) {
       if (mounted) {
         setState(() {
           _isInitializing = false;

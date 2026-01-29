@@ -1073,6 +1073,27 @@ class HttpService {
     }
   }
 
+  /// Get organization by ID
+  static Future<Map<String, dynamic>> getOrganization(String id) async {
+    try {
+      final dio = await _getDio();
+      final response = await dio.get('/api/v1/organizations/$id');
+
+      if (response.statusCode == 200) {
+        final responseData = response.data as Map<String, dynamic>;
+        if (responseData['success'] == true && responseData['data'] != null) {
+          return responseData['data'] as Map<String, dynamic>;
+        }
+        return responseData;
+      } else {
+        throw _handleError(response);
+      }
+    } catch (e) {
+      debugPrint('Get organization error: $e');
+      rethrow;
+    }
+  }
+
   // ===================
   // Patient Methods
   // ===================
@@ -1423,7 +1444,7 @@ class HttpService {
     String? note,
     String? status,
     String? priority,
-    List<String>? requestedTests,
+    String? requestedTests, // Changed from List<String>? to String?
     String? instructions,
   }) async {
     try {
@@ -1438,14 +1459,14 @@ class HttpService {
           if (note != null) 'note': note,
           'status': status ?? 'PENDING',
           'priority': priority ?? 'NORMAL',
-          if (requestedTests != null) 'requestedTests': requestedTests,
+          if (requestedTests != null)
+            'requestedTests': requestedTests, // Send as string
           if (instructions != null) 'instructions': instructions,
         },
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final responseData = response.data as Map<String, dynamic>;
-        // Backend returns {success: true, data: labRequest}
         if (responseData['success'] == true && responseData['data'] != null) {
           return responseData['data'] as Map<String, dynamic>;
         }
@@ -1455,6 +1476,35 @@ class HttpService {
       }
     } catch (e) {
       debugPrint('Create lab request error: $e');
+      rethrow;
+    }
+  }
+
+  /// Get doctors by organization ID
+  static Future<List<Map<String, dynamic>>> getDoctorsByOrganization(
+    String organizationId,
+  ) async {
+    try {
+      final dio = await _getDio();
+      final response = await dio.get(
+        '/api/v1/doctors',
+        queryParameters: {'organizationId': organizationId},
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = response.data as Map<String, dynamic>;
+        if (responseData['success'] == true && responseData['data'] != null) {
+          final data = responseData['data'];
+          if (data is Map && data['items'] is List) {
+            return (data['items'] as List).cast<Map<String, dynamic>>();
+          }
+        }
+        return [];
+      } else {
+        throw _handleError(response);
+      }
+    } catch (e) {
+      debugPrint('Get doctors by organization error: $e');
       rethrow;
     }
   }
@@ -1547,7 +1597,7 @@ class HttpService {
     String? note,
     String? status,
     String? priority,
-    List<String>? requestedTests,
+    String? requestedTests,
     String? instructions,
   }) async {
     try {
@@ -1561,14 +1611,15 @@ class HttpService {
       if (note != null) data['note'] = note;
       if (status != null) data['status'] = status.toUpperCase();
       if (priority != null) data['priority'] = priority.toUpperCase();
-      if (requestedTests != null) data['requestedTests'] = requestedTests;
+      if (requestedTests != null) {
+        data['requestedTests'] = requestedTests; // String
+      }
       if (instructions != null) data['instructions'] = instructions;
 
       final response = await dio.put('$_labRequestsEndpoint/$id', data: data);
 
       if (response.statusCode == 200) {
         final responseData = response.data as Map<String, dynamic>;
-        // Backend returns {success: true, data: labRequest}
         if (responseData['success'] == true && responseData['data'] != null) {
           return responseData['data'] as Map<String, dynamic>;
         }

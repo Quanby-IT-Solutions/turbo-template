@@ -30,19 +30,19 @@ apps/web/
 │   └── middleware/       # Shared middleware
 ├── services/             # External service integrations
 │   ├── better-auth/      # Auth client setup
-│   ├── query/            # TanStack Query setup
-│   └── [service]/        # Other external services
+│   ├── orpc/             # oRPC client, server-side client, contract type helpers
+│   └── tanstack-query/   # TanStack Query client setup
 └── env.ts                # Environment validation
 ```
 
 ## Folder Purposes
 
-| Folder       | Purpose                                          | Example Contents                         |
-| ------------ | ------------------------------------------------ | ---------------------------------------- |
-| `app/`       | Next.js routing only (pages, layouts, routes)    | `page.tsx`, `layout.tsx`, `route.ts`     |
-| `features/`  | Business logic organized by feature              | `todos/`, `auth/`, `dashboard/`          |
-| `core/`      | Shared code used across multiple features        | Components, hooks, utilities             |
-| `services/`  | External service integrations and configurations | Auth, API clients, third-party services  |
+| Folder      | Purpose                                          | Example Contents                        |
+| ----------- | ------------------------------------------------ | --------------------------------------- |
+| `app/`      | Next.js routing only (pages, layouts, routes)    | `page.tsx`, `layout.tsx`, `route.ts`    |
+| `features/` | Business logic organized by feature              | `todos/`, `auth/`, `dashboard/`         |
+| `core/`     | Shared code used across multiple features        | Components, hooks, utilities            |
+| `services/` | External service integrations and configurations | Auth, API clients, third-party services |
 
 ### Key Distinction
 
@@ -66,71 +66,174 @@ apps/web/
 - **Hooks**: `use-[name].ts` (`use-auth.ts`, `use-todos.ts`)
 - **Query hooks**: `use-[resource]-query.ts`, `use-[resource]-mutation.ts`
 
-## Data Fetching with TanStack Query
+## Data Fetching with oRPC + TanStack Query
 
-### Query Setup
+All data fetching goes through the oRPC client, which provides end-to-end type safety from the contract definition through to the React hook.
+
+### oRPC Client Setup
+
+`services/orpc/client.ts`
 
 ```typescript
-// services/query/query-client.ts
+import { createORPCClient } from "@orpc/client"
+import { OpenAPILink } from "@orpc/openapi-client/fetch"
+import { createTanstackQueryUtils } from "@orpc/tanstack-query"
+
+import { v1Contract } from "@repo/contracts"
+
+import { env } from "@/env"
+
+export function createOrpcLink(options?: { getCookieHeader?: () => string | undefined }) {
+	return new OpenAPILink(v1Contract, {
+		url: env.NEXT_PUBLIC_API_BASE_URL,
+		fetch: (url, init) => {
+			const cookieHeader = options?.getCookieHeader?.()
+
+			if (!cookieHeader) {
+				return fetch(url, init)
+			}
+
+			const headers = new Headers(init?.headers)
+			headers.set("cookie", cookieHeader)
+
+			return fetch(url, {
+				...init,
+				headers,
+			})
+		},
+	})
+}
+
+const link = createOrpcLink()
+
+const globalThisRef = globalThis as typeof globalThis & {
+	$orpc?: ReturnType<typeof createORPCClient<typeof v1Contract>>
+}
+
+const baseOrpc = globalThisRef.$orpc ?? createORPCClient(link)
+
+export const orpc = createTanstackQueryUtils(baseOrpc, { path: ["orpc"] })
+```
+
+The `orpc` export is what all feature hooks import.
+
+### Server-Side oRPC
+
+`services/orpc/orpc-server.ts`
+
+```typescript
+import "server-only"
+
+import { createORPCClient } from "@orpc/client"
+
+import { getCookieHeader } from "@/core/lib/cookie-utils"
+import { createOrpcLink } from "@/services/orpc/client"
+
+const link = createOrpcLink({ getCookieHeader })
+
+const globalClient = globalThis as typeof globalThis & {
+	$orpc?: ReturnType<typeof createORPCClient<(typeof link)["~orpc"]["inputSchema"]>>
+}
+
+globalClient.$orpc = createORPCClient(link)
+```
+
+Import `orpc` from `@/services/orpc/client` in Server Components to use the server-side client.
+
+### TanStack Query Client Setup
+
+`services/tanstack-query/query-client.ts`
+
+```typescript
+import { StandardRPCJsonSerializer } from "@orpc/client/standard"
 import { QueryClient } from "@tanstack/react-query"
 
-export const queryClient = new QueryClient({
-	defaultOptions: {
-		queries: {
-			staleTime: 60 * 1000,
-			refetchOnWindowFocus: false,
+const serializer = new StandardRPCJsonSerializer({ customJsonSerializers: [] })
+
+export function createQueryClient() {
+	return new QueryClient({
+		defaultOptions: {
+			queries: {
+				queryKeyHashFn: queryKey => {
+					const { json, meta } = serializer.serialize(queryKey)
+					return JSON.stringify({ json, meta })
+				},
+				staleTime: 30 * 1000,
+			},
+			dehydrate: {
+				serializeData: data => {
+					const { json, meta } = serializer.serialize(data)
+					return { json, meta }
+				},
+			},
+			hydrate: {
+				deserializeData: data => {
+					return serializer.deserialize(data.json, data.meta)
+				},
+			},
 		},
-	},
-})
+	})
+}
 ```
 
 ### Feature Query Hooks
 
-```typescript
-// features/todos/api/use-todos-query.ts
-import { useQuery } from "@tanstack/react-query"
+`features/todos/api/todos.hooks.ts`
 
-async function fetchTodos() {
-	const res = await fetch("/api/v1/examples/todos")
-	if (!res.ok) throw new Error("Failed to fetch todos")
-	return res.json()
-}
+```typescript
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+
+import { orpc } from "@/services/orpc/client"
 
 export function useTodosQuery() {
-	return useQuery({
-		queryKey: ["todos"],
-		queryFn: fetchTodos,
-	})
-}
-```
-
-### Mutations
-
-```typescript
-// features/todos/api/use-create-todo-mutation.ts
-import { useMutation, useQueryClient } from "@tanstack/react-query"
-
-async function createTodo(data: CreateTodo) {
-	const res = await fetch("/api/v1/examples/todos", {
-		method: "POST",
-		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify(data),
-	})
-	if (!res.ok) throw new Error("Failed to create todo")
-	return res.json()
+	return useQuery(orpc.example.todo.list.queryOptions({ staleTime: 60 * 1000 }))
 }
 
 export function useCreateTodoMutation() {
 	const queryClient = useQueryClient()
 
-	return useMutation({
-		mutationFn: createTodo,
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["todos"] })
-		},
-	})
+	return useMutation(
+		orpc.example.todo.create.mutationOptions({
+			onSuccess: () =>
+				queryClient.invalidateQueries({
+					queryKey: orpc.example.todo.key(),
+				}),
+		})
+	)
+}
+
+export function useUpdateTodoMutation() {
+	const queryClient = useQueryClient()
+
+	return useMutation(
+		orpc.example.todo.update.mutationOptions({
+			onSuccess: () =>
+				queryClient.invalidateQueries({
+					queryKey: orpc.example.todo.key(),
+				}),
+		})
+	)
+}
+
+export function useDeleteTodoMutation() {
+	const queryClient = useQueryClient()
+
+	return useMutation(
+		orpc.example.todo.delete.mutationOptions({
+			onSuccess: () =>
+				queryClient.invalidateQueries({
+					queryKey: orpc.example.todo.key(),
+				}),
+		})
+	)
 }
 ```
+
+Key patterns:
+
+- `.queryOptions()` — for `useQuery`, accepts TanStack Query options
+- `.mutationOptions()` — for `useMutation`, accepts TanStack Query options
+- `.key()` — for cache invalidation with `queryClient.invalidateQueries`
 
 ## Component Structure
 
@@ -201,8 +304,7 @@ Each feature should be self-contained:
 ```
 features/todos/
 ├── api/
-│   ├── use-todos-query.ts
-│   └── use-create-todo-mutation.ts
+│   └── todos.hooks.ts    # All query and mutation hooks for this feature
 ├── components/
 │   ├── todo-card.tsx
 │   ├── todo-list.tsx

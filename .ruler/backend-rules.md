@@ -72,18 +72,68 @@ apps/backend/src/
 
 ## Shared Package Integration
 
-### Using `@repo/contracts`
+### Using `@repo/contracts` (oRPC Controller Pattern)
 
-DTOs and validation schemas are defined in the contracts package:
+Controllers implement oRPC contracts using `@Implement` from `@orpc/nest` and `implement` from `@orpc/server`. The versioned contract is imported from `@/config/api-versions.config` (not directly from `@repo/contracts`).
+
+`api-versions.config.ts` exports the versioned contract as a short alias:
 
 ```typescript
-// In controller
-import { CreateTodoDto, TodoResponseDto } from "@repo/contracts"
+// config/api-versions.config.ts
+import { v1Contract } from "@repo/contracts"
 
-@Post()
-@ZodSerializerDto(TodoResponseDto)
-async createTodo(@Body() payload: CreateTodoDto) {
-  // payload is already validated by Zod
+export { v1Contract as v1 }
+```
+
+**Controller pattern** — each method implements one contract procedure:
+
+```typescript
+import { Controller } from "@nestjs/common"
+import { Implement } from "@orpc/nest"
+import { implement } from "@orpc/server"
+
+import { v1 } from "@/config/api-versions.config"
+
+@Controller()
+export class TodosController {
+	constructor(private readonly todosService: TodosService) {}
+
+	@Implement(v1.example.todo.list)
+	async listTodos() {
+		return implement(v1.example.todo.list).handler(async () => {
+			return this.todosService.findAll()
+		})
+	}
+
+	@Implement(v1.example.todo.create)
+	async createTodo(@Session() session: UserSession) {
+		return implement(v1.example.todo.create).handler(async ({ input }) => {
+			return this.todosService.create({ payload: input, authorId: session.user.id })
+		})
+	}
+}
+```
+
+**Service type inference** — use `V1Inputs` / `V1Outputs` from `@/config/contract-types` to type service method parameters without re-declaring schemas:
+
+```typescript
+// config/contract-types.ts
+import type { InferContractRouterInputs, InferContractRouterOutputs } from "@orpc/contract"
+
+import { type v1Contract } from "@repo/contracts"
+
+export type V1Inputs = InferContractRouterInputs<typeof v1Contract>
+export type V1Outputs = InferContractRouterOutputs<typeof v1Contract>
+```
+
+Usage in a service:
+
+```typescript
+// In service
+type CreateTodoInput = V1Inputs["example"]["todo"]["create"]
+
+async create({ payload, authorId }: { payload: CreateTodoInput; authorId: string }) {
+	// payload is fully typed from the contract
 }
 ```
 

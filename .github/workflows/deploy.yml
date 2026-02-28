@@ -1,74 +1,121 @@
-name: Deploy to Staging
+name: Deploy
 
 on:
   push:
     branches:
       - staging
+      - production
     paths-ignore:
-      - "**.md"
+      - "**/*.md"
       - ".vscode/**"
       - "docs/**"
   workflow_dispatch:
+    inputs:
+      branch:
+        description: "Branch to deploy"
+        required: true
+        default: staging
+        type: choice
+        options:
+          - staging
+          - production
+      environment:
+        description: "Environment to deploy"
+        required: true
+        default: staging
+        type: choice
+        options:
+          - staging
+          - production
 
-# Cancel in-progress deployments when a new commit is pushed
 concurrency:
-  group: deploy-staging-${{ github.ref }}
+  group: deploy-${{ github.event_name == 'workflow_dispatch' && inputs.environment || github.ref_name }}-${{ github.event_name == 'workflow_dispatch' && inputs.branch || github.ref_name }}
   cancel-in-progress: true
 
 env:
-  # ==========================================================
-  # AWS INFRASTRUCTURE CONFIGURATION
-  # ==========================================================
-  # Set these in GitHub Actions > Variables
-  AWS_REGION: ${{ vars.AWS_REGION }}
-  PROJECT_NAME: ${{ vars.PROJECT_NAME }}
-  ECR_REPOSITORY_WEB: ${{ vars.ECR_REPOSITORY_WEB_STAGING }}
-  ECR_REPOSITORY_BACKEND: ${{ vars.ECR_REPOSITORY_BACKEND_STAGING }}
-  ECS_CLUSTER: ${{ vars.ECS_CLUSTER_STAGING }}
-  ECS_SERVICE_WEB: ${{ vars.ECS_SERVICE_WEB_STAGING }}
-  ECS_SERVICE_BACKEND: ${{ vars.ECS_SERVICE_BACKEND_STAGING }}
-  ECS_TASK_DEFINITION_WEB: ${{ vars.ECS_TASK_DEFINITION_WEB_STAGING }}
-  ECS_TASK_DEFINITION_BACKEND: ${{ vars.ECS_TASK_DEFINITION_BACKEND_STAGING }}
+  DEPLOY_ENV: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || (github.ref_name == 'production' && 'production' || 'staging') }}
+  DEPLOY_BRANCH: ${{ github.event_name == 'workflow_dispatch' && inputs.branch || github.ref_name }}
 
   # Image tag (use commit SHA for immutable deployments)
   IMAGE_TAG: ${{ github.sha }}
 
-  # ==========================================================
-  # ENVIRONMENT VARIABLES (STAGING)
-  # ==========================================================
-  # Set these in GitHub Actions > Secrets
-
-  # Server Configuration
-  NODE_ENV: "production"
-
-  # Web App Environment Variables
-  NEXT_PUBLIC_APP_URL: ${{ vars.NEXT_PUBLIC_APP_URL_STAGING }}
-  NEXT_PUBLIC_API_BASE_URL: ${{ vars.NEXT_PUBLIC_API_BASE_URL }}
-  NEXT_PUBLIC_API_VERSION: "1"
-
-  # Authentication (Better Auth)
-  BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
-  BETTER_AUTH_TRUSTED_ORIGINS: ${{ secrets.BETTER_AUTH_TRUSTED_ORIGINS }}
-
-  # Backend Environment Variables
-  CORS_ORIGINS: ${{ secrets.CORS_ORIGINS }}
-
-  # Database
-  DATABASE_URL: ${{ secrets.DATABASE_URL }}
-
-  # OAuth Providers (Google)
-  GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
-  GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
-
 jobs:
   deploy:
-    name: Deploy to Staging ECS
+    name: Deploy to ${{ github.event_name == 'workflow_dispatch' && inputs.environment || (github.ref_name == 'production' && 'production' || 'staging') }}
     runs-on: ubuntu-latest
-    environment: staging
+    environment: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || (github.ref_name == 'production' && 'production' || 'staging') }}
+    env:
+      # ==========================================================
+      # AWS INFRASTRUCTURE CONFIGURATION
+      # ==========================================================
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      PROJECT_NAME: ${{ vars.PROJECT_NAME }}
+      ECR_REPOSITORY_WEB: ${{ vars.ECR_REPOSITORY_WEB }}
+      ECR_REPOSITORY_BACKEND: ${{ vars.ECR_REPOSITORY_BACKEND }}
+      ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
+      ECS_SERVICE_WEB: ${{ vars.ECS_SERVICE_WEB }}
+      ECS_SERVICE_BACKEND: ${{ vars.ECS_SERVICE_BACKEND }}
+
+      # ==========================================================
+      # APP ENVIRONMENT VARIABLES
+      # ==========================================================
+      NODE_ENV: "production"
+      NEXT_PUBLIC_APP_URL: ${{ vars.NEXT_PUBLIC_APP_URL }}
+      NEXT_PUBLIC_API_BASE_URL: ${{ vars.NEXT_PUBLIC_API_BASE_URL }}
+      NEXT_PUBLIC_API_VERSION: "1"
+
+      # Authentication (Better Auth)
+      BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
+      BETTER_AUTH_TRUSTED_ORIGINS: ${{ secrets.BETTER_AUTH_TRUSTED_ORIGINS }}
+
+      # Backend Environment Variables
+      CORS_ORIGINS: ${{ secrets.CORS_ORIGINS }}
+
+      # Database
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      # OAuth Providers (Google)
+      GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+      GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ env.DEPLOY_BRANCH }}
+
+      - name: Validate manual branch/environment combination
+        run: |
+          set -euo pipefail
+
+          if [ "${GITHUB_EVENT_NAME}" != "workflow_dispatch" ]; then
+            echo "ℹ️ Push event detected; using automatic branch/environment mapping."
+            exit 0
+          fi
+
+          if [ "${DEPLOY_ENV}" = "staging" ] && [ "${DEPLOY_BRANCH}" != "staging" ]; then
+            echo "❌ Invalid manual deployment selection: environment 'staging' requires branch 'staging', but got '${DEPLOY_BRANCH}'."
+            exit 1
+          fi
+
+          if [ "${DEPLOY_ENV}" = "production" ] && [ "${DEPLOY_BRANCH}" != "production" ]; then
+            echo "❌ Invalid manual deployment selection: environment 'production' requires branch 'production', but got '${DEPLOY_BRANCH}'."
+            exit 1
+          fi
+
+          echo "✅ Manual deployment selection is valid: branch '${DEPLOY_BRANCH}' -> environment '${DEPLOY_ENV}'."
+
+      - name: Resolve environment-specific deploy settings
+        run: |
+          set -euo pipefail
+
+          if [ "$DEPLOY_ENV" = "staging" ]; then
+            echo "WEB_TASK_TEMPLATE=aws/ecs/task-definition-web-staging.json" >> $GITHUB_ENV
+            echo "BACKEND_TASK_TEMPLATE=aws/ecs/task-definition-backend-staging.json" >> $GITHUB_ENV
+          else
+            echo "WEB_TASK_TEMPLATE=aws/ecs/task-definition-web.json" >> $GITHUB_ENV
+            echo "BACKEND_TASK_TEMPLATE=aws/ecs/task-definition-backend.json" >> $GITHUB_ENV
+          fi
 
       - name: Validate required deployment variables
         run: |
@@ -132,14 +179,10 @@ jobs:
         id: build-web
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ env.IMAGE_TAG }}
           LATEST_TAG: latest
-          NEXT_PUBLIC_APP_URL: ${{ vars.NEXT_PUBLIC_APP_URL_STAGING }}
-          NEXT_PUBLIC_API_BASE_URL: ${{ vars.NEXT_PUBLIC_API_BASE_URL }}
-          NEXT_PUBLIC_API_VERSION: ${{ env.NEXT_PUBLIC_API_VERSION }}
         run: |
           echo "=========================================="
-          echo "Building Web Docker Image (Staging)"
+          echo "Building Web Docker Image ($DEPLOY_ENV)"
           echo "=========================================="
           echo "Repository: $ECR_REGISTRY/$ECR_REPOSITORY_WEB"
           echo "Tag: $IMAGE_TAG"
@@ -157,23 +200,20 @@ jobs:
             --tag $ECR_REGISTRY/$ECR_REPOSITORY_WEB:$LATEST_TAG \
             .
 
-          # Update cache for next run
           rm -rf /tmp/.buildx-cache
           mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 
           echo "✓ Web image pushed successfully"
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY_WEB:$IMAGE_TAG" >> $GITHUB_OUTPUT
-          echo ""
 
       - name: Build and push Backend image to ECR
         id: build-backend
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ env.IMAGE_TAG }}
           LATEST_TAG: latest
         run: |
           echo "=========================================="
-          echo "Building Backend Docker Image (Staging)"
+          echo "Building Backend Docker Image ($DEPLOY_ENV)"
           echo "=========================================="
           echo "Repository: $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND"
           echo "Tag: $IMAGE_TAG"
@@ -188,32 +228,24 @@ jobs:
             --tag $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:$LATEST_TAG \
             .
 
-          # Update cache for next run
           rm -rf /tmp/.buildx-cache
           mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 
           echo "✓ Backend image pushed successfully"
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:$IMAGE_TAG" >> $GITHUB_OUTPUT
-          echo ""
 
       - name: Update Web task definition
         id: update-task-def-web
-        env:
-          NEXT_PUBLIC_APP_URL: ${{ vars.NEXT_PUBLIC_APP_URL_STAGING }}
-          NEXT_PUBLIC_API_BASE_URL: ${{ vars.NEXT_PUBLIC_API_BASE_URL }}
-          NEXT_PUBLIC_API_VERSION: ${{ env.NEXT_PUBLIC_API_VERSION }}
         run: |
           echo "=========================================="
-          echo "Updating Web Task Definition (Staging)"
+          echo "Updating Web Task Definition ($DEPLOY_ENV)"
           echo "=========================================="
 
-          # Substitute variables in task definition template
-          export PROJECT_NAME AWS_ACCOUNT_ID AWS_REGION IMAGE_TAG NEXT_PUBLIC_APP_URL
+          export PROJECT_NAME AWS_ACCOUNT_ID AWS_REGION IMAGE_TAG NEXT_PUBLIC_APP_URL NEXT_PUBLIC_API_BASE_URL NEXT_PUBLIC_API_VERSION
           export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 
-          envsubst < aws/ecs/task-definition-web-staging.json > /tmp/task-def-web-updated.json
+          envsubst < "$WEB_TASK_TEMPLATE" > /tmp/task-def-web-updated.json
 
-          # Register new task definition revision
           TASK_DEF_ARN=$(aws ecs register-task-definition \
             --cli-input-json file:///tmp/task-def-web-updated.json \
             --query 'taskDefinition.taskDefinitionArn' \
@@ -221,54 +253,39 @@ jobs:
 
           echo "✓ Web task definition updated: $TASK_DEF_ARN"
           echo "task_def_arn=$TASK_DEF_ARN" >> $GITHUB_OUTPUT
-          echo ""
 
       - name: Deploy Web to ECS
         id: deploy-web
         run: |
           echo "=========================================="
-          echo "Deploying Web Service (Staging)"
+          echo "Deploying Web Service ($DEPLOY_ENV)"
           echo "=========================================="
 
-          # Update service with new task definition
           aws ecs update-service \
             --cluster $ECS_CLUSTER \
             --service $ECS_SERVICE_WEB \
             --task-definition ${{ steps.update-task-def-web.outputs.task_def_arn }} \
             --force-new-deployment
 
-          echo "✓ Web service deployment started"
-          echo "Waiting for web service to stabilize..."
-
-          # Wait for service to stabilize
           aws ecs wait services-stable \
             --cluster $ECS_CLUSTER \
             --services $ECS_SERVICE_WEB
 
           echo "✓ Web service is stable"
-          echo ""
 
       - name: Update Backend task definition
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          CORS_ORIGINS: ${{ secrets.CORS_ORIGINS }}
-          BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
-          BETTER_AUTH_TRUSTED_ORIGINS: ${{ secrets.BETTER_AUTH_TRUSTED_ORIGINS }}
-          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
-          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
         id: update-task-def-backend
         run: |
           echo "=========================================="
-          echo "Updating Backend Task Definition (Staging)"
+          echo "Updating Backend Task Definition ($DEPLOY_ENV)"
           echo "=========================================="
 
-          # Substitute variables in task definition template
           export PROJECT_NAME AWS_ACCOUNT_ID AWS_REGION IMAGE_TAG
+          export DATABASE_URL CORS_ORIGINS BETTER_AUTH_SECRET BETTER_AUTH_TRUSTED_ORIGINS GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET
           export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 
-          envsubst < aws/ecs/task-definition-backend-staging.json > /tmp/task-def-backend-updated.json
+          envsubst < "$BACKEND_TASK_TEMPLATE" > /tmp/task-def-backend-updated.json
 
-          # Register new task definition revision
           TASK_DEF_ARN=$(aws ecs register-task-definition \
             --cli-input-json file:///tmp/task-def-backend-updated.json \
             --query 'taskDefinition.taskDefinitionArn' \
@@ -276,52 +293,45 @@ jobs:
 
           echo "✓ Backend task definition updated: $TASK_DEF_ARN"
           echo "task_def_arn=$TASK_DEF_ARN" >> $GITHUB_OUTPUT
-          echo ""
 
       - name: Deploy Backend to ECS
         id: deploy-backend
         run: |
           echo "=========================================="
-          echo "Deploying Backend Service (Staging)"
+          echo "Deploying Backend Service ($DEPLOY_ENV)"
           echo "=========================================="
 
-          # Update service with new task definition
           aws ecs update-service \
             --cluster $ECS_CLUSTER \
             --service $ECS_SERVICE_BACKEND \
             --task-definition ${{ steps.update-task-def-backend.outputs.task_def_arn }} \
             --force-new-deployment
 
-          echo "✓ Backend service deployment started"
-          echo "Waiting for backend service to stabilize..."
-
-          # Wait for service to stabilize
           aws ecs wait services-stable \
             --cluster $ECS_CLUSTER \
             --services $ECS_SERVICE_BACKEND
 
           echo "✓ Backend service is stable"
-          echo ""
 
       - name: Deployment summary
         run: |
           echo "=========================================="
-          echo "Staging Deployment completed successfully!"
+          echo "Deployment completed successfully!"
           echo "=========================================="
           echo "Project: ${{ env.PROJECT_NAME }}"
-          echo "Environment: staging"
+          echo "Environment: ${{ env.DEPLOY_ENV }}"
+          echo "Branch: ${{ env.DEPLOY_BRANCH }}"
           echo "Region: ${{ env.AWS_REGION }}"
           echo "Commit SHA: ${{ github.sha }}"
           echo ""
           echo "Web Image: ${{ steps.build-web.outputs.image }}"
           echo "Web Task Definition: ${{ steps.update-task-def-web.outputs.task_def_arn }}"
-          echo "Web Service: ${{ env.ECS_CLUSTER }}/${{ env.ECS_SERVICE_WEB }}"
+          echo "Web Service: $ECS_CLUSTER/$ECS_SERVICE_WEB"
           echo ""
           echo "Backend Image: ${{ steps.build-backend.outputs.image }}"
           echo "Backend Task Definition: ${{ steps.update-task-def-backend.outputs.task_def_arn }}"
-          echo "Backend Service: ${{ env.ECS_CLUSTER }}/${{ env.ECS_SERVICE_BACKEND }}"
+          echo "Backend Service: $ECS_CLUSTER/$ECS_SERVICE_BACKEND"
           echo "=========================================="
 
-          # Set output for easy access
           echo "web_image_url=${{ steps.build-web.outputs.image }}" >> $GITHUB_ENV
           echo "backend_image_url=${{ steps.build-backend.outputs.image }}" >> $GITHUB_ENV

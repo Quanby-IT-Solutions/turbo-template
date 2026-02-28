@@ -70,6 +70,40 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Validate required deployment variables
+        run: |
+          set -euo pipefail
+
+          require_var() {
+            local name="$1"
+            if [ -z "${!name:-}" ]; then
+              echo "❌ Missing required variable: $name"
+              exit 1
+            fi
+          }
+
+          # AWS and ECS configuration
+          require_var AWS_REGION
+          require_var PROJECT_NAME
+          require_var ECR_REPOSITORY_WEB
+          require_var ECR_REPOSITORY_BACKEND
+          require_var ECS_CLUSTER
+          require_var ECS_SERVICE_WEB
+          require_var ECS_SERVICE_BACKEND
+
+          # Web runtime/build configuration
+          require_var NEXT_PUBLIC_APP_URL
+          require_var NEXT_PUBLIC_API_BASE_URL
+          require_var NEXT_PUBLIC_API_VERSION
+
+          # Backend runtime configuration
+          require_var DATABASE_URL
+          require_var CORS_ORIGINS
+          require_var BETTER_AUTH_SECRET
+          require_var BETTER_AUTH_TRUSTED_ORIGINS
+
+          echo "✅ Required deployment variables are set"
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:

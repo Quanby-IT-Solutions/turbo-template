@@ -56,18 +56,6 @@ services:
       # Server Configuration
       - NODE_ENV=production
       - PORT=3000
-      - CORS_ORIGINS=${CORS_ORIGINS}
-
-      # Database
-      - DATABASE_URL=${DATABASE_URL}
-
-      # Authentication (Better Auth)
-      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
-      - BETTER_AUTH_TRUSTED_ORIGINS=${BETTER_AUTH_TRUSTED_ORIGINS}
-
-      # OAuth Providers (Google)
-      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
-      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
     env_file:
       - apps/backend/.env
     networks:

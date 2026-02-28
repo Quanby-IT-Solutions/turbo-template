@@ -91,6 +91,17 @@ pnpm dev
 | `pnpm db:push`    | Push schema to database    |
 | `pnpm db:studio`  | Open Drizzle Studio        |
 
+## Backend: Production-like Local Run
+
+To mirror Docker/ECS behavior for backend startup, build workspace dependencies first, then run backend start:
+
+```bash
+pnpm build
+pnpm --filter @repo/backend start
+```
+
+This avoids cases where a backend-only build misses required workspace package build outputs.
+
 ## Shared Packages
 
 ```typescript

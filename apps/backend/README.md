@@ -58,6 +58,18 @@ pnpm --filter @repo/backend dev
 
 Runs on [http://localhost:3000](http://localhost:3000)
 
+## Run Production Entry Point Locally
+
+Use this when you want local behavior that matches Docker/ECS (`node dist/main.js`):
+
+```bash
+# From monorepo root
+pnpm build
+pnpm --filter @repo/backend start
+```
+
+Why this flow: it ensures dependent workspace packages are built before backend starts.
+
 ## Environment Variables
 
 | Variable                      | Required | Description                     |

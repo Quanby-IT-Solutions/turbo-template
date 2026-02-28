@@ -20,118 +20,37 @@ It is aligned with the current repository files:
 
 Before you start, ensure you have:
 
-1. AWS account and IAM permissions for ECS, ECR, EC2/ALB, CloudWatch, IAM.
-2. GitHub repository admin access (for repo Secrets/Variables).
-3. A database connection string for `DATABASE_URL`.
-4. Domain name (optional but recommended for production).
+1. AWS account and AWS CLI installed locally (`aws configure`).
+2. Terraform installed locally (`terraform -v`).
+3. GitHub repository admin access (for repo Secrets/Variables).
+4. A database connection string for `DATABASE_URL`.
 
 ---
 
-## 2) Decide naming conventions
+## 2) Automatically Create AWS Infrastructure (Terraform)
 
-This project uses `${PROJECT_NAME}` heavily in task definitions and workflows.
+Instead of manually clicking through the AWS console to create a VPC, Security Groups, ECR Repositories, an ECS Cluster, and a Load Balancer, you can create them all in 3 minutes using the provided Terraform scripts.
 
-Choose a project name once (example: `turbo-template`) and keep it consistent for:
+1. Open your terminal and navigate to the terraform directory:
+   ```bash
+   cd aws/terraform
+   ```
+2. Initialize Terraform (downloads AWS provider):
+   ```bash
+   terraform init
+   ```
+3. Run the plan to see what will be created:
+   ```bash
+   terraform plan -var="project_name=turbo-template" -var="environment=staging"
+   ```
+4. Apply the configuration to build your infrastructure!
+   ```bash
+   terraform apply -var="project_name=turbo-template" -var="environment=staging"
+   ```
 
-- ECR repositories
-- ECS cluster/services
-- task definition families
-- log groups
+*Terraform will output your Load Balancer URL (`alb_dns_name`) when it finishes. Save this URL!*
 
----
-
-## 3) Create networking (VPC, subnets, routing)
-
-Create a production-style VPC:
-
-1. VPC CIDR, e.g. `10.0.0.0/16`
-2. At least 2 public subnets in different AZs (for ALB)
-3. At least 2 private subnets in different AZs (recommended for ECS tasks)
-4. Internet Gateway attached to VPC
-5. NAT Gateway for private subnet egress (if tasks run private)
-6. Route tables:
-   - public subnets -> IGW
-   - private subnets -> NAT
-
-Tip: You can run ECS tasks in public subnets initially for simplicity, then move to private later.
-
----
-
-## 4) Create security groups
-
-Create three security groups:
-
-1. `alb-sg`
-   - Inbound: `80` from `0.0.0.0/0`
-   - Inbound: `443` from `0.0.0.0/0`
-   - Outbound: allow all
-
-2. `web-sg`
-   - Inbound: `3001` from `alb-sg`
-   - Outbound: allow all
-
-3. `backend-sg`
-   - Inbound: `3000` from `alb-sg` (and optionally from `web-sg` if needed)
-   - Outbound: allow all
-
----
-
-## 5) Create ECR repositories
-
-Create two private ECR repositories:
-
-1. `${PROJECT_NAME}-web`
-2. `${PROJECT_NAME}-backend`
-
-You don’t need to manually push images if you use the included GitHub Actions workflows.
-
----
-
-## 6) Create IAM role for ECS tasks
-
-Create (or reuse) `ecsTaskExecutionRole` with at least:
-
-- `AmazonECSTaskExecutionRolePolicy`
-
-The task definition templates currently reference this role for both:
-
-- `executionRoleArn`
-- `taskRoleArn`
-
-If your app later needs AWS APIs at runtime, grant those on `taskRoleArn`.
-
----
-
-## 7) Create ECS cluster
-
-Create one ECS cluster (Fargate), for example:
-
-- `${PROJECT_NAME}-cluster`
-
-Enable CloudWatch Container Insights if you want richer metrics.
-
----
-
-## 8) Create ALB and target groups
-
-Create an internet-facing ALB in public subnets and attach `alb-sg`.
-
-Create target groups:
-
-1. Web target group
-   - Protocol/port: HTTP `3001`
-   - Health check path: `/`
-
-2. Backend target group
-   - Protocol/port: HTTP `3000`
-   - Health check path: `/api/v1/health`
-
-Create listener rules:
-
-- `/api/*` -> backend target group
-- default -> web target group
-
-Optional: add HTTPS listener (`443`) with ACM certificate.
+**Note:** To create your production infrastructure, run the exact same apply command but change `environment=staging` to `environment=production`.
 
 ---
 
@@ -179,8 +98,8 @@ GOOGLE_CLIENT_SECRET=your-staging-client-secret
 **Variables:**
 ```env
 # Your AWS Region Code
-# ↳ Get from: Look at the top right corner of your AWS console (e.g. us-east-1, ap-southeast-1)
-AWS_REGION=us-east-1
+# ↳ Get from: Look at the top right corner of your AWS console (e.g. asia-northeast1)
+AWS_REGION=asia-northeast1
 
 # The base name you chose for this project. Used to identify resources.
 PROJECT_NAME=turbo-template
@@ -243,8 +162,8 @@ GOOGLE_CLIENT_SECRET=your-prod-client-secret
 **Variables:**
 ```env
 # Your AWS Region Code
-# ↳ Get from: Look at the top right corner of your AWS console (e.g. us-east-1, ap-southeast-1)
-AWS_REGION=us-east-1
+# ↳ Get from: Look at the top right corner of your AWS console (e.g. asia-northeast1, ap-southeast-1)
+AWS_REGION=asia-northeast1
 
 # The base name you chose for this project. Used to identify resources.
 PROJECT_NAME=turbo-template
@@ -282,36 +201,7 @@ Note: workflows now include a preflight step that fails early if required variab
 
 ---
 
-## 10) Create ECS services once (bootstrap)
-
-The workflows update existing ECS services, so create them initially in AWS Console:
-
-1. Create web service linked to web target group.
-2. Create backend service linked to backend target group.
-3. Use Fargate launch type, desired count >= 1.
-4. Set networking to your chosen subnets and security groups.
-
-After bootstrap, GitHub Actions handles rolling updates.
-
----
-
-## 11) Understand runtime startup behavior
-
-Backend production startup in Docker/ECS is:
-
-- build during image build
-- run with `node apps/backend/dist/main.js`
-
-Local production-like backend run from repo root:
-
-1. `pnpm build`
-2. `pnpm --filter @repo/backend start`
-
-This mirrors production better than backend-only build commands.
-
----
-
-## 12) Deploy to staging
+## 10) Deploy to staging
 
 Two options:
 

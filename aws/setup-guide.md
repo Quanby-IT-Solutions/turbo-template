@@ -137,46 +137,139 @@ Optional: add HTTPS listener (`443`) with ACM certificate.
 
 ## 9) Prepare GitHub repository configuration
 
-In GitHub repository settings, configure:
+## 9) Prepare GitHub repository configuration
 
-### 9.1 Secrets
+Go to your GitHub Repository Settings. You will need to define variables and secrets at the **Environment level** (specific to staging/production).
 
-Required by workflows:
+First, create two Environments under Settings > Environments: `staging` and `production`. Click into each environment and add the following:
 
-- `AWS_ACCESS_KEY_ID`
-- `AWS_SECRET_ACCESS_KEY`
-- `DATABASE_URL`
-- `CORS_ORIGINS`
-- `BETTER_AUTH_SECRET`
-- `BETTER_AUTH_TRUSTED_ORIGINS`
-- `GOOGLE_CLIENT_ID`
-- `GOOGLE_CLIENT_SECRET`
+### `staging`
 
-### 9.2 Variables
+**Secrets:**
+```env
+# AWS IAM User Access Key with permissions to ECS/ECR
+# ↳ Get from: AWS Console -> IAM -> Users -> Select User -> Security Credentials -> Create Access Key
+AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE
 
-Shared:
+# AWS IAM User Secret Key 
+# ↳ Get from: AWS Console -> IAM -> Users -> Select User -> Security Credentials -> Create Access Key (only shown once)
+AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
 
-- `AWS_REGION`
-- `PROJECT_NAME`
-- `NEXT_PUBLIC_API_BASE_URL`
+# Connection string to your Staging Postgres database
+DATABASE_URL=postgres://staging-user:pass@host:5432/db
 
-Production-specific:
+# Comma-separated list of allowed frontend URLs (CORS)
+CORS_ORIGINS=https://staging.yourdomain.com
 
-- `ECR_REPOSITORY_WEB`
-- `ECR_REPOSITORY_BACKEND`
-- `ECS_CLUSTER`
-- `ECS_SERVICE_WEB`
-- `ECS_SERVICE_BACKEND`
-- `NEXT_PUBLIC_APP_URL`
+# Random 32-character string for JWT/Session signing (Generate via `openssl rand -base64 32`)
+BETTER_AUTH_SECRET=a_random_secure_string_for_staging
 
-Staging-specific:
+# Allowed domains for authentication cookies
+BETTER_AUTH_TRUSTED_ORIGINS=https://staging.yourdomain.com
 
-- `ECR_REPOSITORY_WEB_STAGING`
-- `ECR_REPOSITORY_BACKEND_STAGING`
-- `ECS_CLUSTER_STAGING`
-- `ECS_SERVICE_WEB_STAGING`
-- `ECS_SERVICE_BACKEND_STAGING`
-- `NEXT_PUBLIC_APP_URL_STAGING`
+# OAuth Client ID
+# ↳ Get from: Google Cloud Console -> APIs & Services -> Credentials
+GOOGLE_CLIENT_ID=your-staging-client-id.apps.googleusercontent.com
+
+# OAuth Client Secret
+# ↳ Get from: Google Cloud Console -> APIs & Services -> Credentials
+GOOGLE_CLIENT_SECRET=your-staging-client-secret
+```
+
+**Variables:**
+```env
+# Your AWS Region Code
+# ↳ Get from: Look at the top right corner of your AWS console (e.g. us-east-1, ap-southeast-1)
+AWS_REGION=us-east-1
+
+# The base name you chose for this project. Used to identify resources.
+PROJECT_NAME=turbo-template
+
+# The base path where the ALB routes backend traffic
+NEXT_PUBLIC_API_BASE_URL=/api
+
+# The name of the Staging Web ECR Repository (Created in Step 5)
+ECR_REPOSITORY_WEB=turbo-template-web-staging
+
+# The name of the Staging Backend ECR Repository (Created in Step 5)
+ECR_REPOSITORY_BACKEND=turbo-template-backend-staging
+
+# The name of the Staging ECS Cluster (Created in Step 7)
+ECS_CLUSTER=turbo-template-cluster-staging
+
+# The name of the Staging Web ECS Service (Created in Step 10)
+ECS_SERVICE_WEB=turbo-template-web-staging-service
+
+# The name of the Staging Backend ECS Service (Created in Step 10)
+ECS_SERVICE_BACKEND=turbo-template-backend-staging-service
+
+# The public URL for the Staging frontend application
+NEXT_PUBLIC_APP_URL=https://staging.yourdomain.com
+```
+
+### `production`
+
+**Secrets:**
+```env
+# AWS IAM User Access Key with permissions to ECS/ECR
+# ↳ Get from: AWS Console -> IAM -> Users -> Select User -> Security Credentials -> Create Access Key
+AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE
+
+# AWS IAM User Secret Key 
+# ↳ Get from: AWS Console -> IAM -> Users -> Select User -> Security Credentials -> Create Access Key (only shown once)
+AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+
+# Connection string to your Production Postgres database
+DATABASE_URL=postgres://prod-user:pass@host:5432/db
+
+# Comma-separated list of allowed frontend URLs (CORS)
+CORS_ORIGINS=https://yourdomain.com
+
+# Random 32-character string for JWT/Session signing (Generate via `openssl rand -base64 32`)
+BETTER_AUTH_SECRET=a_random_secure_string_for_production
+
+# Allowed domains for authentication cookies
+BETTER_AUTH_TRUSTED_ORIGINS=https://yourdomain.com
+
+# OAuth Client ID
+# ↳ Get from: Google Cloud Console -> APIs & Services -> Credentials
+GOOGLE_CLIENT_ID=your-prod-client-id.apps.googleusercontent.com
+
+# OAuth Client Secret
+# ↳ Get from: Google Cloud Console -> APIs & Services -> Credentials
+GOOGLE_CLIENT_SECRET=your-prod-client-secret
+```
+
+**Variables:**
+```env
+# Your AWS Region Code
+# ↳ Get from: Look at the top right corner of your AWS console (e.g. us-east-1, ap-southeast-1)
+AWS_REGION=us-east-1
+
+# The base name you chose for this project. Used to identify resources.
+PROJECT_NAME=turbo-template
+
+# The base path where the ALB routes backend traffic
+NEXT_PUBLIC_API_BASE_URL=/api
+
+# The name of the Production Web ECR Repository (Created in Step 5)
+ECR_REPOSITORY_WEB=turbo-template-web
+
+# The name of the Production Backend ECR Repository (Created in Step 5)
+ECR_REPOSITORY_BACKEND=turbo-template-backend
+
+# The name of the Production ECS Cluster (Created in Step 7)
+ECS_CLUSTER=turbo-template-cluster
+
+# The name of the Production Web ECS Service (Created in Step 10)
+ECS_SERVICE_WEB=turbo-template-web-service
+
+# The name of the Production Backend ECS Service (Created in Step 10)
+ECS_SERVICE_BACKEND=turbo-template-backend-service
+
+# The public URL for the Production frontend application
+NEXT_PUBLIC_APP_URL=https://yourdomain.com
+```
 
 Note: task definition templates are selected internally by the deployment workflow via:
 

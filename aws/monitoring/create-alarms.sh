@@ -6,7 +6,7 @@
 set -e
 
 # Configuration
-AWS_REGION="${AWS_REGION:-us-east-1}"
+AWS_REGION="${AWS_REGION:-ap-southeast-1}"
 ACCOUNT_ID="${AWS_ACCOUNT_ID}"
 
 # Validate required variables

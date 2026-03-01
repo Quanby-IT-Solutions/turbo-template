@@ -139,3 +139,18 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 /CLAUDE.md
 /CLAUDE.md.bak
 # END Ruler Generated Files
+
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+*.tfvars
+*.tfvars.json
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc

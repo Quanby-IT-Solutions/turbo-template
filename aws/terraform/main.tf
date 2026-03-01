@@ -10,7 +10,7 @@ terraform {
   # backend "s3" {
   #   bucket = "my-terraform-state-bucket"
   #   key    = "turbo-template/terraform.tfstate"
-  #   region = "us-east-1"
+  #   region = "ap-southeast-1"
   # }
 }
 

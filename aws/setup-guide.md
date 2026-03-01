@@ -20,7 +20,7 @@ It is aligned with the current repository files:
 
 Before you start, ensure you have:
 
-1. AWS account and AWS CLI installed locally (`aws configure`).
+1. AWS account and AWS CLI installed locally (`aws configure`). **Note:** The IAM user configuring your local AWS CLI must have the `AdministratorAccess` policy (or sufficient equivalent permissions to create VPCs, ECS Clusters, ECR Repositories, ALBs, and IAM Roles).
 2. Terraform installed locally (`terraform -v`).
 3. GitHub repository admin access (for repo Secrets/Variables).
 4. A database connection string for `DATABASE_URL`.
@@ -92,8 +92,8 @@ GOOGLE_CLIENT_SECRET=your-staging-client-secret
 **Variables:**
 ```env
 # Your AWS Region Code
-# ↳ Get from: Look at the top right corner of your AWS console (e.g. us-east-1)
-AWS_REGION=us-east-1
+# ↳ Get from: Look at the top right corner of your AWS console (e.g. ap-southeast-1)
+AWS_REGION=ap-southeast-1
 
 # The base name you chose for this project. Used to identify resources.
 PROJECT_NAME=turbo-template
@@ -156,8 +156,8 @@ GOOGLE_CLIENT_SECRET=your-prod-client-secret
 **Variables:**
 ```env
 # Your AWS Region Code
-# ↳ Get from: Look at the top right corner of your AWS console (e.g. us-east-1, ap-southeast-1)
-AWS_REGION=us-east-1
+# ↳ Get from: Look at the top right corner of your AWS console (e.g. ap-southeast-1, ap-southeast-1)
+AWS_REGION=ap-southeast-1
 
 # The base name you chose for this project. Used to identify resources.
 PROJECT_NAME=turbo-template

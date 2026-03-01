@@ -31,21 +31,17 @@ Before you start, ensure you have:
 
 Instead of manually clicking through the AWS console to create a VPC, Security Groups, ECR Repositories, an ECS Cluster, and a Load Balancer, you can create them all in 3 minutes using the provided Terraform scripts.
 
-1. Open your terminal and navigate to the terraform directory:
+1. Initialize Terraform (downloads AWS provider):
    ```bash
-   cd aws/terraform
+   terraform -chdir=aws/terraform init
    ```
-2. Initialize Terraform (downloads AWS provider):
+2. Run the plan to see what will be created:
    ```bash
-   terraform init
+   terraform -chdir=aws/terraform plan -var="project_name=turbo-template" -var="environment=staging"
    ```
-3. Run the plan to see what will be created:
+3. Apply the configuration to build your infrastructure!
    ```bash
-   terraform plan -var="project_name=turbo-template" -var="environment=staging"
-   ```
-4. Apply the configuration to build your infrastructure!
-   ```bash
-   terraform apply -var="project_name=turbo-template" -var="environment=staging"
+   terraform -chdir=aws/terraform apply -var="project_name=turbo-template" -var="environment=staging"
    ```
 
 *Terraform will output your Load Balancer URL (`alb_dns_name`) when it finishes. Save this URL!*
@@ -53,8 +49,6 @@ Instead of manually clicking through the AWS console to create a VPC, Security G
 **Note:** To create your production infrastructure, run the exact same apply command but change `environment=staging` to `environment=production`.
 
 ---
-
-## 9) Prepare GitHub repository configuration
 
 ## 9) Prepare GitHub repository configuration
 
@@ -98,8 +92,8 @@ GOOGLE_CLIENT_SECRET=your-staging-client-secret
 **Variables:**
 ```env
 # Your AWS Region Code
-# ↳ Get from: Look at the top right corner of your AWS console (e.g. asia-northeast1)
-AWS_REGION=asia-northeast1
+# ↳ Get from: Look at the top right corner of your AWS console (e.g. us-east-1)
+AWS_REGION=us-east-1
 
 # The base name you chose for this project. Used to identify resources.
 PROJECT_NAME=turbo-template
@@ -162,8 +156,8 @@ GOOGLE_CLIENT_SECRET=your-prod-client-secret
 **Variables:**
 ```env
 # Your AWS Region Code
-# ↳ Get from: Look at the top right corner of your AWS console (e.g. asia-northeast1, ap-southeast-1)
-AWS_REGION=asia-northeast1
+# ↳ Get from: Look at the top right corner of your AWS console (e.g. us-east-1, ap-southeast-1)
+AWS_REGION=us-east-1
 
 # The base name you chose for this project. Used to identify resources.
 PROJECT_NAME=turbo-template

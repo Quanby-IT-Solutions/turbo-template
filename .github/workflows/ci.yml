@@ -2,21 +2,25 @@ name: CI
 
 on:
   workflow_dispatch:
-  # push:
-  #   branches:
-  #     - dev
-  #     - staging
-  #     - production
-  #   paths-ignore:
-  #     - "**.md"
-  #     - ".vscode/**"
-  #     - "docs/**"
-  # pull_request:
-  #   types: [opened, synchronize, reopened]
-  #   paths-ignore:
-  #     - "**.md"
-  #     - ".vscode/**"
-  #     - "docs/**"
+  push:
+    branches:
+      - dev
+      - staging
+      - production
+    paths-ignore:
+      - "**.md"
+      - ".vscode/**"
+      - "docs/**"
+  pull_request:
+    branches:
+      - dev
+      - staging
+      - production
+    types: [opened, synchronize, reopened]
+    paths-ignore:
+      - "**.md"
+      - ".vscode/**"
+      - "docs/**"
 
 # Cancel in-progress runs when a new commit is pushed
 concurrency:

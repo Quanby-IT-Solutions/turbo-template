@@ -158,6 +158,18 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        run: terraform -chdir=aws/terraform init
+
+      - name: Terraform Plan
+        run: terraform -chdir=aws/terraform plan -var="project_name=${PROJECT_NAME}" -var="environment=${DEPLOY_ENV}"
+
+      - name: Terraform Apply
+        run: terraform -chdir=aws/terraform apply -auto-approve -var="project_name=${PROJECT_NAME}" -var="environment=${DEPLOY_ENV}"
+
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2

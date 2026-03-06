@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { usePathname } from "next/navigation"
-import { ArrowDown, ChevronRight, FolderOpen, Plus, Search } from "@hugeicons/core-free-icons"
+import { ArrowDown, ChevronRight, FolderOpen, Plus } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 
 import {
@@ -29,21 +29,21 @@ export function NavProjects({ projects }: { projects?: Project[] }) {
 			<SidebarGroupContent>
 				<SidebarMenu>
 					<SidebarMenuItem>
-						<SidebarMenuButton isActive={false} tooltip="Create Project">
+					<SidebarMenuButton render={<a href="/projects/new" />} isActive={false} tooltip="Create Project">
 							<HugeiconsIcon icon={Plus} strokeWidth={2} />
 							<span>Create Project</span>
 						</SidebarMenuButton>
 					</SidebarMenuItem>
 					{projects?.map(project => (
 						<SidebarMenuItem key={project.id}>
-							<SidebarMenuButton isActive={pathname === project.url} tooltip={project.name}>
+						<SidebarMenuButton render={<a href={project.url} />} isActive={pathname === project.url} tooltip={project.name}>
 								<HugeiconsIcon icon={FolderOpen} strokeWidth={2} />
 								<span>{project.name}</span>
 							</SidebarMenuButton>
 						</SidebarMenuItem>
 					))}
 					<SidebarMenuItem>
-						<SidebarMenuButton tooltip="View All Projects">
+					<SidebarMenuButton render={<a href="/projects" />} tooltip="View All Projects">
 							<HugeiconsIcon icon={ChevronRight} strokeWidth={2} />
 							<span>View All Projects</span>
 							<HugeiconsIcon icon={ArrowDown} className="ml-auto size-4" strokeWidth={2} />

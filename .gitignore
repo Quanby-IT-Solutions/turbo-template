@@ -117,23 +117,12 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
 
 # START Ruler Generated Files
-/.agent/skills
-/.agents/skills
-/.aider.conf.yml
-/.aider.conf.yml.bak
 /.claude/skills
-/.clinerules
-/.clinerules.bak
 /.codex/config.toml
 /.codex/config.toml.bak
 /.codex/skills
 /.cursor/skills
-/.factory/skills
 /.gemini/skills
-/.opencode/skill
-/.pi/skills
-/.roo/skills
-/.vibe/skills
 /AGENTS.md
 /AGENTS.md.bak
 /CLAUDE.md

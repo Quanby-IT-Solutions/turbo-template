@@ -30,7 +30,7 @@ pnpm db:push
 # Build packages (required for first run)
 pnpm build
 
-# Generate AI agent rules (optional)
+# Generate AI agent rules (recommended - includes sub-agent-first workflow policy)
 pnpm dlx @intellectronica/ruler apply
 
 # Start development

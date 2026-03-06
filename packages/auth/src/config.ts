@@ -18,6 +18,7 @@ export const authEnv = createEnv({
 		// Authentication
 		BETTER_AUTH_SECRET: z.string(),
 		BETTER_AUTH_TRUSTED_ORIGINS: z.string(),
+		BETTER_AUTH_COOKIE_DOMAIN: z.string().optional(),
 
 		// OAuth Providers (Google)
 		GOOGLE_CLIENT_ID: z.string().optional(),
@@ -73,6 +74,14 @@ export function createAuth(): ReturnType<typeof betterAuth> {
 			},
 		},
 		trustedOrigins: authEnv.BETTER_AUTH_TRUSTED_ORIGINS?.split(",") ?? [],
+		advanced: {
+			...(authEnv.BETTER_AUTH_COOKIE_DOMAIN && {
+				crossSubDomainCookies: {
+					enabled: true,
+					domain: authEnv.BETTER_AUTH_COOKIE_DOMAIN,
+				},
+			}),
+		},
 		plugins: [
 			openAPI({
 				path: "/reference",

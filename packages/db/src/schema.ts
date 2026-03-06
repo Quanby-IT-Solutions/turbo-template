@@ -91,9 +91,34 @@ export const todos = createTable("todos", t => ({
 }))
 
 // ============================================================================
+// TICKETS
+// ============================================================================
+
+export const tickets = createTable("tickets", t => ({
+	id: t.serial("id").primaryKey(),
+	name: t.text("name").notNull(),
+	email: t.text("email").notNull(),
+	subject: t.text("subject").notNull(),
+	priority: t
+		.text("priority")
+		.notNull()
+		.default("medium")
+		.$type<"low" | "medium" | "high" | "urgent">(),
+	concern: t.text("concern").notNull(),
+	status: t
+		.text("status")
+		.notNull()
+		.default("received")
+		.$type<"received" | "in_progress" | "resolved" | "closed">(),
+	authorId: t.text("author_id").references(() => users.id, { onDelete: "set null" }),
+	createdAt: t.timestamp("created_at").notNull().defaultNow(),
+	updatedAt: t.timestamp("updated_at").notNull().defaultNow(),
+}))
+
+// ============================================================================
 // RELATIONS
 // ============================================================================
-export const relations = defineRelations({ users, sessions, accounts, todos }, r => ({
+export const relations = defineRelations({ users, sessions, accounts, todos, tickets }, r => ({
 	users: {
 		sessions: r.many.sessions(),
 		accounts: r.many.accounts(),
@@ -116,6 +141,12 @@ export const relations = defineRelations({ users, sessions, accounts, todos }, r
 			to: r.users.id,
 		}),
 	},
+	tickets: {
+		author: r.one.users({
+			from: r.tickets.authorId,
+			to: r.users.id,
+		}),
+	},
 }))
 
 // ============================================================================
@@ -128,6 +159,7 @@ export const schema = Object.assign(
 		accounts,
 		verifications,
 		todos,
+		tickets,
 	},
 	relations
 )

@@ -12,6 +12,7 @@ import { HugeiconsIcon } from "@hugeicons/react"
 
 import type { AuthSession } from "@repo/auth"
 
+import { authClient } from "@/services/better-auth/auth-client"
 import { Avatar, AvatarFallback, AvatarImage } from "@/core/components/ui/avatar"
 import {
 	DropdownMenu,
@@ -32,6 +33,11 @@ import { getInitials } from "@/core/lib/utils"
 
 export function NavUser({ session }: { session: AuthSession }) {
 	const { isMobile } = useSidebar()
+
+	const handleLogout = async () => {
+		await authClient.signOut()
+		window.location.href = "/login"
+	}
 
 	return (
 		<SidebarMenu>
@@ -103,7 +109,7 @@ export function NavUser({ session }: { session: AuthSession }) {
 							</DropdownMenuItem>
 						</DropdownMenuGroup>
 						<DropdownMenuSeparator />
-						<DropdownMenuItem>
+						<DropdownMenuItem onClick={handleLogout}>
 							<HugeiconsIcon icon={LogoutIcon} strokeWidth={2} />
 							Log out
 						</DropdownMenuItem>

@@ -64,6 +64,57 @@ import { todos } from "@repo/db/schema"
 4. Update `.env.example` and `env.ts` when adding environment variables
 5. Keep features isolated in their own folders
 
+## Sub-Agent & Skills Workflow Policy
+
+Use **sub-agents by default for feature work**; skip them only for trivial local changes.
+
+### When to use sub-agents
+
+- **Always** for feature work, bug fixes, refactors, tests, and code reviews.
+- **Always** when a task touches more than one layer (e.g., contracts + backend + frontend).
+- **Always** before implementing anything new — run `Explore` first for discovery.
+
+### When to skip sub-agents
+
+- One-line fixes, typo corrections, or config tweaks.
+- Purely conversational or informational requests.
+- If a sub-agent is unavailable, proceed directly and state the fallback.
+
+### Required Flow (for non-trivial work)
+
+1. **Discover** — Use `Explore` sub-agent to gather file targets, existing patterns, and constraints.
+2. **Plan** — Produce a short implementation plan from sub-agent output.
+3. **Implement** — Use the appropriate specialized sub-agent(s) for each layer:
+   - `backend-developer` — NestJS modules, controllers, services, contracts, DB queries
+   - `web-frontend-developer` — Next.js pages, components, hooks, oRPC client integration
+   - `fullstack-developer` — Cross-layer features spanning backend + frontend + packages
+   - `flutter-expert` — Flutter mobile features, widgets, state management
+   - `devops-infra` — Docker, CI/CD, AWS, Terraform, deployment
+   - `code-reviewer` — Code review and quality assessment
+4. **Validate** — Run `pnpm lint && pnpm typecheck` and report results (note any pre-existing failures).
+
+### Available Skills (domain-specific knowledge)
+
+Skills provide deep context for specific technologies used in this repo. They are loaded automatically by AI agents from `.agents/skills/` when a task matches their domain:
+
+| Skill                       | Domain                                   |
+| --------------------------- | ---------------------------------------- |
+| `orpc-contracts`            | oRPC contract-first API design           |
+| `drizzle-postgres`          | Drizzle ORM schemas, queries, migrations |
+| `tanstack-query-orpc`       | TanStack Query + oRPC data fetching      |
+| `better-auth`               | Authentication, sessions, OAuth          |
+| `nextjs-app-router`         | Next.js 16 App Router conventions        |
+| `tailwind-shadcn`           | Tailwind CSS v4 + shadcn/ui components   |
+| `turborepo-monorepo`        | pnpm workspaces, turbo.json, packages    |
+| `testing-strategies`        | Unit, integration, E2E testing patterns  |
+| `docker-deployment`         | Docker multi-stage builds, compose       |
+| `aws-infrastructure`        | ECS Fargate, ALB, Terraform              |
+| `ci-cd-pipelines`           | GitHub Actions workflows                 |
+| `security-hardening`        | OWASP, auth guards, input validation     |
+| `error-handling-logging`    | Exception filters, structured logging    |
+| `vercel-react-best-practices` | React/Next.js performance optimization |
+| `web-design-guidelines`     | UI/UX accessibility and design review    |
+
 ## Common Scripts
 
 ### Development

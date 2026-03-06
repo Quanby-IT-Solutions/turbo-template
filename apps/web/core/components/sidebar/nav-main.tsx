@@ -1,7 +1,8 @@
 "use client"
 
+import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Bell, Home, Inbox, LayoutDashboard } from "@hugeicons/core-free-icons"
+import { Bell, Home, LayoutDashboard } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react"
 
 import { Badge } from "@/core/components/ui/badge"
@@ -35,7 +36,11 @@ export function NavMain({ items }: { items: NavMainItem[] }) {
 				<SidebarMenu>
 					{items.map(item => (
 						<SidebarMenuItem key={item.title}>
-							<SidebarMenuButton isActive={pathname === item.url} tooltip={item.title}>
+							<SidebarMenuButton
+								render={<Link href={item.url} />}
+								isActive={pathname === item.url}
+								tooltip={item.title}
+							>
 								<HugeiconsIcon icon={item.icon} strokeWidth={2} />
 								<span>{item.title}</span>
 								{item.isNew && <Badge className="ml-auto">New</Badge>}
@@ -53,12 +58,6 @@ export const mainNavItems: NavMainItem[] = [
 		title: "Dashboard",
 		url: "/dashboard",
 		icon: LayoutDashboard,
-	},
-	{
-		title: "Inbox",
-		url: "/inbox",
-		icon: Inbox,
-		isNew: true,
 	},
 	{
 		title: "Notifications",

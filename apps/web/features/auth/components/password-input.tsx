@@ -21,7 +21,7 @@ export function PasswordInput({ className, ...props }: PasswordInputProps) {
 				variant="ghost"
 				onClick={() => setShowPassword(!showPassword)}
 				aria-label={showPassword ? "Hide password" : "Show password"}
-				className="absolute right-0 px-2 hover:bg-transparent!"
+				className="hover:bg-transparent! absolute right-0 px-2"
 				tabIndex={-1}
 			>
 				<HugeiconsIcon icon={showPassword ? ViewOffIcon : ViewIcon} strokeWidth={2} />

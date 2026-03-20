@@ -19,16 +19,16 @@ updated: 2025-07-12
 
 ## Quick Reference
 
-| Component | Resource | Config Location |
-|-----------|----------|----------------|
-| VPC | 10.0.0.0/16, 2 AZs | `aws/terraform/vpc.tf` |
-| ECS Cluster | Fargate, Container Insights | `aws/terraform/ecs.tf` |
-| ALB | Internet-facing, path routing | `aws/terraform/alb.tf` |
-| ECR | Scan-on-push, 30-image retention | `aws/terraform/ecr.tf` |
-| IAM | Task execution + task roles | `aws/terraform/iam.tf` |
-| Security | ALB → ECS-only SGs | `aws/terraform/security.tf` |
-| Task Definitions | Web (512/1024), Backend (512/1024) | `aws/ecs/*.json` |
-| CloudWatch | CPU, memory, 5xx, unhealthy tasks | `aws/monitoring/` |
+| Component        | Resource                           | Config Location             |
+| ---------------- | ---------------------------------- | --------------------------- |
+| VPC              | 10.0.0.0/16, 2 AZs                 | `aws/terraform/vpc.tf`      |
+| ECS Cluster      | Fargate, Container Insights        | `aws/terraform/ecs.tf`      |
+| ALB              | Internet-facing, path routing      | `aws/terraform/alb.tf`      |
+| ECR              | Scan-on-push, 30-image retention   | `aws/terraform/ecr.tf`      |
+| IAM              | Task execution + task roles        | `aws/terraform/iam.tf`      |
+| Security         | ALB → ECS-only SGs                 | `aws/terraform/security.tf` |
+| Task Definitions | Web (512/1024), Backend (512/1024) | `aws/ecs/*.json`            |
+| CloudWatch       | CPU, memory, 5xx, unhealthy tasks  | `aws/monitoring/`           |
 
 ## Architecture Overview
 
@@ -107,15 +107,17 @@ All SGs: Allow all egress
 
 ```json
 {
-  "rules": [{
-    "rulePriority": 1,
-    "selection": {
-      "tagStatus": "any",
-      "countType": "imageCountMoreThan",
-      "countNumber": 30
-    },
-    "action": { "type": "expire" }
-  }]
+	"rules": [
+		{
+			"rulePriority": 1,
+			"selection": {
+				"tagStatus": "any",
+				"countType": "imageCountMoreThan",
+				"countNumber": 30
+			},
+			"action": { "type": "expire" }
+		}
+	]
 }
 ```
 
@@ -127,34 +129,42 @@ Keeps last 30 images per repository. Scan-on-push enabled for vulnerability dete
 
 ```json
 {
-  "family": "{PROJECT_NAME}-web-production",
-  "cpu": "512",
-  "memory": "1024",
-  "networkMode": "awsvpc",
-  "requiresCompatibilities": ["FARGATE"],
-  "containerDefinitions": [{
-    "name": "web",
-    "image": "{AWS_ACCOUNT_ID}.dkr.ecr.{AWS_REGION}.amazonaws.com/{PROJECT_NAME}-web-production:{IMAGE_TAG:-latest}",
-    "portMappings": [{ "containerPort": 3001 }],
-    "environment": [
-      { "name": "NODE_ENV", "value": "production" },
-      { "name": "NEXT_PUBLIC_APP_URL", "value": "${NEXT_PUBLIC_APP_URL}" },
-      { "name": "NEXT_PUBLIC_API_BASE_URL", "value": "${NEXT_PUBLIC_API_BASE_URL}" },
-      { "name": "NEXT_PUBLIC_API_VERSION", "value": "${NEXT_PUBLIC_API_VERSION}" }
-    ],
-    "healthCheck": {
-      "command": ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3001/ || exit 1"],
-      "interval": 30, "timeout": 10, "retries": 3, "startPeriod": 40
-    },
-    "logConfiguration": {
-      "logDriver": "awslogs",
-      "options": {
-        "awslogs-group": "/ecs/{PROJECT_NAME}-web-production",
-        "awslogs-region": "{AWS_REGION}",
-        "awslogs-stream-prefix": "ecs"
-      }
-    }
-  }]
+	"family": "{PROJECT_NAME}-web-production",
+	"cpu": "512",
+	"memory": "1024",
+	"networkMode": "awsvpc",
+	"requiresCompatibilities": ["FARGATE"],
+	"containerDefinitions": [
+		{
+			"name": "web",
+			"image": "{AWS_ACCOUNT_ID}.dkr.ecr.{AWS_REGION}.amazonaws.com/{PROJECT_NAME}-web-production:{IMAGE_TAG:-latest}",
+			"portMappings": [{ "containerPort": 3001 }],
+			"environment": [
+				{ "name": "NODE_ENV", "value": "production" },
+				{ "name": "NEXT_PUBLIC_APP_URL", "value": "${NEXT_PUBLIC_APP_URL}" },
+				{ "name": "NEXT_PUBLIC_API_BASE_URL", "value": "${NEXT_PUBLIC_API_BASE_URL}" },
+				{ "name": "NEXT_PUBLIC_API_VERSION", "value": "${NEXT_PUBLIC_API_VERSION}" }
+			],
+			"healthCheck": {
+				"command": [
+					"CMD-SHELL",
+					"wget --no-verbose --tries=1 --spider http://localhost:3001/ || exit 1"
+				],
+				"interval": 30,
+				"timeout": 10,
+				"retries": 3,
+				"startPeriod": 40
+			},
+			"logConfiguration": {
+				"logDriver": "awslogs",
+				"options": {
+					"awslogs-group": "/ecs/{PROJECT_NAME}-web-production",
+					"awslogs-region": "{AWS_REGION}",
+					"awslogs-stream-prefix": "ecs"
+				}
+			}
+		}
+	]
 }
 ```
 
@@ -162,52 +172,57 @@ Keeps last 30 images per repository. Scan-on-push enabled for vulnerability dete
 
 ```json
 {
-  "family": "{PROJECT_NAME}-backend-production",
-  "cpu": "512",
-  "memory": "1024",
-  "containerDefinitions": [{
-    "name": "backend",
-    "portMappings": [{ "containerPort": 3000 }],
-    "environment": [
-      { "name": "NODE_ENV", "value": "production" },
-      { "name": "PORT", "value": "3000" },
-      { "name": "CORS_ORIGINS", "value": "${CORS_ORIGINS}" },
-      { "name": "DATABASE_URL", "value": "${DATABASE_URL}" },
-      { "name": "BETTER_AUTH_SECRET", "value": "${BETTER_AUTH_SECRET}" },
-      { "name": "BETTER_AUTH_TRUSTED_ORIGINS", "value": "${BETTER_AUTH_TRUSTED_ORIGINS}" },
-      { "name": "GOOGLE_CLIENT_ID", "value": "${GOOGLE_CLIENT_ID}" },
-      { "name": "GOOGLE_CLIENT_SECRET", "value": "${GOOGLE_CLIENT_SECRET}" }
-    ],
-    "healthCheck": {
-      "command": ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/api/v1/health || exit 1"]
-    }
-  }]
+	"family": "{PROJECT_NAME}-backend-production",
+	"cpu": "512",
+	"memory": "1024",
+	"containerDefinitions": [
+		{
+			"name": "backend",
+			"portMappings": [{ "containerPort": 3000 }],
+			"environment": [
+				{ "name": "NODE_ENV", "value": "production" },
+				{ "name": "PORT", "value": "3000" },
+				{ "name": "CORS_ORIGINS", "value": "${CORS_ORIGINS}" },
+				{ "name": "DATABASE_URL", "value": "${DATABASE_URL}" },
+				{ "name": "BETTER_AUTH_SECRET", "value": "${BETTER_AUTH_SECRET}" },
+				{ "name": "BETTER_AUTH_TRUSTED_ORIGINS", "value": "${BETTER_AUTH_TRUSTED_ORIGINS}" },
+				{ "name": "GOOGLE_CLIENT_ID", "value": "${GOOGLE_CLIENT_ID}" },
+				{ "name": "GOOGLE_CLIENT_SECRET", "value": "${GOOGLE_CLIENT_SECRET}" }
+			],
+			"healthCheck": {
+				"command": [
+					"CMD-SHELL",
+					"wget --no-verbose --tries=1 --spider http://localhost:3000/api/v1/health || exit 1"
+				]
+			}
+		}
+	]
 }
 ```
 
 ### Staging vs Production
 
-| Setting | Staging | Production |
-|---------|---------|------------|
-| CPU | 256 | 512 |
-| Memory | 512 MB | 1024 MB |
-| Desired count | 1 | 1 (scale as needed) |
-| Task family suffix | `-staging` | `-production` |
+| Setting            | Staging    | Production          |
+| ------------------ | ---------- | ------------------- |
+| CPU                | 256        | 512                 |
+| Memory             | 512 MB     | 1024 MB             |
+| Desired count      | 1          | 1 (scale as needed) |
+| Task family suffix | `-staging` | `-production`       |
 
 ## CloudWatch Monitoring
 
 ### Alarm Definitions (`aws/monitoring/cloudwatch-alarms.json`)
 
-| Alarm | Metric | Threshold | Period | Evaluation |
-|-------|--------|-----------|--------|------------|
-| web-cpu-high | CPUUtilization | ≥ 80% | 5 min | 2 consecutive |
-| web-memory-high | MemoryUtilization | ≥ 80% | 5 min | 2 consecutive |
-| backend-cpu-high | CPUUtilization | ≥ 80% | 5 min | 2 consecutive |
-| backend-memory-high | MemoryUtilization | ≥ 80% | 5 min | 2 consecutive |
-| web-unhealthy-tasks | UnhealthyTaskCount | > 0 | 1 min | 1 period |
-| backend-unhealthy-tasks | UnhealthyTaskCount | > 0 | 1 min | 1 period |
-| alb-5xx-errors | HTTPCode_Target_5XX_Count | > 50 | 1 min | 5 consecutive |
-| alb-4xx-errors | HTTPCode_Target_4XX_Count | > 100 | 1 min | 5 consecutive |
+| Alarm                   | Metric                    | Threshold | Period | Evaluation    |
+| ----------------------- | ------------------------- | --------- | ------ | ------------- |
+| web-cpu-high            | CPUUtilization            | ≥ 80%     | 5 min  | 2 consecutive |
+| web-memory-high         | MemoryUtilization         | ≥ 80%     | 5 min  | 2 consecutive |
+| backend-cpu-high        | CPUUtilization            | ≥ 80%     | 5 min  | 2 consecutive |
+| backend-memory-high     | MemoryUtilization         | ≥ 80%     | 5 min  | 2 consecutive |
+| web-unhealthy-tasks     | UnhealthyTaskCount        | > 0       | 1 min  | 1 period      |
+| backend-unhealthy-tasks | UnhealthyTaskCount        | > 0       | 1 min  | 1 period      |
+| alb-5xx-errors          | HTTPCode_Target_5XX_Count | > 50      | 1 min  | 5 consecutive |
+| alb-4xx-errors          | HTTPCode_Target_4XX_Count | > 100     | 1 min  | 5 consecutive |
 
 All alarms push to SNS topic `{PROJECT_NAME}-alerts` for email notifications.
 
@@ -253,6 +268,7 @@ terraform import aws_ecs_cluster.main arn:aws:ecs:...
 ### Per Environment (staging/production)
 
 **Variables:**
+
 ```
 AWS_REGION, PROJECT_NAME, AWS_ACCOUNT_ID
 ECR_REPOSITORY_WEB, ECR_REPOSITORY_BACKEND
@@ -261,6 +277,7 @@ NEXT_PUBLIC_APP_URL, NEXT_PUBLIC_API_BASE_URL, NEXT_PUBLIC_API_VERSION
 ```
 
 **Secrets:**
+
 ```
 AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
 DATABASE_URL, CORS_ORIGINS

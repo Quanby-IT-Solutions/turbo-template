@@ -50,35 +50,36 @@ apps/web/services/better-auth/
 import { betterAuth } from "better-auth"
 import { drizzleAdapter } from "better-auth/adapters/drizzle"
 import { openAPI } from "better-auth/plugins"
+
 import { createDBClient } from "@repo/db/client"
-import { users, sessions, accounts, verifications } from "@repo/db/schema"
+import { accounts, sessions, users, verifications } from "@repo/db/schema"
 
 export const AUTH_BASE_PATH = "/auth"
 
 export function createAuth() {
-  const db = createDBClient()
-  return betterAuth({
-    database: drizzleAdapter(db, {
-      provider: "pg",
-      schema: { users, sessions, accounts, verifications },
-      usePlural: true,  // Tables are plural: "users" not "user"
-    }),
-    basePath: AUTH_BASE_PATH,
-    secret: authEnv.BETTER_AUTH_SECRET,
-    emailAndPassword: {
-      enabled: true,
-      requireEmailVerification: false,
-    },
-    socialProviders: {
-      google: {
-        prompt: "select_account",
-        clientId: authEnv.GOOGLE_CLIENT_ID as string,
-        clientSecret: authEnv.GOOGLE_CLIENT_SECRET as string,
-      },
-    },
-    trustedOrigins: authEnv.BETTER_AUTH_TRUSTED_ORIGINS?.split(",") ?? [],
-    plugins: [openAPI({ path: "/reference" })],
-  })
+	const db = createDBClient()
+	return betterAuth({
+		database: drizzleAdapter(db, {
+			provider: "pg",
+			schema: { users, sessions, accounts, verifications },
+			usePlural: true, // Tables are plural: "users" not "user"
+		}),
+		basePath: AUTH_BASE_PATH,
+		secret: authEnv.BETTER_AUTH_SECRET,
+		emailAndPassword: {
+			enabled: true,
+			requireEmailVerification: false,
+		},
+		socialProviders: {
+			google: {
+				prompt: "select_account",
+				clientId: authEnv.GOOGLE_CLIENT_ID as string,
+				clientSecret: authEnv.GOOGLE_CLIENT_SECRET as string,
+			},
+		},
+		trustedOrigins: authEnv.BETTER_AUTH_TRUSTED_ORIGINS?.split(",") ?? [],
+		plugins: [openAPI({ path: "/reference" })],
+	})
 }
 ```
 
@@ -88,11 +89,13 @@ export function createAuth() {
 let _auth: ReturnType<typeof betterAuth> | null = null
 
 export function getAuth() {
-  if (!_auth) _auth = createAuth()
-  return _auth!
+	if (!_auth) _auth = createAuth()
+	return _auth!
 }
 
-export function clearAuthCache() { _auth = null }
+export function clearAuthCache() {
+	_auth = null
+}
 ```
 
 ### Environment Variables (Auth)
@@ -111,26 +114,27 @@ GOOGLE_CLIENT_SECRET=        # Optional: Google OAuth client secret
 ```typescript
 // apps/backend/src/config/auth.config.ts
 import { toNodeHandler } from "better-auth/node"
+
 import { AUTH_BASE_PATH, getAuth } from "@repo/auth"
 
 function createAuthMiddleware(versionedAuthPaths: string[]) {
-  const handler = toNodeHandler(getAuth())
-  return (req, res, next) => {
-    const url = req.url ?? ""
-    const matchedPath = versionedAuthPaths.find(path => url.startsWith(path))
-    if (matchedPath) {
-      // Rewrite: /api/v1/auth/sign-in → /auth/sign-in
-      req.url = url.replace(matchedPath, AUTH_BASE_PATH)
-      return handler(req, res)
-    }
-    next()
-  }
+	const handler = toNodeHandler(getAuth())
+	return (req, res, next) => {
+		const url = req.url ?? ""
+		const matchedPath = versionedAuthPaths.find(path => url.startsWith(path))
+		if (matchedPath) {
+			// Rewrite: /api/v1/auth/sign-in → /auth/sign-in
+			req.url = url.replace(matchedPath, AUTH_BASE_PATH)
+			return handler(req, res)
+		}
+		next()
+	}
 }
 
 export function setupBetterAuth(app: INestApplication) {
-  const httpServer = app.getHttpAdapter().getInstance()
-  const authPaths = getVersionKeys().map(v => `/api/${v}/auth`)
-  httpServer.use(createAuthMiddleware(authPaths))
+	const httpServer = app.getHttpAdapter().getInstance()
+	const authPaths = getVersionKeys().map(v => `/api/${v}/auth`)
+	httpServer.use(createAuthMiddleware(authPaths))
 }
 ```
 
@@ -139,12 +143,11 @@ export function setupBetterAuth(app: INestApplication) {
 ```typescript
 // apps/backend/src/app.module.ts
 import { AuthModule } from "@thallesp/nestjs-better-auth"
+
 import { getAuth } from "@repo/auth"
 
 @Module({
-  imports: [
-    AuthModule.forRoot({ auth: getAuth(), disableControllers: true }),
-  ],
+	imports: [AuthModule.forRoot({ auth: getAuth(), disableControllers: true })],
 })
 export class AppModule {}
 ```
@@ -156,15 +159,15 @@ import { Session, type UserSession } from "@thallesp/nestjs-better-auth"
 
 @Controller()
 export class TodosController {
-  @Implement(v1.example.todo.create)
-  async createTodo(@Session() session: UserSession) {
-    return implement(v1.example.todo.create).handler(async ({ input }) => {
-      return this.todosService.create({
-        payload: input,
-        authorId: session.user.id,  // Typed user from session
-      })
-    })
-  }
+	@Implement(v1.example.todo.create)
+	async createTodo(@Session() session: UserSession) {
+		return implement(v1.example.todo.create).handler(async ({ input }) => {
+			return this.todosService.create({
+				payload: input,
+				authorId: session.user.id, // Typed user from session
+			})
+		})
+	}
 }
 ```
 
@@ -177,7 +180,7 @@ export class TodosController {
 import { createAuthClient } from "better-auth/react"
 
 export const authClient = createAuthClient({
-  baseURL: getAuthUrl(),  // e.g., "http://localhost:3000/api/v1/auth"
+	baseURL: getAuthUrl(), // e.g., "http://localhost:3000/api/v1/auth"
 })
 ```
 
@@ -186,22 +189,20 @@ export const authClient = createAuthClient({
 ```tsx
 // apps/web/services/better-auth/context/auth-provider.tsx
 "use client"
+
 import { createContext, useContext } from "react"
+
 import { authClient } from "@/services/better-auth/auth-client"
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { data: session, isPending: isLoading } = authClient.useSession()
-  return (
-    <AuthContext.Provider value={{ session, isLoading }}>
-      {children}
-    </AuthContext.Provider>
-  )
+	const { data: session, isPending: isLoading } = authClient.useSession()
+	return <AuthContext.Provider value={{ session, isLoading }}>{children}</AuthContext.Provider>
 }
 
 export function useAuth() {
-  const context = useContext(AuthContext)
-  if (!context) throw new Error("useAuth must be used within an AuthProvider")
-  return context
+	const context = useContext(AuthContext)
+	if (!context) throw new Error("useAuth must be used within an AuthProvider")
+	return context
 }
 ```
 
@@ -230,16 +231,17 @@ await authClient.signOut()
 ```typescript
 // apps/web/services/better-auth/auth-server.ts
 import { cache } from "react"
+
 import { getCookieHeader } from "@/core/lib/cookie-utils"
 
 export const getSession = cache(async () => {
-  const cookieHeader = await getCookieHeader()
-  const response = await fetch(`${getAuthUrl()}/get-session`, {
-    headers: { "Content-Type": "application/json", cookie: cookieHeader },
-    cache: "no-store",
-  })
-  if (!response.ok) return null
-  return response.json()
+	const cookieHeader = await getCookieHeader()
+	const response = await fetch(`${getAuthUrl()}/get-session`, {
+		headers: { "Content-Type": "application/json", "cookie": cookieHeader },
+		cache: "no-store",
+	})
+	if (!response.ok) return null
+	return response.json()
 })
 ```
 
@@ -250,18 +252,18 @@ export const getSession = cache(async () => {
 import { cookies } from "next/headers"
 
 export async function getCookieHeader(): Promise<string> {
-  const cookieStore = await cookies()
-  return cookieStore.toString()
+	const cookieStore = await cookies()
+	return cookieStore.toString()
 }
 ```
 
 ## Key Integration Points
 
-| Layer | Package/File | Auth Mechanism |
-|-------|-------------|----------------|
-| Shared config | `@repo/auth` | `betterAuth()` with Drizzle adapter |
-| Backend middleware | `auth.config.ts` | Express middleware with URL rewriting |
-| Backend controllers | `@Session()` decorator | `@thallesp/nestjs-better-auth` |
-| Frontend client | `auth-client.ts` | `createAuthClient()` from `better-auth/react` |
-| Frontend SSR | `auth-server.ts` | Cookie forwarding with `React.cache()` |
-| Frontend context | `auth-provider.tsx` | `authClient.useSession()` hook |
+| Layer               | Package/File           | Auth Mechanism                                |
+| ------------------- | ---------------------- | --------------------------------------------- |
+| Shared config       | `@repo/auth`           | `betterAuth()` with Drizzle adapter           |
+| Backend middleware  | `auth.config.ts`       | Express middleware with URL rewriting         |
+| Backend controllers | `@Session()` decorator | `@thallesp/nestjs-better-auth`                |
+| Frontend client     | `auth-client.ts`       | `createAuthClient()` from `better-auth/react` |
+| Frontend SSR        | `auth-server.ts`       | Cookie forwarding with `React.cache()`        |
+| Frontend context    | `auth-provider.tsx`    | `authClient.useSession()` hook                |

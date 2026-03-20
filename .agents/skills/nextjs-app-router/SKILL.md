@@ -88,7 +88,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 import { SubmitTicketForm } from "@/features/tickets/components/submit-ticket-form"
 
 export default function SubmitTicketPage() {
-  return <SubmitTicketForm />
+	return <SubmitTicketForm />
 }
 ```
 
@@ -105,14 +105,16 @@ export default function SubmitTicketPage() {
 
 // Client Component — needs "use client" directive
 "use client"
+
 // Can: useState, useEffect, event handlers, browser APIs
 // Cannot: directly access DB, use async functions for data
 
 // Pattern: Server component fetches, client component renders
 // app/(site)/todos/page.tsx (server)
 import { TodosList } from "@/features/todos/components/todos-list"
+
 export default function TodosPage() {
-  return <TodosList />  // TodosList is "use client" with hooks
+	return <TodosList /> // TodosList is "use client" with hooks
 }
 ```
 
@@ -126,8 +128,8 @@ import { db } from "@repo/db"
 import { todos } from "@repo/db/schema"
 
 export async function createTodoAction(data: { title: string }) {
-  const [todo] = await db.insert(todos).values(data).returning()
-  return todo
+	const [todo] = await db.insert(todos).values(data).returning()
+	return todo
 }
 ```
 
@@ -136,15 +138,16 @@ export async function createTodoAction(data: { title: string }) {
 ```typescript
 // next.config.ts
 const config: NextConfig = {
-  typedRoutes: true,          // Type-safe <Link> href
-  output: "standalone",       // Docker-friendly output
-  transpilePackages: [        // Required for workspace packages
-    "@repo/auth",
-    "@repo/contracts",
-    "@repo/db",
-    "@t3-oss/env-core",
-    "@t3-oss/env-nextjs",
-  ],
+	typedRoutes: true, // Type-safe <Link> href
+	output: "standalone", // Docker-friendly output
+	transpilePackages: [
+		// Required for workspace packages
+		"@repo/auth",
+		"@repo/contracts",
+		"@repo/db",
+		"@t3-oss/env-core",
+		"@t3-oss/env-nextjs",
+	],
 }
 ```
 
@@ -156,17 +159,17 @@ import { createEnv } from "@t3-oss/env-nextjs"
 import { z } from "zod"
 
 export const env = createEnv({
-  client: {
-    NEXT_PUBLIC_APP_URL: z.url(),
-    NEXT_PUBLIC_API_BASE_URL: z.url(),
-    NEXT_PUBLIC_API_VERSION: z.string(),
-  },
-  runtimeEnv: {
-    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
-    NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL,
-    NEXT_PUBLIC_API_VERSION: process.env.NEXT_PUBLIC_API_VERSION,
-  },
-  skipValidation: !!process.env.CI || process.env.npm_lifecycle_event === "lint",
+	client: {
+		NEXT_PUBLIC_APP_URL: z.url(),
+		NEXT_PUBLIC_API_BASE_URL: z.url(),
+		NEXT_PUBLIC_API_VERSION: z.string(),
+	},
+	runtimeEnv: {
+		NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+		NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL,
+		NEXT_PUBLIC_API_VERSION: process.env.NEXT_PUBLIC_API_VERSION,
+	},
+	skipValidation: !!process.env.CI || process.env.npm_lifecycle_event === "lint",
 })
 ```
 
@@ -183,15 +186,15 @@ const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"]
 
 ### File Naming Conventions
 
-| Type            | Convention   | Example                           |
-|-----------------|-------------|-----------------------------------|
-| Components      | kebab-case  | `todo-card.tsx`, `user-avatar.tsx` |
-| Hooks           | kebab-case  | `use-auth.ts`, `use-todos.ts`     |
-| Query hooks     | kebab-case  | `todos.hooks.ts`                  |
-| Folders         | kebab-case  | `user-management/`                |
-| Pages           | `page.tsx`  | `app/(site)/todos/page.tsx`       |
-| Layouts         | `layout.tsx`| `app/(site)/layout.tsx`           |
-| Route handlers  | `route.ts`  | `app/api/tickets/route.ts`        |
+| Type           | Convention   | Example                            |
+| -------------- | ------------ | ---------------------------------- |
+| Components     | kebab-case   | `todo-card.tsx`, `user-avatar.tsx` |
+| Hooks          | kebab-case   | `use-auth.ts`, `use-todos.ts`      |
+| Query hooks    | kebab-case   | `todos.hooks.ts`                   |
+| Folders        | kebab-case   | `user-management/`                 |
+| Pages          | `page.tsx`   | `app/(site)/todos/page.tsx`        |
+| Layouts        | `layout.tsx` | `app/(site)/layout.tsx`            |
+| Route handlers | `route.ts`   | `app/api/tickets/route.ts`         |
 
 ## Key Rules
 

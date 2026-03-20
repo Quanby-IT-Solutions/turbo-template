@@ -15,11 +15,11 @@ updated: 2025-07-12
 
 ## Quick Reference
 
-| App | Dockerfile | Port | Health Check |
-|-----|-----------|------|-------------|
-| Web (Next.js) | `apps/web/Dockerfile` | 3001 | `wget http://localhost:3001/` |
+| App              | Dockerfile                | Port | Health Check                               |
+| ---------------- | ------------------------- | ---- | ------------------------------------------ |
+| Web (Next.js)    | `apps/web/Dockerfile`     | 3001 | `wget http://localhost:3001/`              |
 | Backend (NestJS) | `apps/backend/Dockerfile` | 3000 | `wget http://localhost:3000/api/v1/health` |
-| Root | `Dockerfile` | — | Generic builder for all packages |
+| Root             | `Dockerfile`              | —    | Generic builder for all packages           |
 
 ## Monorepo Docker Strategy
 
@@ -69,6 +69,7 @@ CMD ["node", "apps/web/server.js"]
 ```
 
 **Key patterns:**
+
 - `turbo prune @repo/web --docker` creates isolated workspace with only web's dependencies
 - `--docker` flag splits output into `out/json/` (package.json files) and `out/full/` (source)
 - Two-step copy: install deps from json first (cacheable), then copy source
@@ -117,6 +118,7 @@ CMD ["node", "dist/main.js"]
 ```
 
 **Key patterns:**
+
 - `wget` added for health check (alpine doesn't include curl)
 - `TURBO_FORCE_BUILD=1` ensures fresh build inside Docker
 - Backend uses runtime env vars (not build args) — configured via docker-compose or ECS
@@ -159,7 +161,15 @@ services:
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
       - BETTER_AUTH_TRUSTED_ORIGINS=${BETTER_AUTH_TRUSTED_ORIGINS}
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/v1/health"]
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:3000/api/v1/health",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -173,6 +183,7 @@ networks:
 ```
 
 **Key patterns:**
+
 - Web depends on backend with `service_healthy` condition
 - Backend env vars from `.env` file (not hardcoded)
 - Shared bridge network for service-to-service communication
@@ -211,10 +222,10 @@ docker compose down --volumes --rmi all
 
 ## Build Args vs Runtime Env
 
-| Variable Type | When Set | Example |
-|--------------|----------|---------|
-| Build args (`ARG`) | Docker build time | `NEXT_PUBLIC_*` vars (inlined in JS bundle) |
-| Runtime env (`ENV`) | Container start | `DATABASE_URL`, `BETTER_AUTH_SECRET` |
+| Variable Type       | When Set          | Example                                     |
+| ------------------- | ----------------- | ------------------------------------------- |
+| Build args (`ARG`)  | Docker build time | `NEXT_PUBLIC_*` vars (inlined in JS bundle) |
+| Runtime env (`ENV`) | Container start   | `DATABASE_URL`, `BETTER_AUTH_SECRET`        |
 
 **Rule:** Next.js `NEXT_PUBLIC_*` variables MUST be build args. Backend variables are runtime env.
 

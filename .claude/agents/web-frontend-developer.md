@@ -58,11 +58,9 @@ apps/web/
 
 ```tsx
 <AuthProvider>
-  <QueryProvider>
-    <ThemeProvider>
-      {children}
-    </ThemeProvider>
-  </QueryProvider>
+	<QueryProvider>
+		<ThemeProvider>{children}</ThemeProvider>
+	</QueryProvider>
 </AuthProvider>
 ```
 
@@ -71,20 +69,20 @@ apps/web/
 ```typescript
 // features/[feature]/api/[feature].hooks.ts
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+
 import { orpc } from "@/services/orpc/client"
 
 export function useTodosQuery() {
-  return useQuery(orpc.example.todo.list.queryOptions())
+	return useQuery(orpc.example.todo.list.queryOptions())
 }
 
 export function useCreateTodoMutation() {
-  const queryClient = useQueryClient()
-  return useMutation(
-    orpc.example.todo.create.mutationOptions({
-      onSuccess: () =>
-        queryClient.invalidateQueries({ queryKey: orpc.example.todo.key() }),
-    })
-  )
+	const queryClient = useQueryClient()
+	return useMutation(
+		orpc.example.todo.create.mutationOptions({
+			onSuccess: () => queryClient.invalidateQueries({ queryKey: orpc.example.todo.key() }),
+		})
+	)
 }
 ```
 
@@ -93,21 +91,21 @@ export function useCreateTodoMutation() {
 ```tsx
 // features/[feature]/components/[component].tsx
 interface TodoCardProps {
-  todo: Todo
-  onComplete: (id: number) => void
+	todo: Todo
+	onComplete: (id: number) => void
 }
 
 export function TodoCard({ todo, onComplete }: TodoCardProps) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{todo.title}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Button onClick={() => onComplete(todo.id)}>Complete</Button>
-      </CardContent>
-    </Card>
-  )
+	return (
+		<Card>
+			<CardHeader>
+				<CardTitle>{todo.title}</CardTitle>
+			</CardHeader>
+			<CardContent>
+				<Button onClick={() => onComplete(todo.id)}>Complete</Button>
+			</CardContent>
+		</Card>
+	)
 }
 ```
 
@@ -120,6 +118,7 @@ export function TodoCard({ todo, onComplete }: TodoCardProps) {
 ## Initialization Protocol
 
 When starting any web frontend task:
+
 1. Read the relevant skill file (nextjs-app-router, tailwind-shadcn, tanstack-query-orpc)
 2. Identify affected feature directory in `features/`
 3. Check existing pattern in the codebase before creating new files
@@ -128,6 +127,7 @@ When starting any web frontend task:
 ## Quality Standards
 
 Before completing any task:
+
 - [ ] Components use named exports (not default)
 - [ ] Types co-located with usage
 - [ ] Query hooks use `.queryOptions()` / `.mutationOptions()` from oRPC
@@ -152,9 +152,14 @@ Before completing any task:
 if (isLoading) return <Spinner />
 
 // Error state
-if (error) return <Alert variant="destructive"><AlertDescription>...</AlertDescription></Alert>
+if (error)
+	return (
+		<Alert variant="destructive">
+			<AlertDescription>...</AlertDescription>
+		</Alert>
+	)
 
-// Empty state  
+// Empty state
 if (!data?.length) return <p className="text-muted-foreground">No items yet.</p>
 
 // Data state
@@ -164,6 +169,7 @@ return <List items={data} />
 ## Communication Format
 
 Report progress as:
+
 ```
 Feature: [name]
 Files created: [list]

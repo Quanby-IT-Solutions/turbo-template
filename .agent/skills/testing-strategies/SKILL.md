@@ -15,19 +15,20 @@ updated: 2025-07-12
 
 ## Quick Reference
 
-| Layer | Framework | Config | Command |
-|-------|-----------|--------|---------|
-| Backend unit | Jest + ts-jest | `apps/backend/package.json` (jest key) | `pnpm --filter @repo/backend test` |
-| Backend E2E | Jest + supertest | `apps/backend/test/jest-e2e.json` | `pnpm --filter @repo/backend test:e2e` |
-| Backend coverage | Jest | — | `pnpm --filter @repo/backend test:cov` |
-| Web (future) | Vitest or Jest | — | — |
-| Mobile | flutter_test | `apps/mobile/test/` | `flutter test` |
+| Layer            | Framework        | Config                                 | Command                                |
+| ---------------- | ---------------- | -------------------------------------- | -------------------------------------- |
+| Backend unit     | Jest + ts-jest   | `apps/backend/package.json` (jest key) | `pnpm --filter @repo/backend test`     |
+| Backend E2E      | Jest + supertest | `apps/backend/test/jest-e2e.json`      | `pnpm --filter @repo/backend test:e2e` |
+| Backend coverage | Jest             | —                                      | `pnpm --filter @repo/backend test:cov` |
+| Web (future)     | Vitest or Jest   | —                                      | —                                      |
+| Mobile           | flutter_test     | `apps/mobile/test/`                    | `flutter test`                         |
 
 ## Backend Unit Testing
 
 ### File Location & Naming
 
 Unit test files live next to the source file:
+
 ```
 modules/v1/examples/todos/
 ├── todos.controller.ts
@@ -40,17 +41,17 @@ modules/v1/examples/todos/
 
 ```json
 {
-  "jest": {
-    "rootDir": "src",
-    "testRegex": ".*\\.spec\\.ts$",
-    "transform": {
-      "^.+\\.(t|j)s$": ["ts-jest", { "tsconfig": "tsconfig.spec.json" }]
-    },
-    "collectCoverageFrom": ["**/*.(t|j)s"],
-    "coverageDirectory": "../coverage",
-    "testEnvironment": "node",
-    "moduleNameMapper": { "^@/(.*)$": "<rootDir>/$1" }
-  }
+	"jest": {
+		"rootDir": "src",
+		"testRegex": ".*\\.spec\\.ts$",
+		"transform": {
+			"^.+\\.(t|j)s$": ["ts-jest", { "tsconfig": "tsconfig.spec.json" }]
+		},
+		"collectCoverageFrom": ["**/*.(t|j)s"],
+		"coverageDirectory": "../coverage",
+		"testEnvironment": "node",
+		"moduleNameMapper": { "^@/(.*)$": "<rootDir>/$1" }
+	}
 }
 ```
 
@@ -66,19 +67,20 @@ import type { V1Outputs } from "@/config/contract-types"
 type TodoOutput = V1Outputs["example"]["todo"]["get"]
 
 function createMockTodo(overrides?: Partial<TodoOutput>): TodoOutput {
-  return {
-    id: 1,
-    title: "Test Todo",
-    completed: false,
-    authorId: "user-123",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    ...overrides,
-  }
+	return {
+		id: 1,
+		title: "Test Todo",
+		completed: false,
+		authorId: "user-123",
+		createdAt: new Date().toISOString(),
+		updatedAt: new Date().toISOString(),
+		...overrides,
+	}
 }
 ```
 
 **Rules:**
+
 - Use `V1Outputs` from contract types for type-safe test data
 - Accept `Partial<T>` overrides for flexible customization
 - Provide sensible defaults for all fields
@@ -89,43 +91,43 @@ The most common mock pattern — chaining `.select().from().where()`:
 
 ```typescript
 const mockDb = {
-  select: jest.fn(),
-  insert: jest.fn(),
-  update: jest.fn(),
-  delete: jest.fn(),
+	select: jest.fn(),
+	insert: jest.fn(),
+	update: jest.fn(),
+	delete: jest.fn(),
 }
 
 // Helper: mock select chain
 function setupSelectMock(returnValue: unknown) {
-  const whereFn = jest.fn().mockResolvedValue(returnValue)
-  const fromFn = jest.fn().mockReturnValue({ where: whereFn })
-  mockDb.select.mockReturnValue({ from: fromFn })
-  return { fromFn, whereFn }
+	const whereFn = jest.fn().mockResolvedValue(returnValue)
+	const fromFn = jest.fn().mockReturnValue({ where: whereFn })
+	mockDb.select.mockReturnValue({ from: fromFn })
+	return { fromFn, whereFn }
 }
 
 // Helper: mock insert chain
 function setupInsertMock(returnValue: unknown) {
-  const returningFn = jest.fn().mockResolvedValue(returnValue)
-  const valuesFn = jest.fn().mockReturnValue({ returning: returningFn })
-  mockDb.insert.mockReturnValue({ values: valuesFn })
-  return { valuesFn, returningFn }
+	const returningFn = jest.fn().mockResolvedValue(returnValue)
+	const valuesFn = jest.fn().mockReturnValue({ returning: returningFn })
+	mockDb.insert.mockReturnValue({ values: valuesFn })
+	return { valuesFn, returningFn }
 }
 
 // Helper: mock update chain
 function setupUpdateMock(returnValue: unknown) {
-  const returningFn = jest.fn().mockResolvedValue(returnValue)
-  const whereFn = jest.fn().mockReturnValue({ returning: returningFn })
-  const setFn = jest.fn().mockReturnValue({ where: whereFn })
-  mockDb.update.mockReturnValue({ set: setFn })
-  return { setFn, whereFn, returningFn }
+	const returningFn = jest.fn().mockResolvedValue(returnValue)
+	const whereFn = jest.fn().mockReturnValue({ returning: returningFn })
+	const setFn = jest.fn().mockReturnValue({ where: whereFn })
+	mockDb.update.mockReturnValue({ set: setFn })
+	return { setFn, whereFn, returningFn }
 }
 
 // Helper: mock delete chain
 function setupDeleteMock(returnValue: unknown) {
-  const returningFn = jest.fn().mockResolvedValue(returnValue)
-  const whereFn = jest.fn().mockReturnValue({ returning: returningFn })
-  mockDb.delete.mockReturnValue({ where: whereFn })
-  return { whereFn, returningFn }
+	const returningFn = jest.fn().mockResolvedValue(returnValue)
+	const whereFn = jest.fn().mockReturnValue({ returning: returningFn })
+	mockDb.delete.mockReturnValue({ where: whereFn })
+	return { whereFn, returningFn }
 }
 ```
 
@@ -133,55 +135,54 @@ function setupDeleteMock(returnValue: unknown) {
 
 ```typescript
 import { Test, TestingModule } from "@nestjs/testing"
+
 import { DB } from "@/common/database/database-providers"
+
 import { TodosService } from "./todos.service"
 
 // Mock external modules
 jest.mock("@repo/db/schema", () => ({
-  todos: { id: "id", title: "title", completed: "completed", authorId: "authorId" },
+	todos: { id: "id", title: "title", completed: "completed", authorId: "authorId" },
 }))
 
 describe("TodosService", () => {
-  let service: TodosService
-  const mockDb = { select: jest.fn(), insert: jest.fn(), update: jest.fn(), delete: jest.fn() }
+	let service: TodosService
+	const mockDb = { select: jest.fn(), insert: jest.fn(), update: jest.fn(), delete: jest.fn() }
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        TodosService,
-        { provide: DB, useValue: mockDb },
-      ],
-    }).compile()
+	beforeEach(async () => {
+		const module: TestingModule = await Test.createTestingModule({
+			providers: [TodosService, { provide: DB, useValue: mockDb }],
+		}).compile()
 
-    service = module.get<TodosService>(TodosService)
-    jest.clearAllMocks()
-  })
+		service = module.get<TodosService>(TodosService)
+		jest.clearAllMocks()
+	})
 
-  describe("findAll", () => {
-    it("should return all todos", async () => {
-      const mockTodos = [createMockTodo(), createMockTodo({ id: 2, title: "Second" })]
-      setupSelectMock(mockTodos)
+	describe("findAll", () => {
+		it("should return all todos", async () => {
+			const mockTodos = [createMockTodo(), createMockTodo({ id: 2, title: "Second" })]
+			setupSelectMock(mockTodos)
 
-      const result = await service.findAll()
+			const result = await service.findAll()
 
-      expect(result).toEqual(mockTodos)
-      expect(mockDb.select).toHaveBeenCalled()
-    })
-  })
+			expect(result).toEqual(mockTodos)
+			expect(mockDb.select).toHaveBeenCalled()
+		})
+	})
 
-  describe("create", () => {
-    it("should create and return a todo", async () => {
-      const newTodo = createMockTodo()
-      setupInsertMock([newTodo])
+	describe("create", () => {
+		it("should create and return a todo", async () => {
+			const newTodo = createMockTodo()
+			setupInsertMock([newTodo])
 
-      const result = await service.create({
-        payload: { title: "Test Todo", completed: false },
-        authorId: "user-123",
-      })
+			const result = await service.create({
+				payload: { title: "Test Todo", completed: false },
+				authorId: "user-123",
+			})
 
-      expect(result).toEqual(newTodo)
-    })
-  })
+			expect(result).toEqual(newTodo)
+		})
+	})
 })
 ```
 
@@ -190,15 +191,15 @@ describe("TodosService", () => {
 ```typescript
 // Mock @Session() decorator
 jest.mock("@thallesp/nestjs-better-auth", () => ({
-  Session: () => () => {},         // No-op decorator
-  AuthModule: { forRoot: () => ({ module: class {} }) },
+	Session: () => () => {}, // No-op decorator
+	AuthModule: { forRoot: () => ({ module: class {} }) },
 }))
 
 // Mock auth guard
 jest.mock("@/shared/guards/auth.guard", () => ({
-  AuthGuard: jest.fn().mockImplementation(() => ({
-    canActivate: jest.fn().mockReturnValue(true),
-  })),
+	AuthGuard: jest.fn().mockImplementation(() => ({
+		canActivate: jest.fn().mockReturnValue(true),
+	})),
 }))
 ```
 
@@ -208,75 +209,75 @@ jest.mock("@/shared/guards/auth.guard", () => ({
 
 ```json
 {
-  "moduleFileExtensions": ["js", "json", "ts"],
-  "rootDir": ".",
-  "testEnvironment": "node",
-  "testRegex": ".e2e-spec.ts$",
-  "transform": { "^.+\\.(t|j)s$": "ts-jest" }
+	"moduleFileExtensions": ["js", "json", "ts"],
+	"rootDir": ".",
+	"testEnvironment": "node",
+	"testRegex": ".e2e-spec.ts$",
+	"transform": { "^.+\\.(t|j)s$": "ts-jest" }
 }
 ```
 
 ### E2E Test Pattern (Full CRUD Cycle)
 
 ```typescript
-import { Test, TestingModule } from "@nestjs/testing"
 import { INestApplication, ValidationPipe, VersioningType } from "@nestjs/common"
+import { Test, TestingModule } from "@nestjs/testing"
 import * as request from "supertest"
+
 import { AppModule } from "../src/app.module"
 
 describe("TodosController (e2e)", () => {
-  let app: INestApplication
+	let app: INestApplication
 
-  beforeAll(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile()
+	beforeAll(async () => {
+		const moduleFixture: TestingModule = await Test.createTestingModule({
+			imports: [AppModule],
+		}).compile()
 
-    app = moduleFixture.createNestApplication()
-    app.setGlobalPrefix("api")
-    app.enableVersioning({ type: VersioningType.URI, defaultVersion: "1" })
-    app.useGlobalPipes(new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-    }))
-    await app.init()
-  })
+		app = moduleFixture.createNestApplication()
+		app.setGlobalPrefix("api")
+		app.enableVersioning({ type: VersioningType.URI, defaultVersion: "1" })
+		app.useGlobalPipes(
+			new ValidationPipe({
+				whitelist: true,
+				forbidNonWhitelisted: true,
+				transform: true,
+			})
+		)
+		await app.init()
+	})
 
-  afterAll(async () => {
-    await app.close()
-  })
+	afterAll(async () => {
+		await app.close()
+	})
 
-  it("CRUD workflow", async () => {
-    // List
-    const listRes = await request(app.getHttpServer())
-      .get("/api/v1/examples/todos")
-      .expect(200)
-    expect(Array.isArray(listRes.body)).toBe(true)
+	it("CRUD workflow", async () => {
+		// List
+		const listRes = await request(app.getHttpServer()).get("/api/v1/examples/todos").expect(200)
+		expect(Array.isArray(listRes.body)).toBe(true)
 
-    // Create
-    const createRes = await request(app.getHttpServer())
-      .post("/api/v1/examples/todos")
-      .send({ title: "E2E Todo", completed: false })
-      .expect(201)
-    expect(createRes.body.title).toBe("E2E Todo")
-    const todoId = createRes.body.id
+		// Create
+		const createRes = await request(app.getHttpServer())
+			.post("/api/v1/examples/todos")
+			.send({ title: "E2E Todo", completed: false })
+			.expect(201)
+		expect(createRes.body.title).toBe("E2E Todo")
+		const todoId = createRes.body.id
 
-    // Update
-    await request(app.getHttpServer())
-      .put(`/api/v1/examples/todos/${todoId}`)
-      .send({ title: "Updated E2E Todo", completed: true })
-      .expect(200)
+		// Update
+		await request(app.getHttpServer())
+			.put(`/api/v1/examples/todos/${todoId}`)
+			.send({ title: "Updated E2E Todo", completed: true })
+			.expect(200)
 
-    // Delete
-    await request(app.getHttpServer())
-      .delete(`/api/v1/examples/todos/${todoId}`)
-      .expect(200)
-  })
+		// Delete
+		await request(app.getHttpServer()).delete(`/api/v1/examples/todos/${todoId}`).expect(200)
+	})
 })
 ```
 
 **Key patterns:**
+
 - Mirror the same global configuration as `bootstrap.ts` (prefix, versioning, pipes)
 - Use `beforeAll`/`afterAll` for app lifecycle (not `beforeEach` — too slow)
 - Test full CRUD cycles in sequence for integration coverage
@@ -287,13 +288,13 @@ Override the DB provider for isolated E2E tests:
 
 ```typescript
 const moduleFixture = await Test.createTestingModule({
-  imports: [AppModule],
+	imports: [AppModule],
 })
-  .overrideProvider(DB)
-  .useValue({
-    execute: jest.fn().mockResolvedValue([{ status: "ok" }]),
-  })
-  .compile()
+	.overrideProvider(DB)
+	.useValue({
+		execute: jest.fn().mockResolvedValue([{ status: "ok" }]),
+	})
+	.compile()
 ```
 
 ## Test Commands
@@ -328,12 +329,12 @@ pnpm --filter @repo/backend test -- --testPathPattern=todos.service.spec
 
 ## Coverage Targets
 
-| Metric | Minimum | Target |
-|--------|---------|--------|
-| Statements | 70% | 85% |
-| Branches | 60% | 80% |
-| Functions | 70% | 85% |
-| Lines | 70% | 85% |
+| Metric     | Minimum | Target |
+| ---------- | ------- | ------ |
+| Statements | 70%     | 85%    |
+| Branches   | 60%     | 80%    |
+| Functions  | 70%     | 85%    |
+| Lines      | 70%     | 85%    |
 
 ## Writing Good Tests
 

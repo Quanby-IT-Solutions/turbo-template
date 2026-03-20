@@ -97,23 +97,23 @@ Use **sub-agents by default for feature work**; skip them only for trivial local
 
 Skills provide deep context for specific technologies used in this repo. They are loaded automatically by AI agents from `.agents/skills/` when a task matches their domain:
 
-| Skill                       | Domain                                   |
-| --------------------------- | ---------------------------------------- |
-| `orpc-contracts`            | oRPC contract-first API design           |
-| `drizzle-postgres`          | Drizzle ORM schemas, queries, migrations |
-| `tanstack-query-orpc`       | TanStack Query + oRPC data fetching      |
-| `better-auth`               | Authentication, sessions, OAuth          |
-| `nextjs-app-router`         | Next.js 16 App Router conventions        |
-| `tailwind-shadcn`           | Tailwind CSS v4 + shadcn/ui components   |
-| `turborepo-monorepo`        | pnpm workspaces, turbo.json, packages    |
-| `testing-strategies`        | Unit, integration, E2E testing patterns  |
-| `docker-deployment`         | Docker multi-stage builds, compose       |
-| `aws-infrastructure`        | ECS Fargate, ALB, Terraform              |
-| `ci-cd-pipelines`           | GitHub Actions workflows                 |
-| `security-hardening`        | OWASP, auth guards, input validation     |
-| `error-handling-logging`    | Exception filters, structured logging    |
-| `vercel-react-best-practices` | React/Next.js performance optimization |
-| `web-design-guidelines`     | UI/UX accessibility and design review    |
+| Skill                         | Domain                                   |
+| ----------------------------- | ---------------------------------------- |
+| `orpc-contracts`              | oRPC contract-first API design           |
+| `drizzle-postgres`            | Drizzle ORM schemas, queries, migrations |
+| `tanstack-query-orpc`         | TanStack Query + oRPC data fetching      |
+| `better-auth`                 | Authentication, sessions, OAuth          |
+| `nextjs-app-router`           | Next.js 16 App Router conventions        |
+| `tailwind-shadcn`             | Tailwind CSS v4 + shadcn/ui components   |
+| `turborepo-monorepo`          | pnpm workspaces, turbo.json, packages    |
+| `testing-strategies`          | Unit, integration, E2E testing patterns  |
+| `docker-deployment`           | Docker multi-stage builds, compose       |
+| `aws-infrastructure`          | ECS Fargate, ALB, Terraform              |
+| `ci-cd-pipelines`             | GitHub Actions workflows                 |
+| `security-hardening`          | OWASP, auth guards, input validation     |
+| `error-handling-logging`      | Exception filters, structured logging    |
+| `vercel-react-best-practices` | React/Next.js performance optimization   |
+| `web-design-guidelines`       | UI/UX accessibility and design review    |
 
 ## Common Scripts
 

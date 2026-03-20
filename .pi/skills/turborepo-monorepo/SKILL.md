@@ -65,6 +65,7 @@ catalog:
 ## Common Scripts
 
 ### Development
+
 ```bash
 pnpm dev              # Start all apps in dev mode
 pnpm dev:web          # Start only web app
@@ -73,6 +74,7 @@ pnpm dev:mobile       # Start only mobile app (Flutter)
 ```
 
 ### Build & Quality
+
 ```bash
 pnpm build            # Build all apps (respects pipeline deps)
 pnpm lint             # ESLint across all packages
@@ -84,6 +86,7 @@ pnpm lint:ws          # Check workspace deps (sherif)
 ```
 
 ### Database
+
 ```bash
 pnpm db:push          # Push schema changes (dev)
 pnpm db:generate      # Generate migration files
@@ -92,6 +95,7 @@ pnpm db:studio        # Open Drizzle Studio
 ```
 
 ### Auth
+
 ```bash
 pnpm auth:generate    # Regenerate Better Auth types
 ```
@@ -101,29 +105,30 @@ pnpm auth:generate    # Regenerate Better Auth types
 ```json
 // turbo.json
 {
-  "tasks": {
-    "build": {
-      "dependsOn": ["^build", "^lint", "^typecheck"],
-      "outputs": [".cache/tsbuildinfo.json", "dist/**"],
-      "cache": true
-    },
-    "dev": { "cache": false, "persistent": false },
-    "lint": {
-      "dependsOn": ["^topo", "^build"],
-      "outputs": [".cache/.eslintcache"],
-      "cache": true
-    },
-    "typecheck": {
-      "dependsOn": ["^topo", "^build"],
-      "outputs": [".cache/tsbuildinfo.json"],
-      "cache": true
-    }
-  },
-  "globalPassThroughEnv": ["NODE_ENV", "CI", "VERCEL", "VERCEL_ENV", "VERCEL_URL"]
+	"tasks": {
+		"build": {
+			"dependsOn": ["^build", "^lint", "^typecheck"],
+			"outputs": [".cache/tsbuildinfo.json", "dist/**"],
+			"cache": true
+		},
+		"dev": { "cache": false, "persistent": false },
+		"lint": {
+			"dependsOn": ["^topo", "^build"],
+			"outputs": [".cache/.eslintcache"],
+			"cache": true
+		},
+		"typecheck": {
+			"dependsOn": ["^topo", "^build"],
+			"outputs": [".cache/tsbuildinfo.json"],
+			"cache": true
+		}
+	},
+	"globalPassThroughEnv": ["NODE_ENV", "CI", "VERCEL", "VERCEL_ENV", "VERCEL_URL"]
 }
 ```
 
 **Key points:**
+
 - `^build` = build dependencies first (topological)
 - `build` depends on `^lint` + `^typecheck` for quality gate
 - `dev` is not cached (live reload)
@@ -136,11 +141,11 @@ pnpm auth:generate    # Regenerate Better Auth types
 ```json
 // In apps/web/package.json or apps/backend/package.json
 {
-  "dependencies": {
-    "@repo/auth": "workspace:*",
-    "@repo/contracts": "workspace:*",
-    "@repo/db": "workspace:*"
-  }
+	"dependencies": {
+		"@repo/auth": "workspace:*",
+		"@repo/contracts": "workspace:*",
+		"@repo/db": "workspace:*"
+	}
 }
 ```
 
@@ -157,11 +162,11 @@ import { todos, users } from "@repo/db/schema"
 ```json
 // packages/db/package.json
 {
-  "name": "@repo/db",
-  "exports": {
-    "./schema": { "types": "./dist/schema.d.ts", "default": "./dist/schema.js" },
-    "./client": { "types": "./dist/client.d.ts", "default": "./dist/client.js" }
-  }
+	"name": "@repo/db",
+	"exports": {
+		"./schema": { "types": "./dist/schema.d.ts", "default": "./dist/schema.js" },
+		"./client": { "types": "./dist/client.d.ts", "default": "./dist/client.js" }
+	}
 }
 ```
 
@@ -170,16 +175,20 @@ import { todos, users } from "@repo/db/schema"
 ```typescript
 // apps/web/next.config.ts
 const config: NextConfig = {
-  transpilePackages: [
-    "@repo/auth", "@repo/contracts", "@repo/db",
-    "@t3-oss/env-core", "@t3-oss/env-nextjs",
-  ],
+	transpilePackages: [
+		"@repo/auth",
+		"@repo/contracts",
+		"@repo/db",
+		"@t3-oss/env-core",
+		"@t3-oss/env-nextjs",
+	],
 }
 ```
 
 ## Creating a New Package
 
 1. **Create directory structure:**
+
    ```
    packages/[name]/
    ├── src/index.ts
@@ -188,23 +197,30 @@ const config: NextConfig = {
    ```
 
 2. **Package manifest:**
+
    ```json
    {
-     "name": "@repo/[name]",
-     "version": "0.0.0",
-     "private": true,
-     "type": "module",
-     "exports": { ".": "./src/index.ts" },
-     "scripts": { "build": "tsc", "dev": "tsc --watch" }
+   	"name": "@repo/[name]",
+   	"version": "0.0.0",
+   	"private": true,
+   	"type": "module",
+   	"exports": { ".": "./src/index.ts" },
+   	"scripts": { "build": "tsc", "dev": "tsc --watch" }
    }
    ```
 
 3. **TypeScript config:**
+
    ```json
-   { "extends": "@repo/typescript-config/pkg.json", "include": ["src"], "exclude": ["node_modules"] }
+   {
+   	"extends": "@repo/typescript-config/pkg.json",
+   	"include": ["src"],
+   	"exclude": ["node_modules"]
+   }
    ```
 
 4. **Add to consumers:**
+
    ```json
    { "dependencies": { "@repo/[name]": "workspace:*" } }
    ```
@@ -214,19 +230,23 @@ const config: NextConfig = {
 ## Tooling Config Sharing
 
 ### ESLint
+
 ```javascript
 // apps/backend/eslint.config.mjs
 import nestConfig from "@repo/eslint-config/nest.mjs"
+
 export default [...nestConfig]
 ```
 
 ### TypeScript
+
 ```json
 // apps/web/tsconfig.json
 { "extends": "@repo/typescript-config/next.json" }
 ```
 
 ### Prettier
+
 ```json
 // apps/web/package.json
 { "prettier": "@repo/prettier-config" }

@@ -38,18 +38,18 @@ GitHub Actions CI/CD
 
 ### Key Files
 
-| Purpose | File |
-|---------|------|
-| Web Dockerfile | `apps/web/Dockerfile` |
-| Backend Dockerfile | `apps/backend/Dockerfile` |
-| Docker Compose | `docker-compose.yml` |
-| CI workflow | `.github/workflows/ci.yml` |
-| Deploy workflow | `.github/workflows/deploy.yml` |
-| Infrastructure workflow | `.github/workflows/infrastructure.yml` |
-| Terraform configs | `aws/terraform/*.tf` |
-| Task definitions | `aws/ecs/task-definition-*.json` |
-| CloudWatch alarms | `aws/monitoring/cloudwatch-alarms.json` |
-| Setup guide | `aws/setup-guide.md` |
+| Purpose                 | File                                    |
+| ----------------------- | --------------------------------------- |
+| Web Dockerfile          | `apps/web/Dockerfile`                   |
+| Backend Dockerfile      | `apps/backend/Dockerfile`               |
+| Docker Compose          | `docker-compose.yml`                    |
+| CI workflow             | `.github/workflows/ci.yml`              |
+| Deploy workflow         | `.github/workflows/deploy.yml`          |
+| Infrastructure workflow | `.github/workflows/infrastructure.yml`  |
+| Terraform configs       | `aws/terraform/*.tf`                    |
+| Task definitions        | `aws/ecs/task-definition-*.json`        |
+| CloudWatch alarms       | `aws/monitoring/cloudwatch-alarms.json` |
+| Setup guide             | `aws/setup-guide.md`                    |
 
 ### Docker Build Strategy
 
@@ -60,12 +60,12 @@ Uses `turbo prune --docker` to create minimal Docker contexts:
 
 ### Environment Variable Rules
 
-| Type | When Set | Example |
-|------|----------|---------|
-| Build ARG | Docker build time | `NEXT_PUBLIC_*` (baked into JS bundle) |
-| Runtime ENV | Container start | `DATABASE_URL`, `BETTER_AUTH_SECRET` |
-| GitHub Variables | Per environment | `AWS_REGION`, `PROJECT_NAME` |
-| GitHub Secrets | Per environment | `DATABASE_URL`, `AWS_SECRET_ACCESS_KEY` |
+| Type             | When Set          | Example                                 |
+| ---------------- | ----------------- | --------------------------------------- |
+| Build ARG        | Docker build time | `NEXT_PUBLIC_*` (baked into JS bundle)  |
+| Runtime ENV      | Container start   | `DATABASE_URL`, `BETTER_AUTH_SECRET`    |
+| GitHub Variables | Per environment   | `AWS_REGION`, `PROJECT_NAME`            |
+| GitHub Secrets   | Per environment   | `DATABASE_URL`, `AWS_SECRET_ACCESS_KEY` |
 
 ### Branch Strategy
 
@@ -77,10 +77,10 @@ production  → CI + auto-deploy to production
 
 ### Resource Sizing
 
-| Environment | CPU | Memory |
-|-------------|-----|--------|
-| Staging | 256 | 512 MB |
-| Production | 512 | 1024 MB |
+| Environment | CPU | Memory  |
+| ----------- | --- | ------- |
+| Staging     | 256 | 512 MB  |
+| Production  | 512 | 1024 MB |
 
 ### Security Group Layout
 
@@ -93,6 +93,7 @@ Backend SG: 3000 from ALB SG only
 ### CloudWatch Monitoring
 
 8 alarms configured:
+
 - CPU/memory utilization > 80% (web + backend)
 - Unhealthy task count > 0 (web + backend)
 - ALB 5xx > 50 per minute
@@ -102,6 +103,7 @@ Backend SG: 3000 from ALB SG only
 ## Initialization Protocol
 
 When starting any DevOps task:
+
 1. Read the relevant skill file (docker-deployment, aws-infrastructure, ci-cd-pipelines)
 2. Identify which component is affected (Docker, CI, Terraform, ECS, monitoring)
 3. Check existing patterns before modifying infrastructure files
@@ -110,6 +112,7 @@ When starting any DevOps task:
 ## Quality Standards
 
 Before completing any task:
+
 - [ ] Docker images use `node:22-alpine` base
 - [ ] Multi-stage builds with non-root users
 - [ ] Health checks defined in Dockerfiles
@@ -152,6 +155,7 @@ Before completing any task:
 ## Communication Format
 
 Report progress as:
+
 ```
 Component: [Docker/CI/Terraform/ECS/Monitoring]
 Files modified: [list]

@@ -44,17 +44,17 @@ import "@/core/styles/globals.css"
 // Uses next-themes for dark mode
 import { ThemeProvider } from "@/core/context/theme-provider"
 
-<ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-  {children}
+;<ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+	{children}
 </ThemeProvider>
 ```
 
 ## Component Locations
 
-| Type | Location | Import |
-|------|----------|--------|
-| shadcn base | `core/components/ui/` | `@/core/components/ui/button` |
-| Shared components | `core/components/` | `@/core/components/sidebar/` |
+| Type               | Location                      | Import                                  |
+| ------------------ | ----------------------------- | --------------------------------------- |
+| shadcn base        | `core/components/ui/`         | `@/core/components/ui/button`           |
+| Shared components  | `core/components/`            | `@/core/components/sidebar/`            |
 | Feature components | `features/[name]/components/` | `@/features/todos/components/todo-card` |
 
 ### Adding a shadcn Component
@@ -105,49 +105,53 @@ Only use separate `w-*` and `h-*` when dimensions differ:
 ### Card with Header and Content
 
 ```tsx
-import { Card, CardContent, CardHeader, CardTitle } from "@/core/components/ui/card"
 import { Button } from "@/core/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/core/components/ui/card"
 
 export function TodoCard({ todo }: { todo: Todo }) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{todo.title}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Button onClick={() => onComplete(todo.id)}>Complete</Button>
-      </CardContent>
-    </Card>
-  )
+	return (
+		<Card>
+			<CardHeader>
+				<CardTitle>{todo.title}</CardTitle>
+			</CardHeader>
+			<CardContent>
+				<Button onClick={() => onComplete(todo.id)}>Complete</Button>
+			</CardContent>
+		</Card>
+	)
 }
 ```
 
 ### Form with TanStack Form + shadcn
 
 ```tsx
+import { Button } from "@/core/components/ui/button"
 import { Input } from "@/core/components/ui/input"
 import { Label } from "@/core/components/ui/label"
-import { Button } from "@/core/components/ui/button"
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
 } from "@/core/components/ui/select"
 
 // Field pattern with validation
-<form.Field name="title">
-  {(field) => (
-    <div className="space-y-2">
-      <Label htmlFor={field.name}>Title</Label>
-      <Input
-        id={field.name}
-        value={field.state.value}
-        onChange={(e) => field.handleChange(e.target.value)}
-        onBlur={field.handleBlur}
-      />
-      {field.state.meta.errors?.length > 0 && (
-        <p className="text-sm text-destructive">{field.state.meta.errors[0]}</p>
-      )}
-    </div>
-  )}
+;<form.Field name="title">
+	{field => (
+		<div className="space-y-2">
+			<Label htmlFor={field.name}>Title</Label>
+			<Input
+				id={field.name}
+				value={field.state.value}
+				onChange={e => field.handleChange(e.target.value)}
+				onBlur={field.handleBlur}
+			/>
+			{field.state.meta.errors?.length > 0 && (
+				<p className="text-destructive text-sm">{field.state.meta.errors[0]}</p>
+			)}
+		</div>
+	)}
 </form.Field>
 ```
 
@@ -155,11 +159,14 @@ import {
 
 ```tsx
 // Setup in root layout
-import { Toaster } from "@/core/components/ui/sonner"
-<Toaster richColors closeButton />
 
 // Usage in components
 import { toast } from "sonner"
+
+import { Toaster } from "@/core/components/ui/sonner"
+
+;<Toaster richColors closeButton />
+
 toast.success("Todo created!")
 toast.error("Failed to create todo")
 ```
@@ -168,8 +175,13 @@ toast.error("Failed to create todo")
 
 ```tsx
 import {
-  Sidebar, SidebarContent, SidebarGroup, SidebarGroupLabel,
-  SidebarMenu, SidebarMenuButton, SidebarMenuItem
+	Sidebar,
+	SidebarContent,
+	SidebarGroup,
+	SidebarGroupLabel,
+	SidebarMenu,
+	SidebarMenuButton,
+	SidebarMenuItem,
 } from "@/core/components/ui/sidebar"
 ```
 
@@ -181,22 +193,22 @@ For component variants:
 import { cva, type VariantProps } from "class-variance-authority"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center rounded-md text-sm font-medium",
-  {
-    variants: {
-      variant: {
-        default: "bg-primary text-primary-foreground",
-        destructive: "bg-destructive text-destructive-foreground",
-        outline: "border border-input bg-background",
-      },
-      size: {
-        default: "h-10 px-4 py-2",
-        sm: "h-9 px-3",
-        lg: "h-11 px-8",
-      },
-    },
-    defaultVariants: { variant: "default", size: "default" },
-  }
+	"inline-flex items-center justify-center rounded-md text-sm font-medium",
+	{
+		variants: {
+			variant: {
+				default: "bg-primary text-primary-foreground",
+				destructive: "bg-destructive text-destructive-foreground",
+				outline: "border-input bg-background border",
+			},
+			size: {
+				default: "h-10 px-4 py-2",
+				sm: "h-9 px-3",
+				lg: "h-11 px-8",
+			},
+		},
+		defaultVariants: { variant: "default", size: "default" },
+	}
 )
 ```
 
@@ -207,7 +219,7 @@ This project uses `@hugeicons/react` for icons:
 ```tsx
 import { Home01Icon, SettingsIcon } from "@hugeicons/react"
 
-<Home01Icon className="size-4" />
+;<Home01Icon className="size-4" />
 ```
 
 ## Key Rules

@@ -9,6 +9,7 @@ Real-world implementation examples demonstrating production-ready patterns and b
 **Complete CRUD Implementation**
 
 Demonstrates:
+
 - ✅ Full CRUD operations with TypeORM
 - ✅ JWT authentication and RBAC authorization
 - ✅ Input validation with class-validator
@@ -20,12 +21,14 @@ Demonstrates:
 - ✅ Comprehensive error handling
 
 **Use this example when:**
+
 - Building entity CRUD operations
 - Implementing role-based access control
 - Adding caching to your services
 - Creating RESTful APIs with OpenAPI docs
 
 **Key sections:**
+
 1. Entity definition with TypeORM
 2. DTOs with validation decorators
 3. Repository pattern implementation
@@ -39,6 +42,7 @@ Demonstrates:
 **JWT Authentication System**
 
 Demonstrates:
+
 - ✅ JWT token generation and validation
 - ✅ Passport.js integration (JWT + Local strategies)
 - ✅ Login/logout functionality
@@ -49,12 +53,14 @@ Demonstrates:
 - ✅ E2E authentication tests
 
 **Use this example when:**
+
 - Implementing authentication from scratch
 - Adding JWT-based security
 - Creating login/register endpoints
 - Implementing token refresh mechanism
 
 **Key sections:**
+
 1. JWT Strategy with Passport
 2. Local Strategy for username/password
 3. AuthService with token generation
@@ -97,14 +103,16 @@ Add to your `app.module.ts`:
 
 ```typescript
 @Module({
-  imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
-    TypeOrmModule.forRoot({ /* config */ }),
-    CacheModule.register({ isGlobal: true }),
-    EventEmitterModule.forRoot(),
-    AuthModule,
-    UsersModule,
-  ],
+	imports: [
+		ConfigModule.forRoot({ isGlobal: true }),
+		TypeOrmModule.forRoot({
+			/* config */
+		}),
+		CacheModule.register({ isGlobal: true }),
+		EventEmitterModule.forRoot(),
+		AuthModule,
+		UsersModule,
+	],
 })
 export class AppModule {}
 ```
@@ -219,6 +227,7 @@ Refer to the comprehensive patterns in `REFERENCE.md`:
 ## Version Compatibility
 
 These examples are compatible with:
+
 - NestJS: 8.0+ (recommended 10.4+)
 - TypeORM: 0.3+
 - Node.js: 18+

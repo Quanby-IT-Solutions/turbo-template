@@ -16,11 +16,11 @@ updated: 2025-07-12
 
 ## Quick Reference
 
-| Workflow | File | Trigger | Purpose |
-|----------|------|---------|---------|
-| CI | `.github/workflows/ci.yml` | Push/PR to dev/staging/production | Lint, typecheck, format |
-| Deploy | `.github/workflows/deploy.yml` | Push to staging/production + manual | Build, push ECR, deploy ECS |
-| Infrastructure | `.github/workflows/infrastructure.yml` | Manual only | One-time AWS setup |
+| Workflow       | File                                   | Trigger                             | Purpose                     |
+| -------------- | -------------------------------------- | ----------------------------------- | --------------------------- |
+| CI             | `.github/workflows/ci.yml`             | Push/PR to dev/staging/production   | Lint, typecheck, format     |
+| Deploy         | `.github/workflows/deploy.yml`         | Push to staging/production + manual | Build, push ECR, deploy ECS |
+| Infrastructure | `.github/workflows/infrastructure.yml` | Manual only                         | One-time AWS setup          |
 
 ## Branch Strategy
 
@@ -75,6 +75,7 @@ jobs:
 ```
 
 **Key patterns:**
+
 - `concurrency` cancels in-progress runs when new pushes arrive
 - `fetch-depth: 2` for efficient Turbo change detection
 - `paths-ignore` skips docs-only changes
@@ -113,7 +114,7 @@ For manual triggers, validates branch matches environment (staging branch → st
 4. **AWS credentials** — Configure via `aws-actions/configure-aws-credentials`
 5. **Terraform** — `init → plan → apply` (infrastructure-as-code)
 6. **ECR login** — Authenticate Docker to push images
-7. **Build web image** — Docker Buildx with cache, NEXT_PUBLIC_* build args
+7. **Build web image** — Docker Buildx with cache, NEXT*PUBLIC*\* build args
 8. **Push web image** — Tags: `{sha}` + `latest`
 9. **Build backend image** — Docker Buildx with cache
 10. **Push backend image** — Tags: `{sha}` + `latest`
@@ -145,6 +146,7 @@ For manual triggers, validates branch matches environment (staging branch → st
 ```
 
 **Key patterns:**
+
 - GitHub Actions cache (`type=gha`) for Docker layer caching
 - Immutable tags from `github.sha` + mutable `latest`
 - Build args for Next.js public variables
@@ -187,6 +189,7 @@ Uses `envsubst` to replace `${VARIABLE}` placeholders in JSON templates.
 Manual-trigger-only workflow for initial AWS setup:
 
 **Creates (in order):**
+
 1. VPC + subnets + Internet Gateway + NAT Gateway
 2. Security groups (ALB, ECS web, ECS backend)
 3. IAM roles (task execution, task)
@@ -198,6 +201,7 @@ Manual-trigger-only workflow for initial AWS setup:
 9. ECS services (web, backend)
 
 **Inputs:**
+
 - `environment`: staging or production
 - `create_vpc`: true/false (can reuse existing VPC)
 
@@ -205,32 +209,32 @@ Manual-trigger-only workflow for initial AWS setup:
 
 ### Required Variables (per environment)
 
-| Variable | Example (staging) |
-|----------|-------------------|
-| `AWS_REGION` | `ap-southeast-1` |
-| `PROJECT_NAME` | `turbo-template` |
-| `AWS_ACCOUNT_ID` | `123456789012` |
-| `ECR_REPOSITORY_WEB` | `turbo-template-web-staging` |
-| `ECR_REPOSITORY_BACKEND` | `turbo-template-backend-staging` |
-| `ECS_CLUSTER` | `turbo-template-cluster-staging` |
-| `ECS_SERVICE_WEB` | `turbo-template-web-staging` |
-| `ECS_SERVICE_BACKEND` | `turbo-template-backend-staging` |
-| `NEXT_PUBLIC_APP_URL` | `https://staging.example.com` |
+| Variable                   | Example (staging)                 |
+| -------------------------- | --------------------------------- |
+| `AWS_REGION`               | `ap-southeast-1`                  |
+| `PROJECT_NAME`             | `turbo-template`                  |
+| `AWS_ACCOUNT_ID`           | `123456789012`                    |
+| `ECR_REPOSITORY_WEB`       | `turbo-template-web-staging`      |
+| `ECR_REPOSITORY_BACKEND`   | `turbo-template-backend-staging`  |
+| `ECS_CLUSTER`              | `turbo-template-cluster-staging`  |
+| `ECS_SERVICE_WEB`          | `turbo-template-web-staging`      |
+| `ECS_SERVICE_BACKEND`      | `turbo-template-backend-staging`  |
+| `NEXT_PUBLIC_APP_URL`      | `https://staging.example.com`     |
 | `NEXT_PUBLIC_API_BASE_URL` | `https://staging.example.com/api` |
-| `NEXT_PUBLIC_API_VERSION` | `v1` |
+| `NEXT_PUBLIC_API_VERSION`  | `v1`                              |
 
 ### Required Secrets (per environment)
 
-| Secret | Description |
-|--------|-------------|
-| `AWS_ACCESS_KEY_ID` | IAM user access key |
-| `AWS_SECRET_ACCESS_KEY` | IAM user secret |
-| `DATABASE_URL` | PostgreSQL connection string |
-| `CORS_ORIGINS` | Comma-separated allowed origins |
-| `BETTER_AUTH_SECRET` | Auth encryption key |
+| Secret                        | Description                     |
+| ----------------------------- | ------------------------------- |
+| `AWS_ACCESS_KEY_ID`           | IAM user access key             |
+| `AWS_SECRET_ACCESS_KEY`       | IAM user secret                 |
+| `DATABASE_URL`                | PostgreSQL connection string    |
+| `CORS_ORIGINS`                | Comma-separated allowed origins |
+| `BETTER_AUTH_SECRET`          | Auth encryption key             |
 | `BETTER_AUTH_TRUSTED_ORIGINS` | Comma-separated trusted origins |
-| `GOOGLE_CLIENT_ID` | Google OAuth client ID |
-| `GOOGLE_CLIENT_SECRET` | Google OAuth secret |
+| `GOOGLE_CLIENT_ID`            | Google OAuth client ID          |
+| `GOOGLE_CLIENT_SECRET`        | Google OAuth secret             |
 
 ## Pipeline Best Practices
 

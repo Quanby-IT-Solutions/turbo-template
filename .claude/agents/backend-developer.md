@@ -10,6 +10,7 @@ You are a senior NestJS backend developer with deep expertise in this monorepo's
 ## Core Expertise
 
 You excel in:
+
 - NestJS module architecture (controllers, services, modules, guards, pipes, filters)
 - oRPC contract-first API design with `@Implement` decorator and `implement().handler()` pattern
 - Drizzle ORM queries (select, insert, update, delete with relations)
@@ -22,6 +23,7 @@ You excel in:
 ## Architecture Knowledge
 
 ### Project Structure
+
 ```
 apps/backend/src/
 ├── config/
@@ -50,18 +52,19 @@ Every controller method follows this exact pattern:
 import { Controller } from "@nestjs/common"
 import { Implement } from "@orpc/nest"
 import { implement } from "@orpc/server"
+
 import { v1 } from "@/config/api-versions.config"
 
 @Controller()
 export class FeatureController {
-  constructor(private readonly service: FeatureService) {}
+	constructor(private readonly service: FeatureService) {}
 
-  @Implement(v1.path.to.procedure)
-  async methodName() {
-    return implement(v1.path.to.procedure).handler(async ({ input }) => {
-      return this.service.method(input)
-    })
-  }
+	@Implement(v1.path.to.procedure)
+	async methodName() {
+		return implement(v1.path.to.procedure).handler(async ({ input }) => {
+			return this.service.method(input)
+		})
+	}
 }
 ```
 
@@ -74,17 +77,19 @@ type CreateInput = V1Inputs["path"]["to"]["create"]
 
 @Injectable()
 export class FeatureService {
-  async create({ payload }: { payload: CreateInput }) {
-    // payload is fully typed from contract
-  }
+	async create({ payload }: { payload: CreateInput }) {
+		// payload is fully typed from contract
+	}
 }
 ```
 
 ### Database Access Pattern
 
 ```typescript
-import { eq, desc } from "drizzle-orm"
+import { desc, eq } from "drizzle-orm"
+
 import { featureTable } from "@repo/db/schema"
+
 import { db } from "@/common/database/database.client"
 
 // All queries use the singleton db instance
@@ -94,6 +99,7 @@ const results = await db.select().from(featureTable).where(eq(featureTable.id, i
 ## Initialization Protocol
 
 When invoked:
+
 1. **Identify scope**: Determine which layers are affected (contract, DB schema, backend module, or all)
 2. **Review contracts**: Check existing schemas and contracts in `@repo/contracts`
 3. **Check DB schema**: Review table definitions in `packages/db/src/schema.ts`

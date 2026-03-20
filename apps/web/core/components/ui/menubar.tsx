@@ -50,7 +50,7 @@ function MenubarTrigger({ className, ...props }: React.ComponentProps<typeof Dro
 		<DropdownMenuTrigger
 			data-slot="menubar-trigger"
 			className={cn(
-				"hover:bg-muted aria-expanded:bg-muted flex items-center rounded-sm px-1.5 py-px text-sm font-medium outline-hidden select-none",
+				"hover:bg-muted aria-expanded:bg-muted outline-hidden flex select-none items-center rounded-sm px-1.5 py-px text-sm font-medium",
 				className
 			)}
 			{...props}
@@ -92,7 +92,7 @@ function MenubarItem({
 			data-inset={inset}
 			data-variant={variant}
 			className={cn(
-				"focus:bg-accent focus:text-accent-foreground data-[variant=destructive]:text-destructive data-[variant=destructive]:focus:bg-destructive/10 dark:data-[variant=destructive]:focus:bg-destructive/20 data-[variant=destructive]:focus:text-destructive data-[variant=destructive]:*:[svg]:!text-destructive not-data-[variant=destructive]:focus:**:text-accent-foreground group/menubar-item gap-1.5 rounded-md px-1.5 py-1 text-sm data-[disabled]:opacity-50 data-[inset]:pl-8 [&_svg:not([class*='size-'])]:size-4",
+				"focus:bg-accent focus:text-accent-foreground data-[variant=destructive]:text-destructive data-[variant=destructive]:focus:bg-destructive/10 dark:data-[variant=destructive]:focus:bg-destructive/20 data-[variant=destructive]:focus:text-destructive data-[variant=destructive]:*:[svg]:!text-destructive not-data-[variant=destructive]:focus:**:text-accent-foreground group/menubar-item gap-1.5 rounded-md px-1.5 py-1 text-sm data-[inset]:pl-8 data-[disabled]:opacity-50 [&_svg:not([class*='size-'])]:size-4",
 				className
 			)}
 			{...props}
@@ -110,7 +110,7 @@ function MenubarCheckboxItem({
 		<MenuPrimitive.CheckboxItem
 			data-slot="menubar-checkbox-item"
 			className={cn(
-				"focus:bg-accent focus:text-accent-foreground focus:**:text-accent-foreground relative flex cursor-default items-center gap-1.5 rounded-md py-1 pr-1.5 pl-7 text-sm outline-hidden select-none data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0",
+				"focus:bg-accent focus:text-accent-foreground focus:**:text-accent-foreground outline-hidden data-disabled:pointer-events-none data-disabled:opacity-50 relative flex cursor-default select-none items-center gap-1.5 rounded-md py-1 pl-7 pr-1.5 text-sm [&_svg]:pointer-events-none [&_svg]:shrink-0",
 				className
 			)}
 			checked={checked}
@@ -135,7 +135,7 @@ function MenubarRadioItem({ className, children, ...props }: MenuPrimitive.Radio
 		<MenuPrimitive.RadioItem
 			data-slot="menubar-radio-item"
 			className={cn(
-				"focus:bg-accent focus:text-accent-foreground focus:**:text-accent-foreground relative flex cursor-default items-center gap-1.5 rounded-md py-1 pr-1.5 pl-7 text-sm outline-hidden select-none data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+				"focus:bg-accent focus:text-accent-foreground focus:**:text-accent-foreground outline-hidden data-disabled:pointer-events-none data-disabled:opacity-50 relative flex cursor-default select-none items-center gap-1.5 rounded-md py-1 pl-7 pr-1.5 text-sm [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
 				className
 			)}
 			{...props}

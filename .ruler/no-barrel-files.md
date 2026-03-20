@@ -52,20 +52,24 @@ import { ComponentA, ComponentB } from "./components/shared-components"
 #### Allowed `index.ts` Files
 
 **Framework-required entrypoints:**
+
 - Next.js: `app/page.tsx`, `app/layout.tsx`, `app/api/*/route.ts`
 - NestJS: `main.ts` (not index, but similar role)
 
 **Package entrypoints (required for workspace imports):**
+
 - `packages/*/src/index.ts` - Package public API exports
 - `packages/db/src/schema/index.ts` - Schema re-exports for `@repo/db/schema`
 - `packages/contracts/src/index.ts` - Contract re-exports for `@repo/contracts`
 
 **Configuration files with logic:**
+
 - Files that contain actual configuration logic, not just re-exports
 
 ### Why Packages are Different
 
 Packages need `index.ts` entrypoints to:
+
 1. Define a clear public API boundary
 2. Enable workspace imports (`import { x } from "@repo/pkg"`)
 3. Hide internal implementation details

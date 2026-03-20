@@ -12,7 +12,6 @@ import { HugeiconsIcon } from "@hugeicons/react"
 
 import type { AuthSession } from "@repo/auth"
 
-import { authClient } from "@/services/better-auth/auth-client"
 import { Avatar, AvatarFallback, AvatarImage } from "@/core/components/ui/avatar"
 import {
 	DropdownMenu,
@@ -30,6 +29,7 @@ import {
 	useSidebar,
 } from "@/core/components/ui/sidebar"
 import { getInitials } from "@/core/lib/utils"
+import { authClient } from "@/services/better-auth/auth-client"
 
 export function NavUser({ session }: { session: AuthSession }) {
 	const { isMobile } = useSidebar()

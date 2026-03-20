@@ -7,20 +7,19 @@ import { HelpCircleIcon, Inbox, SettingsIcon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react"
 
 import {
-	SidebarGroup,
-	SidebarGroupContent,
-	SidebarMenu,
-	SidebarMenuButton,
-	SidebarMenuItem,
-} from "@/core/components/ui/sidebar"
-import {
 	Dialog,
 	DialogContent,
 	DialogDescription,
 	DialogHeader,
 	DialogTitle,
 } from "@/core/components/ui/dialog"
-
+import {
+	SidebarGroup,
+	SidebarGroupContent,
+	SidebarMenu,
+	SidebarMenuButton,
+	SidebarMenuItem,
+} from "@/core/components/ui/sidebar"
 import { SubmitTicketForm } from "@/features/tickets/components/submit-ticket-form"
 
 interface NavSecondaryItem {

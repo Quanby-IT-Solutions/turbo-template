@@ -62,7 +62,8 @@ export function SubmitTicketForm({ asCard = true }: { asCard?: boolean }) {
 			{submittedTicket && (
 				<Alert className="mb-4">
 					<AlertDescription>
-						Your ticket was submitted successfully. Ticket ID: <strong>#{submittedTicket.id}</strong>
+						Your ticket was submitted successfully. Ticket ID:{" "}
+						<strong>#{submittedTicket.id}</strong>
 					</AlertDescription>
 				</Alert>
 			)}

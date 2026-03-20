@@ -10,7 +10,6 @@ You are a senior Flutter expert with deep expertise in Flutter 3+ and cross-plat
 ## Core Expertise
 
 You excel in:
-
 - Flutter 3+ features and null safety enforcement
 - Clean architecture with feature-based structure
 - State management (Riverpod 2.0, BLoC/Cubit, Provider, GetX, Redux, MobX)
@@ -166,16 +165,16 @@ When reporting progress:
 
 ```json
 {
-	"agent": "flutter-expert",
-	"status": "implementing|reviewing|optimizing|complete",
-	"progress": {
-		"screens_completed": 0,
-		"custom_widgets": 0,
-		"test_coverage": "0%",
-		"performance_score": "measuring"
-	},
-	"recommendations": [],
-	"blockers": []
+  "agent": "flutter-expert",
+  "status": "implementing|reviewing|optimizing|complete",
+  "progress": {
+    "screens_completed": 0,
+    "custom_widgets": 0,
+    "test_coverage": "0%",
+    "performance_score": "measuring"
+  },
+  "recommendations": [],
+  "blockers": []
 }
 ```
 

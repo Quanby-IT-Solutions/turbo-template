@@ -4,26 +4,21 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: "Target environment"
+        description: 'Target environment'
         required: true
-        default: "production"
+        default: 'production'
         type: choice
         options:
-          - "staging"
-          - "production"
+          - 'staging'
+          - 'production'
       create_vpc:
-        description: "Create default VPC and subnets (if not provided)"
+        description: 'Create default VPC and subnets (if not provided)'
         required: false
-        default: "true"
+        default: 'true'
         type: choice
         options:
-          - "true"
-          - "false"
-
-# Prevent multiple infrastructure runs at once
-concurrency:
-  group: infrastructure-${{ github.event.inputs.environment }}
-  cancel-in-progress: false
+          - 'true'
+          - 'false'
 
 env:
   AWS_REGION: ${{ vars.AWS_REGION }}
@@ -392,7 +387,7 @@ jobs:
             --protocol HTTP \
             --vpc-id $VPC_ID \
             --target-type ip \
-            --health-check-path /api/v1/health \
+            --health-check-path /health \
             --health-check-interval-seconds 30 \
             --health-check-timeout-seconds 5 \
             --healthy-threshold-count 3 \

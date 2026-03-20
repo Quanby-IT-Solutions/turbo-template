@@ -27,7 +27,6 @@ This validation compares the NestJS framework skill (SKILL.md + REFERENCE.md + t
 ### ✅ NestJS Architecture & Dependency Injection
 
 **Agent Coverage**:
-
 - Modular design with proper dependency boundaries
 - NestJS DI container for loose coupling
 - Layered architecture (controllers, services, repositories, domain)
@@ -35,7 +34,6 @@ This validation compares the NestJS framework skill (SKILL.md + REFERENCE.md + t
 - Repository pattern for data access abstraction
 
 **Skill Coverage**:
-
 - ✅ **SKILL.md**: Module Architecture section with clear boundaries
 - ✅ **REFERENCE.md**: Section 1 (Architecture & Design Patterns) - full coverage
 - ✅ **REFERENCE.md**: Section 2 (Module System & DI) - dynamic modules, scopes, circular deps
@@ -49,7 +47,6 @@ This validation compares the NestJS framework skill (SKILL.md + REFERENCE.md + t
 ### ✅ API Development & Documentation
 
 **Agent Coverage**:
-
 - RESTful API design following HTTP standards
 - GraphQL integration with resolvers and federation
 - OpenAPI/Swagger documentation with examples
@@ -57,7 +54,6 @@ This validation compares the NestJS framework skill (SKILL.md + REFERENCE.md + t
 - DTO validation with class-validator decorators
 
 **Skill Coverage**:
-
 - ✅ **SKILL.md**: Controller Best Practices with full OpenAPI annotations
 - ✅ **SKILL.md**: DTO Validation section with decorators
 - ✅ **REFERENCE.md**: Section 3 (Controllers & Routing) - RESTful, versioning
@@ -72,7 +68,6 @@ This validation compares the NestJS framework skill (SKILL.md + REFERENCE.md + t
 ### ✅ Authentication & Authorization
 
 **Agent Coverage**:
-
 - JWT and OAuth2 authentication strategies
 - Passport.js integration
 - Role-based access control (RBAC)
@@ -81,7 +76,6 @@ This validation compares the NestJS framework skill (SKILL.md + REFERENCE.md + t
 - Multi-tenant architecture with data isolation
 
 **Skill Coverage**:
-
 - ✅ **SKILL.md**: Authentication & Authorization section with JWT + RBAC
 - ✅ **REFERENCE.md**: Section 6 (Authentication & Authorization) - JWT, RBAC, permissions
 - ✅ **Templates**: controller.template.ts - JwtAuthGuard, RolesGuard usage
@@ -97,7 +91,6 @@ This validation compares the NestJS framework skill (SKILL.md + REFERENCE.md + t
 ### ✅ Advanced NestJS Patterns
 
 **Agent Coverage**:
-
 - Custom guards and interceptors for cross-cutting concerns
 - Exception filters for error handling
 - Custom decorators for reusable patterns
@@ -105,7 +98,6 @@ This validation compares the NestJS framework skill (SKILL.md + REFERENCE.md + t
 - Middleware for request/response processing
 
 **Skill Coverage**:
-
 - ✅ **SKILL.md**: Exception Handling section with filters
 - ✅ **REFERENCE.md**: Section 9 (Advanced Patterns) - interceptors, pipes, decorators
 - ✅ **Examples**: jwt-authentication.example.ts - custom guards and decorators
@@ -118,7 +110,6 @@ This validation compares the NestJS framework skill (SKILL.md + REFERENCE.md + t
 ### ✅ Testing & TDD
 
 **Agent Coverage**:
-
 - Test-Driven Development with Red-Green-Refactor cycle
 - Comprehensive unit tests for services/controllers
 - Integration tests for database and API endpoints
@@ -126,7 +117,6 @@ This validation compares the NestJS framework skill (SKILL.md + REFERENCE.md + t
 - High test coverage (>80%) with Jest testing framework
 
 **Skill Coverage**:
-
 - ✅ **SKILL.md**: Testing section with unit/integration/E2E examples
 - ✅ **REFERENCE.md**: Section 10 (Testing Strategies) - unit, integration, E2E
 - ✅ **Templates**: service.spec.template.ts - comprehensive unit tests
@@ -140,7 +130,6 @@ This validation compares the NestJS framework skill (SKILL.md + REFERENCE.md + t
 ### ✅ Performance & Scalability
 
 **Agent Coverage**:
-
 - Redis caching with cache-aside patterns
 - Background jobs with Bull/BullMQ for queue processing
 - Rate limiting and throttling for API protection
@@ -148,7 +137,6 @@ This validation compares the NestJS framework skill (SKILL.md + REFERENCE.md + t
 - Database query optimization (N+1 prevention, indexing)
 
 **Skill Coverage**:
-
 - ✅ **SKILL.md**: Performance Patterns - caching, background jobs, query optimization
 - ✅ **REFERENCE.md**: Section 11 (Performance Optimization) - Redis, Bull, rate limiting
 - ✅ **Templates**: service.template.ts - Redis caching implementation
@@ -161,14 +149,12 @@ This validation compares the NestJS framework skill (SKILL.md + REFERENCE.md + t
 ### ✅ Microservices & Event-Driven Architecture
 
 **Agent Coverage**:
-
 - Microservices communication via TCP, Redis, or message brokers
 - Event-driven design with event sourcing and CQRS patterns
 - Message queue integration (RabbitMQ, Kafka, AWS SQS)
 - Service discovery patterns
 
 **Skill Coverage**:
-
 - ✅ **REFERENCE.md**: Section 8 (Microservices Architecture) - TCP, RabbitMQ, Redis
 - ✅ **REFERENCE.md**: Section 9 (Advanced Patterns) - CQRS implementation
 - ✅ **Examples**: user-management-crud.example.ts - event emitting
@@ -182,13 +168,11 @@ This validation compares the NestJS framework skill (SKILL.md + REFERENCE.md + t
 ### ✅ NestJS Application Architecture
 
 **Agent Responsibility**:
-
 - Design and implement scalable module architecture with proper dependency boundaries
 - Leverage NestJS DI container for loose coupling and testability
 - Implement clean separation between controllers, services, repositories, and domain logic
 
 **Skill Coverage**:
-
 - ✅ **SKILL.md**: Module Architecture section
 - ✅ **REFERENCE.md**: Section 1 (Architecture & Design Patterns)
 - ✅ **Templates**: All templates demonstrate layered architecture
@@ -201,14 +185,12 @@ This validation compares the NestJS framework skill (SKILL.md + REFERENCE.md + t
 ### ✅ API Development
 
 **Agent Responsibility**:
-
 - Build RESTful APIs following HTTP standards and best practices
 - Implement GraphQL APIs with resolvers and schemas
 - Generate comprehensive OpenAPI/Swagger documentation
 - Implement API versioning and deprecation strategies
 
 **Skill Coverage**:
-
 - ✅ **SKILL.md**: Controller Best Practices + DTO Validation
 - ✅ **REFERENCE.md**: Section 3 (Controllers & Routing) + Section 7 (GraphQL)
 - ✅ **Templates**: controller.template.ts - full REST + Swagger
@@ -221,14 +203,12 @@ This validation compares the NestJS framework skill (SKILL.md + REFERENCE.md + t
 ### ✅ Data Layer & Persistence
 
 **Agent Responsibility**:
-
 - Integrate TypeORM, Prisma, or Mongoose for database interactions
 - Implement repository patterns for data access abstraction
 - Manage database migrations and seed data
 - Optimize queries and handle N+1 problems
 
 **Skill Coverage**:
-
 - ✅ **SKILL.md**: Repository Pattern section
 - ✅ **REFERENCE.md**: Section 5 (Data Layer & Persistence) - TypeORM + Prisma
 - ✅ **Templates**: repository.template.ts - TypeORM patterns
@@ -242,14 +222,12 @@ This validation compares the NestJS framework skill (SKILL.md + REFERENCE.md + t
 ### ✅ Authentication & Authorization
 
 **Agent Responsibility**:
-
 - Implement JWT, OAuth2, and Passport.js authentication strategies
 - Build RBAC and permission systems with custom guards
 - Handle password hashing and secure session management
 - Support multi-tenant applications with data isolation
 
 **Skill Coverage**:
-
 - ✅ **SKILL.md**: Authentication & Authorization section
 - ✅ **REFERENCE.md**: Section 6 (complete coverage)
 - ✅ **Examples**: jwt-authentication.example.ts - 480+ lines covering all aspects
@@ -261,14 +239,12 @@ This validation compares the NestJS framework skill (SKILL.md + REFERENCE.md + t
 ### ✅ Testing & Quality Assurance
 
 **Agent Responsibility**:
-
 - Write comprehensive unit tests for services and controllers
 - Implement integration tests for database and external services
 - Create E2E tests covering complete workflows
 - Maintain high test coverage (>80%) using TDD approach
 
 **Skill Coverage**:
-
 - ✅ **SKILL.md**: Testing section with examples
 - ✅ **REFERENCE.md**: Section 10 (Testing Strategies) - comprehensive
 - ✅ **Templates**: service.spec.template.ts - unit tests achieving 80%+
@@ -281,7 +257,6 @@ This validation compares the NestJS framework skill (SKILL.md + REFERENCE.md + t
 ### ✅ Performance Optimization
 
 **Agent Responsibility**:
-
 - Implement Redis caching and cache-aside patterns
 - Use Bull/BullMQ for background job processing
 - Add rate limiting and throttling for API protection
@@ -289,7 +264,6 @@ This validation compares the NestJS framework skill (SKILL.md + REFERENCE.md + t
 - Optimize database queries with proper indexing
 
 **Skill Coverage**:
-
 - ✅ **SKILL.md**: Performance Patterns section
 - ✅ **REFERENCE.md**: Section 11 (Performance Optimization)
 - ✅ **REFERENCE.md**: Section 12 (Deployment & Production) - health checks
@@ -305,12 +279,10 @@ This validation compares the NestJS framework skill (SKILL.md + REFERENCE.md + t
 ### ✅ Example 1: Module Architecture with Proper DI
 
 **Agent Example**:
-
 - Bad: Everything in one module, tight coupling
 - Good: Modular architecture with proper dependency injection and abstraction
 
 **Skill Coverage**:
-
 - ✅ **SKILL.md**: Anti-patterns vs Best Practices section
 - ✅ **REFERENCE.md**: Section 1 - Dependency Inversion example
 - ✅ **Templates**: module.template.ts demonstrates proper DI
@@ -323,12 +295,10 @@ This validation compares the NestJS framework skill (SKILL.md + REFERENCE.md + t
 ### ✅ Example 2: DTO Validation with Error Handling
 
 **Agent Example**:
-
 - Bad: No input validation with generic error responses
 - Good: DTOs with class-validator, proper error handling, response transformation
 
 **Skill Coverage**:
-
 - ✅ **SKILL.md**: DTO Validation section + Anti-patterns
 - ✅ **REFERENCE.md**: Section 3 - DTO validation examples
 - ✅ **Templates**: dto.template.ts - comprehensive validation
@@ -344,13 +314,11 @@ This validation compares the NestJS framework skill (SKILL.md + REFERENCE.md + t
 ### ✅ Documentation Standards
 
 **Agent Standards**:
-
 - OpenAPI/Swagger documentation with examples for all endpoints
 - TSDoc comments for complex logic and public methods
 - Comprehensive setup instructions and architecture documentation
 
 **Skill Coverage**:
-
 - ✅ **SKILL.md**: Quick reference with integration checklist
 - ✅ **REFERENCE.md**: Comprehensive guide with 50+ examples
 - ✅ **Templates**: All templates include OpenAPI annotations
@@ -363,14 +331,12 @@ This validation compares the NestJS framework skill (SKILL.md + REFERENCE.md + t
 ### ✅ Testing Standards
 
 **Agent Standards**:
-
 - Services: ≥80% coverage
 - Controllers: ≥70% coverage
 - E2E: ≥60% coverage
 - Overall: ≥75% coverage
 
 **Skill Coverage**:
-
 - ✅ **SKILL.md**: Target coverage explicitly stated
 - ✅ **REFERENCE.md**: Section 10 - testing strategies for each type
 - ✅ **Templates**: service.spec.template.ts targets 80%+
@@ -382,13 +348,11 @@ This validation compares the NestJS framework skill (SKILL.md + REFERENCE.md + t
 ### ✅ Security Standards
 
 **Agent Standards**:
-
 - All inputs validated via class-validator DTOs
 - JWT/OAuth2 with secure password hashing (bcrypt, argon2)
 - RBAC guards on all protected endpoints
 
 **Skill Coverage**:
-
 - ✅ **SKILL.md**: Security best practices throughout
 - ✅ **REFERENCE.md**: Section 6 - complete security implementation
 - ✅ **Templates**: dto.template.ts - validation on all inputs
@@ -402,13 +366,11 @@ This validation compares the NestJS framework skill (SKILL.md + REFERENCE.md + t
 ### ✅ Performance Standards
 
 **Agent Standards**:
-
 - API Response Time: P95 <200ms
 - Database Query Time: P95 <100ms
 - Memory Usage: <512MB
 
 **Skill Coverage**:
-
 - ✅ **SKILL.md**: Performance Patterns with optimization techniques
 - ✅ **REFERENCE.md**: Section 11 - comprehensive optimization guide
 - ✅ **REFERENCE.md**: Section 12 - health checks and monitoring
@@ -423,12 +385,10 @@ This validation compares the NestJS framework skill (SKILL.md + REFERENCE.md + t
 ### ✅ Delegation Criteria
 
 **Agent Criteria**:
-
 - When to use: NestJS projects, TypeScript backend, DI, RESTful/GraphQL APIs
 - When to delegate: postgresql-specialist, infrastructure-specialist, code-reviewer, test-runner, api-documentation-specialist
 
 **Skill Coverage**:
-
 - ✅ **SKILL.md**: "When to Use" section at top
 - ✅ **SKILL.md**: "See Also" section references other skills
 - ✅ **Examples**: README.md explains customizations and alternatives
@@ -440,13 +400,11 @@ This validation compares the NestJS framework skill (SKILL.md + REFERENCE.md + t
 ### ✅ Handoff Protocols
 
 **Agent Protocols**:
-
 - Handoff from: ai-mesh-orchestrator, tech-lead-orchestrator, backend-developer
 - Handoff to: code-reviewer, test-runner, api-documentation-specialist, postgresql-specialist
 - Collaborates with: infrastructure-specialist, postgresql-specialist, elixir-phoenix-expert
 
 **Skill Coverage**:
-
 - ✅ **SKILL.md**: Integration Checklist includes "See Also" references
 - ✅ **REFERENCE.md**: "See Also" sections throughout reference other skills/modules
 - ✅ **Examples**: README.md explains when to use different patterns
@@ -457,14 +415,14 @@ This validation compares the NestJS framework skill (SKILL.md + REFERENCE.md + t
 
 ## Feature Parity Summary
 
-| Category                         | Weight   | Score  | Weighted Score |
-| -------------------------------- | -------- | ------ | -------------- |
-| Core Expertise (7 areas)         | 30%      | 100%   | 30.0%          |
-| Responsibilities (6 areas)       | 25%      | 100%   | 25.0%          |
-| Code Examples (2 examples)       | 20%      | 100%   | 20.0%          |
-| Quality Standards (4 categories) | 15%      | 98.75% | 14.8%          |
-| Integration Patterns             | 10%      | 95%    | 9.5%           |
-| **TOTAL**                        | **100%** | -      | **99.3%**      |
+| Category | Weight | Score | Weighted Score |
+|----------|--------|-------|----------------|
+| Core Expertise (7 areas) | 30% | 100% | 30.0% |
+| Responsibilities (6 areas) | 25% | 100% | 25.0% |
+| Code Examples (2 examples) | 20% | 100% | 20.0% |
+| Quality Standards (4 categories) | 15% | 98.75% | 14.8% |
+| Integration Patterns | 10% | 95% | 9.5% |
+| **TOTAL** | **100%** | - | **99.3%** |
 
 **Final Score**: ✅ **99.3% Feature Parity**
 
@@ -477,32 +435,27 @@ This validation compares the NestJS framework skill (SKILL.md + REFERENCE.md + t
 The NestJS skill provides several enhancements beyond the original agent:
 
 ### 1. Progressive Disclosure Architecture
-
 - **SKILL.md** (12.6KB): Quick reference for common patterns
 - **REFERENCE.md** (61.5KB): Comprehensive deep-dive guide
 - Enables faster onboarding while maintaining depth
 
 ### 2. Code Generation Templates (7 templates)
-
 - Ready-to-use, production-quality templates
 - Placeholder-based generation system
 - Reduces boilerplate by 70%+
 
 ### 3. Real-World Examples (900+ lines)
-
 - Complete CRUD implementation (450+ lines)
 - JWT authentication system (480+ lines)
 - Copy-paste ready with explanations
 
 ### 4. Enhanced Documentation
-
 - 12 major sections in REFERENCE.md
 - 50+ code examples
 - Integration checklist
 - Best practices throughout
 
 ### 5. Testing Emphasis
-
 - Comprehensive test templates
 - E2E test examples
 - Testing strategies by layer
@@ -538,7 +491,6 @@ All core functionality from `nestjs-backend-expert.yaml` is covered at ≥95%.
 The NestJS framework skill achieves **99.3% feature parity** with the original `nestjs-backend-expert.yaml` agent, significantly exceeding the ≥95% target.
 
 **Strengths**:
-
 - Complete coverage of all 7 core expertise areas
 - All 6 responsibility areas fully implemented
 - Production-ready templates and examples
@@ -546,7 +498,6 @@ The NestJS framework skill achieves **99.3% feature parity** with the original `
 - Superior documentation structure
 
 **Deliverables**:
-
 - SKILL.md: 12.6KB quick reference
 - REFERENCE.md: 61.5KB comprehensive guide
 - 7 production templates

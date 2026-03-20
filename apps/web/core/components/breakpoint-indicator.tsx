@@ -6,7 +6,7 @@ export function BreakpointIndicator() {
 	}
 
 	return (
-		<div className="bg-background hover:bg-muted hover:text-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 border-border z-9999 fixed bottom-4 left-4 flex size-6 items-center justify-center rounded-full border font-mono text-xs shadow-lg backdrop-blur-sm">
+		<div className="bg-background hover:bg-muted hover:text-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 border-border fixed bottom-4 left-4 z-9999 flex size-6 items-center justify-center rounded-full border font-mono text-xs shadow-lg backdrop-blur-sm">
 			<span className="sm:hidden">xs</span>
 			<span className="hidden sm:inline md:hidden">sm</span>
 			<span className="hidden md:inline lg:hidden">md</span>

@@ -20,7 +20,7 @@ function Command({ className, ...props }: React.ComponentProps<typeof CommandPri
 		<CommandPrimitive
 			data-slot="command"
 			className={cn(
-				"bg-popover text-popover-foreground rounded-xl! flex size-full flex-col overflow-hidden p-1",
+				"bg-popover text-popover-foreground flex size-full flex-col overflow-hidden rounded-xl! p-1",
 				className
 			)}
 			{...props}
@@ -49,7 +49,7 @@ function CommandDialog({
 				<DialogDescription>{description}</DialogDescription>
 			</DialogHeader>
 			<DialogContent
-				className={cn("rounded-xl! overflow-hidden p-0", className)}
+				className={cn("overflow-hidden rounded-xl! p-0", className)}
 				showCloseButton={showCloseButton}
 			>
 				{children}
@@ -68,7 +68,7 @@ function CommandInput({
 				<CommandPrimitive.Input
 					data-slot="command-input"
 					className={cn(
-						"outline-hidden w-full text-sm disabled:cursor-not-allowed disabled:opacity-50",
+						"w-full text-sm outline-hidden disabled:cursor-not-allowed disabled:opacity-50",
 						className
 					)}
 					{...props}
@@ -86,7 +86,7 @@ function CommandList({ className, ...props }: React.ComponentProps<typeof Comman
 		<CommandPrimitive.List
 			data-slot="command-list"
 			className={cn(
-				"no-scrollbar max-h-72 scroll-py-1 overflow-y-auto overflow-x-hidden outline-none",
+				"no-scrollbar max-h-72 scroll-py-1 overflow-x-hidden overflow-y-auto outline-none",
 				className
 			)}
 			{...props}
@@ -145,7 +145,7 @@ function CommandItem({
 		<CommandPrimitive.Item
 			data-slot="command-item"
 			className={cn(
-				"data-selected:bg-muted data-selected:text-foreground data-selected:*:[svg]:text-foreground group/command-item outline-hidden [[data-slot=dialog-content]_&]:rounded-lg! relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
+				"data-selected:bg-muted data-selected:text-foreground data-selected:*:[svg]:text-foreground group/command-item relative flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 [[data-slot=dialog-content]_&]:rounded-lg!",
 				className
 			)}
 			{...props}

@@ -41,12 +41,12 @@ function SubmitTicketForm() {
 				setState("submitting")
 				try {
 					// Replace this placeholder with an oRPC mutation or REST call to the backend.
+					const payload = Object.fromEntries(formData.entries())
 					await new Promise(resolve => setTimeout(resolve, 800))
-					console.info("Ticket payload", Object.fromEntries(formData.entries()))
+					void payload
 					setState("success")
 					event.currentTarget.reset()
 				} catch (error) {
-					console.error(error)
 					setState("error")
 				}
 			}}
@@ -90,8 +90,8 @@ function SubmitTicketForm() {
 					/>
 				</Field>
 				<FieldDescription className="text-xs text-muted-foreground">
-					All submissions are handled by the NestJS tickets module. This mock form simply logs the
-					payload so you can connect it to the API of your choice.
+					All submissions are handled by the NestJS tickets module. Wire this mock form to the API
+					to persist real data.
 				</FieldDescription>
 				<Button type="submit" disabled={state === "submitting"} className="w-full">
 					{state === "submitting" ? "Submitting..." : "Submit Ticket"}

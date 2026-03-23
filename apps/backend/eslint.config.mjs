@@ -4,7 +4,7 @@ import { apiConfig } from "@repo/eslint-config/nest"
 
 export default defineConfig(
 	{
-		ignores: ["eslint.config.mjs", "dist/**"],
+		ignores: ["eslint.config.mjs", "dist/**", "src/metadata.ts"],
 	},
 	apiConfig,
 	{

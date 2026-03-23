@@ -28,9 +28,9 @@ export const env = createEnv({
 	 */
 	client: {
 		// Public URLs
-		NEXT_PUBLIC_APP_URL: z.url(),
-		NEXT_PUBLIC_API_BASE_URL: z.url(),
-		NEXT_PUBLIC_API_VERSION: z.string(),
+		NEXT_PUBLIC_APP_URL: z.url().default("http://localhost:3000"),
+		NEXT_PUBLIC_API_BASE_URL: z.url().default("http://localhost:3000/api"),
+		NEXT_PUBLIC_API_VERSION: z.string().default("v1"),
 	},
 
 	/**

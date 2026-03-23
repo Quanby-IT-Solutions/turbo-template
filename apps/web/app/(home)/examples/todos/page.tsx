@@ -1,7 +1,6 @@
 import Link from "next/link"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/core/components/ui/card"
-import { cn } from "@/core/lib/utils"
 
 const instructions = [
 	{

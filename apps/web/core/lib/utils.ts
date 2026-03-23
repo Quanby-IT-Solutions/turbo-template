@@ -4,6 +4,10 @@ import { twMerge } from "tailwind-merge"
 
 import { env } from "@/env"
 
+const DEFAULT_APP_URL = "http://localhost:3000"
+const DEFAULT_API_BASE_URL = `${DEFAULT_APP_URL}/api`
+const DEFAULT_API_VERSION = "v1"
+
 /**
  * Merge class names into a single string
  * @param inputs - The class names to merge
@@ -18,7 +22,7 @@ export function cn(...inputs: ClassValue[]) {
  * @returns The application URL
  */
 export const getAppUrl = cache(() => {
-	return env.NEXT_PUBLIC_APP_URL
+	return env.NEXT_PUBLIC_APP_URL || DEFAULT_APP_URL
 })
 
 /**
@@ -26,8 +30,8 @@ export const getAppUrl = cache(() => {
  * @returns The API URL
  */
 export const getApiUrl = cache(() => {
-	const baseUrl = env.NEXT_PUBLIC_API_BASE_URL.replace(/\/$/, "")
-	const version = env.NEXT_PUBLIC_API_VERSION.replace(/^\//, "")
+	const baseUrl = (env.NEXT_PUBLIC_API_BASE_URL || DEFAULT_API_BASE_URL).replace(/\/$/, "")
+	const version = (env.NEXT_PUBLIC_API_VERSION || DEFAULT_API_VERSION).replace(/^\//, "")
 
 	return `${baseUrl}/${version}`
 })

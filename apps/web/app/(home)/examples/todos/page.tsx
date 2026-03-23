@@ -1,7 +1,6 @@
 import Link from "next/link"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/core/components/ui/card"
-import { buttonVariants } from "@/core/components/ui/button"
 import { cn } from "@/core/lib/utils"
 
 const instructions = [
@@ -55,10 +54,16 @@ export default function TodosExamplePage() {
 				))}
 			</div>
 			<div className="flex flex-wrap gap-3">
-				<Link className={cn(buttonVariants({ variant: "secondary" }))} href="/dashboard">
+				<Link
+					className="inline-flex h-10 items-center justify-center rounded-md border border-transparent bg-secondary px-4 py-2 text-sm font-medium text-secondary-foreground transition-colors hover:bg-secondary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+					href="/dashboard"
+				>
 					Go to dashboard
 				</Link>
-				<Link className={buttonVariants({ variant: "outline" })} href="/">
+				<Link
+					className="inline-flex h-10 items-center justify-center rounded-md border border-input bg-transparent px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+					href="/"
+				>
 					Back to home
 				</Link>
 			</div>

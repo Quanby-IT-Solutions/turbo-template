@@ -1,7 +1,6 @@
 import Link from "next/link"
 
 import { Logo } from "@/core/components/logo"
-import { buttonVariants } from "@/core/components/ui/button"
 import { cn } from "@/core/lib/utils"
 
 export default function AuthLayout({
@@ -18,15 +17,21 @@ export default function AuthLayout({
 						Authentication powered by Better Auth — connect with email or social providers.
 					</p>
 					<div className="flex flex-wrap items-center justify-center gap-2 text-sm">
-						<Link className={cn(buttonVariants({ variant: "link" }), "px-0")} href="/login">
+						<Link className={cn("text-muted-foreground underline-offset-4 hover:underline")} href="/login">
 							Login
 						</Link>
 						<span aria-hidden="true">•</span>
-						<Link className={cn(buttonVariants({ variant: "link" }), "px-0")} href="/register">
+						<Link
+							className={cn("text-muted-foreground underline-offset-4 hover:underline")}
+							href="/register"
+						>
 							Register
 						</Link>
 						<span aria-hidden="true">•</span>
-						<Link className={cn(buttonVariants({ variant: "link" }), "px-0")} href="/session">
+						<Link
+							className={cn("text-muted-foreground underline-offset-4 hover:underline")}
+							href="/session"
+						>
 							Session Debugger
 						</Link>
 					</div>

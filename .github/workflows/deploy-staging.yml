@@ -1,0 +1,343 @@
+name: Deploy Staging (EC2)
+
+on:
+  push:
+    branches:
+      - staging
+    paths-ignore:
+      - "**/*.md"
+      - ".vscode/**"
+      - "docs/**"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: true
+
+env:
+  IMAGE_TAG: ${{ github.sha }}
+
+jobs:
+  deploy-staging:
+    name: Deploy to Staging (EC2)
+    runs-on: ubuntu-latest
+    environment: staging
+    env:
+      # ==========================================================
+      # AWS Configuration
+      # ==========================================================
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      PROJECT_NAME: ${{ vars.PROJECT_NAME }}
+      ECR_REPOSITORY_WEB: ${{ vars.ECR_REPOSITORY_WEB }}
+      ECR_REPOSITORY_BACKEND: ${{ vars.ECR_REPOSITORY_BACKEND }}
+
+      # ==========================================================
+      # Domain Configuration (subdomain per service)
+      # ==========================================================
+      DOMAIN_WEB: ${{ vars.DOMAIN_WEB }}
+      DOMAIN_API: ${{ vars.DOMAIN_API }}
+
+      # ==========================================================
+      # EC2 Configuration
+      # ==========================================================
+      EC2_HOST: ${{ secrets.EC2_HOST }}
+      EC2_USER: ${{ secrets.EC2_USER }}
+      EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+
+      # ==========================================================
+      # App Environment Variables
+      # ==========================================================
+      NODE_ENV: "production"
+      NEXT_PUBLIC_APP_URL: ${{ vars.NEXT_PUBLIC_APP_URL }}
+      NEXT_PUBLIC_API_BASE_URL: ${{ vars.NEXT_PUBLIC_API_BASE_URL }}
+      NEXT_PUBLIC_API_VERSION: "1"
+      BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
+      BETTER_AUTH_TRUSTED_ORIGINS: ${{ secrets.BETTER_AUTH_TRUSTED_ORIGINS }}
+      CORS_ORIGINS: ${{ secrets.CORS_ORIGINS }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+      GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ──────────────────────────────────────────────
+      # Validate required variables
+      # ──────────────────────────────────────────────
+      - name: Validate required deployment variables
+        run: |
+          set -euo pipefail
+
+          require_var() {
+            local name="$1"
+            if [ -z "${!name:-}" ]; then
+              echo "❌ Missing required variable: $name"
+              exit 1
+            fi
+          }
+
+          # AWS
+          require_var AWS_REGION
+          require_var PROJECT_NAME
+          require_var ECR_REPOSITORY_WEB
+          require_var ECR_REPOSITORY_BACKEND
+
+          # Domains
+          require_var DOMAIN_WEB
+          require_var DOMAIN_API
+
+          # EC2
+          require_var EC2_HOST
+          require_var EC2_USER
+          require_var EC2_SSH_KEY
+
+          # App
+          require_var NEXT_PUBLIC_APP_URL
+          require_var NEXT_PUBLIC_API_BASE_URL
+          require_var DATABASE_URL
+          require_var CORS_ORIGINS
+          require_var BETTER_AUTH_SECRET
+          require_var BETTER_AUTH_TRUSTED_ORIGINS
+
+          echo "✅ Required deployment variables are set"
+
+      # ──────────────────────────────────────────────
+      # Build and push Docker images to ECR
+      # ──────────────────────────────────────────────
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+        with:
+          mask-password: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-staging-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-staging-
+
+      - name: Build and push Web image to ECR
+        id: build-web
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          echo "=========================================="
+          echo "Building Web Docker Image (staging)"
+          echo "=========================================="
+
+          docker buildx build \
+            --file apps/web/Dockerfile \
+            --build-arg NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL \
+            --build-arg NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL \
+            --build-arg NEXT_PUBLIC_API_VERSION=$NEXT_PUBLIC_API_VERSION \
+            --cache-from type=local,src=/tmp/.buildx-cache \
+            --cache-to type=local,dest=/tmp/.buildx-cache-new,mode=max \
+            --push \
+            --tag $ECR_REGISTRY/$ECR_REPOSITORY_WEB:$IMAGE_TAG \
+            --tag $ECR_REGISTRY/$ECR_REPOSITORY_WEB:latest \
+            .
+
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+
+          echo "✓ Web image pushed"
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY_WEB:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+      - name: Build and push Backend image to ECR
+        id: build-backend
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          echo "=========================================="
+          echo "Building Backend Docker Image (staging)"
+          echo "=========================================="
+
+          docker buildx build \
+            --file apps/backend/Dockerfile \
+            --cache-from type=local,src=/tmp/.buildx-cache \
+            --cache-to type=local,dest=/tmp/.buildx-cache-new,mode=max \
+            --push \
+            --tag $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:$IMAGE_TAG \
+            --tag $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:latest \
+            .
+
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+
+          echo "✓ Backend image pushed"
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+      # ──────────────────────────────────────────────
+      # Deploy to EC2 via SSH
+      # ──────────────────────────────────────────────
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/ec2_key
+          chmod 600 ~/.ssh/ec2_key
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: Copy deployment files to EC2
+        run: |
+          echo "=========================================="
+          echo "Copying deployment files to EC2"
+          echo "=========================================="
+
+          SSH_OPTS="-i ~/.ssh/ec2_key -o StrictHostKeyChecking=no"
+          REMOTE="$EC2_USER@$EC2_HOST"
+
+          # Ensure directories exist
+          ssh $SSH_OPTS $REMOTE "sudo mkdir -p /opt/staging/nginx && sudo chown -R $EC2_USER:$EC2_USER /opt/staging"
+
+          # Copy docker-compose and nginx templates
+          scp $SSH_OPTS aws/ec2/docker-compose.staging.yml $REMOTE:/opt/staging/docker-compose.staging.yml
+          scp $SSH_OPTS aws/ec2/nginx/*.conf $REMOTE:/opt/staging/nginx/
+          scp $SSH_OPTS aws/ec2/init-ssl.sh $REMOTE:/opt/staging/init-ssl.sh
+          ssh $SSH_OPTS $REMOTE "chmod +x /opt/staging/init-ssl.sh"
+
+          echo "✓ Files copied"
+
+      - name: Deploy on EC2
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          echo "=========================================="
+          echo "Deploying to EC2 (staging)"
+          echo "=========================================="
+
+          SSH_OPTS="-i ~/.ssh/ec2_key -o StrictHostKeyChecking=no"
+          REMOTE="$EC2_USER@$EC2_HOST"
+
+          ssh $SSH_OPTS $REMOTE << DEPLOY_SCRIPT
+            set -euo pipefail
+            cd /opt/staging
+
+            echo "── Logging into ECR ──"
+            aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
+
+            echo "── Writing .env file ──"
+            cat > .env << 'ENV_EOF'
+          ECR_REGISTRY=$ECR_REGISTRY
+          ECR_REPOSITORY_WEB=$ECR_REPOSITORY_WEB
+          ECR_REPOSITORY_BACKEND=$ECR_REPOSITORY_BACKEND
+          IMAGE_TAG=$IMAGE_TAG
+          NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
+          NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
+          NEXT_PUBLIC_API_VERSION=$NEXT_PUBLIC_API_VERSION
+          DATABASE_URL=$DATABASE_URL
+          CORS_ORIGINS=$CORS_ORIGINS
+          BETTER_AUTH_SECRET=$BETTER_AUTH_SECRET
+          BETTER_AUTH_TRUSTED_ORIGINS=$BETTER_AUTH_TRUSTED_ORIGINS
+          GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID
+          GOOGLE_CLIENT_SECRET=$GOOGLE_CLIENT_SECRET
+          ENV_EOF
+
+            echo "── Pulling latest images ──"
+            docker compose -f docker-compose.staging.yml pull
+
+            echo "── Starting services ──"
+            docker compose -f docker-compose.staging.yml up -d --remove-orphans
+
+            echo "── Updating Nginx configs (subdomain routing) ──"
+            sudo mkdir -p /var/www/certbot
+
+            # Web subdomain config
+            if [ -f "/etc/letsencrypt/live/$DOMAIN_WEB/fullchain.pem" ]; then
+              echo "  SSL cert found for $DOMAIN_WEB → HTTPS config"
+              sed "s/__DOMAIN__/$DOMAIN_WEB/g" /opt/staging/nginx/web-ssl.conf | sudo tee /etc/nginx/conf.d/$DOMAIN_WEB.conf > /dev/null
+            else
+              echo "  No SSL cert for $DOMAIN_WEB → HTTP config"
+              sed "s/__DOMAIN__/$DOMAIN_WEB/g" /opt/staging/nginx/web.conf | sudo tee /etc/nginx/conf.d/$DOMAIN_WEB.conf > /dev/null
+            fi
+
+            # API subdomain config
+            if [ -f "/etc/letsencrypt/live/$DOMAIN_API/fullchain.pem" ]; then
+              echo "  SSL cert found for $DOMAIN_API → HTTPS config"
+              sed "s/__DOMAIN__/$DOMAIN_API/g" /opt/staging/nginx/api-ssl.conf | sudo tee /etc/nginx/conf.d/$DOMAIN_API.conf > /dev/null
+            else
+              echo "  No SSL cert for $DOMAIN_API → HTTP config"
+              sed "s/__DOMAIN__/$DOMAIN_API/g" /opt/staging/nginx/api.conf | sudo tee /etc/nginx/conf.d/$DOMAIN_API.conf > /dev/null
+            fi
+
+            echo "── Testing Nginx config ──"
+            sudo nginx -t
+
+            echo "── Reloading Nginx ──"
+            sudo systemctl reload nginx
+
+            echo "── Cleaning up old images ──"
+            docker image prune -f
+
+            echo "── Service status ──"
+            docker compose -f docker-compose.staging.yml ps
+
+            echo "✓ Staging deployment complete"
+          DEPLOY_SCRIPT
+
+      # ──────────────────────────────────────────────
+      # Health check
+      # ──────────────────────────────────────────────
+      - name: Verify deployment health
+        run: |
+          echo "=========================================="
+          echo "Verifying deployment health"
+          echo "=========================================="
+
+          SSH_OPTS="-i ~/.ssh/ec2_key -o StrictHostKeyChecking=no"
+          REMOTE="$EC2_USER@$EC2_HOST"
+
+          # Wait for services to start
+          sleep 15
+
+          ssh $SSH_OPTS $REMOTE << 'HEALTH_CHECK'
+            set -euo pipefail
+
+            echo "Checking Backend health..."
+            curl -sf http://127.0.0.1:3000/api/v1/health > /dev/null && echo "✓ Backend is healthy" || echo "⚠️ Backend health check failed (may still be starting)"
+
+            echo "Checking Web..."
+            curl -sf http://127.0.0.1:3001/ > /dev/null && echo "✓ Web is healthy" || echo "⚠️ Web health check failed (may still be starting)"
+
+            echo "Checking Nginx..."
+            sudo systemctl is-active nginx > /dev/null && echo "✓ Nginx is running" || echo "❌ Nginx is not running"
+          HEALTH_CHECK
+
+      - name: Cleanup SSH key
+        if: always()
+        run: rm -rf ~/.ssh/ec2_key
+
+      # ──────────────────────────────────────────────
+      # Summary
+      # ──────────────────────────────────────────────
+      - name: Deployment summary
+        run: |
+          echo "=========================================="
+          echo "Staging Deployment Complete!"
+          echo "=========================================="
+          echo "Strategy:     Single EC2 + Host Nginx (subdomain routing)"
+          echo "EC2 Host:     ${{ secrets.EC2_HOST }}"
+          echo "Branch:       staging"
+          echo "Commit SHA:   ${{ github.sha }}"
+          echo ""
+          echo "Web Image:    ${{ steps.build-web.outputs.image }}"
+          echo "Backend Image: ${{ steps.build-backend.outputs.image }}"
+          echo ""
+          echo "Subdomains:"
+          echo "  Web:     ${{ vars.DOMAIN_WEB }}"
+          echo "  API:     ${{ vars.DOMAIN_API }}"
+          echo ""
+          echo "First deploy? Run init-ssl.sh on EC2 for HTTPS."
+          echo "=========================================="

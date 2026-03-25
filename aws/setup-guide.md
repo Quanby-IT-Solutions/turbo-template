@@ -1,282 +1,409 @@
-# AWS Deployment Tutorial (Step by Step)
+# AWS Deployment Guide
 
-This tutorial walks you through deploying this monorepo to AWS using:
+This monorepo uses **two different deployment strategies** depending on the environment:
 
-- Docker images in ECR
-- ECS Fargate services (web + backend)
-- Application Load Balancer path routing
-- GitHub Actions CI/CD (`dev`, `staging`, and `production` branches)
+| Environment    | Strategy                             | Infrastructure        | Workflow                |
+| -------------- | ------------------------------------ | --------------------- | ----------------------- |
+| **Staging**    | Single EC2 + Host Nginx (subdomains) | 1 EC2 instance        | `deploy-staging.yml`    |
+| **Production** | ECS Fargate + ALB                    | Fargate cluster + ALB | `deploy-production.yml` |
 
-It is aligned with the current repository files:
+## Architecture Overview
 
-- `apps/web/Dockerfile`
-- `apps/backend/Dockerfile`
-- `aws/ecs/task-definition-*.json`
-- `.github/workflows/deploy.yml`
-- `.github/workflows/ci.yml`
+```
+                    ┌─────────────────────────────────────────────────────┐
+  STAGING           │  Single EC2 Instance                                │
+  (branch: staging) │                                                     │
+                    │  ┌─────────────────────────────────────────────┐    │
+                    │  │ Nginx (host-installed)                      │    │
+                    │  │   staging.example.com     → 127.0.0.1:3001  │    │
+                    │  │   api.staging.example.com → 127.0.0.1:3000  │    │
+                    │  │   + Certbot SSL (Let's Encrypt)             │    │
+                    │  └─────────────────────────────────────────────┘    │
+                    │                                                     │
+                    │  ┌──────────────┐  ┌──────────────┐                 │
+                    │  │ Web (Docker) │  │ API (Docker)  │                │
+                    │  │ Next.js:3001 │  │ NestJS:3000   │                │
+                    │  └──────────────┘  └──────────────┘                 │
+                    │         Docker Compose (apps only)                  │
+                    └─────────────────────────────────────────────────────┘
+
+                    ┌─────────────────────────────────────────────────────┐
+  PRODUCTION        │  AWS ECS Fargate                                    │
+  (branch:          │  ┌─────┐  ┌──────────────┐                          │
+   production)      │  │     │→ │ Web Service   │ (Fargate task)          │
+                    │  │ ALB │  └──────────────┘                          │
+                    │  │     │→ ┌──────────────┐                          │
+                    │  │     │  │ Backend Svc   │ (Fargate task)          │
+                    │  └─────┘  └──────────────┘                          │
+                    │    /api/* → backend, /* → web                       │
+                    └─────────────────────────────────────────────────────┘
+```
+
+### Subdomain Routing (Staging)
+
+Each app gets its own subdomain. This is extensible for future microservices:
+
+| Subdomain                    | Routes to         | Port |
+| ---------------------------- | ----------------- | ---- |
+| `staging.yourdomain.com`     | Web (Next.js)     | 3001 |
+| `api.staging.yourdomain.com` | Backend (NestJS)  | 3000 |
+| _(future)_ `ws.staging...`   | WebSocket service | 3002 |
+| _(future)_ `admin.staging..` | Admin panel       | 3003 |
+
+### Relevant Files
+
+| File                                      | Purpose                                         |
+| ----------------------------------------- | ----------------------------------------------- |
+| `.github/workflows/ci.yml`                | CI (lint, typecheck, format) on all branches    |
+| `.github/workflows/deploy-staging.yml`    | Staging deploy → EC2 via SSH                    |
+| `.github/workflows/deploy-production.yml` | Production deploy → ECS Fargate                 |
+| `.github/workflows/infrastructure.yml`    | One-time infra setup (manual trigger)           |
+| `aws/ec2/docker-compose.staging.yml`      | Docker Compose for app containers only          |
+| `aws/ec2/nginx/web.conf`                  | Nginx HTTP template for web subdomain           |
+| `aws/ec2/nginx/web-ssl.conf`              | Nginx HTTPS template for web subdomain          |
+| `aws/ec2/nginx/api.conf`                  | Nginx HTTP template for API subdomain           |
+| `aws/ec2/nginx/api-ssl.conf`              | Nginx HTTPS template for API subdomain          |
+| `aws/ec2/setup-ec2.sh`                    | EC2 bootstrap (Docker, Nginx, Certbot, AWS CLI) |
+| `aws/ec2/init-ssl.sh`                     | One-time SSL certificate setup                  |
+| `aws/ecs/task-definition-*.json`          | ECS Fargate task definitions (production)       |
+| `aws/terraform/`                          | Terraform for production infrastructure         |
+| `apps/web/Dockerfile`                     | Web app Docker image                            |
+| `apps/backend/Dockerfile`                 | Backend Docker image                            |
 
 ---
 
-## Branch and deployment mapping
+## Branch and Deployment Mapping
 
-- `dev` branch: CI runs, no deployment.
-- `staging` branch: CI runs, auto deploys to `staging`.
-- `production` branch: CI runs, auto deploys to `production`.
-
-## CI workflow trigger behavior
-
-`CI` runs on:
-
-- `push` to `dev`, `staging`, and `production`
-- `pull_request` targeting `dev`, `staging`, and `production`
-- `workflow_dispatch` manual trigger
+| Branch       | CI                      | Deployment                 |
+| ------------ | ----------------------- | -------------------------- |
+| `dev`        | Lint, typecheck, format | None                       |
+| `staging`    | Lint, typecheck, format | Auto-deploy to EC2         |
+| `production` | Lint, typecheck, format | Auto-deploy to ECS Fargate |
 
 ---
 
 ## 1) Prerequisites
 
-Before you start, ensure you have:
-
-1. AWS account and AWS CLI installed locally (`aws configure`). **Note:** The IAM user configuring your local AWS CLI must have the `AdministratorAccess` policy (or sufficient equivalent permissions to create VPCs, ECS Clusters, ECR Repositories, ALBs, and IAM Roles).
-2. Terraform installed locally (`terraform -v`).
-3. GitHub repository admin access (for repo Secrets/Variables).
-4. A database connection string for `DATABASE_URL`.
-
----
-
-## 2) Automatically Create AWS Infrastructure (Terraform)
-
-Instead of manually clicking through the AWS console to create a VPC, Security Groups, ECR Repositories, an ECS Cluster, and a Load Balancer, you can create them all in 3 minutes using the provided Terraform scripts.
-
-1. Initialize Terraform (downloads AWS provider):
-   ```bash
-   terraform -chdir=aws/terraform init
-   ```
-2. Run the plan to see what will be created:
-   ```bash
-   terraform -chdir=aws/terraform plan -var="project_name=turbo-template" -var="environment=staging"
-   ```
-3. Apply the configuration to build your infrastructure!
-   ```bash
-   terraform -chdir=aws/terraform apply -var="project_name=turbo-template" -var="environment=staging"
-   ```
-
-_Terraform will output your Load Balancer URL (`alb_dns_name`) when it finishes. Save this URL!_
-
-**Note:** To create your production infrastructure, run the exact same apply command but change `environment=staging` to `environment=production`.
+1. **AWS account** with AWS CLI installed locally (`aws configure`).
+   - IAM user needs `AdministratorAccess` (or sufficient permissions for ECR, EC2, ECS, VPC, ALB, IAM).
+2. **Terraform** installed locally (`terraform -v`) — only needed for production.
+3. **GitHub repository** admin access (for Secrets/Variables).
+4. **Database connection string** for `DATABASE_URL`.
+5. **Domain name** with DNS access (for subdomain configuration).
 
 ---
 
-## 9) Prepare GitHub repository configuration
+# Part A: Staging Deployment (Single EC2 + Subdomains)
 
-Go to your GitHub Repository Settings. You will need to define variables and secrets at the **Environment level** (specific to staging/production).
+## 2) Launch an EC2 Instance
 
-First, create two Environments under Settings > Environments: `staging` and `production`. Click into each environment and add the following:
+1. Go to **AWS Console → EC2 → Launch Instance**.
+2. Choose **Amazon Linux 2023** or **Ubuntu 22.04+**.
+3. Instance type: **t3.small** (recommended) or **t3.micro** (minimum).
+4. Configure networking:
+   - Place in a **public subnet** (or use an Elastic IP).
+   - Security Group: Allow inbound **TCP 80** (HTTP), **TCP 443** (HTTPS), **TCP 22** (SSH).
+5. Create or select a **key pair** for SSH access.
+6. Launch the instance and note the **public IP or DNS**.
 
-### `staging`
+## 3) Configure DNS Records
 
-**Secrets:**
+Point your subdomains to the EC2 instance's public IP:
 
-```env
-# AWS IAM User Access Key with permissions to ECS/ECR
-# ↳ Get from: AWS Console -> IAM -> Users -> Select User -> Security Credentials -> Create Access Key
-AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE
-
-# AWS IAM User Secret Key
-# ↳ Get from: AWS Console -> IAM -> Users -> Select User -> Security Credentials -> Create Access Key (only shown once)
-AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
-
-# Connection string to your Staging Postgres database
-DATABASE_URL=postgres://staging-user:pass@host:5432/db
-
-# Comma-separated list of allowed frontend URLs (CORS)
-CORS_ORIGINS=https://staging.yourdomain.com
-
-# Random 32-character string for JWT/Session signing (Generate via `openssl rand -base64 32`)
-BETTER_AUTH_SECRET=a_random_secure_string_for_staging
-
-# Allowed domains for authentication cookies
-BETTER_AUTH_TRUSTED_ORIGINS=https://staging.yourdomain.com
-
-# OAuth Client ID
-# ↳ Get from: Google Cloud Console -> APIs & Services -> Credentials
-GOOGLE_CLIENT_ID=your-staging-client-id.apps.googleusercontent.com
-
-# OAuth Client Secret
-# ↳ Get from: Google Cloud Console -> APIs & Services -> Credentials
-GOOGLE_CLIENT_SECRET=your-staging-client-secret
+```
+staging.yourdomain.com       A  →  <EC2_PUBLIC_IP>
+api.staging.yourdomain.com   A  →  <EC2_PUBLIC_IP>
 ```
 
-**Variables:**
+> **Tip**: Use an Elastic IP so the IP doesn't change on instance restart.
 
-```env
-# Your AWS Region Code
-# ↳ Get from: Look at the top right corner of your AWS console (e.g. ap-southeast-1)
-AWS_REGION=ap-southeast-1
+## 4) Setup the EC2 Instance
 
-# The base name you chose for this project. Used to identify resources.
-PROJECT_NAME=turbo-template
+SSH into your instance and run the bootstrap script:
 
-# The base path where the ALB routes backend traffic
-NEXT_PUBLIC_API_BASE_URL=/api
+```bash
+# Copy the setup script to the instance
+scp -i your-key.pem aws/ec2/setup-ec2.sh ec2-user@<EC2_HOST>:/tmp/
 
-# The name of the Staging Web ECR Repository (Created in Step 5)
-ECR_REPOSITORY_WEB=turbo-template-web-staging
-
-# The name of the Staging Backend ECR Repository (Created in Step 5)
-ECR_REPOSITORY_BACKEND=turbo-template-backend-staging
-
-# The name of the Staging ECS Cluster (Created in Step 7)
-ECS_CLUSTER=turbo-template-cluster-staging
-
-# The name of the Staging Web ECS Service (Created in Step 10)
-ECS_SERVICE_WEB=turbo-template-web-staging-service
-
-# The name of the Staging Backend ECS Service (Created in Step 10)
-ECS_SERVICE_BACKEND=turbo-template-backend-staging-service
-
-# The public URL for the Staging frontend application
-NEXT_PUBLIC_APP_URL=https://staging.yourdomain.com
+# SSH in and run it
+ssh -i your-key.pem ec2-user@<EC2_HOST>
+sudo chmod +x /tmp/setup-ec2.sh
+sudo /tmp/setup-ec2.sh
 ```
 
-### `production`
+This installs **Docker, Docker Compose, Nginx, Certbot, and AWS CLI**, and creates the `/opt/staging` directory.
 
-**Secrets:**
+## 5) Attach an IAM Role to the EC2 Instance
 
-```env
-# AWS IAM User Access Key with permissions to ECS/ECR
-# ↳ Get from: AWS Console -> IAM -> Users -> Select User -> Security Credentials -> Create Access Key
-AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE
+Create an IAM Role with `AmazonEC2ContainerRegistryReadOnly` policy and attach it to the EC2 instance. This allows the instance to pull Docker images from ECR without storing credentials.
 
-# AWS IAM User Secret Key
-# ↳ Get from: AWS Console -> IAM -> Users -> Select User -> Security Credentials -> Create Access Key (only shown once)
-AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+1. **AWS Console → IAM → Roles → Create Role**.
+2. Trusted entity: **AWS Service → EC2**.
+3. Attach policy: `AmazonEC2ContainerRegistryReadOnly`.
+4. Name: `staging-ec2-ecr-pull-role`.
+5. **AWS Console → EC2 → Select instance → Actions → Security → Modify IAM Role** → attach the role.
 
-# Connection string to your Production Postgres database
-DATABASE_URL=postgres://prod-user:pass@host:5432/db
+## 6) Create ECR Repositories for Staging
 
-# Comma-separated list of allowed frontend URLs (CORS)
-CORS_ORIGINS=https://yourdomain.com
-
-# Random 32-character string for JWT/Session signing (Generate via `openssl rand -base64 32`)
-BETTER_AUTH_SECRET=a_random_secure_string_for_production
-
-# Allowed domains for authentication cookies
-BETTER_AUTH_TRUSTED_ORIGINS=https://yourdomain.com
-
-# OAuth Client ID
-# ↳ Get from: Google Cloud Console -> APIs & Services -> Credentials
-GOOGLE_CLIENT_ID=your-prod-client-id.apps.googleusercontent.com
-
-# OAuth Client Secret
-# ↳ Get from: Google Cloud Console -> APIs & Services -> Credentials
-GOOGLE_CLIENT_SECRET=your-prod-client-secret
+```bash
+aws ecr create-repository --repository-name turbo-template-web-staging --region ap-southeast-1
+aws ecr create-repository --repository-name turbo-template-backend-staging --region ap-southeast-1
 ```
 
-**Variables:**
+## 7) Configure GitHub Environment: `staging`
 
-```env
-# Your AWS Region Code
-# ↳ Get from: Look at the top right corner of your AWS console (e.g. ap-southeast-1, ap-southeast-1)
-AWS_REGION=ap-southeast-1
+Go to **GitHub → Settings → Environments → Create: `staging`**.
 
-# The base name you chose for this project. Used to identify resources.
-PROJECT_NAME=turbo-template
+### Secrets
 
-# The base path where the ALB routes backend traffic
-NEXT_PUBLIC_API_BASE_URL=/api
+| Secret                        | Example Value                               | Description                   |
+| ----------------------------- | ------------------------------------------- | ----------------------------- |
+| `AWS_ACCESS_KEY_ID`           | `AKIAIOSFODNN7EXAMPLE`                      | AWS access key (push images)  |
+| `AWS_SECRET_ACCESS_KEY`       | `wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY`  | AWS secret key                |
+| `EC2_HOST`                    | `12.34.56.78`                               | EC2 public IP                 |
+| `EC2_USER`                    | `ec2-user`                                  | SSH user                      |
+| `EC2_SSH_KEY`                 | `-----BEGIN RSA PRIVATE KEY-----\n...`      | Full .pem private key content |
+| `DATABASE_URL`                | `postgres://user:pass@host:5432/db`         | Database connection string    |
+| `CORS_ORIGINS`                | `https://staging.yourdomain.com`            | Allowed CORS origin           |
+| `BETTER_AUTH_SECRET`          | `random_secure_string`                      | Auth secret                   |
+| `BETTER_AUTH_TRUSTED_ORIGINS` | `https://staging.yourdomain.com`            | Auth trusted origin           |
+| `GOOGLE_CLIENT_ID`            | `your-client-id.apps.googleusercontent.com` | Google OAuth client ID        |
+| `GOOGLE_CLIENT_SECRET`        | `your-client-secret`                        | Google OAuth secret           |
 
-# The name of the Production Web ECR Repository (Created in Step 5)
-ECR_REPOSITORY_WEB=turbo-template-web-production
+### Variables
 
-# The name of the Production Backend ECR Repository (Created in Step 5)
-ECR_REPOSITORY_BACKEND=turbo-template-backend-production
+| Variable                   | Example Value                            | Description          |
+| -------------------------- | ---------------------------------------- | -------------------- |
+| `AWS_REGION`               | `ap-southeast-1`                         | AWS region           |
+| `PROJECT_NAME`             | `turbo-template`                         | Project name         |
+| `ECR_REPOSITORY_WEB`       | `turbo-template-web-staging`             | ECR repo for web     |
+| `ECR_REPOSITORY_BACKEND`   | `turbo-template-backend-staging`         | ECR repo for backend |
+| `DOMAIN_WEB`               | `staging.yourdomain.com`                 | Web app subdomain    |
+| `DOMAIN_API`               | `api.staging.yourdomain.com`             | API subdomain        |
+| `NEXT_PUBLIC_APP_URL`      | `https://staging.yourdomain.com`         | Public web URL       |
+| `NEXT_PUBLIC_API_BASE_URL` | `https://api.staging.yourdomain.com/api` | Public API base URL  |
+| `NEXT_PUBLIC_API_VERSION`  | `1`                                      | API version          |
 
-# The name of the Production ECS Cluster (Created in Step 7)
-ECS_CLUSTER=turbo-template-cluster-production
+> **Important**: With subdomain routing, `NEXT_PUBLIC_API_BASE_URL` is a full URL (e.g., `https://api.staging.yourdomain.com/api`), not a relative path like `/api`.
 
-# The name of the Production Web ECS Service (Created in Step 10)
-ECS_SERVICE_WEB=turbo-template-web-production-service
-
-# The name of the Production Backend ECS Service (Created in Step 10)
-ECS_SERVICE_BACKEND=turbo-template-backend-production-service
-
-# The public URL for the Production frontend application
-NEXT_PUBLIC_APP_URL=https://yourdomain.com
-```
-
-Note: task definition templates are selected internally by the deployment workflow via:
-
-- `aws/ecs/task-definition-web.json`
-- `aws/ecs/task-definition-backend.json`
-- `aws/ecs/task-definition-web-staging.json`
-- `aws/ecs/task-definition-backend-staging.json`
-
-Note: production resource names above align with Terraform naming `${project_name}-<resource>-${environment}`.
-
-Note: workflows now include a preflight step that fails early if required variables are empty.
-
----
-
-## 10) Deploy to staging
+## 8) Deploy to Staging
 
 Two options:
 
-1. Push to branch `staging`
-2. Manually trigger workflow: **Deploy** with:
-   - `branch=staging`
-   - `environment=staging`
+1. **Push/merge to `staging` branch** — auto-triggers `deploy-staging.yml`
+2. **Manual trigger** — Go to Actions → "Deploy Staging (EC2)" → Run workflow
 
-For manual deploys, branch and environment must match (`staging` -> `staging`).
+### What the workflow does:
 
-Workflow actions include:
+1. Builds web and backend Docker images
+2. Pushes images to ECR (staging repositories)
+3. SSHs into the EC2 instance
+4. Copies `docker-compose.staging.yml` and Nginx templates to `/opt/staging/`
+5. Writes `.env` with all secrets/variables
+6. Pulls the new images from ECR
+7. Runs `docker compose up -d` to start/restart containers
+8. Generates Nginx configs from templates (auto-detects SSL)
+9. Reloads Nginx
+10. Runs health checks
 
-- run Terraform `init` / `plan` / `apply` in `aws/terraform` with `project_name` and `environment` variables
-- build and push web/backend Docker images to ECR
-- apply `envsubst` to `aws/ecs/task-definition-web-staging.json` and `aws/ecs/task-definition-backend-staging.json`
-- register new task definition revisions
-- update ECS services and wait until stable
+### How it works on the EC2:
+
+```
+Internet
+  ├── staging.yourdomain.com     → Nginx :80/:443 → 127.0.0.1:3001 (Web container)
+  └── api.staging.yourdomain.com → Nginx :80/:443 → 127.0.0.1:3000 (Backend container)
+```
+
+## 9) Setup SSL (One-Time, After First Deploy)
+
+After the first deployment succeeds (containers running, Nginx serving HTTP), set up HTTPS:
+
+```bash
+ssh -i your-key.pem ec2-user@<EC2_HOST>
+
+# Run the SSL setup script
+sudo /opt/staging/init-ssl.sh admin@example.com \
+  staging.yourdomain.com \
+  api.staging.yourdomain.com
+```
+
+This:
+
+1. Gets SSL certificates from Let's Encrypt via certbot webroot
+2. Updates Nginx configs to enable HTTPS with HTTP→HTTPS redirects
+3. Sets up auto-renewal via cron (runs daily at 3 AM)
+
+After running, trigger another deployment (or push to staging) — the workflow will automatically detect the SSL certs and use HTTPS configs from then on.
+
+## 10) Adding a New Microservice Subdomain
+
+To add a new service (e.g., `ws.staging.yourdomain.com`):
+
+1. Add a new service to `docker-compose.staging.yml` with `127.0.0.1:<port>:<port>`
+2. Create `aws/ec2/nginx/ws.conf` and `aws/ec2/nginx/ws-ssl.conf` (copy from api templates, change port)
+3. Add `DOMAIN_WS` variable to GitHub environment
+4. Add the Nginx config generation block in `deploy-staging.yml`
+5. Add DNS record: `ws.staging.yourdomain.com A → <EC2_IP>`
+6. Run: `sudo certbot certonly --webroot -w /var/www/certbot -d ws.staging.yourdomain.com`
 
 ---
 
-## 13) Deploy to production
+# Part B: Production Deployment (ECS Fargate)
+
+## 11) Create Production Infrastructure (Terraform)
+
+```bash
+# Initialize
+terraform -chdir=aws/terraform init
+
+# Plan
+terraform -chdir=aws/terraform plan \
+  -var="project_name=turbo-template" \
+  -var="environment=production"
+
+# Apply
+terraform -chdir=aws/terraform apply \
+  -var="project_name=turbo-template" \
+  -var="environment=production"
+```
+
+Terraform creates: VPC, subnets, NAT gateway, ALB, ECS cluster, ECR repositories, security groups, IAM roles.
+
+Save the `alb_dns_name` output — that's your production URL.
+
+## 12) Configure GitHub Environment: `production`
+
+Go to **GitHub → Settings → Environments → Create: `production`**.
+
+### Secrets
+
+| Secret                        | Example Value                                    |
+| ----------------------------- | ------------------------------------------------ |
+| `AWS_ACCESS_KEY_ID`           | `AKIAIOSFODNN7EXAMPLE`                           |
+| `AWS_SECRET_ACCESS_KEY`       | `wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY`       |
+| `DATABASE_URL`                | `postgres://prod-user:pass@host:5432/db`         |
+| `CORS_ORIGINS`                | `https://yourdomain.com`                         |
+| `BETTER_AUTH_SECRET`          | `random_secure_string_for_production`            |
+| `BETTER_AUTH_TRUSTED_ORIGINS` | `https://yourdomain.com`                         |
+| `GOOGLE_CLIENT_ID`            | `your-prod-client-id.apps.googleusercontent.com` |
+| `GOOGLE_CLIENT_SECRET`        | `your-prod-client-secret`                        |
+
+### Variables
+
+| Variable                   | Example Value                               |
+| -------------------------- | ------------------------------------------- |
+| `AWS_REGION`               | `ap-southeast-1`                            |
+| `PROJECT_NAME`             | `turbo-template`                            |
+| `ECR_REPOSITORY_WEB`       | `turbo-template-web-production`             |
+| `ECR_REPOSITORY_BACKEND`   | `turbo-template-backend-production`         |
+| `ECS_CLUSTER`              | `turbo-template-cluster-production`         |
+| `ECS_SERVICE_WEB`          | `turbo-template-web-production-service`     |
+| `ECS_SERVICE_BACKEND`      | `turbo-template-backend-production-service` |
+| `NEXT_PUBLIC_APP_URL`      | `https://yourdomain.com`                    |
+| `NEXT_PUBLIC_API_BASE_URL` | `/api`                                      |
+| `NEXT_PUBLIC_API_VERSION`  | `1`                                         |
+
+> **Note**: Production uses ALB path-based routing (`/api/*` → backend), so `NEXT_PUBLIC_API_BASE_URL` is a relative path (`/api`).
+
+## 13) Deploy to Production
 
 Two options:
 
-1. Push to branch `production`
-2. Manually trigger workflow: **Deploy** with:
-   - `branch=production`
-   - `environment=production`
+1. **Push/merge to `production` branch** — auto-triggers `deploy-production.yml`
+2. **Manual trigger** — Go to Actions → "Deploy Production (ECS Fargate)" → Run workflow
 
-For manual deploys, branch and environment must match (`production` -> `production`).
+### What the workflow does:
 
-The same build/register/update process runs using production variables/templates.
+1. Runs Terraform `init` / `plan` / `apply` to ensure infrastructure is up
+2. Builds web and backend Docker images
+3. Pushes images to ECR (production repositories)
+4. Registers new ECS task definitions with updated image tags
+5. Updates ECS services with new task definitions
+6. Waits for services to stabilize (rolling deployment)
+
+### How it works on AWS:
+
+```
+Internet → ALB (:80/:443)
+              ├── /api/*  → Backend Target Group → Fargate Task (NestJS :3000)
+              └── /*      → Web Target Group     → Fargate Task (Next.js :3001)
+```
 
 ---
 
-## 14) Verify deployment
+# Verification & Troubleshooting
 
-After deploy:
+## 14) Verify Deployment
 
-1. Check ECS services are stable and desired tasks are healthy.
-2. Check target groups show healthy targets.
+### Staging (EC2)
+
+```bash
+# SSH in and check
+ssh -i your-key.pem ec2-user@<EC2_HOST>
+cd /opt/staging
+
+# Container status
+docker compose -f docker-compose.staging.yml ps
+
+# Container logs
+docker compose -f docker-compose.staging.yml logs -f
+
+# Nginx status
+sudo systemctl status nginx
+sudo nginx -t
+
+# Test locally on EC2
+curl -sf http://127.0.0.1:3001/        # Web
+curl -sf http://127.0.0.1:3000/api/v1/health  # Backend
+
+# From your browser:
+# https://staging.yourdomain.com/              → Web app
+# https://api.staging.yourdomain.com/api/v1/health → Backend health
+```
+
+### Production (ECS Fargate)
+
+1. Check ECS services are stable in AWS Console → ECS → Clusters.
+2. Check target groups show healthy targets in EC2 → Target Groups.
 3. Visit ALB DNS:
-   - `/` should serve web app
-   - `/api/v1/health` should return backend health
-4. Inspect logs in CloudWatch:
-   - `/ecs/${PROJECT_NAME}-web`
-   - `/ecs/${PROJECT_NAME}-backend`
+   - `/` → web app
+   - `/api/v1/health` → backend health
+4. Check logs in CloudWatch:
+   - `/ecs/${PROJECT_NAME}-web-production`
+   - `/ecs/${PROJECT_NAME}-backend-production`
 
----
+## 15) Troubleshooting
 
-## 15) Troubleshooting checklist
+### Staging (EC2)
 
-If deployment fails, check in this order:
+1. **SSH connection refused**
+   - Check Security Group allows port 22 from your IP.
+   - Verify `EC2_HOST`, `EC2_USER`, and `EC2_SSH_KEY` GitHub secrets.
+
+2. **Docker login fails**
+   - Verify IAM role is attached to EC2 with `AmazonEC2ContainerRegistryReadOnly`.
+
+3. **Containers won't start**
+   - Check logs: `docker compose -f docker-compose.staging.yml logs`
+   - Verify `.env` file contents in `/opt/staging/.env`
+
+4. **Nginx returns 502/504**
+   - Container still starting — wait 30s and retry.
+   - Check: `docker compose -f docker-compose.staging.yml ps` — should show "Up".
+   - Check Nginx config: `sudo nginx -t`
+   - Check Nginx logs: `sudo tail -f /var/log/nginx/error.log`
+
+5. **SSL cert fails to generate**
+   - Verify DNS records point to the EC2 IP: `dig staging.yourdomain.com`
+   - Ensure port 80 is open in Security Group.
+   - Check Nginx is serving the certbot challenge: `curl http://staging.yourdomain.com/.well-known/acme-challenge/test`
+
+### Production (ECS Fargate)
 
 1. **GitHub preflight failure**
    - Missing/empty repo Variables or Secrets.
 
-2. **ECS task won’t start**
+2. **ECS task won't start**
    - Wrong image URI/repo name/region.
    - Missing IAM permissions on execution role.
 
@@ -288,20 +415,15 @@ If deployment fails, check in this order:
    - Target groups unhealthy or SG routing mismatch.
 
 5. **Runtime config crash**
-   - Validate required backend env vars:
-     - `DATABASE_URL`
-     - `CORS_ORIGINS`
-     - `BETTER_AUTH_SECRET`
-     - `BETTER_AUTH_TRUSTED_ORIGINS`
+   - Validate required backend env vars: `DATABASE_URL`, `CORS_ORIGINS`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_TRUSTED_ORIGINS`.
 
 ---
 
-## 16) Recommended next improvements
+## 16) Recommended Improvements
 
-Once baseline deployment works, consider:
-
-1. Move sensitive runtime env values from task definition substitution to AWS Secrets Manager/SSM.
-2. Run ECS tasks in private subnets only.
-3. Add autoscaling policies for CPU/memory.
-4. Add WAF + HTTPS-only redirect.
-5. Add separate DB credentials/URLs for staging vs production.
+1. **Staging**: Use an Elastic IP so the EC2 IP doesn't change on restart.
+2. **Production**: Add HTTPS listener on ALB with ACM certificate.
+3. Move sensitive env values to AWS Secrets Manager/SSM.
+4. Add autoscaling policies for production ECS services.
+5. Add WAF + HTTPS-only redirect on the ALB.
+6. Set up CloudWatch alarms using `aws/monitoring/create-alarms.sh`.

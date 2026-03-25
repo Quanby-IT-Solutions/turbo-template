@@ -1,15 +1,112 @@
-import { SubmitTicketForm } from "@/features/tickets/components/submit-ticket-form"
+"use client"
+
+import { useState } from "react"
+
+import { Button } from "@/core/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/core/components/ui/card"
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/core/components/ui/field"
+import { Input } from "@/core/components/ui/input"
+import { Textarea } from "@/core/components/ui/textarea"
+
+type FormState = "idle" | "submitting" | "success" | "error"
 
 export default function SubmitTicketPage() {
 	return (
-		<div className="space-y-4 p-4 pt-0">
-			<div>
-				<h1 className="text-2xl font-bold tracking-tight">Submit a Ticket</h1>
-				<p className="text-muted-foreground">
-					Tell us what you are facing and our support team will follow up.
-				</p>
-			</div>
-			<SubmitTicketForm />
-		</div>
+		<section className="mx-auto flex w-full max-w-2xl flex-col gap-6">
+			<Card>
+				<CardHeader>
+					<CardTitle>Submit a support ticket</CardTitle>
+					<CardDescription>
+						This form mirrors the `ticket` contract handled by the NestJS backend. Hook the
+						submit handler up to the oRPC call when you are ready.
+					</CardDescription>
+				</CardHeader>
+				<CardContent>
+					<SubmitTicketForm />
+				</CardContent>
+			</Card>
+		</section>
+	)
+}
+
+function SubmitTicketForm() {
+	const [state, setState] = useState<FormState>("idle")
+
+	return (
+		<form
+			onSubmit={async event => {
+				event.preventDefault()
+				const formData = new FormData(event.currentTarget)
+
+				setState("submitting")
+				try {
+					// Replace this placeholder with an oRPC mutation or REST call to the backend.
+					const payload = Object.fromEntries(formData.entries())
+					await new Promise(resolve => setTimeout(resolve, 800))
+					void payload
+					setState("success")
+					event.currentTarget.reset()
+				} catch (error) {
+					setState("error")
+				}
+			}}
+			className="space-y-4"
+		>
+			<FieldGroup>
+				<Field>
+					<FieldLabel htmlFor="name">Name</FieldLabel>
+					<Input id="name" name="name" placeholder="Jane Doe" required />
+				</Field>
+				<Field>
+					<FieldLabel htmlFor="email">Email</FieldLabel>
+					<Input id="email" name="email" type="email" placeholder="you@example.com" required />
+				</Field>
+				<Field>
+					<FieldLabel htmlFor="subject">Subject</FieldLabel>
+					<Input id="subject" name="subject" placeholder="How can we help?" required />
+				</Field>
+				<Field>
+					<FieldLabel htmlFor="priority">Priority</FieldLabel>
+					<select
+						id="priority"
+						name="priority"
+						className="border-input focus-visible:ring-ring inline-flex h-10 w-full rounded-md border bg-transparent px-3 py-2 text-sm ring-offset-background transition placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+						defaultValue="medium"
+					>
+						<option value="low">Low</option>
+						<option value="medium">Medium</option>
+						<option value="high">High</option>
+						<option value="urgent">Urgent</option>
+					</select>
+				</Field>
+				<Field>
+					<FieldLabel htmlFor="concern">Concern</FieldLabel>
+					<Textarea
+						id="concern"
+						name="concern"
+						rows={5}
+						placeholder="Describe what is happening…"
+						required
+					/>
+				</Field>
+				<FieldDescription className="text-xs text-muted-foreground">
+					All submissions are handled by the NestJS tickets module. Wire this mock form to the API
+					to persist real data.
+				</FieldDescription>
+				<Button type="submit" disabled={state === "submitting"} className="w-full">
+					{state === "submitting" ? "Submitting..." : "Submit Ticket"}
+				</Button>
+				{state === "success" && (
+					<p role="status" className="text-sm text-emerald-600">
+						Ticket submitted! Replace the placeholder handler to persist it.
+					</p>
+				)}
+				{state === "error" && (
+					<p role="status" className="text-sm text-destructive">
+						Something went wrong. Please try again.
+					</p>
+				)}
+			</FieldGroup>
+		</form>
 	)
 }

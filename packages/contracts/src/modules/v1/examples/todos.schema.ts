@@ -32,9 +32,6 @@ export const UpdateTodoSchema = TodoSchema.pick({
 	completed: true,
 }).partial()
 
-/** Full update route input: id from path + optional title/completed */
-export const UpdateTodoRequestSchema = TodoIdSchema.extend(UpdateTodoSchema.shape)
-
 // ============================================================================
 // TYPES
 // ============================================================================
@@ -42,4 +39,3 @@ export type Todo = z.infer<typeof TodoSchema>
 export type TodoIdInput = z.infer<typeof TodoIdSchema>
 export type CreateTodoInput = z.infer<typeof CreateTodoSchema>
 export type UpdateTodoInput = z.infer<typeof UpdateTodoSchema>
-export type UpdateTodoRequest = z.infer<typeof UpdateTodoRequestSchema>

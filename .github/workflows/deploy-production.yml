@@ -4,10 +4,6 @@ on:
   push:
     branches:
       - production
-    paths-ignore:
-      - "**/*.md"
-      - ".vscode/**"
-      - "docs/**"
   workflow_dispatch:
 
 concurrency:
@@ -15,38 +11,39 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  # ==========================================================
+  # AWS INFRASTRUCTURE CONFIGURATION
+  # ==========================================================
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  PROJECT_NAME: ${{ vars.PROJECT_NAME }}
+  ECR_REPOSITORY_WEB: ${{ vars.ECR_REPOSITORY_WEB }}
+  ECR_REPOSITORY_BACKEND: ${{ vars.ECR_REPOSITORY_BACKEND }}
+  ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
+  ECS_SERVICE_WEB: ${{ vars.ECS_SERVICE_WEB }}
+  ECS_SERVICE_BACKEND: ${{ vars.ECS_SERVICE_BACKEND }}
+
+  # Image tag (use commit SHA for immutable deployments)
   IMAGE_TAG: ${{ github.sha }}
+
+  # ==========================================================
+  # ENVIRONMENT VARIABLES (PRODUCTION)
+  # ==========================================================
+  NODE_ENV: "production"
+  NEXT_PUBLIC_APP_URL: ${{ vars.NEXT_PUBLIC_APP_URL }}
+  NEXT_PUBLIC_API_BASE_URL: ${{ vars.NEXT_PUBLIC_API_BASE_URL }}
+  NEXT_PUBLIC_API_VERSION: "1"
+  BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
+  BETTER_AUTH_TRUSTED_ORIGINS: ${{ secrets.BETTER_AUTH_TRUSTED_ORIGINS }}
+  CORS_ORIGINS: ${{ secrets.CORS_ORIGINS }}
+  DATABASE_URL: ${{ secrets.DATABASE_URL }}
+  GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+  GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
 
 jobs:
   deploy-production:
     name: Deploy to Production (ECS Fargate)
     runs-on: ubuntu-latest
     environment: production
-    env:
-      # ==========================================================
-      # AWS Infrastructure Configuration
-      # ==========================================================
-      AWS_REGION: ${{ vars.AWS_REGION }}
-      PROJECT_NAME: ${{ vars.PROJECT_NAME }}
-      ECR_REPOSITORY_WEB: ${{ vars.ECR_REPOSITORY_WEB }}
-      ECR_REPOSITORY_BACKEND: ${{ vars.ECR_REPOSITORY_BACKEND }}
-      ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
-      ECS_SERVICE_WEB: ${{ vars.ECS_SERVICE_WEB }}
-      ECS_SERVICE_BACKEND: ${{ vars.ECS_SERVICE_BACKEND }}
-
-      # ==========================================================
-      # App Environment Variables
-      # ==========================================================
-      NODE_ENV: "production"
-      NEXT_PUBLIC_APP_URL: ${{ vars.NEXT_PUBLIC_APP_URL }}
-      NEXT_PUBLIC_API_BASE_URL: ${{ vars.NEXT_PUBLIC_API_BASE_URL }}
-      NEXT_PUBLIC_API_VERSION: "1"
-      BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
-      BETTER_AUTH_TRUSTED_ORIGINS: ${{ secrets.BETTER_AUTH_TRUSTED_ORIGINS }}
-      CORS_ORIGINS: ${{ secrets.CORS_ORIGINS }}
-      DATABASE_URL: ${{ secrets.DATABASE_URL }}
-      GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
-      GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
 
     steps:
       - name: Checkout code
@@ -155,6 +152,7 @@ jobs:
 
           echo "✓ Web image pushed"
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY_WEB:$IMAGE_TAG" >> $GITHUB_OUTPUT
+          echo ""
 
       - name: Build and push Backend image to ECR
         id: build-backend
@@ -179,6 +177,7 @@ jobs:
 
           echo "✓ Backend image pushed"
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:$IMAGE_TAG" >> $GITHUB_OUTPUT
+          echo ""
 
       # ──────────────────────────────────────────────
       # Deploy to ECS Fargate
@@ -202,6 +201,7 @@ jobs:
 
           echo "✓ Web task definition updated: $TASK_DEF_ARN"
           echo "task_def_arn=$TASK_DEF_ARN" >> $GITHUB_OUTPUT
+          echo ""
 
       - name: Deploy Web to ECS
         run: |
@@ -215,11 +215,15 @@ jobs:
             --task-definition ${{ steps.update-task-def-web.outputs.task_def_arn }} \
             --force-new-deployment
 
+          echo "✓ Web service deployment started"
+          echo "Waiting for web service to stabilize..."
+
           aws ecs wait services-stable \
             --cluster $ECS_CLUSTER \
             --services $ECS_SERVICE_WEB
 
           echo "✓ Web service is stable"
+          echo ""
 
       - name: Update Backend task definition
         id: update-task-def-backend
@@ -241,6 +245,7 @@ jobs:
 
           echo "✓ Backend task definition updated: $TASK_DEF_ARN"
           echo "task_def_arn=$TASK_DEF_ARN" >> $GITHUB_OUTPUT
+          echo ""
 
       - name: Deploy Backend to ECS
         run: |
@@ -254,11 +259,15 @@ jobs:
             --task-definition ${{ steps.update-task-def-backend.outputs.task_def_arn }} \
             --force-new-deployment
 
+          echo "✓ Backend service deployment started"
+          echo "Waiting for backend service to stabilize..."
+
           aws ecs wait services-stable \
             --cluster $ECS_CLUSTER \
             --services $ECS_SERVICE_BACKEND
 
           echo "✓ Backend service is stable"
+          echo ""
 
       # ──────────────────────────────────────────────
       # Summary

@@ -1,58 +1,58 @@
 {
-  "$schema": "https://json.schemastore.org/tsconfig",
-  "compilerOptions": {
-    /** Base Options */
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "target": "ES2024",
-    "allowJs": true,
-    "resolveJsonModule": true,
-    "moduleDetection": "force",
-    "isolatedModules": true,
-    "verbatimModuleSyntax": true,
+	"$schema": "https://json.schemastore.org/tsconfig",
+	"compilerOptions": {
+		/** Base Options */
+		"esModuleInterop": true,
+		"skipLibCheck": true,
+		"target": "ES2024",
+		"allowJs": true,
+		"resolveJsonModule": true,
+		"moduleDetection": "force",
+		"isolatedModules": true,
+		"verbatimModuleSyntax": true,
 
-    /** Keep TSC performant in monorepos */
-    "incremental": true,
-    "disableSourceOfProjectReferenceRedirect": true,
-    "tsBuildInfoFile": "${configDir}/.cache/tsbuildinfo.json",
+		/** Keep TSC performant in monorepos */
+		"incremental": true,
+		"disableSourceOfProjectReferenceRedirect": true,
+		"tsBuildInfoFile": "${configDir}/.cache/tsbuildinfo.json",
 
-    /** Strictness */
-    "strict": true,
-    "noUncheckedIndexedAccess": true,
-    "checkJs": true,
+		/** Strictness */
+		"strict": true,
+		"noUncheckedIndexedAccess": true,
+		"checkJs": true,
 
-    /** Bundled projects */
-    "lib": ["dom", "dom.iterable", "ES2024"],
-    "noEmit": true,
-    "module": "ESNext",
-    "moduleResolution": "Bundler",
-    "jsx": "react-jsx",
-    "jsxImportSource": "react",
+		/** Bundled projects */
+		"lib": ["dom", "dom.iterable", "ES2024"],
+		"noEmit": true,
+		"module": "ESNext",
+		"moduleResolution": "Bundler",
+		"jsx": "react-jsx",
+		"jsxImportSource": "react",
 
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ],
+		"plugins": [
+			{
+				"name": "next"
+			}
+		],
 
-    /* Path Aliases */
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["./src/*"]
-    }
-  },
-  "include": [
-    ".next/dev/types/**/*.ts",
-    ".next/types/**/*.ts",
-    "**/*.cjs",
-    "**/*.js",
-    "**/*.ts",
-    "**/*.tsx",
-    "eslint.config.*",
-    "next-env.d.ts",
-    "next.config.*",
-    "postcss.config.*",
-    "prettier.config.*"
-  ],
-  "exclude": ["node_modules", "build", "dist", ".next", ".expo"]
+		/* Path Aliases */
+		"baseUrl": ".",
+		"paths": {
+			"@/*": ["./src/*"]
+		}
+	},
+	"include": [
+		".next/dev/types/**/*.ts",
+		".next/types/**/*.ts",
+		"**/*.cjs",
+		"**/*.js",
+		"**/*.ts",
+		"**/*.tsx",
+		"eslint.config.*",
+		"next-env.d.ts",
+		"next.config.*",
+		"postcss.config.*",
+		"prettier.config.*"
+	],
+	"exclude": ["node_modules", "build", "dist", ".next", ".expo"]
 }

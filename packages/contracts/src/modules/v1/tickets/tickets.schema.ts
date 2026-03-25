@@ -3,9 +3,7 @@ import { z } from "zod"
 // ============================================================================
 // SCHEMAS
 // ============================================================================
-
 export const TicketPrioritySchema = z.enum(["low", "medium", "high", "urgent"])
-
 export const TicketStatusSchema = z.enum(["received", "in_progress", "resolved", "closed"])
 
 const baseTicketSchema = z.object({
@@ -38,11 +36,3 @@ export const CreateTicketSchema = TicketSchema.pick({
 	priority: true,
 	concern: true,
 })
-
-// ============================================================================
-// TYPES
-// ============================================================================
-
-export type Ticket = z.infer<typeof TicketSchema>
-export type TicketIdInput = z.infer<typeof TicketIdSchema>
-export type CreateTicketInput = z.infer<typeof CreateTicketSchema>

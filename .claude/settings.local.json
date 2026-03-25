@@ -2,27 +2,7 @@
   "permissions": {
     "allow": [
       "Bash(flutter pub get:*)",
-      "Bash(flutter analyze:*)",
-      "Bash(tree:*)",
-      "Bash(dir /b \"D:\\\\PROJECTS\\\\turbo-template\\\\packages\\\\db\\\\src\"\")",
-      "Bash(del \"D:\\\\PROJECTS\\\\turbo-template\\\\apps\\\\mobile\\\\lib\\\\services\\\\auth_service.dart\")",
-      "WebSearch",
-      "Bash(dart run build_runner:*)",
-      "Bash(test:*)",
-      "Bash(ipconfig:*)",
-      "WebFetch(domain:www.better-auth.com)",
-      "Bash(flutter pub deps:*)",
-      "WebFetch(domain:pub.dev)",
-      "WebFetch(domain:github.com)",
-      "Bash(where /r \"D:\\\\PROJECTS\\\\turbo-template\\\\apps\\\\mobile\" \"awesome_snackbar_content.dart\")",
-      "Bash(dart pub cache:*)",
-      "Bash(findstr:*)",
-      "Bash(flutter pub cache:*)",
-      "Bash(dir /s /b \"%LOCALAPPDATA%\\\\Pub\\\\Cache\\\\hosted\\\\pub.dev\\\\awesome_snackbar_content*\")",
-      "Bash(cmd /c \"dir /s /b %LOCALAPPDATA%\\\\Pub\\\\Cache\\\\hosted\\\\pub.dev\\\\awesome_snackbar_content* 2>nul\")",
-      "Bash(cmd /c \"dir /s /b %LOCALAPPDATA%\\\\Pub\\\\Cache\\\\hosted\\\\pub.dev\\\\ 2>nul\")",
-      "Bash(ls:*)",
-      "Bash(find:*)"
+      "Bash(flutter analyze:*)"
     ]
   }
 }

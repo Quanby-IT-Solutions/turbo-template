@@ -1,17 +1,9 @@
-import { redirect } from "next/navigation"
-
-import { getSession } from "@/services/better-auth/auth-server"
 import { RegisterForm } from "@/features/auth/register/components/register-form"
 
-export default async function RegisterPage() {
-	const session = await getSession()
-	const isLoggedIn = !!session
-
-	if (isLoggedIn) redirect("/")
-
+export default function RegisterPage() {
 	return (
-		<div className="w-full max-w-sm md:max-w-4xl">
-			<RegisterForm />
-		</div>
+		<section className="flex flex-1 flex-col items-center justify-center">
+			<RegisterForm className="w-full" />
+		</section>
 	)
 }

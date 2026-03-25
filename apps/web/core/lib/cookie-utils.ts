@@ -1,17 +1,11 @@
-import { cookies } from "next/headers"
+import { headers } from "next/headers"
 
 /**
- * Gets the cookie header from the current request.
- *
- * This is used for server-side API calls that need to forward authentication cookies
- * to the backend.
- *
- * @returns Promise<string> - Cookie header string or empty string if no cookies
+ * Collects the raw Cookie header from the current request.
+ * Useful when proxying auth requests to the backend so that Better Auth
+ * can read the same cookies that the browser sent to Next.js.
  */
 export async function getCookieHeader(): Promise<string> {
-	const cookieStore = await cookies()
-	return cookieStore
-		.getAll()
-		.map(cookie => `${cookie.name}=${cookie.value}`)
-		.join("; ")
+	const headerList = await headers()
+	return headerList.get("cookie") ?? ""
 }

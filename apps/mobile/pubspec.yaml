@@ -1,6 +1,6 @@
 name: mobile
 description: "A Flutter mobile app for the Turbo Template monorepo."
-publish_to: 'none'
+publish_to: "none"
 
 version: 1.0.0+1
 

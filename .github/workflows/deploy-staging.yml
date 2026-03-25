@@ -199,10 +199,8 @@ jobs:
           SSH_OPTS="-i ~/.ssh/ec2_key -o StrictHostKeyChecking=no"
           REMOTE="$EC2_USER@$EC2_HOST"
 
-          # Ensure directories exist
           ssh $SSH_OPTS $REMOTE "sudo mkdir -p /opt/staging/nginx && sudo chown -R $EC2_USER:$EC2_USER /opt/staging"
 
-          # Copy docker-compose and nginx templates
           scp $SSH_OPTS aws/ec2/docker-compose.staging.yml $REMOTE:/opt/staging/docker-compose.staging.yml
           scp $SSH_OPTS aws/ec2/nginx/*.conf $REMOTE:/opt/staging/nginx/
           scp $SSH_OPTS aws/ec2/init-ssl.sh $REMOTE:/opt/staging/init-ssl.sh
@@ -254,7 +252,6 @@ jobs:
             echo "── Updating Nginx configs (subdomain routing) ──"
             sudo mkdir -p /var/www/certbot
 
-            # Web subdomain config
             if [ -f "/etc/letsencrypt/live/$DOMAIN_WEB/fullchain.pem" ]; then
               echo "  SSL cert found for $DOMAIN_WEB → HTTPS config"
               sed "s/__DOMAIN__/$DOMAIN_WEB/g" /opt/staging/nginx/web-ssl.conf | sudo tee /etc/nginx/conf.d/$DOMAIN_WEB.conf > /dev/null
@@ -263,7 +260,6 @@ jobs:
               sed "s/__DOMAIN__/$DOMAIN_WEB/g" /opt/staging/nginx/web.conf | sudo tee /etc/nginx/conf.d/$DOMAIN_WEB.conf > /dev/null
             fi
 
-            # API subdomain config
             if [ -f "/etc/letsencrypt/live/$DOMAIN_API/fullchain.pem" ]; then
               echo "  SSL cert found for $DOMAIN_API → HTTPS config"
               sed "s/__DOMAIN__/$DOMAIN_API/g" /opt/staging/nginx/api-ssl.conf | sudo tee /etc/nginx/conf.d/$DOMAIN_API.conf > /dev/null
@@ -299,7 +295,6 @@ jobs:
           SSH_OPTS="-i ~/.ssh/ec2_key -o StrictHostKeyChecking=no"
           REMOTE="$EC2_USER@$EC2_HOST"
 
-          # Wait for services to start
           sleep 15
 
           ssh $SSH_OPTS $REMOTE << 'HEALTH_CHECK'

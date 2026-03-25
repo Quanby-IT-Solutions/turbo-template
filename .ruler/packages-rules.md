@@ -17,11 +17,11 @@ The monorepo uses two directories for shared code:
 
 ### Current Packages
 
-| Package           | Import                                         | Purpose                                    |
-| ----------------- | ---------------------------------------------- | ------------------------------------------ |
-| `@repo/auth`      | `import { auth } from "@repo/auth"`            | Better Auth configuration                  |
-| `@repo/db`        | `import { db } from "@repo/db"`                | Drizzle client and schema                  |
-| `@repo/contracts` | `import { v1Contract } from "@repo/contracts"` | oRPC contracts, Zod schemas, type-safe API |
+| Package | Import | Purpose |
+|---------|--------|---------|
+| `@repo/auth` | `import { auth } from "@repo/auth"` | Better Auth configuration |
+| `@repo/db` | `import { db } from "@repo/db"` | Drizzle client and schema |
+| `@repo/contracts` | `import { CreateTodoDto } from "@repo/contracts"` | API contracts, Zod schemas, DTOs |
 
 ### Package Structure
 
@@ -49,9 +49,9 @@ packages/auth/src/
 ```
 
 Usage:
-
 ```typescript
-import { auth, createAuth, type Session, type User } from "@repo/auth"
+import { auth, createAuth } from "@repo/auth"
+import type { Session, User } from "@repo/auth"
 ```
 
 ### `@repo/db` - Database
@@ -69,87 +69,47 @@ packages/db/src/
 ```
 
 Usage:
-
 ```typescript
-import { createDBClient, db } from "@repo/db"
-import { todos, users } from "@repo/db/schema"
+import { db, createDBClient } from "@repo/db"
+import { users, todos } from "@repo/db/schema"
 ```
 
 ### `@repo/contracts` - API Contracts
 
-Each feature is split into two files:
-
-- `.schema.ts` — Zod schemas and inferred TypeScript types (no oRPC dependency)
-- `.contract.ts` — oRPC route definitions that reference schemas from the schema file
+Shared Zod schemas and DTOs for type-safe API communication:
 
 ```
 packages/contracts/src/
-├── index.ts              # Public exports (re-exports from contracts.ts)
-├── contracts.ts          # Central contract registry (re-exports version routers)
+├── index.ts              # Public exports
+├── common/               # Common schemas
+│   ├── common.contract.ts
+│   └── health.contract.ts
 ├── modules/
-    └── v1/
-        ├── v1.contract.ts    # V1 router — assembles all v1 feature contracts with /v1 prefix
-        └── [feature]/
-            ├── [feature].contract.ts  # oRPC route definitions (method, path, input/output)
-            └── [feature].schema.ts    # Zod schemas and inferred TypeScript types
+│   └── v1/               # Versioned contracts (mirrors backend modules)
+│       └── [feature]/
+│           └── [feature].contract.ts
+└── utils/
+    ├── dto-generator.ts  # DTO utilities
+    └── types.ts          # Shared utility types
 ```
 
-Schema file pattern (`.schema.ts`):
-
-```typescript
-// [feature].schema.ts
-import { z } from "zod"
-
-// Base schema
-export const TodoSchema = z.object({
-	id: z.number().int().positive(),
-	title: z.string().min(1).max(255),
-	completed: z.boolean().default(false),
-})
-
-// Input schemas (derived from base)
-export const CreateTodoSchema = TodoSchema.pick({ title: true, completed: true })
-
-// Inferred TypeScript types
-export type Todo = z.infer<typeof TodoSchema>
-export type CreateTodoInput = z.infer<typeof CreateTodoSchema>
-```
-
-Contract file pattern (`.contract.ts`):
-
+Contract file pattern:
 ```typescript
 // [feature].contract.ts
-import { oc } from "@orpc/contract"
 import { z } from "zod"
+import { createZodDto } from "nestjs-zod"
 
-import { CreateTodoSchema, TodoSchema } from "./[feature].schema.js"
+// Schemas
+export const CreateTodoSchema = z.object({
+  title: z.string().min(1).max(255),
+  completed: z.boolean().optional(),
+})
 
-export const todoContract = {
-	list: oc
-		.route({ method: "GET", path: "/todos", summary: "List all todos", tags: ["Todos"] })
-		.output(z.array(TodoSchema)),
+// Inferred types
+export type CreateTodo = z.infer<typeof CreateTodoSchema>
 
-	create: oc
-		.route({ method: "POST", path: "/todos", summary: "Create todo", tags: ["Todos"] })
-		.input(CreateTodoSchema)
-		.output(TodoSchema),
-}
-```
-
-Version router pattern (`v1.contract.ts`):
-
-```typescript
-// v1.contract.ts
-import { oc } from "@orpc/contract"
-
-export const v1Contract = oc.prefix("/v1").router(
-	oc.router({
-		health: healthContract,
-		example: v1Example,
-	})
-)
-
-export type V1Contract = typeof v1Contract
+// DTOs (for NestJS)
+export class CreateTodoDto extends createZodDto(CreateTodoSchema) {}
 ```
 
 ---
@@ -179,26 +139,22 @@ tooling/
 ### Using Tooling Configs
 
 **ESLint** (in app's `eslint.config.mjs`):
-
 ```javascript
 import nestConfig from "@repo/eslint-config/nest.mjs"
-
 export default [...nestConfig]
 ```
 
 **TypeScript** (in app's `tsconfig.json`):
-
 ```json
 {
-	"extends": "@repo/typescript-config/next.json"
+  "extends": "@repo/typescript-config/next.json"
 }
 ```
 
 **Prettier** (in app's `package.json` or `.prettierrc`):
-
 ```json
 {
-	"prettier": "@repo/prettier-config"
+  "prettier": "@repo/prettier-config"
 }
 ```
 
@@ -207,7 +163,6 @@ export default [...nestConfig]
 ## Creating a New Package
 
 1. Create the package directory:
-
    ```
    packages/[name]/
    ├── src/
@@ -217,38 +172,36 @@ export default [...nestConfig]
    ```
 
 2. Set up `package.json`:
-
    ```json
    {
-   	"name": "@repo/[name]",
-   	"version": "0.0.0",
-   	"private": true,
-   	"exports": {
-   		".": "./src/index.ts"
-   	},
-   	"scripts": {
-   		"build": "tsc",
-   		"dev": "tsc --watch"
-   	}
+     "name": "@repo/[name]",
+     "version": "0.0.0",
+     "private": true,
+     "exports": {
+       ".": "./src/index.ts"
+     },
+     "scripts": {
+       "build": "tsc",
+       "dev": "tsc --watch"
+     }
    }
    ```
 
 3. Extend TypeScript config:
-
    ```json
    {
-   	"extends": "@repo/typescript-config/pkg.json",
-   	"include": ["src"],
-   	"exclude": ["node_modules"]
+     "extends": "@repo/typescript-config/pkg.json",
+     "include": ["src"],
+     "exclude": ["node_modules"]
    }
    ```
 
 4. Add to consuming app's dependencies:
    ```json
    {
-   	"dependencies": {
-   		"@repo/[name]": "workspace:*"
-   	}
+     "dependencies": {
+       "@repo/[name]": "workspace:*"
+     }
    }
    ```
 

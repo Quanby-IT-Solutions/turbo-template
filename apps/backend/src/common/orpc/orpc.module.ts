@@ -1,6 +1,6 @@
 import { Module } from "@nestjs/common"
 import { ORPCModule } from "@orpc/nest"
-import { Request, Response } from "express"
+import { type Request, type Response } from "express"
 
 declare module "@orpc/nest" {
 	interface ORPCGlobalContext {

@@ -4,12 +4,10 @@ import { todoContract } from "./todos/todos.contract.js"
 
 /**
  * V1 contract router (versioned paths: /v1/todos, /v1/health)
- * Assembles all v1 feature contracts and applies the /v1 prefix
+ * Assembles all v1 feature contracts and applies the /example prefix
  */
 export const v1Example = oc.prefix("/example").router(
 	oc.router({
 		todo: todoContract,
-	})
+	}),
 )
-
-export type V1Example = typeof v1Example

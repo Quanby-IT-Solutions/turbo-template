@@ -12,18 +12,17 @@ This is a **Turborepo monorepo** template with three applications and shared pac
 
 ## Technology Stack
 
-| Layer           | Technology                               | Location                                                                          |
-| --------------- | ---------------------------------------- | --------------------------------------------------------------------------------- |
-| Frontend        | Next.js 16 (App Router)                  | `apps/web/`                                                                       |
-| Backend         | NestJS                                   | `apps/backend/`                                                                   |
-| Mobile          | Flutter                                  | `apps/mobile/`                                                                    |
-| Database        | Drizzle ORM + PostgreSQL                 | `packages/db/`                                                                    |
-| Auth            | Better Auth                              | `packages/auth/`                                                                  |
-| Contracts       | Zod schemas + DTOs                       | `packages/contracts/`                                                             |
-| API Layer       | oRPC                                     | `packages/contracts/`, `apps/web/services/orpc/`, `apps/backend/src/common/orpc/` |
-| Styling         | Tailwind CSS + Shadcn UI                 | `apps/web/`                                                                       |
-| Data Fetching   | TanStack Query                           | `apps/web/`                                                                       |
-| Package Manager | pnpm (always use `pnpm`, never npm/yarn) |                                                                                   |
+| Layer           | Technology                               | Location              |
+| --------------- | ---------------------------------------- | --------------------- |
+| Frontend        | Next.js 16 (App Router)                  | `apps/web/`           |
+| Backend         | NestJS                                   | `apps/backend/`       |
+| Mobile          | Flutter                                  | `apps/mobile/`        |
+| Database        | Drizzle ORM + PostgreSQL                 | `packages/db/`        |
+| Auth            | Better Auth                              | `packages/auth/`      |
+| Contracts       | Zod schemas + DTOs                       | `packages/contracts/` |
+| Styling         | Tailwind CSS + Shadcn UI                 | `apps/web/`           |
+| Data Fetching   | TanStack Query                           | `apps/web/`           |
+| Package Manager | pnpm (always use `pnpm`, never npm/yarn) |                       |
 
 ## Monorepo Structure
 
@@ -49,7 +48,7 @@ Import shared packages using the `@repo/*` workspace alias:
 
 ```typescript
 import { auth } from "@repo/auth"
-import { v1Contract, type V1Contract } from "@repo/contracts"
+import { CreateTodoDto, TodoSchema } from "@repo/contracts"
 import { db } from "@repo/db"
 import { todos } from "@repo/db/schema"
 ```

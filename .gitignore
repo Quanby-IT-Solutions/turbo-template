@@ -47,6 +47,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+.pnpm-store/
 
 # local env files
 .env
@@ -69,6 +70,8 @@ dist/
 /dist
 /node_modules
 /build
+
+apps/backend/uploads/
 
 # Logs
 logs
@@ -117,8 +120,6 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
 
 # START Ruler Generated Files
-/.agent/skills
-/.agents/skills
 /.aider.conf.yml
 /.aider.conf.yml.bak
 /.claude/skills
@@ -128,29 +129,9 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 /.codex/config.toml.bak
 /.codex/skills
 /.cursor/skills
-/.factory/skills
 /.gemini/skills
-/.opencode/skill
-/.pi/skills
-/.roo/skills
-/.vibe/skills
 /AGENTS.md
 /AGENTS.md.bak
 /CLAUDE.md
 /CLAUDE.md.bak
 # END Ruler Generated Files
-
-# Terraform
-**/.terraform/*
-*.tfstate
-*.tfstate.*
-crash.log
-crash.*.log
-*.tfvars
-*.tfvars.json
-override.tf
-override.tf.json
-*_override.tf
-*_override.tf.json
-.terraformrc
-terraform.rc

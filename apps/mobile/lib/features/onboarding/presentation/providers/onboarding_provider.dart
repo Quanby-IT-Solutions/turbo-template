@@ -32,7 +32,6 @@ class OnboardingState extends _$OnboardingState {
 
 /// Convenience provider to check if onboarding has been completed.
 @riverpod
-// ignore: deprecated_member_use_from_same_package
-bool hasCompletedOnboarding(HasCompletedOnboardingRef ref) {
+bool hasCompletedOnboarding(Ref ref) {
   return ref.watch(onboardingStateProvider);
 }

@@ -117,5 +117,6 @@ String themeModeDisplayName(Ref ref) {
     ThemeMode.system => 'System',
     ThemeMode.light => 'Light',
     ThemeMode.dark => 'Dark',
+    _ => 'System',
   };
 }

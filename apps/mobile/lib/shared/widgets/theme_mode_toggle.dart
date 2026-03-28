@@ -244,6 +244,7 @@ class ThemeModePopupMenu extends ConsumerWidget {
       ThemeMode.system => Icons.brightness_auto,
       ThemeMode.light => Icons.light_mode,
       ThemeMode.dark => Icons.dark_mode,
+      _ => Icons.brightness_auto,
     };
 
     return PopupMenuButton<ThemeMode>(
@@ -301,6 +302,7 @@ class ThemeModeListTile extends ConsumerWidget {
       ThemeMode.system => Icons.brightness_auto,
       ThemeMode.light => Icons.light_mode,
       ThemeMode.dark => Icons.dark_mode,
+      _ => Icons.brightness_auto,
     };
 
     return ListTile(

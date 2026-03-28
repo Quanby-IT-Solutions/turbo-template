@@ -18,13 +18,13 @@ class TodosList extends _$TodosList {
     final repo = ref.read(todosRepositoryProvider);
     final newTodo = await repo.create(title: title, completed: completed);
 
-    final current = state.valueOrNull ?? <TodoModel>[];
+    final current = state.value ?? <TodoModel>[];
     state = AsyncData([...current, newTodo]);
   }
 
   Future<void> toggleTodo(TodoModel todo) async {
     final previousState = state;
-    final todos = List<TodoModel>.from(state.valueOrNull ?? <TodoModel>[]);
+    final todos = List<TodoModel>.from(state.value ?? <TodoModel>[]);
     final index = todos.indexWhere((t) => t.id == todo.id);
     if (index == -1) return;
 
@@ -48,7 +48,7 @@ class TodosList extends _$TodosList {
     final repo = ref.read(todosRepositoryProvider);
     final updated = await repo.update(id, title: title, completed: completed);
 
-    final todos = List<TodoModel>.from(state.valueOrNull ?? <TodoModel>[]);
+    final todos = List<TodoModel>.from(state.value ?? <TodoModel>[]);
     final index = todos.indexWhere((t) => t.id == id);
     if (index != -1) {
       todos[index] = updated;
@@ -58,7 +58,7 @@ class TodosList extends _$TodosList {
 
   Future<void> deleteTodo(int id) async {
     final previousState = state;
-    final todos = List<TodoModel>.from(state.valueOrNull ?? <TodoModel>[]);
+    final todos = List<TodoModel>.from(state.value ?? <TodoModel>[]);
 
     // Optimistic removal
     todos.removeWhere((t) => t.id == id);

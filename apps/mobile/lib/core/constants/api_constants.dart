@@ -13,7 +13,7 @@ class ApiConstants {
   static String get signOut => '$versionedUrl/auth/sign-out';
   static String get getSession => '$versionedUrl/auth/get-session';
 
-  // Todo endpoints (NestJS - envelope response)
-  static String get todos => '$versionedUrl/examples/todos';
-  static String todoById(int id) => '$versionedUrl/examples/todos/$id';
+  // Todo endpoints (NestJS - oRPC)
+  static String get todos => '$versionedUrl/example/todos';
+  static String todoById(int id) => '$versionedUrl/example/todos/$id';
 }

@@ -47,15 +47,13 @@ class AuthState extends _$AuthState {
 }
 
 @riverpod
-// ignore: deprecated_member_use_from_same_package
-bool isAuthenticated(IsAuthenticatedRef ref) {
+bool isAuthenticated(Ref ref) {
   final authState = ref.watch(authStateProvider);
-  return authState.valueOrNull != null;
+  return authState.value != null;
 }
 
 @riverpod
-// ignore: deprecated_member_use_from_same_package
-UserModel? currentUser(CurrentUserRef ref) {
+UserModel? currentUser(Ref ref) {
   final authState = ref.watch(authStateProvider);
-  return authState.valueOrNull?.user;
+  return authState.value?.user;
 }

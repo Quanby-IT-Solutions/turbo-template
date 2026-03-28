@@ -6,25 +6,53 @@ part of 'navigation_provider.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$currentTabIndexHash() => r'34f3ea7de9e179cc1645d860cb8c9457ff3bcb41';
-
-/// Provider for the current navigation tab index.
+// GENERATED CODE - DO NOT MODIFY BY HAND
+// ignore_for_file: type=lint, type=warning
+/// Provider for the PersistentTabController to manage bottom navigation state.
 ///
-/// Copied from [currentTabIndex].
-@ProviderFor(currentTabIndex)
-final currentTabIndexProvider = AutoDisposeProvider<int>.internal(
-  currentTabIndex,
-  name: r'currentTabIndexProvider',
-  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-      ? null
-      : _$currentTabIndexHash,
-  dependencies: null,
-  allTransitiveDependencies: null,
-);
+/// This allows other parts of the app to programmatically control navigation,
+/// such as switching tabs or getting the current tab index.
 
-@Deprecated('Will be removed in 3.0. Use Ref instead')
-// ignore: unused_element
-typedef CurrentTabIndexRef = AutoDisposeProviderRef<int>;
+@ProviderFor(NavigationController)
+const navigationControllerProvider = NavigationControllerProvider._();
+
+/// Provider for the PersistentTabController to manage bottom navigation state.
+///
+/// This allows other parts of the app to programmatically control navigation,
+/// such as switching tabs or getting the current tab index.
+final class NavigationControllerProvider
+    extends $NotifierProvider<NavigationController, int> {
+  /// Provider for the PersistentTabController to manage bottom navigation state.
+  ///
+  /// This allows other parts of the app to programmatically control navigation,
+  /// such as switching tabs or getting the current tab index.
+  const NavigationControllerProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'navigationControllerProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$navigationControllerHash();
+
+  @$internal
+  @override
+  NavigationController create() => NavigationController();
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(int value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<int>(value),
+    );
+  }
+}
+
 String _$navigationControllerHash() =>
     r'bdee14f8b4e23738ba2c267156c2d18423d9e0f3';
 
@@ -32,20 +60,67 @@ String _$navigationControllerHash() =>
 ///
 /// This allows other parts of the app to programmatically control navigation,
 /// such as switching tabs or getting the current tab index.
-///
-/// Copied from [NavigationController].
-@ProviderFor(NavigationController)
-final navigationControllerProvider =
-    AutoDisposeNotifierProvider<NavigationController, int>.internal(
-      NavigationController.new,
-      name: r'navigationControllerProvider',
-      debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-          ? null
-          : _$navigationControllerHash,
-      dependencies: null,
-      allTransitiveDependencies: null,
-    );
 
-typedef _$NavigationController = AutoDisposeNotifier<int>;
-// ignore_for_file: type=lint
-// ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package
+abstract class _$NavigationController extends $Notifier<int> {
+  int build();
+  @$mustCallSuper
+  @override
+  void runBuild() {
+    final created = build();
+    final ref = this.ref as $Ref<int, int>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<int, int>,
+              int,
+              Object?,
+              Object?
+            >;
+    element.handleValue(ref, created);
+  }
+}
+
+/// Provider for the current navigation tab index.
+
+@ProviderFor(currentTabIndex)
+const currentTabIndexProvider = CurrentTabIndexProvider._();
+
+/// Provider for the current navigation tab index.
+
+final class CurrentTabIndexProvider extends $FunctionalProvider<int, int, int>
+    with $Provider<int> {
+  /// Provider for the current navigation tab index.
+  const CurrentTabIndexProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'currentTabIndexProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$currentTabIndexHash();
+
+  @$internal
+  @override
+  $ProviderElement<int> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  int create(Ref ref) {
+    return currentTabIndex(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(int value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<int>(value),
+    );
+  }
+}
+
+String _$currentTabIndexHash() => r'34f3ea7de9e179cc1645d860cb8c9457ff3bcb41';

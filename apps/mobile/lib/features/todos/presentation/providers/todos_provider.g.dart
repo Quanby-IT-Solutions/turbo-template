@@ -6,21 +6,50 @@ part of 'todos_provider.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$todosListHash() => r'd1825fcf17c1d141599ff579e6e5d0773cd92c53';
+// GENERATED CODE - DO NOT MODIFY BY HAND
+// ignore_for_file: type=lint, type=warning
 
-/// See also [TodosList].
 @ProviderFor(TodosList)
-final todosListProvider =
-    AutoDisposeAsyncNotifierProvider<TodosList, List<TodoModel>>.internal(
-      TodosList.new,
-      name: r'todosListProvider',
-      debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-          ? null
-          : _$todosListHash,
-      dependencies: null,
-      allTransitiveDependencies: null,
-    );
+const todosListProvider = TodosListProvider._();
 
-typedef _$TodosList = AutoDisposeAsyncNotifier<List<TodoModel>>;
-// ignore_for_file: type=lint
-// ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package
+final class TodosListProvider
+    extends $AsyncNotifierProvider<TodosList, List<TodoModel>> {
+  const TodosListProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'todosListProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$todosListHash();
+
+  @$internal
+  @override
+  TodosList create() => TodosList();
+}
+
+String _$todosListHash() => r'1063d4222ea559eae604dcdff51f003fb1a9e381';
+
+abstract class _$TodosList extends $AsyncNotifier<List<TodoModel>> {
+  FutureOr<List<TodoModel>> build();
+  @$mustCallSuper
+  @override
+  void runBuild() {
+    final created = build();
+    final ref = this.ref as $Ref<AsyncValue<List<TodoModel>>, List<TodoModel>>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<AsyncValue<List<TodoModel>>, List<TodoModel>>,
+              AsyncValue<List<TodoModel>>,
+              Object?,
+              Object?
+            >;
+    element.handleValue(ref, created);
+  }
+}

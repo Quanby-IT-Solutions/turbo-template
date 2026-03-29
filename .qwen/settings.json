@@ -1,3 +1,9 @@
 {
-  "contextFileName": "AGENTS.md"
+	"context": {
+		"fileName": "AGENTS.md"
+	},
+	"$version": 3,
+	"permissions": {
+		"allow": ["Bash(flutter *)", "Bash(dart *)", "Bash(tasklist *)", "Bash(copy *)", "Bash(curl *)"]
+	}
 }

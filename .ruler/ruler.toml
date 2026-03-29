@@ -22,8 +22,11 @@ default_agents = ["copilot", "claude", "codex", "cursor", "windsurf", "cline", "
 # output_path_instructions = "AGENTS.md"
 # output_path_config = ".aider.conf.yml"
 
-# [agents.gemini-cli]
-# enabled = true
+[agents.gemini-cli]
+enabled = true
+
+[agents.qwen]
+enabled = true
 
 # --- MCP Servers ---
 # Define Model Context Protocol servers here. Two examples:

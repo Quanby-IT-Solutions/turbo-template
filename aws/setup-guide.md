@@ -35,7 +35,7 @@ This monorepo uses **two different deployment strategies** depending on the envi
                     │  │     │→ ┌──────────────┐                          │
                     │  │     │  │ Backend Svc   │ (Fargate task)          │
                     │  └─────┘  └──────────────┘                          │
-                    │    /api/* → backend, /* → web                       │
+                    │    api.domain.com → backend, domain.com → web       │
                     └─────────────────────────────────────────────────────┘
 ```
 
@@ -57,7 +57,6 @@ Each app gets its own subdomain. This is extensible for future microservices:
 | `.github/workflows/ci.yml`                | CI (lint, typecheck, format) on all branches    |
 | `.github/workflows/deploy-staging.yml`    | Staging deploy → EC2 via SSH                    |
 | `.github/workflows/deploy-production.yml` | Production deploy → ECS Fargate                 |
-| `.github/workflows/infrastructure.yml`    | One-time infra setup (manual trigger)           |
 | `aws/ec2/docker-compose.staging.yml`      | Docker Compose for app containers only          |
 | `aws/ec2/nginx/web.conf`                  | Nginx HTTP template for web subdomain           |
 | `aws/ec2/nginx/web-ssl.conf`              | Nginx HTTPS template for web subdomain          |
@@ -66,7 +65,6 @@ Each app gets its own subdomain. This is extensible for future microservices:
 | `aws/ec2/setup-ec2.sh`                    | EC2 bootstrap (Docker, Nginx, Certbot, AWS CLI) |
 | `aws/ec2/init-ssl.sh`                     | One-time SSL certificate setup                  |
 | `aws/ecs/task-definition-*.json`          | ECS Fargate task definitions (production)       |
-| `aws/terraform/`                          | Terraform for production infrastructure         |
 | `apps/web/Dockerfile`                     | Web app Docker image                            |
 | `apps/backend/Dockerfile`                 | Backend Docker image                            |
 
@@ -86,10 +84,10 @@ Each app gets its own subdomain. This is extensible for future microservices:
 
 1. **AWS account** with AWS CLI installed locally (`aws configure`).
    - IAM user needs `AdministratorAccess` (or sufficient permissions for ECR, EC2, ECS, VPC, ALB, IAM).
-2. **Terraform** installed locally (`terraform -v`) — only needed for production.
-3. **GitHub repository** admin access (for Secrets/Variables).
-4. **Database connection string** for `DATABASE_URL`.
-5. **Domain name** with DNS access (for subdomain configuration).
+2. **GitHub repository** admin access (for Secrets/Variables).
+3. **Database connection string** for `DATABASE_URL`.
+4. **Domain name** with DNS access (for subdomain configuration).
+5. **Infrastructure repo** (separate repo) — provisions VPC, ECS cluster, ALB, ECR, IAM roles via Terraform. See the `infra/` template in this repo root for a ready-to-use starting point.
 
 ---
 
@@ -250,26 +248,13 @@ To add a new service (e.g., `ws.staging.yourdomain.com`):
 
 # Part B: Production Deployment (ECS Fargate)
 
-## 11) Create Production Infrastructure (Terraform)
+## 11) Create Production Infrastructure (Separate Repo)
 
-```bash
-# Initialize
-terraform -chdir=aws/terraform init
+Infrastructure is managed in a **separate Terraform repository** (see the `infra/` template in the monorepo root for a ready-to-use starting point).
 
-# Plan
-terraform -chdir=aws/terraform plan \
-  -var="project_name=turbo-template" \
-  -var="environment=production"
+The infra repo creates: VPC, subnets, NAT gateway, ALB, ECS cluster, ECR repositories, security groups, IAM roles.
 
-# Apply
-terraform -chdir=aws/terraform apply \
-  -var="project_name=turbo-template" \
-  -var="environment=production"
-```
-
-Terraform creates: VPC, subnets, NAT gateway, ALB, ECS cluster, ECR repositories, security groups, IAM roles.
-
-Save the `alb_dns_name` output — that's your production URL.
+After running `terraform apply` in the infra repo, it outputs the values you need to set as GitHub Variables in this app repo (ECR repo names, ECS cluster name, service names, ALB DNS, etc.).
 
 ## 12) Configure GitHub Environment: `production`
 
@@ -300,10 +285,11 @@ Go to **GitHub → Settings → Environments → Create: `production`**.
 | `ECS_SERVICE_WEB`          | `turbo-template-web-production-service`     |
 | `ECS_SERVICE_BACKEND`      | `turbo-template-backend-production-service` |
 | `NEXT_PUBLIC_APP_URL`      | `https://yourdomain.com`                    |
-| `NEXT_PUBLIC_API_BASE_URL` | `/api`                                      |
+| `NEXT_PUBLIC_API_BASE_URL` | `https://api.yourdomain.com/api`            |
 | `NEXT_PUBLIC_API_VERSION`  | `1`                                         |
+| `BETTER_AUTH_COOKIE_DOMAIN`| `.yourdomain.com`                           |
 
-> **Note**: Production uses ALB path-based routing (`/api/*` → backend), so `NEXT_PUBLIC_API_BASE_URL` is a relative path (`/api`).
+> **Note**: Production uses ALB host-based (subdomain) routing — consistent with staging. `NEXT_PUBLIC_API_BASE_URL` is a full URL (e.g., `https://api.yourdomain.com/api`), not a relative path. `BETTER_AUTH_COOKIE_DOMAIN` must start with `.` (dot) to allow cookies to work across both `yourdomain.com` and `api.yourdomain.com`.
 
 ## 13) Deploy to Production
 
@@ -314,19 +300,20 @@ Two options:
 
 ### What the workflow does:
 
-1. Runs Terraform `init` / `plan` / `apply` to ensure infrastructure is up
-2. Builds web and backend Docker images
-3. Pushes images to ECR (production repositories)
-4. Registers new ECS task definitions with updated image tags
-5. Updates ECS services with new task definitions
-6. Waits for services to stabilize (rolling deployment)
+1. Builds web and backend Docker images
+2. Pushes images to ECR (production repositories)
+3. Registers new ECS task definitions with updated image tags
+4. Updates ECS services with new task definitions
+5. Waits for services to stabilize (rolling deployment)
+
+> **Note**: Infrastructure must already exist (created via the infra repo). This workflow only deploys application code.
 
 ### How it works on AWS:
 
 ```
 Internet → ALB (:80/:443)
-              ├── /api/*  → Backend Target Group → Fargate Task (NestJS :3000)
-              └── /*      → Web Target Group     → Fargate Task (Next.js :3001)
+              ├── api.yourdomain.com  → Backend Target Group → Fargate Task (NestJS :3000)
+              └── yourdomain.com      → Web Target Group     → Fargate Task (Next.js :3001)
 ```
 
 ---
@@ -365,9 +352,9 @@ curl -sf http://127.0.0.1:3000/api/v1/health  # Backend
 
 1. Check ECS services are stable in AWS Console → ECS → Clusters.
 2. Check target groups show healthy targets in EC2 → Target Groups.
-3. Visit ALB DNS:
-   - `/` → web app
-   - `/api/v1/health` → backend health
+3. Visit your domains:
+   - `https://yourdomain.com/` → web app
+   - `https://api.yourdomain.com/api/v1/health` → backend health
 4. Check logs in CloudWatch:
    - `/ecs/${PROJECT_NAME}-web-production`
    - `/ecs/${PROJECT_NAME}-backend-production`
@@ -419,6 +406,180 @@ curl -sf http://127.0.0.1:3000/api/v1/health  # Backend
 
 ---
 
+# Environment Variables Reference
+
+This section is the single source of truth for **every** environment variable used in local development, staging, and production. It maps each variable to where it comes from and where it needs to be set.
+
+## Local Development (`.env` files)
+
+Create `.env` files in each workspace by copying the `.env.example` templates:
+
+```bash
+cp apps/web/.env.example apps/web/.env
+cp apps/backend/.env.example apps/backend/.env
+cp packages/db/.env.example packages/db/.env
+```
+
+### `apps/web/.env`
+
+| Variable                   | Default                     | Description                   |
+| -------------------------- | --------------------------- | ----------------------------- |
+| `NODE_ENV`                 | `development`               | Node environment              |
+| `NEXT_PUBLIC_APP_URL`      | `http://localhost:3001`     | Public URL of the web app     |
+| `NEXT_PUBLIC_API_BASE_URL` | `http://localhost:3000/api` | Public URL of the backend API |
+| `NEXT_PUBLIC_API_VERSION`  | `v1`                        | API version prefix            |
+
+### `apps/backend/.env`
+
+| Variable                      | Default                                                      | Description                                      |
+| ----------------------------- | ------------------------------------------------------------ | ------------------------------------------------ |
+| `NODE_ENV`                    | `development`                                                | Node environment                                 |
+| `PORT`                        | `3000`                                                       | Backend server port                              |
+| `CORS_ORIGINS`                | `http://localhost:3001,http://localhost:3000`                | Allowed CORS origins (comma-separated)           |
+| `DATABASE_URL`                | `postgres://postgres:password@localhost:5432/turbo-template` | PostgreSQL connection string (Supabase or local) |
+| `BETTER_AUTH_SECRET`          | `default-secret-for-testing-change-in-production`            | Better Auth signing secret                       |
+| `BETTER_AUTH_TRUSTED_ORIGINS` | `http://localhost:3001,http://localhost:3000`                | Trusted origins for auth                         |
+| `BETTER_AUTH_COOKIE_DOMAIN`   | `localhost`                                                  | Cookie domain for auth                           |
+| `GOOGLE_CLIENT_ID`            | _(your Google OAuth client ID)_                              | Google OAuth client ID                           |
+| `GOOGLE_CLIENT_SECRET`        | _(your Google OAuth client secret)_                          | Google OAuth client secret                       |
+
+### `packages/db/.env`
+
+| Variable       | Default                                                      | Description                                                                        |
+| -------------- | ------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
+| `DATABASE_URL` | `postgres://postgres:password@localhost:5432/turbo-template` | Same connection string, used by Drizzle CLI (`db:push`, `db:migrate`, `db:studio`) |
+
+> **Supabase**: Use your Supabase connection string for `DATABASE_URL` (e.g. `postgres://postgres.[ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres`). Works the same for local and deployed environments.
+
+---
+
+## GitHub Environments: What Goes Where
+
+After running `terraform apply` in the infra repo, its outputs tell you the AWS resource names. Combine those with your app secrets below.
+
+### Legend
+
+| Icon      | Meaning                                             |
+| --------- | --------------------------------------------------- |
+| **TF**    | Value comes from Terraform output (infra repo)      |
+| **You**   | Value you set yourself (credentials, URLs, secrets) |
+| **Fixed** | Hardcoded / same for everyone                       |
+
+---
+
+### Staging Environment (`GitHub > Settings > Environments > staging`)
+
+#### Secrets (sensitive - never log these)
+
+| Secret                        | Source  | Example                                                      |
+| ----------------------------- | ------- | ------------------------------------------------------------ |
+| `AWS_ACCESS_KEY_ID`           | **You** | `AKIAIOSFODNN7EXAMPLE`                                       |
+| `AWS_SECRET_ACCESS_KEY`       | **You** | `wJalrXUtnFEMI/K7MDENG/...`                                  |
+| `EC2_HOST`                    | **You** | `12.34.56.78` (EC2 public IP)                                |
+| `EC2_USER`                    | **You** | `ec2-user` (Amazon Linux) or `ubuntu`                        |
+| `EC2_SSH_KEY`                 | **You** | Full `.pem` private key content                              |
+| `DATABASE_URL`                | **You** | `postgres://user:pass@host:6543/postgres` (Supabase staging) |
+| `CORS_ORIGINS`                | **You** | `https://staging.yourdomain.com`                             |
+| `BETTER_AUTH_SECRET`          | **You** | Random 32+ char string (different from production)           |
+| `BETTER_AUTH_TRUSTED_ORIGINS` | **You** | `https://staging.yourdomain.com`                             |
+| `GOOGLE_CLIENT_ID`            | **You** | `your-staging-client-id.apps.googleusercontent.com`          |
+| `GOOGLE_CLIENT_SECRET`        | **You** | `your-staging-client-secret`                                 |
+
+#### Variables (non-sensitive)
+
+| Variable                   | Source    | Example                                  |
+| -------------------------- | --------- | ---------------------------------------- |
+| `AWS_REGION`               | **You**   | `ap-southeast-1`                         |
+| `PROJECT_NAME`             | **You**   | `turbo-template`                         |
+| `ECR_REPOSITORY_WEB`       | **TF**    | `turbo-template-web-staging`             |
+| `ECR_REPOSITORY_BACKEND`   | **TF**    | `turbo-template-backend-staging`         |
+| `DOMAIN_WEB`               | **You**   | `staging.yourdomain.com`                 |
+| `DOMAIN_API`               | **You**   | `api.staging.yourdomain.com`             |
+| `NEXT_PUBLIC_APP_URL`      | **You**   | `https://staging.yourdomain.com`         |
+| `NEXT_PUBLIC_API_BASE_URL` | **You**   | `https://api.staging.yourdomain.com/api` |
+| `NEXT_PUBLIC_API_VERSION`  | **Fixed** | `1`                                      |
+
+> **Terraform outputs for staging**: After `cd infra/environments/staging && terraform output`:
+>
+> ```
+> ecr_web_repository_name     = "turbo-template-web-staging"       → vars.ECR_REPOSITORY_WEB
+> ecr_backend_repository_name = "turbo-template-backend-staging"   → vars.ECR_REPOSITORY_BACKEND
+> ```
+
+---
+
+### Production Environment (`GitHub > Settings > Environments > production`)
+
+#### Secrets (sensitive)
+
+| Secret                        | Source  | Example                                                         |
+| ----------------------------- | ------- | --------------------------------------------------------------- |
+| `AWS_ACCESS_KEY_ID`           | **You** | `AKIAIOSFODNN7EXAMPLE`                                          |
+| `AWS_SECRET_ACCESS_KEY`       | **You** | `wJalrXUtnFEMI/K7MDENG/...`                                     |
+| `DATABASE_URL`                | **You** | `postgres://user:pass@host:6543/postgres` (Supabase production) |
+| `CORS_ORIGINS`                | **You** | `https://yourdomain.com`                                        |
+| `BETTER_AUTH_SECRET`          | **You** | Random 32+ char string (different from staging)                 |
+| `BETTER_AUTH_TRUSTED_ORIGINS` | **You** | `https://yourdomain.com`                                        |
+| `GOOGLE_CLIENT_ID`            | **You** | `your-prod-client-id.apps.googleusercontent.com`                |
+| `GOOGLE_CLIENT_SECRET`        | **You** | `your-prod-client-secret`                                       |
+
+#### Variables (non-sensitive)
+
+| Variable                    | Source    | Example                                     |
+| --------------------------- | --------- | ------------------------------------------- |
+| `AWS_REGION`                | **You**   | `ap-southeast-1`                            |
+| `PROJECT_NAME`              | **You**   | `turbo-template`                            |
+| `ECR_REPOSITORY_WEB`        | **TF**    | `turbo-template-web-production`             |
+| `ECR_REPOSITORY_BACKEND`    | **TF**    | `turbo-template-backend-production`         |
+| `ECS_CLUSTER`               | **TF**    | `turbo-template-cluster-production`         |
+| `ECS_SERVICE_WEB`           | **TF**    | `turbo-template-web-production-service`     |
+| `ECS_SERVICE_BACKEND`       | **TF**    | `turbo-template-backend-production-service` |
+| `NEXT_PUBLIC_APP_URL`       | **You**   | `https://yourdomain.com`                    |
+| `NEXT_PUBLIC_API_BASE_URL`  | **You**   | `https://api.yourdomain.com/api`            |
+| `NEXT_PUBLIC_API_VERSION`   | **Fixed** | `1`                                         |
+| `BETTER_AUTH_COOKIE_DOMAIN` | **You**   | `.yourdomain.com`                           |
+
+> **Terraform outputs for production**: After `cd infra/environments/production && terraform output`:
+>
+> ```
+> ecr_web_repository_name     = "turbo-template-web-production"           → vars.ECR_REPOSITORY_WEB
+> ecr_backend_repository_name = "turbo-template-backend-production"       → vars.ECR_REPOSITORY_BACKEND
+> ecs_cluster_name            = "turbo-template-cluster-production"       → vars.ECS_CLUSTER
+> ecs_web_service_name        = "turbo-template-web-production-service"   → vars.ECS_SERVICE_WEB
+> ecs_backend_service_name    = "turbo-template-backend-production-service" → vars.ECS_SERVICE_BACKEND
+> alb_dns_name                = "turbo-template-prod-alb-123456.ap-southeast-1.elb.amazonaws.com"
+> ```
+>
+> Point **both** your web and API domain CNAMEs to the `alb_dns_name` value:
+> ```
+> yourdomain.com        CNAME  →  turbo-template-prod-alb-123456.ap-southeast-1.elb.amazonaws.com
+> api.yourdomain.com    CNAME  →  turbo-template-prod-alb-123456.ap-southeast-1.elb.amazonaws.com
+> ```
+
+---
+
+## Quick Checklist
+
+### Before first deploy to staging:
+
+- [ ] EC2 instance launched and setup script run
+- [ ] DNS records pointing to EC2 IP
+- [ ] `terraform apply` in `infra/environments/staging/`
+- [ ] All 11 staging secrets set in GitHub
+- [ ] All 9 staging variables set in GitHub (including TF outputs)
+- [ ] Push to `staging` branch
+
+### Before first deploy to production:
+
+- [ ] `terraform apply` in `infra/environments/production/` (set `api_domain` in `terraform.tfvars`)
+- [ ] All 8 production secrets set in GitHub
+- [ ] All 11 production variables set in GitHub (including TF outputs and `BETTER_AUTH_COOKIE_DOMAIN`)
+- [ ] DNS: `yourdomain.com` CNAME → ALB DNS
+- [ ] DNS: `api.yourdomain.com` CNAME → ALB DNS
+- [ ] Push to `production` branch
+
+---
+
 ## 16) Recommended Improvements
 
 1. **Staging**: Use an Elastic IP so the EC2 IP doesn't change on restart.
@@ -426,4 +587,4 @@ curl -sf http://127.0.0.1:3000/api/v1/health  # Backend
 3. Move sensitive env values to AWS Secrets Manager/SSM.
 4. Add autoscaling policies for production ECS services.
 5. Add WAF + HTTPS-only redirect on the ALB.
-6. Set up CloudWatch alarms using `aws/monitoring/create-alarms.sh`.
+6. Set up CloudWatch alarms via the infra repo (set `enable_alarms = true` in `terraform.tfvars`).

@@ -34,6 +34,7 @@ env:
   NEXT_PUBLIC_API_VERSION: "1"
   BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
   BETTER_AUTH_TRUSTED_ORIGINS: ${{ secrets.BETTER_AUTH_TRUSTED_ORIGINS }}
+  BETTER_AUTH_COOKIE_DOMAIN: ${{ vars.BETTER_AUTH_COOKIE_DOMAIN }}
   CORS_ORIGINS: ${{ secrets.CORS_ORIGINS }}
   DATABASE_URL: ${{ secrets.DATABASE_URL }}
   GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
@@ -77,6 +78,7 @@ jobs:
           require_var NEXT_PUBLIC_APP_URL
           require_var NEXT_PUBLIC_API_BASE_URL
           require_var NEXT_PUBLIC_API_VERSION
+          require_var BETTER_AUTH_COOKIE_DOMAIN
           require_var DATABASE_URL
           require_var CORS_ORIGINS
           require_var BETTER_AUTH_SECRET
@@ -85,7 +87,7 @@ jobs:
           echo "✅ Required deployment variables are set"
 
       # ──────────────────────────────────────────────
-      # Terraform (ensure infrastructure is up)
+      # Build and push Docker images to ECR
       # ──────────────────────────────────────────────
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -94,21 +96,6 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-
-      - name: Terraform Init
-        run: terraform -chdir=aws/terraform init
-
-      - name: Terraform Plan
-        run: terraform -chdir=aws/terraform plan -var="project_name=${PROJECT_NAME}" -var="environment=production"
-
-      - name: Terraform Apply
-        run: terraform -chdir=aws/terraform apply -auto-approve -var="project_name=${PROJECT_NAME}" -var="environment=production"
-
-      # ──────────────────────────────────────────────
-      # Build and push Docker images to ECR
-      # ──────────────────────────────────────────────
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
@@ -233,7 +220,7 @@ jobs:
           echo "=========================================="
 
           export PROJECT_NAME AWS_ACCOUNT_ID AWS_REGION IMAGE_TAG
-          export DATABASE_URL CORS_ORIGINS BETTER_AUTH_SECRET BETTER_AUTH_TRUSTED_ORIGINS GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET
+          export DATABASE_URL CORS_ORIGINS BETTER_AUTH_SECRET BETTER_AUTH_TRUSTED_ORIGINS BETTER_AUTH_COOKIE_DOMAIN GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET
           export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 
           envsubst < aws/ecs/task-definition-backend.json > /tmp/task-def-backend-updated.json

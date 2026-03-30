@@ -43,6 +43,10 @@
 					"value": "${BETTER_AUTH_TRUSTED_ORIGINS}"
 				},
 				{
+					"name": "BETTER_AUTH_COOKIE_DOMAIN",
+					"value": "${BETTER_AUTH_COOKIE_DOMAIN}"
+				},
+				{
 					"name": "GOOGLE_CLIENT_ID",
 					"value": "${GOOGLE_CLIENT_ID}"
 				},

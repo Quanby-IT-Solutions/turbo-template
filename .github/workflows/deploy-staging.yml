@@ -209,10 +209,136 @@ jobs:
 
           ssh $SSH_OPTS $REMOTE "sudo mkdir -p /opt/staging/nginx && sudo chown -R $EC2_USER:$EC2_USER /opt/staging"
 
-          scp $SSH_OPTS aws/ec2/docker-compose.staging.yml $REMOTE:/opt/staging/docker-compose.staging.yml
-          scp $SSH_OPTS aws/ec2/nginx/*.conf $REMOTE:/opt/staging/nginx/
-          scp $SSH_OPTS aws/ec2/init-ssl.sh $REMOTE:/opt/staging/init-ssl.sh
-          ssh $SSH_OPTS $REMOTE "chmod +x /opt/staging/init-ssl.sh"
+          # Copy docker-compose
+          scp $SSH_OPTS docker-compose.staging.yml $REMOTE:/opt/staging/docker-compose.staging.yml
+
+          # Generate nginx config templates on the runner
+          mkdir -p /tmp/nginx-configs
+
+          # ── Web HTTP ──
+          cat > /tmp/nginx-configs/web.conf << 'NGINX_WEB'
+          server {
+              listen 80;
+              server_name __DOMAIN__;
+
+              location /.well-known/acme-challenge/ {
+                  root /var/www/certbot;
+              }
+
+              location / {
+                  proxy_pass http://127.0.0.1:3001;
+                  proxy_http_version 1.1;
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
+                  proxy_set_header Upgrade $http_upgrade;
+                  proxy_set_header Connection "upgrade";
+                  proxy_connect_timeout 60s;
+                  proxy_send_timeout 60s;
+                  proxy_read_timeout 60s;
+              }
+          }
+          NGINX_WEB
+
+          # ── Web HTTPS ──
+          cat > /tmp/nginx-configs/web-ssl.conf << 'NGINX_WEB_SSL'
+          server {
+              listen 80;
+              server_name __DOMAIN__;
+              location /.well-known/acme-challenge/ { root /var/www/certbot; }
+              location / { return 301 https://$host$request_uri; }
+          }
+          server {
+              listen 443 ssl;
+              server_name __DOMAIN__;
+
+              ssl_certificate /etc/letsencrypt/live/__DOMAIN__/fullchain.pem;
+              ssl_certificate_key /etc/letsencrypt/live/__DOMAIN__/privkey.pem;
+              ssl_protocols TLSv1.2 TLSv1.3;
+              ssl_ciphers HIGH:!aNULL:!MD5;
+
+              location / {
+                  proxy_pass http://127.0.0.1:3001;
+                  proxy_http_version 1.1;
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
+                  proxy_set_header Upgrade $http_upgrade;
+                  proxy_set_header Connection "upgrade";
+                  proxy_connect_timeout 60s;
+                  proxy_send_timeout 60s;
+                  proxy_read_timeout 60s;
+              }
+          }
+          NGINX_WEB_SSL
+
+          # ── API HTTP ──
+          cat > /tmp/nginx-configs/api.conf << 'NGINX_API'
+          server {
+              listen 80;
+              server_name __DOMAIN__;
+
+              client_max_body_size 50m;
+
+              location /.well-known/acme-challenge/ {
+                  root /var/www/certbot;
+              }
+
+              location / {
+                  proxy_pass http://127.0.0.1:3000;
+                  proxy_http_version 1.1;
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
+                  proxy_set_header Upgrade $http_upgrade;
+                  proxy_set_header Connection "upgrade";
+                  proxy_connect_timeout 60s;
+                  proxy_send_timeout 60s;
+                  proxy_read_timeout 60s;
+              }
+          }
+          NGINX_API
+
+          # ── API HTTPS ──
+          cat > /tmp/nginx-configs/api-ssl.conf << 'NGINX_API_SSL'
+          server {
+              listen 80;
+              server_name __DOMAIN__;
+              location /.well-known/acme-challenge/ { root /var/www/certbot; }
+              location / { return 301 https://$host$request_uri; }
+          }
+          server {
+              listen 443 ssl;
+              server_name __DOMAIN__;
+
+              client_max_body_size 50m;
+
+              ssl_certificate /etc/letsencrypt/live/__DOMAIN__/fullchain.pem;
+              ssl_certificate_key /etc/letsencrypt/live/__DOMAIN__/privkey.pem;
+              ssl_protocols TLSv1.2 TLSv1.3;
+              ssl_ciphers HIGH:!aNULL:!MD5;
+
+              location / {
+                  proxy_pass http://127.0.0.1:3000;
+                  proxy_http_version 1.1;
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
+                  proxy_set_header Upgrade $http_upgrade;
+                  proxy_set_header Connection "upgrade";
+                  proxy_connect_timeout 60s;
+                  proxy_send_timeout 60s;
+                  proxy_read_timeout 60s;
+              }
+          }
+          NGINX_API_SSL
+
+          # Copy configs to EC2
+          scp $SSH_OPTS /tmp/nginx-configs/*.conf $REMOTE:/opt/staging/nginx/
 
           echo "✓ Files copied"
 
@@ -418,5 +544,5 @@ jobs:
           echo "  Web:     ${{ vars.DOMAIN_WEB }}"
           echo "  API:     ${{ vars.DOMAIN_API }}"
           echo ""
-          echo "First deploy? Run init-ssl.sh on EC2 for HTTPS."
+          echo "First deploy? See README.md Deployment section for SSL setup."
           echo "=========================================="

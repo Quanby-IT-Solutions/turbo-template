@@ -21,6 +21,8 @@ env:
   ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
   ECS_SERVICE_WEB: ${{ vars.ECS_SERVICE_WEB }}
   ECS_SERVICE_BACKEND: ${{ vars.ECS_SERVICE_BACKEND }}
+  ECS_EXECUTION_ROLE_ARN: ${{ vars.ECS_EXECUTION_ROLE_ARN }}
+  ECS_TASK_ROLE_ARN: ${{ vars.ECS_TASK_ROLE_ARN }}
 
   # Image tag (use commit SHA for immutable deployments)
   IMAGE_TAG: ${{ github.sha }}
@@ -81,6 +83,8 @@ jobs:
           require_var ECS_CLUSTER
           require_var ECS_SERVICE_WEB
           require_var ECS_SERVICE_BACKEND
+          require_var ECS_EXECUTION_ROLE_ARN
+          require_var ECS_TASK_ROLE_ARN
 
           # App configuration
           require_var NEXT_PUBLIC_APP_URL
@@ -202,26 +206,62 @@ jobs:
           echo "Current Web Task Def:     $CURRENT_WEB_TASK"
           echo "Current Backend Task Def: $CURRENT_BACKEND_TASK"
 
-      - name: Update Web task definition
+      - name: Register and deploy Web task definition
         id: update-task-def-web
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
           echo "=========================================="
-          echo "Updating Web Task Definition (production)"
+          echo "Registering Web Task Definition (production)"
           echo "=========================================="
 
-          export PROJECT_NAME AWS_ACCOUNT_ID AWS_REGION IMAGE_TAG NEXT_PUBLIC_APP_URL NEXT_PUBLIC_API_BASE_URL NEXT_PUBLIC_API_VERSION
-          export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-
-          envsubst < aws/ecs/task-definition-web.json > /tmp/task-def-web-updated.json
+          cat > /tmp/task-def-web.json << EOF
+          {
+            "family": "${PROJECT_NAME}-web-production",
+            "networkMode": "awsvpc",
+            "requiresCompatibilities": ["FARGATE"],
+            "cpu": "512",
+            "memory": "1024",
+            "executionRoleArn": "${ECS_EXECUTION_ROLE_ARN}",
+            "taskRoleArn": "${ECS_TASK_ROLE_ARN}",
+            "containerDefinitions": [{
+              "name": "web",
+              "image": "${ECR_REGISTRY}/${ECR_REPOSITORY_WEB}:${IMAGE_TAG}",
+              "portMappings": [{"containerPort": 3001, "protocol": "tcp"}],
+              "essential": true,
+              "environment": [
+                {"name": "NODE_ENV", "value": "production"},
+                {"name": "NEXT_PUBLIC_APP_URL", "value": "${NEXT_PUBLIC_APP_URL}"},
+                {"name": "NEXT_PUBLIC_API_BASE_URL", "value": "${NEXT_PUBLIC_API_BASE_URL}"},
+                {"name": "NEXT_PUBLIC_API_VERSION", "value": "${NEXT_PUBLIC_API_VERSION}"}
+              ],
+              "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                  "awslogs-group": "/ecs/${PROJECT_NAME}-web-production",
+                  "awslogs-region": "${AWS_REGION}",
+                  "awslogs-stream-prefix": "ecs",
+                  "awslogs-create-group": "true"
+                }
+              },
+              "healthCheck": {
+                "command": ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3001/ || exit 1"],
+                "interval": 30,
+                "timeout": 10,
+                "retries": 3,
+                "startPeriod": 40
+              }
+            }]
+          }
+          EOF
 
           TASK_DEF_ARN=$(aws ecs register-task-definition \
-            --cli-input-json file:///tmp/task-def-web-updated.json \
+            --cli-input-json file:///tmp/task-def-web.json \
             --query 'taskDefinition.taskDefinitionArn' \
             --output text)
 
-          echo "✓ Web task definition updated: $TASK_DEF_ARN"
+          echo "✓ Web task definition registered: $TASK_DEF_ARN"
           echo "task_def_arn=$TASK_DEF_ARN" >> $GITHUB_OUTPUT
-          echo ""
 
       - name: Deploy Web to ECS
         id: deploy-web
@@ -246,27 +286,67 @@ jobs:
           echo "✓ Web service is stable"
           echo ""
 
-      - name: Update Backend task definition
+      - name: Register and deploy Backend task definition
         id: update-task-def-backend
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
           echo "=========================================="
-          echo "Updating Backend Task Definition (production)"
+          echo "Registering Backend Task Definition (production)"
           echo "=========================================="
 
-          export PROJECT_NAME AWS_ACCOUNT_ID AWS_REGION IMAGE_TAG
-          export DATABASE_URL CORS_ORIGINS BETTER_AUTH_SECRET BETTER_AUTH_TRUSTED_ORIGINS BETTER_AUTH_COOKIE_DOMAIN GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET
-          export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-
-          envsubst < aws/ecs/task-definition-backend.json > /tmp/task-def-backend-updated.json
+          cat > /tmp/task-def-backend.json << EOF
+          {
+            "family": "${PROJECT_NAME}-backend-production",
+            "networkMode": "awsvpc",
+            "requiresCompatibilities": ["FARGATE"],
+            "cpu": "512",
+            "memory": "1024",
+            "executionRoleArn": "${ECS_EXECUTION_ROLE_ARN}",
+            "taskRoleArn": "${ECS_TASK_ROLE_ARN}",
+            "containerDefinitions": [{
+              "name": "backend",
+              "image": "${ECR_REGISTRY}/${ECR_REPOSITORY_BACKEND}:${IMAGE_TAG}",
+              "portMappings": [{"containerPort": 3000, "protocol": "tcp"}],
+              "essential": true,
+              "environment": [
+                {"name": "NODE_ENV", "value": "production"},
+                {"name": "PORT", "value": "3000"},
+                {"name": "CORS_ORIGINS", "value": "${CORS_ORIGINS}"},
+                {"name": "DATABASE_URL", "value": "${DATABASE_URL}"},
+                {"name": "BETTER_AUTH_SECRET", "value": "${BETTER_AUTH_SECRET}"},
+                {"name": "BETTER_AUTH_TRUSTED_ORIGINS", "value": "${BETTER_AUTH_TRUSTED_ORIGINS}"},
+                {"name": "BETTER_AUTH_COOKIE_DOMAIN", "value": "${BETTER_AUTH_COOKIE_DOMAIN}"},
+                {"name": "GOOGLE_CLIENT_ID", "value": "${GOOGLE_CLIENT_ID}"},
+                {"name": "GOOGLE_CLIENT_SECRET", "value": "${GOOGLE_CLIENT_SECRET}"}
+              ],
+              "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                  "awslogs-group": "/ecs/${PROJECT_NAME}-backend-production",
+                  "awslogs-region": "${AWS_REGION}",
+                  "awslogs-stream-prefix": "ecs",
+                  "awslogs-create-group": "true"
+                }
+              },
+              "healthCheck": {
+                "command": ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/api/v1/health || exit 1"],
+                "interval": 30,
+                "timeout": 10,
+                "retries": 3,
+                "startPeriod": 40
+              }
+            }]
+          }
+          EOF
 
           TASK_DEF_ARN=$(aws ecs register-task-definition \
-            --cli-input-json file:///tmp/task-def-backend-updated.json \
+            --cli-input-json file:///tmp/task-def-backend.json \
             --query 'taskDefinition.taskDefinitionArn' \
             --output text)
 
-          echo "✓ Backend task definition updated: $TASK_DEF_ARN"
+          echo "✓ Backend task definition registered: $TASK_DEF_ARN"
           echo "task_def_arn=$TASK_DEF_ARN" >> $GITHUB_OUTPUT
-          echo ""
 
       - name: Deploy Backend to ECS
         id: deploy-backend
@@ -348,11 +428,3 @@ jobs:
           echo "Branch:       production"
           echo "Commit SHA:   ${{ github.sha }}"
           echo ""
-          echo "Web Image:    ${{ steps.build-web.outputs.image }}"
-          echo "Web Task Def: ${{ steps.update-task-def-web.outputs.task_def_arn }}"
-          echo "Web Service:  $ECS_CLUSTER/$ECS_SERVICE_WEB"
-          echo ""
-          echo "Backend Image:    ${{ steps.build-backend.outputs.image }}"
-          echo "Backend Task Def: ${{ steps.update-task-def-backend.outputs.task_def_arn }}"
-          echo "Backend Service:  $ECS_CLUSTER/$ECS_SERVICE_BACKEND"
-          echo "=========================================="

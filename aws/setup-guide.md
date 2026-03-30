@@ -52,31 +52,32 @@ Each app gets its own subdomain. This is extensible for future microservices:
 
 ### Relevant Files
 
-| File                                      | Purpose                                         |
-| ----------------------------------------- | ----------------------------------------------- |
-| `.github/workflows/ci.yml`                | CI (lint, typecheck, format) on all branches    |
-| `.github/workflows/deploy-staging.yml`    | Staging deploy → EC2 via SSH                    |
-| `.github/workflows/deploy-production.yml` | Production deploy → ECS Fargate                 |
-| `aws/ec2/docker-compose.staging.yml`      | Docker Compose for app containers only          |
-| `aws/ec2/nginx/web.conf`                  | Nginx HTTP template for web subdomain           |
-| `aws/ec2/nginx/web-ssl.conf`              | Nginx HTTPS template for web subdomain          |
-| `aws/ec2/nginx/api.conf`                  | Nginx HTTP template for API subdomain           |
-| `aws/ec2/nginx/api-ssl.conf`              | Nginx HTTPS template for API subdomain          |
-| `aws/ec2/setup-ec2.sh`                    | EC2 bootstrap (Docker, Nginx, Certbot, AWS CLI) |
-| `aws/ec2/init-ssl.sh`                     | One-time SSL certificate setup                  |
-| `aws/ecs/task-definition-*.json`          | ECS Fargate task definitions (production)       |
-| `apps/web/Dockerfile`                     | Web app Docker image                            |
-| `apps/backend/Dockerfile`                 | Backend Docker image                            |
+| File                                      | Purpose                                               |
+| ----------------------------------------- | ----------------------------------------------------- |
+| `.github/workflows/ci.yml`                | CI (lint, typecheck, build, test) — gates deployments |
+| `.github/workflows/deploy-staging.yml`    | Staging deploy → EC2 via SSH (requires CI)            |
+| `.github/workflows/deploy-production.yml` | Production deploy → ECS Fargate (requires CI)         |
+| `aws/ec2/docker-compose.staging.yml`      | Docker Compose for app containers only                |
+| `aws/ec2/nginx/web.conf`                  | Nginx HTTP template for web subdomain                 |
+| `aws/ec2/nginx/web-ssl.conf`              | Nginx HTTPS template for web subdomain                |
+| `aws/ec2/nginx/api.conf`                  | Nginx HTTP template for API subdomain                 |
+| `aws/ec2/nginx/api-ssl.conf`              | Nginx HTTPS template for API subdomain                |
+| `aws/ec2/setup-ec2.sh`                    | EC2 bootstrap (Docker, Nginx, Certbot, AWS CLI)       |
+| `aws/ec2/init-ssl.sh`                     | One-time SSL certificate setup                        |
+| `aws/ecs/task-definition-web.json`        | ECS Fargate task definition for web (production)      |
+| `aws/ecs/task-definition-backend.json`    | ECS Fargate task definition for backend (production)  |
+| `apps/web/Dockerfile`                     | Web app Docker image                                  |
+| `apps/backend/Dockerfile`                 | Backend Docker image                                  |
 
 ---
 
 ## Branch and Deployment Mapping
 
-| Branch       | CI                      | Deployment                 |
-| ------------ | ----------------------- | -------------------------- |
-| `dev`        | Lint, typecheck, format | None                       |
-| `staging`    | Lint, typecheck, format | Auto-deploy to EC2         |
-| `production` | Lint, typecheck, format | Auto-deploy to ECS Fargate |
+| Branch       | CI                            | Deployment                 |
+| ------------ | ----------------------------- | -------------------------- |
+| `dev`        | On PR only (not on push)      | None (local dev)           |
+| `staging`    | Runs as CI gate before deploy | Auto-deploy to EC2         |
+| `production` | Runs as CI gate before deploy | Auto-deploy to ECS Fargate |
 
 ---
 
@@ -275,19 +276,19 @@ Go to **GitHub → Settings → Environments → Create: `production`**.
 
 ### Variables
 
-| Variable                   | Example Value                               |
-| -------------------------- | ------------------------------------------- |
-| `AWS_REGION`               | `ap-southeast-1`                            |
-| `PROJECT_NAME`             | `turbo-template`                            |
-| `ECR_REPOSITORY_WEB`       | `turbo-template-web-production`             |
-| `ECR_REPOSITORY_BACKEND`   | `turbo-template-backend-production`         |
-| `ECS_CLUSTER`              | `turbo-template-cluster-production`         |
-| `ECS_SERVICE_WEB`          | `turbo-template-web-production-service`     |
-| `ECS_SERVICE_BACKEND`      | `turbo-template-backend-production-service` |
-| `NEXT_PUBLIC_APP_URL`      | `https://yourdomain.com`                    |
-| `NEXT_PUBLIC_API_BASE_URL` | `https://api.yourdomain.com/api`            |
-| `NEXT_PUBLIC_API_VERSION`  | `1`                                         |
-| `BETTER_AUTH_COOKIE_DOMAIN`| `.yourdomain.com`                           |
+| Variable                    | Example Value                               |
+| --------------------------- | ------------------------------------------- |
+| `AWS_REGION`                | `ap-southeast-1`                            |
+| `PROJECT_NAME`              | `turbo-template`                            |
+| `ECR_REPOSITORY_WEB`        | `turbo-template-web-production`             |
+| `ECR_REPOSITORY_BACKEND`    | `turbo-template-backend-production`         |
+| `ECS_CLUSTER`               | `turbo-template-cluster-production`         |
+| `ECS_SERVICE_WEB`           | `turbo-template-web-production-service`     |
+| `ECS_SERVICE_BACKEND`       | `turbo-template-backend-production-service` |
+| `NEXT_PUBLIC_APP_URL`       | `https://yourdomain.com`                    |
+| `NEXT_PUBLIC_API_BASE_URL`  | `https://api.yourdomain.com/api`            |
+| `NEXT_PUBLIC_API_VERSION`   | `1`                                         |
+| `BETTER_AUTH_COOKIE_DOMAIN` | `.yourdomain.com`                           |
 
 > **Note**: Production uses ALB host-based (subdomain) routing — consistent with staging. `NEXT_PUBLIC_API_BASE_URL` is a full URL (e.g., `https://api.yourdomain.com/api`), not a relative path. `BETTER_AUTH_COOKIE_DOMAIN` must start with `.` (dot) to allow cookies to work across both `yourdomain.com` and `api.yourdomain.com`.
 
@@ -398,10 +399,44 @@ curl -sf http://127.0.0.1:3000/api/v1/health  # Backend
    - Backend endpoint must be `/api/v1/health` on port `3000`.
    - Web endpoint must be `/` on port `3001`.
 
-4. **ALB returns 5xx**
+---
+
+# Rollback Strategy
+
+Both environments include automatic rollback on deployment failure.
+
+## Staging Rollback (EC2)
+
+The deploy workflow saves the previous `.env` (which includes the `IMAGE_TAG`) as `.env.rollback` before writing the new one. If health checks fail after deployment:
+
+1. **Automatic**: The workflow restores `.env.rollback`, re-pulls the previous images, and restarts containers via `docker compose up -d`.
+2. **Manual**: SSH into the EC2 and run:
+   ```bash
+   cd /opt/staging
+   cp .env.rollback .env
+   docker compose -f docker-compose.staging.yml pull
+   docker compose -f docker-compose.staging.yml up -d --remove-orphans
+   ```
+
+## Production Rollback (ECS Fargate)
+
+The deploy workflow captures the current task definition ARNs before updating. If `aws ecs wait services-stable` fails:
+
+1. **Automatic**: The workflow reverts both ECS services to their previous task definitions and waits for stabilization.
+2. **Manual**: Find the previous task definition in the AWS Console (ECS → Task Definitions) and update the service:
+
+   ```bash
+   aws ecs update-service \
+     --cluster <cluster-name> \
+     --service <service-name> \
+     --task-definition <previous-task-def-arn> \
+     --force-new-deployment
+   ```
+
+3. **ALB returns 5xx**
    - Target groups unhealthy or SG routing mismatch.
 
-5. **Runtime config crash**
+4. **Runtime config crash**
    - Validate required backend env vars: `DATABASE_URL`, `CORS_ORIGINS`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_TRUSTED_ORIGINS`.
 
 ---
@@ -551,6 +586,7 @@ After running `terraform apply` in the infra repo, its outputs tell you the AWS 
 > ```
 >
 > Point **both** your web and API domain CNAMEs to the `alb_dns_name` value:
+>
 > ```
 > yourdomain.com        CNAME  →  turbo-template-prod-alb-123456.ap-southeast-1.elb.amazonaws.com
 > api.yourdomain.com    CNAME  →  turbo-template-prod-alb-123456.ap-southeast-1.elb.amazonaws.com

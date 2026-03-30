@@ -5,7 +5,7 @@
 	"cpu": "512",
 	"memory": "1024",
 	"executionRoleArn": "arn:aws:iam::${AWS_ACCOUNT_ID}:role/${PROJECT_NAME}-ecs-execution-role-production",
-	"taskRoleArn": "arn:aws:iam::${AWS_ACCOUNT_ID}:role/${PROJECT_NAME}-ecs-execution-role-production",
+	"taskRoleArn": "arn:aws:iam::${AWS_ACCOUNT_ID}:role/${PROJECT_NAME}-ecs-task-role-production",
 	"containerDefinitions": [
 		{
 			"name": "web",

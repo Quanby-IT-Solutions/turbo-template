@@ -41,8 +41,16 @@ env:
   GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
 
 jobs:
+  # ──────────────────────────────────────────────
+  # Gate: CI must pass before deploying
+  # ──────────────────────────────────────────────
+  ci:
+    name: CI
+    uses: ./.github/workflows/ci.yml
+
   deploy-production:
     name: Deploy to Production (ECS Fargate)
+    needs: ci
     runs-on: ubuntu-latest
     environment: production
 
@@ -169,6 +177,31 @@ jobs:
       # ──────────────────────────────────────────────
       # Deploy to ECS Fargate
       # ──────────────────────────────────────────────
+      - name: Capture current task definitions for rollback
+        id: rollback-state
+        run: |
+          echo "=========================================="
+          echo "Capturing current state for rollback"
+          echo "=========================================="
+
+          CURRENT_WEB_TASK=$(aws ecs describe-services \
+            --cluster $ECS_CLUSTER \
+            --services $ECS_SERVICE_WEB \
+            --query 'services[0].taskDefinition' \
+            --output text 2>/dev/null || echo "NONE")
+
+          CURRENT_BACKEND_TASK=$(aws ecs describe-services \
+            --cluster $ECS_CLUSTER \
+            --services $ECS_SERVICE_BACKEND \
+            --query 'services[0].taskDefinition' \
+            --output text 2>/dev/null || echo "NONE")
+
+          echo "web_task=$CURRENT_WEB_TASK" >> $GITHUB_OUTPUT
+          echo "backend_task=$CURRENT_BACKEND_TASK" >> $GITHUB_OUTPUT
+
+          echo "Current Web Task Def:     $CURRENT_WEB_TASK"
+          echo "Current Backend Task Def: $CURRENT_BACKEND_TASK"
+
       - name: Update Web task definition
         id: update-task-def-web
         run: |
@@ -191,6 +224,7 @@ jobs:
           echo ""
 
       - name: Deploy Web to ECS
+        id: deploy-web
         run: |
           echo "=========================================="
           echo "Deploying Web Service (production)"
@@ -235,6 +269,7 @@ jobs:
           echo ""
 
       - name: Deploy Backend to ECS
+        id: deploy-backend
         run: |
           echo "=========================================="
           echo "Deploying Backend Service (production)"
@@ -255,6 +290,49 @@ jobs:
 
           echo "✓ Backend service is stable"
           echo ""
+
+      # ──────────────────────────────────────────────
+      # Rollback on failure
+      # ──────────────────────────────────────────────
+      - name: Rollback on failure
+        if: failure() && steps.rollback-state.outputs.web_task != 'NONE'
+        run: |
+          echo "=========================================="
+          echo "⚠️  Deployment failed — rolling back"
+          echo "=========================================="
+
+          PREV_WEB_TASK="${{ steps.rollback-state.outputs.web_task }}"
+          PREV_BACKEND_TASK="${{ steps.rollback-state.outputs.backend_task }}"
+
+          if [ "$PREV_WEB_TASK" != "NONE" ]; then
+            echo "Rolling back Web service to: $PREV_WEB_TASK"
+            aws ecs update-service \
+              --cluster $ECS_CLUSTER \
+              --service $ECS_SERVICE_WEB \
+              --task-definition "$PREV_WEB_TASK" \
+              --force-new-deployment \
+              --no-cli-pager
+            echo "✓ Web rollback initiated"
+          fi
+
+          if [ "$PREV_BACKEND_TASK" != "NONE" ]; then
+            echo "Rolling back Backend service to: $PREV_BACKEND_TASK"
+            aws ecs update-service \
+              --cluster $ECS_CLUSTER \
+              --service $ECS_SERVICE_BACKEND \
+              --task-definition "$PREV_BACKEND_TASK" \
+              --force-new-deployment \
+              --no-cli-pager
+            echo "✓ Backend rollback initiated"
+          fi
+
+          echo ""
+          echo "Waiting for rollback to stabilize..."
+          aws ecs wait services-stable \
+            --cluster $ECS_CLUSTER \
+            --services $ECS_SERVICE_WEB $ECS_SERVICE_BACKEND || true
+
+          echo "✓ Rollback complete"
 
       # ──────────────────────────────────────────────
       # Summary

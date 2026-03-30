@@ -26,6 +26,7 @@
 		"lint:fix": "turbo run lint --continue -- --fix --cache --cache-location .cache/.eslintcache",
 		"lint:ws": "pnpm dlx sherif@latest",
 		"postinstall": "pnpm lint:ws",
+		"test": "turbo run test --filter='!@repo/mobile'",
 		"typecheck": "turbo run typecheck"
 	},
 	"devDependencies": {

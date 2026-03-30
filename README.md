@@ -23,6 +23,7 @@ pnpm install
 cp apps/backend/.env.example apps/backend/.env
 cp apps/web/.env.example apps/web/.env
 cp packages/db/.env.example packages/db/.env
+cp apps/mobile/.env.example apps/mobile/.env
 
 # Push database schema
 pnpm db:push

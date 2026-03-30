@@ -68,8 +68,13 @@
       "Bash(find \"D:\\\\PROJECTS\\\\turbo-template\\\\apps\\\\web\\\\app\\\\\\(parent\\)\\\\children\\\\[childId]\" -type f -name \"*.tsx\")",
       "Bash(wc:*)",
       "Bash(mkdir -p \"D:/PROJECTS/turbo-template/apps/web/app/\\(parent\\)/children/[childId]/appointments\")",
-      "Bash(mkdir -p \"D:/PROJECTS/turbo-template/apps/web/app/\\(parent\\)/children/[childId]/vault\")"
+      "Bash(mkdir -p \"D:/PROJECTS/turbo-template/apps/web/app/\\(parent\\)/children/[childId]/vault\")",
+      "Bash(pnpm test:*)",
+      "Bash(pnpm test:cov --filter=@repo/contracts)",
+      "Bash(pnpm test:cov --filter=@repo/web)",
+      "Bash(pnpm test:cov)",
+      "Bash(find node_modules/.pnpm -name package.json -path *coverage-v8*)",
+      "Bash(pnpm vitest:*)"
     ]
   }
 }
-

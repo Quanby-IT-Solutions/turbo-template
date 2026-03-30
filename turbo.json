@@ -38,6 +38,11 @@
 			"cache": true,
 			"outputs": ["coverage/**"]
 		},
+		"test:cov": {
+			"dependsOn": ["^test:cov"],
+			"cache": true,
+			"outputs": ["coverage/**"]
+		},
 		"test:e2e": {
 			"cache": false,
 			"persistent": false

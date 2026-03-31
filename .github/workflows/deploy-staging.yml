@@ -467,7 +467,7 @@ jobs:
 
             echo "Checking Web..."
             for i in $(seq 1 $RETRIES); do
-              if curl -sf http://127.0.0.1:3001/ > /dev/null 2>&1; then
+              if curl -sf http://127.0.0.1:3001/api/health > /dev/null 2>&1; then
                 echo "✓ Web is healthy"
                 break
               fi
@@ -515,7 +515,7 @@ jobs:
 
               echo "── Verifying rollback ──"
               curl -sf http://127.0.0.1:3000/api/v1/health > /dev/null && echo "✓ Backend restored" || echo "⚠️ Backend may need manual intervention"
-              curl -sf http://127.0.0.1:3001/ > /dev/null && echo "✓ Web restored" || echo "⚠️ Web may need manual intervention"
+              curl -sf http://127.0.0.1:3001/api/health > /dev/null && echo "✓ Web restored" || echo "⚠️ Web may need manual intervention"
 
               echo "✓ Rollback complete"
             else

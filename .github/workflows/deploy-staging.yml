@@ -441,8 +441,12 @@ jobs:
 
           ssh $SSH_OPTS $REMOTE << 'HEALTH_CHECK'
             set -euo pipefail
-            RETRIES=5
+            RETRIES=12
             DELAY=10
+            cd /opt/staging
+
+            echo "Inspecting container status..."
+            docker compose -f docker-compose.staging.yml ps || true
 
             echo "Checking Backend health..."
             for i in $(seq 1 $RETRIES); do
@@ -452,6 +456,9 @@ jobs:
               fi
               if [ "$i" -eq "$RETRIES" ]; then
                 echo "❌ Backend health check failed after $RETRIES attempts"
+                echo "── Backend diagnostics ──"
+                docker compose -f docker-compose.staging.yml ps || true
+                docker logs --tail=100 staging-backend || true
                 exit 1
               fi
               echo "  Attempt $i/$RETRIES failed, retrying in ${DELAY}s..."
@@ -466,6 +473,9 @@ jobs:
               fi
               if [ "$i" -eq "$RETRIES" ]; then
                 echo "❌ Web health check failed after $RETRIES attempts"
+                echo "── Web diagnostics ──"
+                docker compose -f docker-compose.staging.yml ps || true
+                docker logs --tail=100 staging-web || true
                 exit 1
               fi
               echo "  Attempt $i/$RETRIES failed, retrying in ${DELAY}s..."

@@ -7,6 +7,24 @@ import { TodosService } from "./todos.service"
 
 type Todo = V1Outputs["example"]["todo"]["get"]
 
+jest.mock("@orpc/nest", () => ({
+	Implement: () => () => undefined,
+}))
+
+jest.mock("@orpc/server", () => ({
+	implement: () => ({
+		handler: (fn: unknown) => fn,
+	}),
+}))
+
+jest.mock("@/config/api-versions.config", () => ({
+	v1: {
+		example: {
+			todo: { list: {}, get: {}, create: {}, update: {}, delete: {} },
+		},
+	},
+}))
+
 jest.mock("@thallesp/nestjs-better-auth", () => ({
 	AllowAnonymous: () => () => undefined,
 	Session: () => () => ({ user: { id: "template-user-id" } }),
@@ -51,6 +69,7 @@ describe("TodosController (v1)", () => {
 		const data = Array.isArray(returnData) ? returnData : [returnData]
 		mockDb.select.mockReturnValueOnce({
 			from: jest.fn(() => ({
+				orderBy: jest.fn(() => Promise.resolve(data)),
 				where: jest.fn(() => Promise.resolve(data)),
 				then: (resolve: (value: Todo[]) => void) => resolve(data),
 			})),

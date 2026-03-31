@@ -125,6 +125,20 @@ This template includes Docker and AWS ECS configurations:
 
 See `aws/setup-guide.md` for deployment instructions.
 
+## Git Hooks
+
+This repo uses [Husky](https://typicode.github.io/husky/) to run tests before pushing.
+
+| Hook       | What it does                                           |
+| ---------- | ------------------------------------------------------ |
+| `pre-push` | Runs `turbo test --affected` to block failing pushes   |
+
+To bypass the hook (e.g., for WIP pushes):
+
+```bash
+git push --no-verify
+```
+
 ## Links
 
 - [Turborepo](https://turbo.build/docs) · [Next.js](https://nextjs.org/docs) · [NestJS](https://docs.nestjs.com/) · [Drizzle](https://orm.drizzle.team/) · [Better Auth](https://better-auth.com/docs)

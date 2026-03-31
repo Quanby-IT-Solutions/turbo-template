@@ -1,14 +1,12 @@
 name: Deploy
 
 on:
-  push:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
     branches:
       - staging
       - production
-    paths-ignore:
-      - "**/*.md"
-      - ".vscode/**"
-      - "docs/**"
   workflow_dispatch:
     inputs:
       branch:
@@ -29,21 +27,23 @@ on:
           - production
 
 concurrency:
-  group: deploy-${{ github.event_name == 'workflow_dispatch' && inputs.environment || github.ref_name }}-${{ github.event_name == 'workflow_dispatch' && inputs.branch || github.ref_name }}
+  group: deploy-${{ github.event_name == 'workflow_dispatch' && inputs.environment || (github.event.workflow_run.head_branch == 'production' && 'production' || 'staging') }}-${{ github.event_name == 'workflow_dispatch' && inputs.branch || github.event.workflow_run.head_branch }}
   cancel-in-progress: true
 
 env:
-  DEPLOY_ENV: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || (github.ref_name == 'production' && 'production' || 'staging') }}
-  DEPLOY_BRANCH: ${{ github.event_name == 'workflow_dispatch' && inputs.branch || github.ref_name }}
+  DEPLOY_ENV: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || (github.event.workflow_run.head_branch == 'production' && 'production' || 'staging') }}
+  DEPLOY_BRANCH: ${{ github.event_name == 'workflow_dispatch' && inputs.branch || github.event.workflow_run.head_branch }}
 
   # Image tag (use commit SHA for immutable deployments)
-  IMAGE_TAG: ${{ github.sha }}
+  IMAGE_TAG: ${{ github.event_name == 'workflow_dispatch' && github.sha || github.event.workflow_run.head_sha }}
 
 jobs:
   deploy:
-    name: Deploy to ${{ github.event_name == 'workflow_dispatch' && inputs.environment || (github.ref_name == 'production' && 'production' || 'staging') }}
+    name: Deploy to ${{ github.event_name == 'workflow_dispatch' && inputs.environment || (github.event.workflow_run.head_branch == 'production' && 'production' || 'staging') }}
     runs-on: ubuntu-latest
-    environment: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || (github.ref_name == 'production' && 'production' || 'staging') }}
+    # For workflow_run triggers: only deploy when CI passed. workflow_dispatch always proceeds.
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    environment: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || (github.event.workflow_run.head_branch == 'production' && 'production' || 'staging') }}
     env:
       # ==========================================================
       # AWS INFRASTRUCTURE CONFIGURATION
@@ -183,7 +183,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          key: ${{ runner.os }}-buildx-${{ env.IMAGE_TAG }}
           restore-keys: |
             ${{ runner.os }}-buildx-
 
@@ -334,7 +334,7 @@ jobs:
           echo "Environment: ${{ env.DEPLOY_ENV }}"
           echo "Branch: ${{ env.DEPLOY_BRANCH }}"
           echo "Region: ${{ env.AWS_REGION }}"
-          echo "Commit SHA: ${{ github.sha }}"
+          echo "Commit SHA: ${{ env.IMAGE_TAG }}"
           echo ""
           echo "Web Image: ${{ steps.build-web.outputs.image }}"
           echo "Web Task Definition: ${{ steps.update-task-def-web.outputs.task_def_arn }}"

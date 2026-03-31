@@ -45,7 +45,8 @@
 		},
 		"test:e2e": {
 			"cache": false,
-			"persistent": false
+			"persistent": false,
+			"passThroughEnv": ["PLAYWRIGHT_*", "BASE_URL", "BACKEND_URL", "E2E_TEST_EMAIL", "E2E_TEST_PASSWORD", "E2E_TEST_NAME"]
 		},
 		"clean": {
 			"cache": false
@@ -66,6 +67,8 @@
 		"VERCEL",
 		"VERCEL_ENV",
 		"VERCEL_URL",
-		"npm_lifecycle_event"
+		"npm_lifecycle_event",
+		"LOCALAPPDATA",
+		"PUB_CACHE"
 	]
 }

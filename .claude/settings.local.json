@@ -74,7 +74,32 @@
       "Bash(pnpm test:cov --filter=@repo/web)",
       "Bash(pnpm test:cov)",
       "Bash(find node_modules/.pnpm -name package.json -path *coverage-v8*)",
-      "Bash(pnpm vitest:*)"
+      "Bash(pnpm vitest:*)",
+      "Bash(pnpm test:cov --filter=@repo/contracts --force)",
+      "Bash(pnpm test:cov --filter=@repo/web --force)",
+      "Bash(~/.traycer/yolo_artifacts/71304604-3056-4b92-b4d2-0979077a3848.json)",
+      "Bash(pnpm --filter @repo/web test)",
+      "Bash(pnpm --filter @repo/web add -D @vitejs/plugin-react)",
+      "Bash(~/.traycer/yolo_artifacts/9ee5cd24-8c22-4b42-a208-3573cc2e45fe.json)",
+      "Bash(~/.traycer/yolo_artifacts/15eba9ce-af05-4569-8897-161f52d8e9ca.json)",
+      "Bash(~/.traycer/yolo_artifacts/3f083dae-c5e0-49ac-9afe-87aa6b7f0cf3.json)",
+      "Bash(~/.traycer/yolo_artifacts/98b26e92-7932-40b4-81f5-84d2493d3c11.json)",
+      "Bash(~/.traycer/yolo_artifacts/6a6473de-ad99-4d5d-bf96-155ec4c602e2.json)",
+      "Bash(~/.traycer/yolo_artifacts/comment-fix-coverage-gitignore.json)",
+      "Bash(~/.traycer/yolo_artifacts/default.json)",
+      "Bash(pnpm --filter @repo/contracts test --run)",
+      "Bash(~/.traycer/yolo_artifacts/artifact-comment1-todos-schema-test-strengthening.json)",
+      "Read(//c/Users/Quanby_Redfox/.traycer/yolo_artifacts/**)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(~/.traycer/yolo_artifacts/completion.json)",
+      "Bash(pnpm turbo:*)",
+      "Bash(pnpm install:*)",
+      "Bash(wait:*)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\({k:d[k] for k in [''''name'''',''''version'''',''''main'''',''''module'''',''''exports''''] if k in d}, indent=2\\)\\)\")",
+      "Bash(node:*)",
+      "Bash(pnpm test:e2e:web)",
+      "Bash(node_modules/.bin/playwright test:*)"
     ]
   }
 }

@@ -28,11 +28,15 @@
 		"lint:fix": "turbo run lint --continue -- --fix --cache --cache-location .cache/.eslintcache",
 		"lint:ws": "pnpm dlx sherif@latest",
 		"postinstall": "pnpm lint:ws",
-		"typecheck": "turbo run typecheck"
+		"test:e2e:web": "turbo run test:e2e --filter=@repo/e2e-web",
+		"show-report:e2e:web": "pnpm --filter @repo/e2e-web run show-report",
+		"typecheck": "turbo run typecheck",
+		"prepare": "husky"
 	},
 	"devDependencies": {
 		"@repo/prettier-config": "workspace:*",
 		"@turbo/gen": "catalog:",
+		"husky": "^9.1.7",
 		"prettier": "catalog:",
 		"turbo": "catalog:",
 		"typescript": "catalog:"

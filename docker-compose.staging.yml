@@ -25,6 +25,7 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3001
+      - INTERNAL_API_BASE_URL=http://backend:3000/api
       - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
       - NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL}
       - NEXT_PUBLIC_API_VERSION=${NEXT_PUBLIC_API_VERSION}

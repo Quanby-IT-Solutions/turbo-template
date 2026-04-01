@@ -20,7 +20,9 @@ export const env = createEnv({
 	 * Server-side environment variables
 	 * These are only available on the server and will NOT be exposed to the client
 	 */
-	server: {},
+	server: {
+		INTERNAL_API_BASE_URL: z.url().optional(),
+	},
 
 	/**
 	 * Client-side environment variables
@@ -40,6 +42,7 @@ export const env = createEnv({
 	runtimeEnv: {
 		// Server Configuration
 		NODE_ENV: process.env.NODE_ENV,
+		INTERNAL_API_BASE_URL: process.env.INTERNAL_API_BASE_URL,
 
 		// Client-side variables
 		NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,

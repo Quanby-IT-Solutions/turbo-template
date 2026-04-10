@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { redirect } from "next/navigation"
 
 import {
 	Card,
@@ -7,6 +8,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/core/components/ui/card"
+import { getSession } from "@/services/better-auth/auth-server"
 
 const instructions = [
 	{
@@ -23,7 +25,13 @@ const instructions = [
 	},
 ]
 
-export default function TodosExamplePage() {
+export default async function TodosExamplePage() {
+	const session = await getSession()
+
+	if (!session) {
+		redirect("/login")
+	}
+
 	return (
 		<section className="flex w-full flex-col gap-6">
 			<Card>

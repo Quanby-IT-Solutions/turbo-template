@@ -1,8 +1,7 @@
 import "dotenv/config"
 
-import path from "node:path"
-
 import type { NextConfig } from "next"
+import path from "node:path"
 
 import "./env"
 

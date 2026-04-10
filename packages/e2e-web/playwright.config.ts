@@ -9,7 +9,7 @@ export default defineConfig({
 	forbidOnly: !!process.env.CI,
 	retries: process.env.CI ? 2 : 0,
 	workers: process.env.CI ? 1 : undefined,
-	reporter: process.env.CI ? "blob" : "html",
+	reporter: process.env.CI ? [["html", { open: "never" }]] : "html",
 	use: {
 		baseURL: process.env.BASE_URL ?? "http://localhost:3001",
 		trace: "on-first-retry",

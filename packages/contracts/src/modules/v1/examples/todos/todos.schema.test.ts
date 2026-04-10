@@ -63,8 +63,8 @@ describe("TodoSchema", () => {
 		expect(result.success).toBe(false)
 		if (!result.success) {
 			expect(result.error.issues).toHaveLength(1)
-			expect(result.error.issues[0].path).toEqual(["id"])
-			expect(result.error.issues[0].code).toBe("too_small")
+			expect(result.error.issues[0]!.path).toEqual(["id"])
+			expect(result.error.issues[0]!.code).toBe("too_small")
 		}
 	})
 
@@ -81,9 +81,9 @@ describe("TodoSchema", () => {
 		expect(result.success).toBe(false)
 		if (!result.success) {
 			expect(result.error.issues).toHaveLength(1)
-			expect(result.error.issues[0].path).toEqual(["title"])
-			expect(result.error.issues[0].code).toBe("too_small")
-			expect(result.error.issues[0].message).toBe("Title is required")
+			expect(result.error.issues[0]!.path).toEqual(["title"])
+			expect(result.error.issues[0]!.code).toBe("too_small")
+			expect(result.error.issues[0]!.message).toBe("Title is required")
 		}
 	})
 
@@ -125,8 +125,8 @@ describe("TodoIdSchema", () => {
 		const result = TodoIdSchema.safeParse({ id: 0 })
 		expect(result.success).toBe(false)
 		if (!result.success) {
-			expect(result.error.issues[0].path).toEqual(["id"])
-			expect(result.error.issues[0].code).toBe("too_small")
+			expect(result.error.issues[0]!.path).toEqual(["id"])
+			expect(result.error.issues[0]!.code).toBe("too_small")
 		}
 	})
 
@@ -134,8 +134,8 @@ describe("TodoIdSchema", () => {
 		const result = TodoIdSchema.safeParse({ id: -5 })
 		expect(result.success).toBe(false)
 		if (!result.success) {
-			expect(result.error.issues[0].path).toEqual(["id"])
-			expect(result.error.issues[0].code).toBe("too_small")
+			expect(result.error.issues[0]!.path).toEqual(["id"])
+			expect(result.error.issues[0]!.code).toBe("too_small")
 		}
 	})
 
@@ -143,8 +143,8 @@ describe("TodoIdSchema", () => {
 		const result = TodoIdSchema.safeParse({})
 		expect(result.success).toBe(false)
 		if (!result.success) {
-			expect(result.error.issues[0].path).toEqual(["id"])
-			expect(result.error.issues[0].code).toBe("invalid_type")
+			expect(result.error.issues[0]!.path).toEqual(["id"])
+			expect(result.error.issues[0]!.code).toBe("invalid_type")
 		}
 	})
 })
@@ -170,9 +170,9 @@ describe("CreateTodoSchema", () => {
 		const result = CreateTodoSchema.safeParse({ title: "" })
 		expect(result.success).toBe(false)
 		if (!result.success) {
-			expect(result.error.issues[0].path).toEqual(["title"])
-			expect(result.error.issues[0].code).toBe("too_small")
-			expect(result.error.issues[0].message).toBe("Title is required")
+			expect(result.error.issues[0]!.path).toEqual(["title"])
+			expect(result.error.issues[0]!.code).toBe("too_small")
+			expect(result.error.issues[0]!.message).toBe("Title is required")
 		}
 	})
 
@@ -258,8 +258,8 @@ describe("UpdateTodoRequestSchema", () => {
 		const result = UpdateTodoRequestSchema.safeParse({ id: -1, title: "Bad" })
 		expect(result.success).toBe(false)
 		if (!result.success) {
-			expect(result.error.issues[0].path).toEqual(["id"])
-			expect(result.error.issues[0].code).toBe("too_small")
+			expect(result.error.issues[0]!.path).toEqual(["id"])
+			expect(result.error.issues[0]!.code).toBe("too_small")
 		}
 	})
 
@@ -267,9 +267,9 @@ describe("UpdateTodoRequestSchema", () => {
 		const result = UpdateTodoRequestSchema.safeParse({ id: 1, title: "" })
 		expect(result.success).toBe(false)
 		if (!result.success) {
-			expect(result.error.issues[0].path).toEqual(["title"])
-			expect(result.error.issues[0].code).toBe("too_small")
-			expect(result.error.issues[0].message).toBe("Title is required")
+			expect(result.error.issues[0]!.path).toEqual(["title"])
+			expect(result.error.issues[0]!.code).toBe("too_small")
+			expect(result.error.issues[0]!.message).toBe("Title is required")
 		}
 	})
 
@@ -277,8 +277,8 @@ describe("UpdateTodoRequestSchema", () => {
 		const result = UpdateTodoRequestSchema.safeParse({ title: "No id" })
 		expect(result.success).toBe(false)
 		if (!result.success) {
-			expect(result.error.issues[0].path).toEqual(["id"])
-			expect(result.error.issues[0].code).toBe("invalid_type")
+			expect(result.error.issues[0]!.path).toEqual(["id"])
+			expect(result.error.issues[0]!.code).toBe("invalid_type")
 		}
 	})
 })

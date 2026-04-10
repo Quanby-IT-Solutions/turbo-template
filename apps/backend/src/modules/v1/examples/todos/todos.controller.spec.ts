@@ -7,6 +7,17 @@ import { TodosService } from "./todos.service"
 
 type Todo = V1Outputs["example"]["todo"]["get"]
 
+jest.mock("@repo/db/schema", () => ({
+	todos: {
+		id: "id",
+		title: "title",
+		completed: "completed",
+		authorId: "authorId",
+		createdAt: "createdAt",
+		updatedAt: "updatedAt",
+	},
+}))
+
 jest.mock("@orpc/nest", () => ({
 	Implement: () => () => undefined,
 }))

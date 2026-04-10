@@ -46,7 +46,7 @@ function SubmitTicketForm() {
 					void payload
 					setState("success")
 					event.currentTarget.reset()
-				} catch (error) {
+			} catch {
 					setState("error")
 				}
 			}}

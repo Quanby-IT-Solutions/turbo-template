@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/core/components/ui/card"
 import { Separator } from "@/core/components/ui/separator"
-import { ClientSession } from "@/features/auth/components/client-session"
 import { getSession } from "@/services/better-auth/auth-server"
+import { ClientSession } from "@/features/auth/components/client-session"
 
 export default async function SessionPage() {
 	const session = await getSession()
@@ -13,11 +13,11 @@ export default async function SessionPage() {
 					<CardTitle>Server Session</CardTitle>
 				</CardHeader>
 				<CardContent className="space-y-3">
-					<p className="text-sm text-muted-foreground">
+					<p className="text-muted-foreground text-sm">
 						Session data fetched on the server via Better Auth. Useful to confirm cookies are
 						forwarded correctly when rendering protected routes.
 					</p>
-					<pre className="rounded-md bg-muted/60 p-4 text-xs">
+					<pre className="bg-muted/60 rounded-md p-4 text-xs">
 						{session ? JSON.stringify(session, null, 2) : "No active session"}
 					</pre>
 				</CardContent>

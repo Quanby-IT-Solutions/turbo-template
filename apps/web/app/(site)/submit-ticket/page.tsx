@@ -3,7 +3,13 @@
 import { useState } from "react"
 
 import { Button } from "@/core/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/core/components/ui/card"
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@/core/components/ui/card"
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/core/components/ui/field"
 import { Input } from "@/core/components/ui/input"
 import { Textarea } from "@/core/components/ui/textarea"
@@ -17,8 +23,8 @@ export default function SubmitTicketPage() {
 				<CardHeader>
 					<CardTitle>Submit a support ticket</CardTitle>
 					<CardDescription>
-						This form mirrors the `ticket` contract handled by the NestJS backend. Hook the
-						submit handler up to the oRPC call when you are ready.
+						This form mirrors the `ticket` contract handled by the NestJS backend. Hook the submit
+						handler up to the oRPC call when you are ready.
 					</CardDescription>
 				</CardHeader>
 				<CardContent>
@@ -46,7 +52,7 @@ function SubmitTicketForm() {
 					void payload
 					setState("success")
 					event.currentTarget.reset()
-			} catch {
+				} catch {
 					setState("error")
 				}
 			}}
@@ -70,7 +76,7 @@ function SubmitTicketForm() {
 					<select
 						id="priority"
 						name="priority"
-						className="border-input focus-visible:ring-ring inline-flex h-10 w-full rounded-md border bg-transparent px-3 py-2 text-sm ring-offset-background transition placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+						className="border-input focus-visible:ring-ring ring-offset-background placeholder:text-muted-foreground inline-flex h-10 w-full rounded-md border bg-transparent px-3 py-2 text-sm transition focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
 						defaultValue="medium"
 					>
 						<option value="low">Low</option>
@@ -89,7 +95,7 @@ function SubmitTicketForm() {
 						required
 					/>
 				</Field>
-				<FieldDescription className="text-xs text-muted-foreground">
+				<FieldDescription className="text-muted-foreground text-xs">
 					All submissions are handled by the NestJS tickets module. Wire this mock form to the API
 					to persist real data.
 				</FieldDescription>
@@ -102,7 +108,7 @@ function SubmitTicketForm() {
 					</p>
 				)}
 				{state === "error" && (
-					<p role="status" className="text-sm text-destructive">
+					<p role="status" className="text-destructive text-sm">
 						Something went wrong. Please try again.
 					</p>
 				)}

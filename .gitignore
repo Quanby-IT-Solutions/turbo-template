@@ -31,7 +31,6 @@ apps/mobile/.flutter-plugins
 apps/mobile/.flutter-plugins-dependencies
 apps/mobile/.packages
 apps/mobile/.pub-cache/
-apps/mobile/coverage/
 apps/mobile/ios/Pods/
 apps/mobile/android/.gradle/
 
@@ -94,8 +93,7 @@ lerna-debug.log*
 .DS_Store
 
 # Tests
-/coverage
-coverage/**
+**/coverage/
 /.nyc_output
 
 # IDEs and editors

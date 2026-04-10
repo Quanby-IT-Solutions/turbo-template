@@ -3,7 +3,6 @@ import { z } from "zod"
 // ============================================================================
 // SCHEMAS
 // ============================================================================
-
 const ServiceCheckSchema = z.object({
 	status: z.string(),
 	message: z.string().optional(),
@@ -19,9 +18,3 @@ export const HealthCheckSchema = z.object({
 		database: ServiceCheckSchema,
 	}),
 })
-
-// ============================================================================
-// TYPES
-// ============================================================================
-
-export type HealthCheck = z.infer<typeof HealthCheckSchema>

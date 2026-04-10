@@ -1,0 +1,430 @@
+name: Deploy Production (ECS Fargate)
+
+on:
+  push:
+    branches:
+      - production
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: true
+
+env:
+  # ==========================================================
+  # AWS INFRASTRUCTURE CONFIGURATION
+  # ==========================================================
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  PROJECT_NAME: ${{ vars.PROJECT_NAME }}
+  ECR_REPOSITORY_WEB: ${{ vars.ECR_REPOSITORY_WEB }}
+  ECR_REPOSITORY_BACKEND: ${{ vars.ECR_REPOSITORY_BACKEND }}
+  ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
+  ECS_SERVICE_WEB: ${{ vars.ECS_SERVICE_WEB }}
+  ECS_SERVICE_BACKEND: ${{ vars.ECS_SERVICE_BACKEND }}
+  ECS_EXECUTION_ROLE_ARN: ${{ vars.ECS_EXECUTION_ROLE_ARN }}
+  ECS_TASK_ROLE_ARN: ${{ vars.ECS_TASK_ROLE_ARN }}
+
+  # Image tag (use commit SHA for immutable deployments)
+  IMAGE_TAG: ${{ github.sha }}
+
+  # ==========================================================
+  # ENVIRONMENT VARIABLES (PRODUCTION)
+  # ==========================================================
+  NODE_ENV: "production"
+  NEXT_PUBLIC_APP_URL: ${{ vars.NEXT_PUBLIC_APP_URL }}
+  NEXT_PUBLIC_API_BASE_URL: ${{ vars.NEXT_PUBLIC_API_BASE_URL }}
+  NEXT_PUBLIC_API_VERSION: ${{ vars.NEXT_PUBLIC_API_VERSION }}
+  BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
+  BETTER_AUTH_TRUSTED_ORIGINS: ${{ secrets.BETTER_AUTH_TRUSTED_ORIGINS }}
+  BETTER_AUTH_COOKIE_DOMAIN: ${{ vars.BETTER_AUTH_COOKIE_DOMAIN }}
+  CORS_ORIGINS: ${{ secrets.CORS_ORIGINS }}
+  DATABASE_URL: ${{ secrets.DATABASE_URL }}
+  GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+  GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+
+jobs:
+  # ──────────────────────────────────────────────
+  # Gate: CI must pass before deploying
+  # ──────────────────────────────────────────────
+  ci:
+    name: CI
+    uses: ./.github/workflows/ci.yml
+
+  deploy-production:
+    name: Deploy to Production (ECS Fargate)
+    needs: ci
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ──────────────────────────────────────────────
+      # Validate required variables
+      # ──────────────────────────────────────────────
+      - name: Validate required deployment variables
+        run: |
+          set -euo pipefail
+
+          require_var() {
+            local name="$1"
+            if [ -z "${!name:-}" ]; then
+              echo "❌ Missing required variable: $name"
+              exit 1
+            fi
+          }
+
+          # AWS and ECS configuration
+          require_var AWS_REGION
+          require_var PROJECT_NAME
+          require_var ECR_REPOSITORY_WEB
+          require_var ECR_REPOSITORY_BACKEND
+          require_var ECS_CLUSTER
+          require_var ECS_SERVICE_WEB
+          require_var ECS_SERVICE_BACKEND
+          require_var ECS_EXECUTION_ROLE_ARN
+          require_var ECS_TASK_ROLE_ARN
+
+          # App configuration
+          require_var NEXT_PUBLIC_APP_URL
+          require_var NEXT_PUBLIC_API_BASE_URL
+          require_var NEXT_PUBLIC_API_VERSION
+          require_var BETTER_AUTH_COOKIE_DOMAIN
+          require_var DATABASE_URL
+          require_var CORS_ORIGINS
+          require_var BETTER_AUTH_SECRET
+          require_var BETTER_AUTH_TRUSTED_ORIGINS
+
+          echo "✅ Required deployment variables are set"
+
+      # ──────────────────────────────────────────────
+      # Build and push Docker images to ECR
+      # ──────────────────────────────────────────────
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+        with:
+          mask-password: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-production-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-production-
+
+      - name: Build and push Web image to ECR
+        id: build-web
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          echo "=========================================="
+          echo "Building Web Docker Image (production)"
+          echo "=========================================="
+
+          docker buildx build \
+            --file apps/web/Dockerfile \
+            --build-arg NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL \
+            --build-arg NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL \
+            --build-arg NEXT_PUBLIC_API_VERSION=$NEXT_PUBLIC_API_VERSION \
+            --cache-from type=local,src=/tmp/.buildx-cache \
+            --cache-to type=local,dest=/tmp/.buildx-cache-new,mode=max \
+            --push \
+            --tag $ECR_REGISTRY/$ECR_REPOSITORY_WEB:$IMAGE_TAG \
+            --tag $ECR_REGISTRY/$ECR_REPOSITORY_WEB:latest \
+            .
+
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+
+          echo "✓ Web image pushed"
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY_WEB:$IMAGE_TAG" >> $GITHUB_OUTPUT
+          echo ""
+
+      - name: Build and push Backend image to ECR
+        id: build-backend
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          echo "=========================================="
+          echo "Building Backend Docker Image (production)"
+          echo "=========================================="
+
+          docker buildx build \
+            --file apps/backend/Dockerfile \
+            --cache-from type=local,src=/tmp/.buildx-cache \
+            --cache-to type=local,dest=/tmp/.buildx-cache-new,mode=max \
+            --push \
+            --tag $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:$IMAGE_TAG \
+            --tag $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:latest \
+            .
+
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+
+          echo "✓ Backend image pushed"
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:$IMAGE_TAG" >> $GITHUB_OUTPUT
+          echo ""
+
+      # ──────────────────────────────────────────────
+      # Deploy to ECS Fargate
+      # ──────────────────────────────────────────────
+      - name: Capture current task definitions for rollback
+        id: rollback-state
+        run: |
+          echo "=========================================="
+          echo "Capturing current state for rollback"
+          echo "=========================================="
+
+          CURRENT_WEB_TASK=$(aws ecs describe-services \
+            --cluster $ECS_CLUSTER \
+            --services $ECS_SERVICE_WEB \
+            --query 'services[0].taskDefinition' \
+            --output text 2>/dev/null || echo "NONE")
+
+          CURRENT_BACKEND_TASK=$(aws ecs describe-services \
+            --cluster $ECS_CLUSTER \
+            --services $ECS_SERVICE_BACKEND \
+            --query 'services[0].taskDefinition' \
+            --output text 2>/dev/null || echo "NONE")
+
+          echo "web_task=$CURRENT_WEB_TASK" >> $GITHUB_OUTPUT
+          echo "backend_task=$CURRENT_BACKEND_TASK" >> $GITHUB_OUTPUT
+
+          echo "Current Web Task Def:     $CURRENT_WEB_TASK"
+          echo "Current Backend Task Def: $CURRENT_BACKEND_TASK"
+
+      - name: Register and deploy Web task definition
+        id: update-task-def-web
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          echo "=========================================="
+          echo "Registering Web Task Definition (production)"
+          echo "=========================================="
+
+          cat > /tmp/task-def-web.json << EOF
+          {
+            "family": "${PROJECT_NAME}-web-production",
+            "networkMode": "awsvpc",
+            "requiresCompatibilities": ["FARGATE"],
+            "cpu": "512",
+            "memory": "1024",
+            "executionRoleArn": "${ECS_EXECUTION_ROLE_ARN}",
+            "taskRoleArn": "${ECS_TASK_ROLE_ARN}",
+            "containerDefinitions": [{
+              "name": "web",
+              "image": "${ECR_REGISTRY}/${ECR_REPOSITORY_WEB}:${IMAGE_TAG}",
+              "portMappings": [{"containerPort": 3001, "protocol": "tcp"}],
+              "essential": true,
+              "environment": [
+                {"name": "NODE_ENV", "value": "production"},
+                {"name": "NEXT_PUBLIC_APP_URL", "value": "${NEXT_PUBLIC_APP_URL}"},
+                {"name": "NEXT_PUBLIC_API_BASE_URL", "value": "${NEXT_PUBLIC_API_BASE_URL}"},
+                {"name": "NEXT_PUBLIC_API_VERSION", "value": "${NEXT_PUBLIC_API_VERSION}"}
+              ],
+              "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                  "awslogs-group": "/ecs/${PROJECT_NAME}-web-production",
+                  "awslogs-region": "${AWS_REGION}",
+                  "awslogs-stream-prefix": "ecs",
+                  "awslogs-create-group": "true"
+                }
+              },
+              "healthCheck": {
+                "command": ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3001/ || exit 1"],
+                "interval": 30,
+                "timeout": 10,
+                "retries": 3,
+                "startPeriod": 40
+              }
+            }]
+          }
+          EOF
+
+          TASK_DEF_ARN=$(aws ecs register-task-definition \
+            --cli-input-json file:///tmp/task-def-web.json \
+            --query 'taskDefinition.taskDefinitionArn' \
+            --output text)
+
+          echo "✓ Web task definition registered: $TASK_DEF_ARN"
+          echo "task_def_arn=$TASK_DEF_ARN" >> $GITHUB_OUTPUT
+
+      - name: Deploy Web to ECS
+        id: deploy-web
+        run: |
+          echo "=========================================="
+          echo "Deploying Web Service (production)"
+          echo "=========================================="
+
+          aws ecs update-service \
+            --cluster $ECS_CLUSTER \
+            --service $ECS_SERVICE_WEB \
+            --task-definition ${{ steps.update-task-def-web.outputs.task_def_arn }} \
+            --force-new-deployment
+
+          echo "✓ Web service deployment started"
+          echo "Waiting for web service to stabilize..."
+
+          aws ecs wait services-stable \
+            --cluster $ECS_CLUSTER \
+            --services $ECS_SERVICE_WEB
+
+          echo "✓ Web service is stable"
+          echo ""
+
+      - name: Register and deploy Backend task definition
+        id: update-task-def-backend
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          echo "=========================================="
+          echo "Registering Backend Task Definition (production)"
+          echo "=========================================="
+
+          cat > /tmp/task-def-backend.json << EOF
+          {
+            "family": "${PROJECT_NAME}-backend-production",
+            "networkMode": "awsvpc",
+            "requiresCompatibilities": ["FARGATE"],
+            "cpu": "512",
+            "memory": "1024",
+            "executionRoleArn": "${ECS_EXECUTION_ROLE_ARN}",
+            "taskRoleArn": "${ECS_TASK_ROLE_ARN}",
+            "containerDefinitions": [{
+              "name": "backend",
+              "image": "${ECR_REGISTRY}/${ECR_REPOSITORY_BACKEND}:${IMAGE_TAG}",
+              "portMappings": [{"containerPort": 3000, "protocol": "tcp"}],
+              "essential": true,
+              "environment": [
+                {"name": "NODE_ENV", "value": "production"},
+                {"name": "PORT", "value": "3000"},
+                {"name": "CORS_ORIGINS", "value": "${CORS_ORIGINS}"},
+                {"name": "DATABASE_URL", "value": "${DATABASE_URL}"},
+                {"name": "BETTER_AUTH_SECRET", "value": "${BETTER_AUTH_SECRET}"},
+                {"name": "BETTER_AUTH_TRUSTED_ORIGINS", "value": "${BETTER_AUTH_TRUSTED_ORIGINS}"},
+                {"name": "BETTER_AUTH_COOKIE_DOMAIN", "value": "${BETTER_AUTH_COOKIE_DOMAIN}"},
+                {"name": "GOOGLE_CLIENT_ID", "value": "${GOOGLE_CLIENT_ID}"},
+                {"name": "GOOGLE_CLIENT_SECRET", "value": "${GOOGLE_CLIENT_SECRET}"}
+              ],
+              "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                  "awslogs-group": "/ecs/${PROJECT_NAME}-backend-production",
+                  "awslogs-region": "${AWS_REGION}",
+                  "awslogs-stream-prefix": "ecs",
+                  "awslogs-create-group": "true"
+                }
+              },
+              "healthCheck": {
+                "command": ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/api/v1/health || exit 1"],
+                "interval": 30,
+                "timeout": 10,
+                "retries": 3,
+                "startPeriod": 40
+              }
+            }]
+          }
+          EOF
+
+          TASK_DEF_ARN=$(aws ecs register-task-definition \
+            --cli-input-json file:///tmp/task-def-backend.json \
+            --query 'taskDefinition.taskDefinitionArn' \
+            --output text)
+
+          echo "✓ Backend task definition registered: $TASK_DEF_ARN"
+          echo "task_def_arn=$TASK_DEF_ARN" >> $GITHUB_OUTPUT
+
+      - name: Deploy Backend to ECS
+        id: deploy-backend
+        run: |
+          echo "=========================================="
+          echo "Deploying Backend Service (production)"
+          echo "=========================================="
+
+          aws ecs update-service \
+            --cluster $ECS_CLUSTER \
+            --service $ECS_SERVICE_BACKEND \
+            --task-definition ${{ steps.update-task-def-backend.outputs.task_def_arn }} \
+            --force-new-deployment
+
+          echo "✓ Backend service deployment started"
+          echo "Waiting for backend service to stabilize..."
+
+          aws ecs wait services-stable \
+            --cluster $ECS_CLUSTER \
+            --services $ECS_SERVICE_BACKEND
+
+          echo "✓ Backend service is stable"
+          echo ""
+
+      # ──────────────────────────────────────────────
+      # Rollback on failure
+      # ──────────────────────────────────────────────
+      - name: Rollback on failure
+        if: failure() && steps.rollback-state.outputs.web_task != 'NONE'
+        run: |
+          echo "=========================================="
+          echo "⚠️  Deployment failed — rolling back"
+          echo "=========================================="
+
+          PREV_WEB_TASK="${{ steps.rollback-state.outputs.web_task }}"
+          PREV_BACKEND_TASK="${{ steps.rollback-state.outputs.backend_task }}"
+
+          if [ "$PREV_WEB_TASK" != "NONE" ]; then
+            echo "Rolling back Web service to: $PREV_WEB_TASK"
+            aws ecs update-service \
+              --cluster $ECS_CLUSTER \
+              --service $ECS_SERVICE_WEB \
+              --task-definition "$PREV_WEB_TASK" \
+              --force-new-deployment \
+              --no-cli-pager
+            echo "✓ Web rollback initiated"
+          fi
+
+          if [ "$PREV_BACKEND_TASK" != "NONE" ]; then
+            echo "Rolling back Backend service to: $PREV_BACKEND_TASK"
+            aws ecs update-service \
+              --cluster $ECS_CLUSTER \
+              --service $ECS_SERVICE_BACKEND \
+              --task-definition "$PREV_BACKEND_TASK" \
+              --force-new-deployment \
+              --no-cli-pager
+            echo "✓ Backend rollback initiated"
+          fi
+
+          echo ""
+          echo "Waiting for rollback to stabilize..."
+          aws ecs wait services-stable \
+            --cluster $ECS_CLUSTER \
+            --services $ECS_SERVICE_WEB $ECS_SERVICE_BACKEND || true
+
+          echo "✓ Rollback complete"
+
+      # ──────────────────────────────────────────────
+      # Summary
+      # ──────────────────────────────────────────────
+      - name: Deployment summary
+        run: |
+          echo "=========================================="
+          echo "Production Deployment Complete!"
+          echo "=========================================="
+          echo "Strategy:     ECS Fargate"
+          echo "Project:      ${{ env.PROJECT_NAME }}"
+          echo "Region:       ${{ env.AWS_REGION }}"
+          echo "Branch:       production"
+          echo "Commit SHA:   ${{ github.sha }}"
+          echo ""

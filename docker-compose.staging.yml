@@ -1,0 +1,68 @@
+# ==========================================================
+# STAGING DEPLOYMENT - Single EC2 Instance
+# ==========================================================
+# Runs web (port 3001) and backend (port 3000) containers.
+# Nginx runs on the HOST (not in Docker) for subdomain routing + SSL.
+#
+# Each app gets its own subdomain:
+#   - staging.yourdomain.com     → web:3001
+#   - api.staging.yourdomain.com → backend:3000
+#
+# Usage on EC2:
+#   docker compose -f docker-compose.staging.yml pull
+#   docker compose -f docker-compose.staging.yml up -d
+# ==========================================================
+
+services:
+  # ----------------------------------------------------------
+  # Web Application (Next.js)
+  # ----------------------------------------------------------
+  web:
+    image: ${ECR_REGISTRY}/${ECR_REPOSITORY_WEB}:${IMAGE_TAG:-latest}
+    container_name: staging-web
+    ports:
+      - "127.0.0.1:3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - INTERNAL_API_BASE_URL=http://backend:3000/api
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
+      - NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL}
+      - NEXT_PUBLIC_API_VERSION=${NEXT_PUBLIC_API_VERSION}
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ----------------------------------------------------------
+  # Backend API (NestJS)
+  # ----------------------------------------------------------
+  backend:
+    image: ${ECR_REGISTRY}/${ECR_REPOSITORY_BACKEND}:${IMAGE_TAG:-latest}
+    container_name: staging-backend
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DATABASE_URL=${DATABASE_URL}
+      - CORS_ORIGINS=${CORS_ORIGINS}
+      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
+      - BETTER_AUTH_TRUSTED_ORIGINS=${BETTER_AUTH_TRUSTED_ORIGINS}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:3000/api/v1/health",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped

@@ -1,15 +1,9 @@
-import "server-only"
-
-import { createORPCClient } from "@orpc/client"
-
-import { getCookieHeader } from "@/core/lib/cookie-utils"
-
-import { createOrpcLink, type OrpcClient } from "./client"
-
-const link = createOrpcLink({ getCookieHeader })
-
-const globalClient = globalThis as typeof globalThis & {
-	$orpc?: OrpcClient
-}
-
-globalClient.$orpc = createORPCClient<OrpcClient>(link)
+/**
+ * oRPC server bootstrap placeholder.
+ *
+ * The Next.js app currently calls into the NestJS backend for all oRPC routes,
+ * so there is nothing to configure on the web app itself. We keep this module
+ * so that future server actions or route handlers can register oRPC handlers
+ * without changing every import site.
+ */
+export {}

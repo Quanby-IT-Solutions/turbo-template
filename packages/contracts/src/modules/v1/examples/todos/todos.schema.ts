@@ -3,7 +3,6 @@ import { z } from "zod"
 // ============================================================================
 // SCHEMAS
 // ============================================================================
-
 const baseToDoSchema = z.object({
 	id: z.number().int().positive(),
 	title: z.string().min(1, "Title is required").max(255, "Title too long"),
@@ -37,9 +36,8 @@ export const UpdateTodoSchema = TodoSchema.pick({
 export const UpdateTodoRequestSchema = TodoIdSchema.extend(UpdateTodoSchema.shape)
 
 // ============================================================================
-// TYPEs
+// TYPES
 // ============================================================================
-
 export type Todo = z.infer<typeof TodoSchema>
 export type TodoIdInput = z.infer<typeof TodoIdSchema>
 export type CreateTodoInput = z.infer<typeof CreateTodoSchema>

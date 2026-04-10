@@ -199,7 +199,7 @@ function Sidebar({
 
 	return (
 		<div
-			className="group peer text-sidebar-foreground hidden md:block"
+			className="text-sidebar-foreground group peer hidden md:block"
 			data-state={state}
 			data-collapsible={state === "collapsed" ? collapsible : ""}
 			data-variant={variant}
@@ -499,7 +499,7 @@ function SidebarMenuButton({
 			},
 			props
 		),
-		render: !tooltip ? render : TooltipTrigger,
+		render: !tooltip ? render : render ? <TooltipTrigger render={render} /> : TooltipTrigger,
 		state: {
 			slot: "sidebar-menu-button",
 			sidebar: "menu-button",

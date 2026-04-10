@@ -3,11 +3,10 @@ import { cache } from "react"
 import { getApiUrl } from "@/core/lib/utils"
 
 /**
- * Helper function to construct auth URL for server-side requests.
- * Combines the base API URL, version, and auth endpoint path.
- *
- * @returns Full auth URL (e.g., "http://localhost:3001/api/v1/auth")
+ * Better Auth routes live under `/api/{version}/auth` on the backend.
+ * Reuse the shared API URL helper so everything resolves from the same base.
  */
 export const getAuthUrl = cache(() => {
-	return `${getApiUrl()}/auth`
+	const apiUrl = getApiUrl()
+	return `${apiUrl}/auth`
 })

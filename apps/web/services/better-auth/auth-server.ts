@@ -3,8 +3,7 @@ import { cache } from "react"
 import { type AuthSession } from "@repo/auth"
 
 import { getCookieHeader } from "@/core/lib/cookie-utils"
-
-import { getAuthUrl } from "./lib/utils"
+import { getServerAuthUrl } from "@/core/lib/server-utils"
 
 /**
  * Get current user session from backend.
@@ -17,7 +16,7 @@ import { getAuthUrl } from "./lib/utils"
 export const getSession = cache(async (): Promise<AuthSession | null> => {
 	const cookieHeader = await getCookieHeader()
 
-	const response = await fetch(`${getAuthUrl()}/get-session`, {
+	const response = await fetch(`${getServerAuthUrl()}/get-session`, {
 		headers: {
 			"Content-Type": "application/json",
 			"cookie": cookieHeader,

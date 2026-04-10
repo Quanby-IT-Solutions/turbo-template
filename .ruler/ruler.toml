@@ -3,7 +3,7 @@
 
 # To specify which agents are active by default when --agents is not used,
 # uncomment and populate the following line. If omitted, all agents are active.
-default_agents = ["copilot", "claude", "codex", "cursor", "qwen", "windsurf", "cline", "aider", "gemini-cli"]
+default_agents = ["copilot", "claude", "codex", "cursor", "windsurf", "cline", "aider", "gemini-cli"]
 
 # Enable nested rule loading from nested .ruler directories
 # When enabled, ruler will search for and process .ruler directories throughout the project hierarchy

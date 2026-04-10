@@ -1,26 +1,14 @@
 "use client"
 
-import { createContext, useContext, type ReactNode } from "react"
+import { type PropsWithChildren } from "react"
 
-import { authClient } from "@/services/better-auth/auth-client"
-
-interface AuthContextType {
-	session: { user?: { id: string; email: string; name: string } } | null
-	isLoading: boolean
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined)
-
-export function AuthProvider({ children }: { children: ReactNode }) {
-	const { data: session, isPending: isLoading } = authClient.useSession()
-
-	return <AuthContext.Provider value={{ session, isLoading }}>{children}</AuthContext.Provider>
-}
-
-export function useAuth() {
-	const context = useContext(AuthContext)
-	if (context === undefined) {
-		throw new Error("useAuth must be used within an AuthProvider")
-	}
-	return context
+/**
+ * Wrapper for components that need Better Auth hooks.
+ *
+ * Better Auth's React client does not require a dedicated context provider,
+ * but having a component makes it easier to swap in additional logic later
+ * (e.g., refreshed session handling). For now it simply renders children.
+ */
+export function AuthProvider({ children }: PropsWithChildren) {
+	return children
 }

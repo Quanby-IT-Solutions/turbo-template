@@ -49,6 +49,14 @@ yarn-error.log*
 .pnpm-debug.log*
 .pnpm-store/
 
+# terraform (should never be in app repo)
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.tfvars
+!*.tfvars.example
+
 # local env files
 .env
 .env*.local

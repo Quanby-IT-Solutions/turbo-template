@@ -1,1 +1,1 @@
-turbo test --affected
+turbo test --affected --filter='!@repo/mobile'

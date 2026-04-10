@@ -279,16 +279,23 @@ jobs:
         run: pnpm turbo build --filter=@repo/web
         env:
           NEXT_PUBLIC_APP_URL: http://localhost:3001
-          NEXT_PUBLIC_API_BASE_URL: http://localhost:3000
-          NEXT_PUBLIC_API_VERSION: "1"
+          NEXT_PUBLIC_API_BASE_URL: http://localhost:3000/api
+          NEXT_PUBLIC_API_VERSION: "v1"
+
+      - name: Prepare standalone server
+        if: steps.should-run.outputs.run == 'true'
+        run: |
+          cp -r apps/web/public apps/web/.next/standalone/apps/web/public
+          cp -r apps/web/.next/static apps/web/.next/standalone/apps/web/.next/static
 
       - name: Start web app in background
         if: steps.should-run.outputs.run == 'true'
         run: |
-          pnpm --filter @repo/web start &
+          node apps/web/.next/standalone/apps/web/server.js &
           npx wait-on http://localhost:3001 --timeout 30000
         env:
           PORT: 3001
+          HOSTNAME: 0.0.0.0
 
       - name: Run Playwright E2E tests
         if: steps.should-run.outputs.run == 'true'

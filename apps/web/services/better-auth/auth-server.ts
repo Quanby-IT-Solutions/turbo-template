@@ -14,19 +14,23 @@ import { getServerAuthUrl } from "@/core/lib/server-utils"
  * @returns Promise<AuthSession | null> - The session data or null
  */
 export const getSession = cache(async (): Promise<AuthSession | null> => {
-	const cookieHeader = await getCookieHeader()
+	try {
+		const cookieHeader = await getCookieHeader()
 
-	const response = await fetch(`${getServerAuthUrl()}/get-session`, {
-		headers: {
-			"Content-Type": "application/json",
-			"cookie": cookieHeader,
-		},
-		cache: "no-store",
-	})
+		const response = await fetch(`${getServerAuthUrl()}/get-session`, {
+			headers: {
+				"Content-Type": "application/json",
+				"cookie": cookieHeader,
+			},
+			cache: "no-store",
+		})
 
-	if (!response.ok) {
+		if (!response.ok) {
+			return null
+		}
+
+		return response.json()
+	} catch {
 		return null
 	}
-
-	return response.json()
 })

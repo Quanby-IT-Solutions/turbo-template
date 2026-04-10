@@ -33,6 +33,8 @@ test.describe("login page", () => {
 	})
 
 	test("shows an error and stays on /login with invalid credentials", async ({ page }) => {
+		test.skip(!process.env.E2E_AUTH_API_URL, "Requires backend")
+
 		await page.getByLabel(/email/i).fill("test@gmail.com")
 		await page.getByLabel("Password", { exact: true }).fill("WrongPassword123")
 		await page.getByRole("button", { name: /^login$/i }).click()

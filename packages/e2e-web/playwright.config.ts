@@ -2,6 +2,8 @@ import { defineConfig, devices } from "@playwright/test"
 
 import { AUTH_FILE } from "./constants"
 
+const hasBackend = !!process.env.E2E_AUTH_API_URL
+
 export default defineConfig({
 	globalSetup: "./global-setup.ts",
 	testDir: "./tests",
@@ -18,11 +20,15 @@ export default defineConfig({
 	},
 	projects: [
 		// ── Auth setup (runs once before authenticated tests) ──────────────────
-		{
-			name: "setup",
-			testDir: ".",
-			testMatch: /global\.setup\.ts/,
-		},
+		...(hasBackend
+			? [
+					{
+						name: "setup",
+						testDir: ".",
+						testMatch: /global\.setup\.ts/,
+					},
+				]
+			: []),
 
 		// ── Unauthenticated tests ──────────────────────────────────────────────
 		{
@@ -31,15 +37,19 @@ export default defineConfig({
 			testIgnore: /authenticated\.spec\.ts/,
 		},
 
-		// ── Authenticated tests ────────────────────────────────────────────────
-		{
-			name: "chromium-authenticated",
-			use: {
-				...devices["Desktop Chrome"],
-				storageState: AUTH_FILE,
-			},
-			testMatch: /authenticated\.spec\.ts/,
-			dependencies: ["setup"],
-		},
+		// ── Authenticated tests (only when backend is available) ───────────────
+		...(hasBackend
+			? [
+					{
+						name: "chromium-authenticated",
+						use: {
+							...devices["Desktop Chrome"],
+							storageState: AUTH_FILE,
+						},
+						testMatch: /authenticated\.spec\.ts/,
+						dependencies: ["setup"],
+					},
+				]
+			: []),
 	],
 })

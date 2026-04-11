@@ -309,7 +309,10 @@ class ThemeModeListTile extends ConsumerWidget {
       leading: Icon(icon),
       title: const Text('Theme Mode'),
       subtitle: Text(displayName),
-      trailing: const Icon(Icons.chevron_right),
+      trailing: Icon(
+        Icons.chevron_right,
+        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3),
+      ),
       onTap: () => _showThemeModeSheet(context, ref, themeMode),
     );
   }
@@ -333,7 +336,7 @@ class ThemeModeListTile extends ConsumerWidget {
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
               ),
-              const Divider(height: 1),
+              const Divider(height: 0.5, thickness: 0.5),
               _buildOption(
                 context,
                 ref,

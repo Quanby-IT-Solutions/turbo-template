@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/features/auth/presentation/providers/auth_provider.dart';
+import 'package:mobile/shared/widgets/app_text_field.dart';
+import 'package:mobile/shared/widgets/app_button.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
@@ -98,8 +100,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 children: [
                   Text(
                     'Join Turbo Template',
-                    style: theme.textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
+                    style: theme.textTheme.headlineLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: theme.colorScheme.onSurface.withOpacity(0.9),
+                      letterSpacing: -0.5,
+                      height: 1.1,
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -107,20 +112,18 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   Text(
                     'Create an account to get started',
                     style: theme.textTheme.bodyLarge?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
+                      color: theme.colorScheme.onSurface.withOpacity(0.6),
+                      height: 1.47,
                     ),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 32),
-                  TextFormField(
+                  const SizedBox(height: 48),
+                  AppTextField(
                     controller: _nameController,
                     textInputAction: TextInputAction.next,
                     autofillHints: const [AutofillHints.name],
-                    decoration: const InputDecoration(
-                      labelText: 'Name',
-                      prefixIcon: Icon(Icons.person_outlined),
-                      border: OutlineInputBorder(),
-                    ),
+                    labelText: 'Name',
+                    prefixIcon: const Icon(Icons.person_outlined),
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
                         return 'Name is required';
@@ -128,17 +131,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       return null;
                     },
                   ),
-                  const SizedBox(height: 16),
-                  TextFormField(
+                  const SizedBox(height: 12),
+                  AppTextField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
                     textInputAction: TextInputAction.next,
                     autofillHints: const [AutofillHints.email],
-                    decoration: const InputDecoration(
-                      labelText: 'Email',
-                      prefixIcon: Icon(Icons.email_outlined),
-                      border: OutlineInputBorder(),
-                    ),
+                    labelText: 'Email',
+                    prefixIcon: const Icon(Icons.email_outlined),
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
                         return 'Email is required';
@@ -149,28 +149,25 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       return null;
                     },
                   ),
-                  const SizedBox(height: 16),
-                  TextFormField(
+                  const SizedBox(height: 12),
+                  AppTextField(
                     controller: _passwordController,
                     obscureText: _obscurePassword,
                     textInputAction: TextInputAction.next,
                     autofillHints: const [AutofillHints.newPassword],
-                    decoration: InputDecoration(
-                      labelText: 'Password',
-                      prefixIcon: const Icon(Icons.lock_outlined),
-                      border: const OutlineInputBorder(),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscurePassword
-                              ? Icons.visibility_off
-                              : Icons.visibility,
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            _obscurePassword = !_obscurePassword;
-                          });
-                        },
+                    labelText: 'Password',
+                    prefixIcon: const Icon(Icons.lock_outlined),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscurePassword
+                            ? Icons.visibility_off
+                            : Icons.visibility,
                       ),
+                      onPressed: () {
+                        setState(() {
+                          _obscurePassword = !_obscurePassword;
+                        });
+                      },
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
@@ -182,28 +179,25 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       return null;
                     },
                   ),
-                  const SizedBox(height: 16),
-                  TextFormField(
+                  const SizedBox(height: 12),
+                  AppTextField(
                     controller: _confirmPasswordController,
                     obscureText: _obscureConfirmPassword,
                     textInputAction: TextInputAction.done,
-                    decoration: InputDecoration(
-                      labelText: 'Confirm Password',
-                      prefixIcon: const Icon(Icons.lock_outlined),
-                      border: const OutlineInputBorder(),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscureConfirmPassword
-                              ? Icons.visibility_off
-                              : Icons.visibility,
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            _obscureConfirmPassword =
-                                !_obscureConfirmPassword;
-                          });
-                        },
+                    labelText: 'Confirm Password',
+                    prefixIcon: const Icon(Icons.lock_outlined),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscureConfirmPassword
+                            ? Icons.visibility_off
+                            : Icons.visibility,
                       ),
+                      onPressed: () {
+                        setState(() {
+                          _obscureConfirmPassword =
+                              !_obscureConfirmPassword;
+                        });
+                      },
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
@@ -216,25 +210,23 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     },
                     onFieldSubmitted: (_) => _handleSignUp(),
                   ),
-                  const SizedBox(height: 24),
-                  FilledButton(
+                  const SizedBox(height: 32),
+                  AppButton(
                     onPressed: isLoading ? null : _handleSignUp,
-                    child: isLoading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                            ),
-                          )
-                        : const Text('Sign Up'),
+                    isLoading: isLoading,
+                    child: const Text('Sign Up'),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 24),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Text('Already have an account?'),
-                      TextButton(
+                      Text(
+                        'Already have an account?',
+                        style: theme.textTheme.bodyLarge?.copyWith(
+                          color: theme.colorScheme.onSurface.withOpacity(0.6),
+                        ),
+                      ),
+                      AppTextButton(
                         onPressed: () => context.pop(),
                         child: const Text('Sign In'),
                       ),

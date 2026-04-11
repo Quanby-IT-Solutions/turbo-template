@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile/core/widgets/tour_item.dart';
 import 'package:mobile/features/auth/presentation/providers/auth_provider.dart';
+import 'package:mobile/shared/widgets/app_card.dart';
+import 'package:mobile/shared/widgets/section_header.dart';
+import 'package:mobile/shared/widgets/settings_group.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -32,7 +35,8 @@ class ProfileScreen extends ConsumerWidget {
             description:
                 'Your avatar is generated from your name initial. '
                 'Tap to customize in a future update.',
-            child: Padding(
+            child: AppCard(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
               padding: const EdgeInsets.symmetric(vertical: 24),
               child: Column(
                 children: [
@@ -56,22 +60,26 @@ class ProfileScreen extends ConsumerWidget {
                   const SizedBox(height: 16),
                   Text(
                     user?.name ?? 'Unknown',
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
+                    style: theme.textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: theme.colorScheme.onSurface.withOpacity(0.9),
+                      letterSpacing: -0.5,
+                      height: 1.1,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     user?.email ?? '',
                     style: theme.textTheme.bodyLarge?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
+                      color: theme.colorScheme.onSurface.withOpacity(0.6),
+                      height: 1.47,
                     ),
                   ),
                 ],
               ),
             ),
           ),
-          const Divider(),
+          const SizedBox(height: 16),
 
           // Account details section
           TourItem(
@@ -82,17 +90,9 @@ class ProfileScreen extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Text(
-                    'Account Information',
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      color: theme.colorScheme.primary,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
+                const SectionHeader(title: 'Account Information'),
+                SettingsGroup(
+                  children: [
                 ListTile(
                   leading: Icon(
                     Icons.badge_outlined,
@@ -160,6 +160,8 @@ class ProfileScreen extends ConsumerWidget {
                     title: const Text('Last Updated'),
                     subtitle: Text(_formatDate(user!.updatedAt!)),
                   ),
+                  ],
+                ),
               ],
             ),
           ),

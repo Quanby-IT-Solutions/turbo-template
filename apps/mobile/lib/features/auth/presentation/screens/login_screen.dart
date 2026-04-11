@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/core/navigation/app_router.dart';
 import 'package:mobile/features/auth/presentation/providers/auth_provider.dart';
+import 'package:mobile/shared/widgets/app_text_field.dart';
+import 'package:mobile/shared/widgets/app_button.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -108,11 +110,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     size: 64,
                     color: theme.colorScheme.primary,
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 32),
                   Text(
                     'Welcome Back',
-                    style: theme.textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
+                    style: theme.textTheme.headlineLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: theme.colorScheme.onSurface.withOpacity(0.9),
+                      letterSpacing: -0.5,
+                      height: 1.1,
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -120,21 +125,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   Text(
                     'Sign in to continue',
                     style: theme.textTheme.bodyLarge?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
+                      color: theme.colorScheme.onSurface.withOpacity(0.6),
+                      height: 1.47,
                     ),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 40),
-                  TextFormField(
+                  const SizedBox(height: 48),
+                  AppTextField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
                     textInputAction: TextInputAction.next,
                     autofillHints: const [AutofillHints.email],
-                    decoration: const InputDecoration(
-                      labelText: 'Email',
-                      prefixIcon: Icon(Icons.email_outlined),
-                      border: OutlineInputBorder(),
-                    ),
+                    labelText: 'Email',
+                    prefixIcon: const Icon(Icons.email_outlined),
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
                         return 'Email is required';
@@ -145,28 +148,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       return null;
                     },
                   ),
-                  const SizedBox(height: 16),
-                  TextFormField(
+                  const SizedBox(height: 12),
+                  AppTextField(
                     controller: _passwordController,
                     obscureText: _obscurePassword,
                     textInputAction: TextInputAction.done,
                     autofillHints: const [AutofillHints.password],
-                    decoration: InputDecoration(
-                      labelText: 'Password',
-                      prefixIcon: const Icon(Icons.lock_outlined),
-                      border: const OutlineInputBorder(),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscurePassword
-                              ? Icons.visibility_off
-                              : Icons.visibility,
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            _obscurePassword = !_obscurePassword;
-                          });
-                        },
+                    labelText: 'Password',
+                    prefixIcon: const Icon(Icons.lock_outlined),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscurePassword
+                            ? Icons.visibility_off
+                            : Icons.visibility,
                       ),
+                      onPressed: () {
+                        setState(() {
+                          _obscurePassword = !_obscurePassword;
+                        });
+                      },
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
@@ -179,25 +179,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     },
                     onFieldSubmitted: (_) => _handleSignIn(),
                   ),
-                  const SizedBox(height: 24),
-                  FilledButton(
+                  const SizedBox(height: 32),
+                  AppButton(
                     onPressed: isLoading ? null : _handleSignIn,
-                    child: isLoading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                            ),
-                          )
-                        : const Text('Sign In'),
+                    isLoading: isLoading,
+                    child: const Text('Sign In'),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 24),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Text("Don't have an account?"),
-                      TextButton(
+                      Text(
+                        "Don't have an account?",
+                        style: theme.textTheme.bodyLarge?.copyWith(
+                          color: theme.colorScheme.onSurface.withOpacity(0.6),
+                        ),
+                      ),
+                      AppTextButton(
                         onPressed: () => context.push(AppRoutes.register),
                         child: const Text('Sign Up'),
                       ),

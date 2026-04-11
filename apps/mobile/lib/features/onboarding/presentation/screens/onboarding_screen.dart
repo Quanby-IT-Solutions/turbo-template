@@ -23,7 +23,6 @@ class OnboardingScreen extends ConsumerWidget {
           body:
               'Your all-in-one productivity companion.\n'
               'Manage tasks, stay organized, and get things done.',
-          badge: '🚀',
         ),
         _buildPage(
           theme: theme,
@@ -33,7 +32,6 @@ class OnboardingScreen extends ConsumerWidget {
           body:
               'Create, track, and complete todos across\n'
               'all your devices — seamlessly synced.',
-          badge: '✓',
         ),
         _buildPage(
           theme: theme,
@@ -43,15 +41,15 @@ class OnboardingScreen extends ConsumerWidget {
           body:
               'Sign in to keep your data safe and access\n'
               'it anywhere, anytime.',
-          badge: '🔐',
         ),
       ],
       showSkipButton: true,
       skip: Text(
         'Skip',
         style: TextStyle(
-          color: colorScheme.onSurfaceVariant,
+          color: colorScheme.onSurface.withOpacity(0.6),
           fontWeight: FontWeight.w500,
+          letterSpacing: 0.5,
         ),
       ),
       next: Container(
@@ -67,18 +65,17 @@ class OnboardingScreen extends ConsumerWidget {
         ),
       ),
       done: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [colorScheme.primary, colorScheme.tertiary],
-          ),
-          borderRadius: BorderRadius.circular(24),
+          color: colorScheme.primary,
+          borderRadius: BorderRadius.circular(20),
         ),
         child: const Text(
-          'Get Started',
+          'Start',
           style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.w600,
+            letterSpacing: 0.5,
           ),
         ),
       ),
@@ -90,9 +87,9 @@ class OnboardingScreen extends ConsumerWidget {
       },
       dotsDecorator: DotsDecorator(
         size: const Size.square(8.0),
-        activeSize: const Size(28.0, 8.0),
+        activeSize: const Size(24.0, 8.0),
         activeColor: colorScheme.primary,
-        color: colorScheme.outlineVariant,
+        color: colorScheme.outlineVariant.withOpacity(0.5),
         activeShape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(24),
         ),
@@ -102,8 +99,9 @@ class OnboardingScreen extends ConsumerWidget {
         spacing: const EdgeInsets.symmetric(horizontal: 4),
       ),
       isProgressTap: false,
-      curve: Curves.easeInOut,
-      controlsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+      curve: Curves.easeOutCubic,
+      scrollPhysics: const BouncingScrollPhysics(),
+      controlsPadding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
     );
   }
 
@@ -113,29 +111,29 @@ class OnboardingScreen extends ConsumerWidget {
     required List<Color> gradientColors,
     required String title,
     required String body,
-    required String badge,
   }) {
     return PageViewModel(
       titleWidget: Padding(
-        padding: const EdgeInsets.only(top: 32),
+        padding: const EdgeInsets.only(top: 48), // Generous spacing
         child: Text(
           title,
           textAlign: TextAlign.center,
-          style: theme.textTheme.headlineMedium!.copyWith(
-            fontWeight: FontWeight.w800,
-            color: theme.colorScheme.onSurface,
+          style: theme.textTheme.headlineLarge!.copyWith(
+            fontWeight: FontWeight.w600, // Semibold Apple style
+            color: theme.colorScheme.onSurface.withOpacity(0.9),
             letterSpacing: -0.5,
+            height: 1.1,
           ),
         ),
       ),
       bodyWidget: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
         child: Text(
           body,
           textAlign: TextAlign.center,
           style: theme.textTheme.bodyLarge!.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-            height: 1.6,
+            color: theme.colorScheme.onSurface.withOpacity(0.6),
+            height: 1.47,
           ),
         ),
       ),
@@ -143,19 +141,12 @@ class OnboardingScreen extends ConsumerWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const SizedBox(height: 60),
+            const SizedBox(height: 64),
             Container(
               width: 180,
               height: 180,
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    gradientColors[0].withValues(alpha: 0.15),
-                    gradientColors[1].withValues(alpha: 0.15),
-                  ],
-                ),
+                color: theme.colorScheme.surfaceContainerHigh.withOpacity(0.5),
                 shape: BoxShape.circle,
               ),
               child: Center(
@@ -163,32 +154,26 @@ class OnboardingScreen extends ConsumerWidget {
                   width: 120,
                   height: 120,
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: gradientColors,
-                    ),
+                    color: theme.colorScheme.primaryContainer,
                     shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: gradientColors[0].withValues(alpha: 0.3),
-                        blurRadius: 24,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
                   ),
-                  child: Icon(
-                    icon,
-                    size: 52,
-                    color: Colors.white,
+                  child: Center(
+                    child: Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primary,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        icon,
+                        size: 32,
+                        color: theme.colorScheme.onPrimary,
+                      ),
+                    ),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              badge,
-              style: const TextStyle(fontSize: 28),
             ),
           ],
         ),
@@ -196,7 +181,7 @@ class OnboardingScreen extends ConsumerWidget {
       decoration: PageDecoration(
         imagePadding: EdgeInsets.zero,
         bodyPadding: const EdgeInsets.symmetric(horizontal: 8),
-        titlePadding: const EdgeInsets.only(bottom: 16),
+        titlePadding: const EdgeInsets.only(bottom: 0),
         bodyAlignment: Alignment.center,
         imageAlignment: Alignment.center,
       ),

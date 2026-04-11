@@ -41,8 +41,14 @@ class AuthState extends _$AuthState {
   }
 
   Future<void> signOut() async {
-    await ref.read(authRepositoryProvider).signOut();
-    state = const AsyncData(null);
+    state = const AsyncLoading();
+    try {
+      await ref.read(authRepositoryProvider).signOut();
+    } finally {
+      // Always clear local session even if the backend call fails,
+      // so the user is logged out on the device.
+      state = const AsyncData(null);
+    }
   }
 }
 

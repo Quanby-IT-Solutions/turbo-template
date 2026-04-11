@@ -25,9 +25,13 @@ async function createApplication(): Promise<INestApplication> {
 	logger.log("Creating NestJS application...")
 	const app = await NestFactory.create(AppModule, { bodyParser: false })
 
+	// IMPORTANT: Better Auth must be registered BEFORE express.json() body parser.
+	// Better Auth's toNodeHandler reads the raw request stream for body parsing.
+	// If express.json() runs first, it consumes the stream and Better Auth sees
+	// an empty body → sign-in/sign-up return null.
+	setupBetterAuth(app)
 	configureApp(app)
 	setupVersioning(app)
-	setupBetterAuth(app)
 	await setupSwagger(app)
 
 	return app

@@ -1,9 +1,13 @@
 import 'package:awesome_snackbar_content/awesome_snackbar_content.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:toastification/toastification.dart';
+import 'package:mobile/core/widgets/tour_item.dart';
 import 'package:mobile/features/auth/presentation/providers/auth_provider.dart';
+import 'package:mobile/features/home/presentation/providers/tour_provider.dart';
 import 'package:mobile/features/onboarding/presentation/providers/onboarding_provider.dart';
 import 'package:mobile/core/theme/theme_provider.dart';
+import 'package:mobile/services/storage/tour_storage_service.dart';
 
 class SettingsTab extends ConsumerWidget {
   const SettingsTab({super.key});
@@ -21,80 +25,102 @@ class SettingsTab extends ConsumerWidget {
       body: ListView(
         children: [
           // User info section
-          Padding(
-            padding: const EdgeInsets.all(24),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 32,
-                  backgroundColor: theme.colorScheme.primaryContainer,
-                  child: Text(
-                    (user?.name.isNotEmpty == true)
-                        ? user!.name[0].toUpperCase()
-                        : '?',
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                      color: theme.colorScheme.onPrimaryContainer,
+          TourItem(
+            tabIndex: 3,
+            order: 0,
+            title: 'Your Profile',
+            description: 'View your account details at a glance.',
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 32,
+                    backgroundColor: theme.colorScheme.primaryContainer,
+                    child: Text(
+                      (user?.name.isNotEmpty == true)
+                          ? user!.name[0].toUpperCase()
+                          : '?',
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        color: theme.colorScheme.onPrimaryContainer,
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        user?.name ?? 'Unknown',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          user?.name ?? 'Unknown',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        user?.email ?? '',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
+                        const SizedBox(height: 4),
+                        Text(
+                          user?.email ?? '',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
           const Divider(),
 
           // Theme section
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Text(
-              'Appearance',
-              style: theme.textTheme.titleSmall?.copyWith(
-                color: theme.colorScheme.primary,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          RadioGroup<ThemeMode>(
-            groupValue: themeMode,
-            onChanged: (mode) {
-              if (mode != null) {
-                ref.read(themeControllerProvider.notifier).setThemeMode(mode);
-              }
-            },
+          TourItem(
+            tabIndex: 3,
+            order: 1,
+            title: 'Theme Settings',
+            description:
+                'Choose between System, Light, or Dark theme to '
+                'customize your experience.',
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                RadioListTile<ThemeMode>(
-                  title: const Text('System'),
-                  subtitle: const Text('Follow device theme'),
-                  value: ThemeMode.system,
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Text(
+                    'Appearance',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
-                RadioListTile<ThemeMode>(
-                  title: const Text('Light'),
-                  value: ThemeMode.light,
-                ),
-                RadioListTile<ThemeMode>(
-                  title: const Text('Dark'),
-                  value: ThemeMode.dark,
+                RadioGroup<ThemeMode>(
+                  groupValue: themeMode,
+                  onChanged: (mode) {
+                    if (mode != null) {
+                      ref
+                          .read(themeControllerProvider.notifier)
+                          .setThemeMode(mode);
+                    }
+                  },
+                  child: Column(
+                    children: [
+                      RadioListTile<ThemeMode>(
+                        title: const Text('System'),
+                        subtitle: const Text('Follow device theme'),
+                        value: ThemeMode.system,
+                      ),
+                      RadioListTile<ThemeMode>(
+                        title: const Text('Light'),
+                        value: ThemeMode.light,
+                      ),
+                      RadioListTile<ThemeMode>(
+                        title: const Text('Dark'),
+                        value: ThemeMode.dark,
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -110,6 +136,24 @@ class SettingsTab extends ConsumerWidget {
                 color: theme.colorScheme.primary,
                 fontWeight: FontWeight.bold,
               ),
+            ),
+          ),
+          TourItem(
+            tabIndex: 3,
+            order: 2,
+            title: 'Replay Tour',
+            description: 'Tap here anytime to replay this feature tour.',
+            child: ListTile(
+              leading: const Icon(Icons.tour_outlined),
+              title: const Text('Take a Tour'),
+              subtitle: const Text('Replay the feature tour'),
+              onTap: () {
+                final userId = ref.read(currentUserProvider)?.id;
+                if (userId != null) {
+                  ref.read(tourStorageServiceProvider).resetTour(userId);
+                }
+                ref.read(tourTriggerProvider.notifier).trigger();
+              },
             ),
           ),
           ListTile(
@@ -168,6 +212,12 @@ class SettingsTab extends ConsumerWidget {
               );
               if (confirmed == true) {
                 await ref.read(authStateProvider.notifier).signOut();
+                toastification.show(
+                  title: const Text('Signed out successfully'),
+                  type: ToastificationType.success,
+                  autoCloseDuration: const Duration(seconds: 2),
+                  style: ToastificationStyle.flat,
+                );
               }
             },
           ),

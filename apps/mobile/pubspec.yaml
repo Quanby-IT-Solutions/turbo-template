@@ -52,6 +52,9 @@ dependencies:
   # Toast notifications
   toastification: ^3.0.3
 
+  # Feature tour / showcase
+  showcaseview: ^5.0.1
+
   # Local push notifications
   awesome_notifications: ^0.11.0
 

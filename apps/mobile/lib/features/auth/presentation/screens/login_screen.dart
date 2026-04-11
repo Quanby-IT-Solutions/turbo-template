@@ -68,6 +68,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             ),
           ),
         );
+    } else if (authState.hasValue && authState.value != null) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            elevation: 0,
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Colors.transparent,
+            content: AwesomeSnackbarContent(
+              title: 'Welcome back!',
+              message: 'You have signed in successfully.',
+              contentType: ContentType.success,
+            ),
+          ),
+        );
     }
   }
 

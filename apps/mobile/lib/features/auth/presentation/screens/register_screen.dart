@@ -58,7 +58,22 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           ),
         );
     } else if (authState.hasValue && authState.value != null) {
-      // Sign up succeeded – go_router redirect will handle navigation to home.
+      // Sign up succeeded – go_router redirect will handle navigation.
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            elevation: 0,
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Colors.transparent,
+            content: AwesomeSnackbarContent(
+              title: 'Account Created!',
+              message: 'Welcome aboard — your account is ready.',
+              contentType: ContentType.success,
+            ),
+          ),
+        );
     }
   }
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:toastification/toastification.dart';
+import 'package:mobile/core/widgets/tour_item.dart';
 import 'package:mobile/features/todos/data/models/todo_model.dart';
 import 'package:mobile/features/todos/presentation/providers/todos_provider.dart';
 
@@ -14,7 +15,15 @@ class TodosScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Todos'),
+        title: TourItem(
+          tabIndex: 1,
+          order: 0,
+          title: 'Your Todo List',
+          description:
+              'View, complete, and swipe to delete your tasks here. '
+              'Pull down to refresh.',
+          child: const Text('Todos'),
+        ),
       ),
       body: todosAsync.when(
         data: (todos) {
@@ -91,9 +100,15 @@ class TodosScreen extends ConsumerWidget {
           ),
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showCreateDialog(context, ref),
-        child: const Icon(Icons.add),
+      floatingActionButton: TourItem(
+        tabIndex: 1,
+        order: 1,
+        title: 'Add Todo',
+        description: 'Tap here to create a new task.',
+        child: FloatingActionButton(
+          onPressed: () => _showCreateDialog(context, ref),
+          child: const Icon(Icons.add),
+        ),
       ),
     );
   }
@@ -206,6 +221,16 @@ class _TodoItem extends ConsumerWidget {
           value: todo.completed,
           onChanged: (_) {
             ref.read(todosListProvider.notifier).toggleTodo(todo);
+            toastification.show(
+              title: Text(
+                todo.completed ? 'Todo uncompleted' : 'Todo completed',
+              ),
+              type: todo.completed
+                  ? ToastificationType.info
+                  : ToastificationType.success,
+              autoCloseDuration: const Duration(seconds: 2),
+              style: ToastificationStyle.flat,
+            );
           },
         ),
         title: Text(

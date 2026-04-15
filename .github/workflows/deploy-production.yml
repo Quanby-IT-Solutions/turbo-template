@@ -1,46 +1,21 @@
-name: Deploy Production (ECS Fargate)
+name: Deploy Production (EC2 + ALB + ASG)
 
 on:
   push:
     branches:
       - production
+    paths-ignore:
+      - "**/*.md"
+      - ".vscode/**"
+      - "docs/**"
   workflow_dispatch:
 
 concurrency:
   group: deploy-production
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 env:
-  # ==========================================================
-  # AWS INFRASTRUCTURE CONFIGURATION
-  # ==========================================================
-  AWS_REGION: ${{ vars.AWS_REGION }}
-  PROJECT_NAME: ${{ vars.PROJECT_NAME }}
-  ECR_REPOSITORY_WEB: ${{ vars.ECR_REPOSITORY_WEB }}
-  ECR_REPOSITORY_BACKEND: ${{ vars.ECR_REPOSITORY_BACKEND }}
-  ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
-  ECS_SERVICE_WEB: ${{ vars.ECS_SERVICE_WEB }}
-  ECS_SERVICE_BACKEND: ${{ vars.ECS_SERVICE_BACKEND }}
-  ECS_EXECUTION_ROLE_ARN: ${{ vars.ECS_EXECUTION_ROLE_ARN }}
-  ECS_TASK_ROLE_ARN: ${{ vars.ECS_TASK_ROLE_ARN }}
-
-  # Image tag (use commit SHA for immutable deployments)
   IMAGE_TAG: ${{ github.sha }}
-
-  # ==========================================================
-  # ENVIRONMENT VARIABLES (PRODUCTION)
-  # ==========================================================
-  NODE_ENV: "production"
-  NEXT_PUBLIC_APP_URL: ${{ vars.NEXT_PUBLIC_APP_URL }}
-  NEXT_PUBLIC_API_BASE_URL: ${{ vars.NEXT_PUBLIC_API_BASE_URL }}
-  NEXT_PUBLIC_API_VERSION: ${{ vars.NEXT_PUBLIC_API_VERSION }}
-  BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
-  BETTER_AUTH_TRUSTED_ORIGINS: ${{ secrets.BETTER_AUTH_TRUSTED_ORIGINS }}
-  BETTER_AUTH_COOKIE_DOMAIN: ${{ vars.BETTER_AUTH_COOKIE_DOMAIN }}
-  CORS_ORIGINS: ${{ secrets.CORS_ORIGINS }}
-  DATABASE_URL: ${{ secrets.DATABASE_URL }}
-  GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
-  GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
 
 jobs:
   # ──────────────────────────────────────────────
@@ -51,10 +26,35 @@ jobs:
     uses: ./.github/workflows/ci.yml
 
   deploy-production:
-    name: Deploy to Production (ECS Fargate)
+    name: Deploy to Production (EC2 + ALB + ASG)
     needs: ci
     runs-on: ubuntu-latest
     environment: production
+    env:
+      # ==========================================================
+      # AWS Configuration
+      # ==========================================================
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      PROJECT_NAME: ${{ vars.PROJECT_NAME }}
+      ECR_REPOSITORY_WEB: ${{ vars.ECR_REPOSITORY_WEB }}
+      ECR_REPOSITORY_BACKEND: ${{ vars.ECR_REPOSITORY_BACKEND }}
+      ASG_NAME: ${{ vars.ASG_NAME }}
+      LAUNCH_TEMPLATE_ID: ${{ vars.LAUNCH_TEMPLATE_ID }}
+
+      # ==========================================================
+      # App Environment Variables
+      # ==========================================================
+      NODE_ENV: "production"
+      NEXT_PUBLIC_APP_URL: ${{ vars.NEXT_PUBLIC_APP_URL }}
+      NEXT_PUBLIC_API_BASE_URL: ${{ vars.NEXT_PUBLIC_API_BASE_URL }}
+      NEXT_PUBLIC_API_VERSION: ${{ vars.NEXT_PUBLIC_API_VERSION }}
+      BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
+      BETTER_AUTH_TRUSTED_ORIGINS: ${{ secrets.BETTER_AUTH_TRUSTED_ORIGINS }}
+      BETTER_AUTH_COOKIE_DOMAIN: ${{ vars.BETTER_AUTH_COOKIE_DOMAIN }}
+      CORS_ORIGINS: ${{ secrets.CORS_ORIGINS }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+      GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
 
     steps:
       - name: Checkout code
@@ -75,18 +75,15 @@ jobs:
             fi
           }
 
-          # AWS and ECS configuration
+          # AWS
           require_var AWS_REGION
           require_var PROJECT_NAME
           require_var ECR_REPOSITORY_WEB
           require_var ECR_REPOSITORY_BACKEND
-          require_var ECS_CLUSTER
-          require_var ECS_SERVICE_WEB
-          require_var ECS_SERVICE_BACKEND
-          require_var ECS_EXECUTION_ROLE_ARN
-          require_var ECS_TASK_ROLE_ARN
+          require_var ASG_NAME
+          require_var LAUNCH_TEMPLATE_ID
 
-          # App configuration
+          # App
           require_var NEXT_PUBLIC_APP_URL
           require_var NEXT_PUBLIC_API_BASE_URL
           require_var NEXT_PUBLIC_API_VERSION
@@ -143,7 +140,7 @@ jobs:
             --cache-to type=local,dest=/tmp/.buildx-cache-new,mode=max \
             --push \
             --tag $ECR_REGISTRY/$ECR_REPOSITORY_WEB:$IMAGE_TAG \
-            --tag $ECR_REGISTRY/$ECR_REPOSITORY_WEB:latest \
+            --tag $ECR_REGISTRY/$ECR_REPOSITORY_WEB:production-latest \
             .
 
           rm -rf /tmp/.buildx-cache
@@ -151,7 +148,6 @@ jobs:
 
           echo "✓ Web image pushed"
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY_WEB:$IMAGE_TAG" >> $GITHUB_OUTPUT
-          echo ""
 
       - name: Build and push Backend image to ECR
         id: build-backend
@@ -168,7 +164,7 @@ jobs:
             --cache-to type=local,dest=/tmp/.buildx-cache-new,mode=max \
             --push \
             --tag $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:$IMAGE_TAG \
-            --tag $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:latest \
+            --tag $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:production-latest \
             .
 
           rm -rf /tmp/.buildx-cache
@@ -176,243 +172,201 @@ jobs:
 
           echo "✓ Backend image pushed"
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:$IMAGE_TAG" >> $GITHUB_OUTPUT
-          echo ""
 
       # ──────────────────────────────────────────────
-      # Deploy to ECS Fargate
+      # Update SSM parameters
       # ──────────────────────────────────────────────
-      - name: Capture current task definitions for rollback
-        id: rollback-state
-        run: |
-          echo "=========================================="
-          echo "Capturing current state for rollback"
-          echo "=========================================="
-
-          CURRENT_WEB_TASK=$(aws ecs describe-services \
-            --cluster $ECS_CLUSTER \
-            --services $ECS_SERVICE_WEB \
-            --query 'services[0].taskDefinition' \
-            --output text 2>/dev/null || echo "NONE")
-
-          CURRENT_BACKEND_TASK=$(aws ecs describe-services \
-            --cluster $ECS_CLUSTER \
-            --services $ECS_SERVICE_BACKEND \
-            --query 'services[0].taskDefinition' \
-            --output text 2>/dev/null || echo "NONE")
-
-          echo "web_task=$CURRENT_WEB_TASK" >> $GITHUB_OUTPUT
-          echo "backend_task=$CURRENT_BACKEND_TASK" >> $GITHUB_OUTPUT
-
-          echo "Current Web Task Def:     $CURRENT_WEB_TASK"
-          echo "Current Backend Task Def: $CURRENT_BACKEND_TASK"
-
-      - name: Register and deploy Web task definition
-        id: update-task-def-web
+      - name: Update SSM parameters
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
           echo "=========================================="
-          echo "Registering Web Task Definition (production)"
+          echo "Updating SSM parameters"
           echo "=========================================="
 
-          cat > /tmp/task-def-web.json << EOF
-          {
-            "family": "${PROJECT_NAME}-web-production",
-            "networkMode": "awsvpc",
-            "requiresCompatibilities": ["FARGATE"],
-            "cpu": "512",
-            "memory": "1024",
-            "executionRoleArn": "${ECS_EXECUTION_ROLE_ARN}",
-            "taskRoleArn": "${ECS_TASK_ROLE_ARN}",
-            "containerDefinitions": [{
-              "name": "web",
-              "image": "${ECR_REGISTRY}/${ECR_REPOSITORY_WEB}:${IMAGE_TAG}",
-              "portMappings": [{"containerPort": 3001, "protocol": "tcp"}],
-              "essential": true,
-              "environment": [
-                {"name": "NODE_ENV", "value": "production"},
-                {"name": "NEXT_PUBLIC_APP_URL", "value": "${NEXT_PUBLIC_APP_URL}"},
-                {"name": "NEXT_PUBLIC_API_BASE_URL", "value": "${NEXT_PUBLIC_API_BASE_URL}"},
-                {"name": "NEXT_PUBLIC_API_VERSION", "value": "${NEXT_PUBLIC_API_VERSION}"}
-              ],
-              "logConfiguration": {
-                "logDriver": "awslogs",
-                "options": {
-                  "awslogs-group": "/ecs/${PROJECT_NAME}-web-production",
-                  "awslogs-region": "${AWS_REGION}",
-                  "awslogs-stream-prefix": "ecs",
-                  "awslogs-create-group": "true"
-                }
-              },
-              "healthCheck": {
-                "command": ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3001/ || exit 1"],
-                "interval": 30,
-                "timeout": 10,
-                "retries": 3,
-                "startPeriod": 40
-              }
-            }]
-          }
-          EOF
+          # Store docker-compose.production.yml in SSM (base64)
+          COMPOSE_B64=$(base64 -w0 docker-compose.production.yml)
+          aws ssm put-parameter \
+            --name "/${PROJECT_NAME}/production/docker-compose" \
+            --type String \
+            --value "$COMPOSE_B64" \
+            --overwrite
 
-          TASK_DEF_ARN=$(aws ecs register-task-definition \
-            --cli-input-json file:///tmp/task-def-web.json \
-            --query 'taskDefinition.taskDefinitionArn' \
-            --output text)
+          # Store .env in SSM (base64)
+          cat > /tmp/deploy.env << ENV_EOF
+          ECR_REGISTRY=$ECR_REGISTRY
+          ECR_REPOSITORY_WEB=$ECR_REPOSITORY_WEB
+          ECR_REPOSITORY_BACKEND=$ECR_REPOSITORY_BACKEND
+          IMAGE_TAG=$IMAGE_TAG
+          NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
+          NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
+          NEXT_PUBLIC_API_VERSION=$NEXT_PUBLIC_API_VERSION
+          DATABASE_URL=$DATABASE_URL
+          CORS_ORIGINS=$CORS_ORIGINS
+          BETTER_AUTH_SECRET=$BETTER_AUTH_SECRET
+          BETTER_AUTH_TRUSTED_ORIGINS=$BETTER_AUTH_TRUSTED_ORIGINS
+          BETTER_AUTH_COOKIE_DOMAIN=$BETTER_AUTH_COOKIE_DOMAIN
+          GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID
+          GOOGLE_CLIENT_SECRET=$GOOGLE_CLIENT_SECRET
+          ENV_EOF
 
-          echo "✓ Web task definition registered: $TASK_DEF_ARN"
-          echo "task_def_arn=$TASK_DEF_ARN" >> $GITHUB_OUTPUT
+          ENV_B64=$(base64 -w0 /tmp/deploy.env)
+          aws ssm put-parameter \
+            --name "/${PROJECT_NAME}/production/env" \
+            --type SecureString \
+            --value "$ENV_B64" \
+            --overwrite
 
-      - name: Deploy Web to ECS
-        id: deploy-web
-        run: |
-          echo "=========================================="
-          echo "Deploying Web Service (production)"
-          echo "=========================================="
-
-          aws ecs update-service \
-            --cluster $ECS_CLUSTER \
-            --service $ECS_SERVICE_WEB \
-            --task-definition ${{ steps.update-task-def-web.outputs.task_def_arn }} \
-            --force-new-deployment
-
-          echo "✓ Web service deployment started"
-          echo "Waiting for web service to stabilize..."
-
-          aws ecs wait services-stable \
-            --cluster $ECS_CLUSTER \
-            --services $ECS_SERVICE_WEB
-
-          echo "✓ Web service is stable"
-          echo ""
-
-      - name: Register and deploy Backend task definition
-        id: update-task-def-backend
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        run: |
-          echo "=========================================="
-          echo "Registering Backend Task Definition (production)"
-          echo "=========================================="
-
-          cat > /tmp/task-def-backend.json << EOF
-          {
-            "family": "${PROJECT_NAME}-backend-production",
-            "networkMode": "awsvpc",
-            "requiresCompatibilities": ["FARGATE"],
-            "cpu": "512",
-            "memory": "1024",
-            "executionRoleArn": "${ECS_EXECUTION_ROLE_ARN}",
-            "taskRoleArn": "${ECS_TASK_ROLE_ARN}",
-            "containerDefinitions": [{
-              "name": "backend",
-              "image": "${ECR_REGISTRY}/${ECR_REPOSITORY_BACKEND}:${IMAGE_TAG}",
-              "portMappings": [{"containerPort": 3000, "protocol": "tcp"}],
-              "essential": true,
-              "environment": [
-                {"name": "NODE_ENV", "value": "production"},
-                {"name": "PORT", "value": "3000"},
-                {"name": "CORS_ORIGINS", "value": "${CORS_ORIGINS}"},
-                {"name": "DATABASE_URL", "value": "${DATABASE_URL}"},
-                {"name": "BETTER_AUTH_SECRET", "value": "${BETTER_AUTH_SECRET}"},
-                {"name": "BETTER_AUTH_TRUSTED_ORIGINS", "value": "${BETTER_AUTH_TRUSTED_ORIGINS}"},
-                {"name": "BETTER_AUTH_COOKIE_DOMAIN", "value": "${BETTER_AUTH_COOKIE_DOMAIN}"},
-                {"name": "GOOGLE_CLIENT_ID", "value": "${GOOGLE_CLIENT_ID}"},
-                {"name": "GOOGLE_CLIENT_SECRET", "value": "${GOOGLE_CLIENT_SECRET}"}
-              ],
-              "logConfiguration": {
-                "logDriver": "awslogs",
-                "options": {
-                  "awslogs-group": "/ecs/${PROJECT_NAME}-backend-production",
-                  "awslogs-region": "${AWS_REGION}",
-                  "awslogs-stream-prefix": "ecs",
-                  "awslogs-create-group": "true"
-                }
-              },
-              "healthCheck": {
-                "command": ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/api/v1/health || exit 1"],
-                "interval": 30,
-                "timeout": 10,
-                "retries": 3,
-                "startPeriod": 40
-              }
-            }]
-          }
-          EOF
-
-          TASK_DEF_ARN=$(aws ecs register-task-definition \
-            --cli-input-json file:///tmp/task-def-backend.json \
-            --query 'taskDefinition.taskDefinitionArn' \
-            --output text)
-
-          echo "✓ Backend task definition registered: $TASK_DEF_ARN"
-          echo "task_def_arn=$TASK_DEF_ARN" >> $GITHUB_OUTPUT
-
-      - name: Deploy Backend to ECS
-        id: deploy-backend
-        run: |
-          echo "=========================================="
-          echo "Deploying Backend Service (production)"
-          echo "=========================================="
-
-          aws ecs update-service \
-            --cluster $ECS_CLUSTER \
-            --service $ECS_SERVICE_BACKEND \
-            --task-definition ${{ steps.update-task-def-backend.outputs.task_def_arn }} \
-            --force-new-deployment
-
-          echo "✓ Backend service deployment started"
-          echo "Waiting for backend service to stabilize..."
-
-          aws ecs wait services-stable \
-            --cluster $ECS_CLUSTER \
-            --services $ECS_SERVICE_BACKEND
-
-          echo "✓ Backend service is stable"
-          echo ""
+          rm -f /tmp/deploy.env
+          echo "✓ SSM parameters updated"
 
       # ──────────────────────────────────────────────
-      # Rollback on failure
+      # Rolling deployment via ASG instance refresh
       # ──────────────────────────────────────────────
-      - name: Rollback on failure
-        if: failure() && steps.rollback-state.outputs.web_task != 'NONE'
+      - name: Create new launch template version
+        id: launch-template
         run: |
           echo "=========================================="
-          echo "⚠️  Deployment failed — rolling back"
+          echo "Creating new launch template version"
           echo "=========================================="
 
-          PREV_WEB_TASK="${{ steps.rollback-state.outputs.web_task }}"
-          PREV_BACKEND_TASK="${{ steps.rollback-state.outputs.backend_task }}"
+          # Create a new version with updated description (triggers instance refresh)
+          NEW_VERSION=$(aws ec2 create-launch-template-version \
+            --launch-template-id "$LAUNCH_TEMPLATE_ID" \
+            --source-version '$Latest' \
+            --version-description "deploy-$IMAGE_TAG" \
+            --query 'LaunchTemplateVersion.VersionNumber' \
+            --output text)
 
-          if [ "$PREV_WEB_TASK" != "NONE" ]; then
-            echo "Rolling back Web service to: $PREV_WEB_TASK"
-            aws ecs update-service \
-              --cluster $ECS_CLUSTER \
-              --service $ECS_SERVICE_WEB \
-              --task-definition "$PREV_WEB_TASK" \
-              --force-new-deployment \
-              --no-cli-pager
-            echo "✓ Web rollback initiated"
+          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "✓ Launch template version $NEW_VERSION created"
+
+          # Set it as the default
+          aws ec2 modify-launch-template \
+            --launch-template-id "$LAUNCH_TEMPLATE_ID" \
+            --default-version "$NEW_VERSION"
+
+          echo "✓ Default version set to $NEW_VERSION"
+
+      - name: Start ASG instance refresh
+        id: instance-refresh
+        run: |
+          echo "=========================================="
+          echo "Starting ASG instance refresh"
+          echo "=========================================="
+
+          REFRESH_ID=$(aws autoscaling start-instance-refresh \
+            --auto-scaling-group-name "$ASG_NAME" \
+            --strategy Rolling \
+            --preferences '{
+              "MinHealthyPercentage": 100,
+              "MaxHealthyPercentage": 200,
+              "InstanceWarmup": 300,
+              "SkipMatching": false
+            }' \
+            --query 'InstanceRefreshId' \
+            --output text)
+
+          echo "refresh_id=$REFRESH_ID" >> $GITHUB_OUTPUT
+          echo "✓ Instance refresh started: $REFRESH_ID"
+
+      - name: Wait for instance refresh to complete
+        run: |
+          echo "=========================================="
+          echo "Waiting for instance refresh"
+          echo "=========================================="
+
+          REFRESH_ID="${{ steps.instance-refresh.outputs.refresh_id }}"
+          MAX_WAIT=40  # 40 * 30s = 20 minutes
+          POLL_INTERVAL=30
+
+          for i in $(seq 1 $MAX_WAIT); do
+            STATUS=$(aws autoscaling describe-instance-refreshes \
+              --auto-scaling-group-name "$ASG_NAME" \
+              --instance-refresh-ids "$REFRESH_ID" \
+              --query 'InstanceRefreshes[0].Status' \
+              --output text)
+
+            PERCENTAGE=$(aws autoscaling describe-instance-refreshes \
+              --auto-scaling-group-name "$ASG_NAME" \
+              --instance-refresh-ids "$REFRESH_ID" \
+              --query 'InstanceRefreshes[0].PercentageComplete' \
+              --output text 2>/dev/null || echo "0")
+
+            echo "[$i/$MAX_WAIT] Status: $STATUS | Progress: ${PERCENTAGE}%"
+
+            case "$STATUS" in
+              Successful)
+                echo "✓ Instance refresh completed successfully"
+                break
+                ;;
+              Failed|Cancelled|RollbackSuccessful|RollbackFailed)
+                echo "❌ Instance refresh $STATUS"
+
+                STATUS_REASON=$(aws autoscaling describe-instance-refreshes \
+                  --auto-scaling-group-name "$ASG_NAME" \
+                  --instance-refresh-ids "$REFRESH_ID" \
+                  --query 'InstanceRefreshes[0].StatusReason' \
+                  --output text 2>/dev/null || echo "Unknown")
+
+                echo "Reason: $STATUS_REASON"
+                exit 1
+                ;;
+              *)
+                sleep $POLL_INTERVAL
+                ;;
+            esac
+          done
+
+          # Final check if we timed out
+          if [ "$STATUS" != "Successful" ]; then
+            echo "❌ Timed out waiting for instance refresh (status: $STATUS)"
+            exit 1
           fi
 
-          if [ "$PREV_BACKEND_TASK" != "NONE" ]; then
-            echo "Rolling back Backend service to: $PREV_BACKEND_TASK"
-            aws ecs update-service \
-              --cluster $ECS_CLUSTER \
-              --service $ECS_SERVICE_BACKEND \
-              --task-definition "$PREV_BACKEND_TASK" \
-              --force-new-deployment \
-              --no-cli-pager
-            echo "✓ Backend rollback initiated"
+      # ──────────────────────────────────────────────
+      # Verify ALB health
+      # ──────────────────────────────────────────────
+      - name: Verify ALB target health
+        run: |
+          echo "=========================================="
+          echo "Verifying ALB target health"
+          echo "=========================================="
+
+          sleep 30
+
+          ALL_HEALTHY=true
+          for TG_NAME in "${PROJECT_NAME}-web-tg-production" "${PROJECT_NAME}-backend-tg-production"; do
+            TG_ARN=$(aws elbv2 describe-target-groups \
+              --names "$TG_NAME" \
+              --query 'TargetGroups[0].TargetGroupArn' \
+              --output text 2>/dev/null || echo "NOT_FOUND")
+
+            if [ "$TG_ARN" = "NOT_FOUND" ]; then
+              echo "⚠️  Target group $TG_NAME not found (may have different naming)"
+              continue
+            fi
+
+            HEALTH=$(aws elbv2 describe-target-health \
+              --target-group-arn "$TG_ARN" \
+              --query 'TargetHealthDescriptions[*].TargetHealth.State' \
+              --output text)
+
+            echo "Target group: $TG_NAME"
+            echo "Health states: $HEALTH"
+
+            if echo "$HEALTH" | grep -q "healthy"; then
+              echo "✓ $TG_NAME has healthy targets"
+            else
+              echo "❌ $TG_NAME has no healthy targets"
+              ALL_HEALTHY=false
+            fi
+          done
+
+          if [ "$ALL_HEALTHY" = "false" ]; then
+            echo "⚠️  Some targets are unhealthy — check AWS Console"
+            exit 1
           fi
-
-          echo ""
-          echo "Waiting for rollback to stabilize..."
-          aws ecs wait services-stable \
-            --cluster $ECS_CLUSTER \
-            --services $ECS_SERVICE_WEB $ECS_SERVICE_BACKEND || true
-
-          echo "✓ Rollback complete"
 
       # ──────────────────────────────────────────────
       # Summary
@@ -422,9 +376,14 @@ jobs:
           echo "=========================================="
           echo "Production Deployment Complete!"
           echo "=========================================="
-          echo "Strategy:     ECS Fargate"
-          echo "Project:      ${{ env.PROJECT_NAME }}"
+          echo "Strategy:     EC2 + ALB + ASG (rolling instance refresh)"
+          echo "ASG:          ${{ vars.ASG_NAME }}"
           echo "Region:       ${{ env.AWS_REGION }}"
           echo "Branch:       production"
           echo "Commit SHA:   ${{ github.sha }}"
           echo ""
+          echo "Web Image:    ${{ steps.build-web.outputs.image }}"
+          echo "Backend Image: ${{ steps.build-backend.outputs.image }}"
+          echo "LT Version:  ${{ steps.launch-template.outputs.version }}"
+          echo "Refresh ID:  ${{ steps.instance-refresh.outputs.refresh_id }}"
+          echo "=========================================="

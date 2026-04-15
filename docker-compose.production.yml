@@ -1,13 +1,13 @@
 # ==========================================================
-# STAGING DEPLOYMENT - EC2 behind ALB
+# PRODUCTION DEPLOYMENT - EC2 behind ALB (ASG)
 # ==========================================================
 # Runs web (port 3001) and backend (port 3000) containers.
 # ALB handles subdomain routing + SSL termination.
 # Containers bind to 0.0.0.0 so ALB health checks can reach them.
 #
 # Each app gets its own subdomain via ALB host-header rules:
-#   - stg-turbo.quanbyit.com      → web:3001
-#   - stg-turbo-be.quanbyit.com   → backend:3000
+#   - turbo.quanbyit.com      → web:3001
+#   - turbo-be.quanbyit.com   → backend:3000
 #
 # This file is stored in SSM Parameter Store (base64) and
 # pulled by EC2 instances on boot via the deploy script.
@@ -19,7 +19,7 @@ services:
   # ----------------------------------------------------------
   web:
     image: ${ECR_REGISTRY}/${ECR_REPOSITORY_WEB}:${IMAGE_TAG:-latest}
-    container_name: staging-web
+    container_name: production-web
     ports:
       - "0.0.0.0:3001:3001"
     environment:
@@ -39,7 +39,7 @@ services:
   # ----------------------------------------------------------
   backend:
     image: ${ECR_REGISTRY}/${ECR_REPOSITORY_BACKEND}:${IMAGE_TAG:-latest}
-    container_name: staging-backend
+    container_name: production-backend
     ports:
       - "0.0.0.0:3000:3000"
     environment:
@@ -49,6 +49,7 @@ services:
       - CORS_ORIGINS=${CORS_ORIGINS}
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
       - BETTER_AUTH_TRUSTED_ORIGINS=${BETTER_AUTH_TRUSTED_ORIGINS}
+      - BETTER_AUTH_COOKIE_DOMAIN=${BETTER_AUTH_COOKIE_DOMAIN}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
     healthcheck:

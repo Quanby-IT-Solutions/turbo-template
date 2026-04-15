@@ -1,6 +1,14 @@
 import Link from "next/link"
+import { redirect } from "next/navigation"
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/core/components/ui/card"
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@/core/components/ui/card"
+import { getSession } from "@/services/better-auth/auth-server"
 
 const instructions = [
 	{
@@ -17,28 +25,34 @@ const instructions = [
 	},
 ]
 
-export default function TodosExamplePage() {
+export default async function TodosExamplePage() {
+	const session = await getSession()
+
+	if (!session) {
+		redirect("/login")
+	}
+
 	return (
 		<section className="flex w-full flex-col gap-6">
 			<Card>
 				<CardHeader>
 					<CardTitle>Todos API Example</CardTitle>
 					<CardDescription>
-						This route mirrors the NestJS todos module and is powered by the shared oRPC
-						contract found in <code>packages/contracts</code>.
+						This route mirrors the NestJS todos module and is powered by the shared oRPC contract
+						found in <code>packages/contracts</code>.
 					</CardDescription>
 				</CardHeader>
 				<CardContent className="space-y-4 text-sm leading-relaxed">
 					<p>
-						Use this page as a starting point for experimenting with the example todos feature.
-						The backend exposes fully typed endpoints for listing, reading, creating, updating,
-						and deleting todos. The same contract is used by both the NestJS controller and the
-						frontend so changes stay in sync.
+						Use this page as a starting point for experimenting with the example todos feature. The
+						backend exposes fully typed endpoints for listing, reading, creating, updating, and
+						deleting todos. The same contract is used by both the NestJS controller and the frontend
+						so changes stay in sync.
 					</p>
 					<p>
 						The actual UI has intentionally been left minimal so you can wire it up using your
-						preferred data fetching strategy (TanStack Query, server components, or server
-						actions). The steps below highlight the key files involved.
+						preferred data fetching strategy (TanStack Query, server components, or server actions).
+						The steps below highlight the key files involved.
 					</p>
 				</CardContent>
 			</Card>
@@ -48,19 +62,19 @@ export default function TodosExamplePage() {
 						<CardHeader>
 							<CardTitle className="text-base">{item.title}</CardTitle>
 						</CardHeader>
-						<CardContent className="text-sm text-muted-foreground">{item.body}</CardContent>
+						<CardContent className="text-muted-foreground text-sm">{item.body}</CardContent>
 					</Card>
 				))}
 			</div>
 			<div className="flex flex-wrap gap-3">
 				<Link
-					className="inline-flex h-10 items-center justify-center rounded-md border border-transparent bg-secondary px-4 py-2 text-sm font-medium text-secondary-foreground transition-colors hover:bg-secondary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+					className="bg-secondary text-secondary-foreground hover:bg-secondary/80 focus-visible:ring-ring inline-flex h-10 items-center justify-center rounded-md border border-transparent px-4 py-2 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
 					href="/dashboard"
 				>
 					Go to dashboard
 				</Link>
 				<Link
-					className="inline-flex h-10 items-center justify-center rounded-md border border-input bg-transparent px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+					className="border-input text-foreground hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring inline-flex h-10 items-center justify-center rounded-md border bg-transparent px-4 py-2 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
 					href="/"
 				>
 					Back to home

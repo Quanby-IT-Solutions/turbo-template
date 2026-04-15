@@ -7,14 +7,25 @@ import { TodosService } from "./todos.service"
 
 type Todo = V1Outputs["example"]["todo"]["get"]
 
+jest.mock("@repo/db/schema", () => ({
+	todos: {
+		id: "id",
+		title: "title",
+		completed: "completed",
+		authorId: "authorId",
+		createdAt: "createdAt",
+		updatedAt: "updatedAt",
+	},
+}))
+
 jest.mock("@orpc/nest", () => ({
 	Implement: () => () => undefined,
 }))
 
 jest.mock("@orpc/server", () => ({
-	implement: () => ({
-		handler: (fn: unknown) => fn,
-	}),
+	implement: jest.fn(() => ({
+		handler: jest.fn((fn: unknown) => fn),
+	})),
 }))
 
 jest.mock("@/config/api-versions.config", () => ({
@@ -69,8 +80,8 @@ describe("TodosController (v1)", () => {
 		const data = Array.isArray(returnData) ? returnData : [returnData]
 		mockDb.select.mockReturnValueOnce({
 			from: jest.fn(() => ({
-				orderBy: jest.fn(() => Promise.resolve(data)),
 				where: jest.fn(() => Promise.resolve(data)),
+				orderBy: jest.fn(() => Promise.resolve(data)),
 				then: (resolve: (value: Todo[]) => void) => resolve(data),
 			})),
 		})

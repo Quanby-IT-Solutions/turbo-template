@@ -9,7 +9,7 @@ export default function AuthLayout({
 	children: React.ReactNode
 }>) {
 	return (
-		<div className="relative flex min-h-screen flex-col bg-background">
+		<div className="bg-background relative flex min-h-screen flex-col">
 			<div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-10 px-4 py-10">
 				<header className="flex flex-col gap-4 text-center">
 					<Logo href="/" className="self-center" />
@@ -17,7 +17,10 @@ export default function AuthLayout({
 						Authentication powered by Better Auth — connect with email or social providers.
 					</p>
 					<div className="flex flex-wrap items-center justify-center gap-2 text-sm">
-						<Link className={cn("text-muted-foreground underline-offset-4 hover:underline")} href="/login">
+						<Link
+							className={cn("text-muted-foreground underline-offset-4 hover:underline")}
+							href="/login"
+						>
 							Login
 						</Link>
 						<span aria-hidden="true">•</span>

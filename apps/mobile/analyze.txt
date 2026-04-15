@@ -1,0 +1,176 @@
+﻿Analyzing mobile...                                             
+
+   info - The import of 'package:flutter_riverpod/flutter_riverpod.dart' is unnecessary because all of the used elements are also provided by the import of 'package:riverpod_annotation/riverpod_annotation.dart' - lib\core\theme\theme_provider.dart:2:8 - unnecessary_import
+warning - This case is covered by the previous cases - lib\core\theme\theme_provider.dart:120:7 - unreachable_switch_case
+   info - Use interpolation to compose strings and values - lib\core\utils\hex_color.dart:9:18 - prefer_interpolation_to_compose_strings
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\auth\presentation\screens\login_screen.dart:118:58 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\auth\presentation\screens\login_screen.dart:127:58 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\auth\presentation\screens\login_screen.dart:193:62 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\auth\presentation\screens\register_screen.dart:105:58 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\auth\presentation\screens\register_screen.dart:114:58 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\auth\presentation\screens\register_screen.dart:224:62 - deprecated_member_use
+   info - Parameter 'key' could be a super parameter - lib\features\fitness_app\bottom_navigation_view\bottom_bar_view.dart:9:9 - use_super_parameters
+   info - Invalid use of a private type in a public API - lib\features\fitness_app\bottom_navigation_view\bottom_bar_view.dart:17:3 - library_private_types_in_public_api
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\fitness_app\bottom_navigation_view\bottom_bar_view.dart:155:36 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\fitness_app\bottom_navigation_view\bottom_bar_view.dart:163:53 - deprecated_member_use
+   info - Parameter 'key' could be a super parameter - lib\features\fitness_app\bottom_navigation_view\bottom_bar_view.dart:199:9 - use_super_parameters
+   info - Invalid use of a private type in a public API - lib\features\fitness_app\bottom_navigation_view\bottom_bar_view.dart:205:3 - library_private_types_in_public_api
+   info - Constructors for public widgets should have a named 'key' parameter - lib\features\fitness_app\fitness_app_home_screen.dart:8:7 - use_key_in_widget_constructors
+   info - Invalid use of a private type in a public API - lib\features\fitness_app\fitness_app_home_screen.dart:10:3 - library_private_types_in_public_api
+   info - Function literals shouldn't be passed to 'forEach' - lib\features\fitness_app\fitness_app_home_screen.dart:25:18 - avoid_function_literals_in_foreach_calls
+   info - The constant name 'dark_grey' isn't a lowerCamelCase identifier - lib\features\fitness_app\fitness_app_theme.dart:13:22 - constant_identifier_names
+   info - The file name 'tabIcon_data.dart' isn't a lower_case_with_underscores identifier - lib\features\fitness_app\models\tabIcon_data.dart:1:1 - file_names
+   info - Parameter 'key' could be a super parameter - lib\features\fitness_app\my_diary\meals_list_view.dart:8:9 - use_super_parameters
+   info - Invalid use of a private type in a public API - lib\features\fitness_app\my_diary\meals_list_view.dart:16:3 - library_private_types_in_public_api
+   info - Use a 'SizedBox' to add whitespace to a layout - lib\features\fitness_app\my_diary\meals_list_view.dart:52:20 - sized_box_for_whitespace
+   info - Parameter 'key' could be a super parameter - lib\features\fitness_app\my_diary\meals_list_view.dart:87:9 - use_super_parameters
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\fitness_app\my_diary\meals_list_view.dart:117:36 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\fitness_app\my_diary\meals_list_view.dart:216:50 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\fitness_app\my_diary\meals_list_view.dart:242:60 - deprecated_member_use
+   info - Parameter 'key' could be a super parameter - lib\features\fitness_app\my_diary\my_diary_screen.dart:11:9 - use_super_parameters
+   info - Invalid use of a private type in a public API - lib\features\fitness_app\my_diary\my_diary_screen.dart:15:3 - library_private_types_in_public_api
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\fitness_app\my_diary\my_diary_screen.dart:223:50 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\fitness_app\my_diary\my_diary_screen.dart:230:32 - deprecated_member_use
+   info - Parameter 'key' could be a super parameter - lib\features\fitness_app\my_diary\water_view.dart:7:9 - use_super_parameters
+   info - Invalid use of a private type in a public API - lib\features\fitness_app\my_diary\water_view.dart:15:3 - library_private_types_in_public_api
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\fitness_app\my_diary\water_view.dart:47:53 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\fitness_app\my_diary\water_view.dart:144:48 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\fitness_app\my_diary\water_view.dart:161:50 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\fitness_app\my_diary\water_view.dart:217:44 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\fitness_app\my_diary\water_view.dart:241:44 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\fitness_app\my_diary\water_view.dart:273:63 - deprecated_member_use
+   info - Parameter 'key' could be a super parameter - lib\features\fitness_app\training\training_screen.dart:10:9 - use_super_parameters
+   info - Invalid use of a private type in a public API - lib\features\fitness_app\training\training_screen.dart:14:3 - library_private_types_in_public_api
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\fitness_app\training\training_screen.dart:180:50 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\fitness_app\training\training_screen.dart:187:32 - deprecated_member_use
+   info - Parameter 'key' could be a super parameter - lib\features\fitness_app\ui_view\area_list_view.dart:6:9 - use_super_parameters
+   info - Invalid use of a private type in a public API - lib\features\fitness_app\ui_view\area_list_view.dart:13:3 - library_private_types_in_public_api
+   info - The 'children' argument should be last in widget constructor invocations - lib\features\fitness_app\ui_view\area_list_view.dart:58:19 - sort_child_properties_last
+   info - Parameter 'key' could be a super parameter - lib\features\fitness_app\ui_view\area_list_view.dart:95:9 - use_super_parameters
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\fitness_app\ui_view\area_list_view.dart:126:51 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\fitness_app\ui_view\area_list_view.dart:138:63 - deprecated_member_use
+   info - Parameter 'key' could be a super parameter - lib\features\fitness_app\ui_view\body_measurement.dart:8:9 - use_super_parameters
+   info - Unnecessary 'new' keyword - lib\features\fitness_app\ui_view\body_measurement.dart:18:18 - unnecessary_new
+   info - Unnecessary 'new' keyword - lib\features\fitness_app\ui_view\body_measurement.dart:19:24 - unnecessary_new
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\fitness_app\ui_view\body_measurement.dart:34:53 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\fitness_app\ui_view\body_measurement.dart:111:46 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\fitness_app\ui_view\body_measurement.dart:127:50 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\fitness_app\ui_view\body_measurement.dart:197:64 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\fitness_app\ui_view\body_measurement.dart:234:48 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\fitness_app\ui_view\body_measurement.dart:272:48 - deprecated_member_use
+   info - Parameter 'key' could be a super parameter - lib\features\fitness_app\ui_view\glass_view.dart:10:9 - use_super_parameters
+   info - Unnecessary 'new' keyword - lib\features\fitness_app\ui_view\glass_view.dart:19:18 - unnecessary_new
+   info - Unnecessary 'new' keyword - lib\features\fitness_app\ui_view\glass_view.dart:20:24 - unnecessary_new
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\fitness_app\ui_view\glass_view.dart:61:42 - deprecated_member_use
+   info - Parameter 'key' could be a super parameter - lib\features\fitness_app\ui_view\mediterranean_diet_view.dart:10:9 - use_super_parameters
+   info - Unnecessary 'new' keyword - lib\features\fitness_app\ui_view\mediterranean_diet_view.dart:21:18 - unnecessary_new
+   info - Unnecessary 'new' keyword - lib\features\fitness_app\ui_view\mediterranean_diet_view.dart:22:24 - unnecessary_new
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\fitness_app\ui_view\mediterranean_diet_view.dart:37:53 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\fitness_app\ui_view\mediterranean_diet_view.dart:62:48 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\fitness_app\ui_view\mediterranean_diet_view.dart:88:56 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\fitness_app\ui_view\mediterranean_diet_view.dart:140:60 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\fitness_app\ui_view\mediterranean_diet_view.dart:161:48 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\fitness_app\ui_view\mediterranean_diet_view.dart:187:56 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\fitness_app\ui_view\mediterranean_diet_view.dart:239:60 - deprecated_member_use
+   info - Unnecessary 'new' keyword - lib\features\fitness_app\ui_view\mediterranean_diet_view.dart:270:49 - unnecessary_new
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\fitness_app\ui_view\mediterranean_diet_view.dart:274:50 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\fitness_app\ui_view\mediterranean_diet_view.dart:305:52 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\fitness_app\ui_view\mediterranean_diet_view.dart:376:63 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\fitness_app\ui_view\mediterranean_diet_view.dart:389:52 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\fitness_app\ui_view\mediterranean_diet_view.dart:409:64 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\fitness_app\ui_view\mediterranean_diet_view.dart:443:48 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\fitness_app\ui_view\mediterranean_diet_view.dart:457:56 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\fitness_app\ui_view\mediterranean_diet_view.dart:478:48 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\fitness_app\ui_view\mediterranean_diet_view.dart:514:48 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\fitness_app\ui_view\mediterranean_diet_view.dart:528:56 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\fitness_app\ui_view\mediterranean_diet_view.dart:549:48 - deprecated_member_use
+   info - Unnecessary 'new' keyword - lib\features\fitness_app\ui_view\mediterranean_diet_view.dart:587:24 - unnecessary_new
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\fitness_app\ui_view\mediterranean_diet_view.dart:588:30 - deprecated_member_use
+   info - Unnecessary 'new' keyword - lib\features\fitness_app\ui_view\mediterranean_diet_view.dart:592:30 - unnecessary_new
+   info - Unnecessary 'new' keyword - lib\features\fitness_app\ui_view\mediterranean_diet_view.dart:596:9 - unnecessary_new
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\fitness_app\ui_view\mediterranean_diet_view.dart:602:36 - deprecated_member_use
+   info - Unnecessary 'new' keyword - lib\features\fitness_app\ui_view\mediterranean_diet_view.dart:605:9 - unnecessary_new
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\fitness_app\ui_view\mediterranean_diet_view.dart:611:36 - deprecated_member_use
+   info - Unnecessary 'new' keyword - lib\features\fitness_app\ui_view\mediterranean_diet_view.dart:614:9 - unnecessary_new
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\fitness_app\ui_view\mediterranean_diet_view.dart:620:36 - deprecated_member_use
+   info - Unnecessary 'new' keyword - lib\features\fitness_app\ui_view\mediterranean_diet_view.dart:623:9 - unnecessary_new
+   info - Unnecessary 'new' keyword - lib\features\fitness_app\ui_view\mediterranean_diet_view.dart:629:18 - unnecessary_new
+   info - Unnecessary 'new' keyword - lib\features\fitness_app\ui_view\mediterranean_diet_view.dart:630:22 - unnecessary_new
+   info - Unnecessary 'new' keyword - lib\features\fitness_app\ui_view\mediterranean_diet_view.dart:636:19 - unnecessary_new
+   info - Unnecessary 'new' keyword - lib\features\fitness_app\ui_view\mediterranean_diet_view.dart:641:20 - unnecessary_new
+   info - Unnecessary 'new' keyword - lib\features\fitness_app\ui_view\mediterranean_diet_view.dart:645:9 - unnecessary_new
+   info - Unnecessary 'new' keyword - lib\features\fitness_app\ui_view\mediterranean_diet_view.dart:651:23 - unnecessary_new
+   info - Unnecessary 'new' keyword - lib\features\fitness_app\ui_view\mediterranean_diet_view.dart:656:18 - unnecessary_new
+   info - Unnecessary cascade expression - lib\features\fitness_app\ui_view\mediterranean_diet_view.dart:657:5 - avoid_single_cascade_in_expression_statements
+   info - Unnecessary cascade expression - lib\features\fitness_app\ui_view\mediterranean_diet_view.dart:658:5 - avoid_single_cascade_in_expression_statements
+   info - Unnecessary cascade expression - lib\features\fitness_app\ui_view\mediterranean_diet_view.dart:659:5 - avoid_single_cascade_in_expression_statements
+   info - Unnecessary 'new' keyword - lib\features\fitness_app\ui_view\mediterranean_diet_view.dart:670:23 - unnecessary_new
+   info - Parameter 'key' could be a super parameter - lib\features\fitness_app\ui_view\running_view.dart:8:9 - use_super_parameters
+   info - Unnecessary 'new' keyword - lib\features\fitness_app\ui_view\running_view.dart:18:18 - unnecessary_new
+   info - Unnecessary 'new' keyword - lib\features\fitness_app\ui_view\running_view.dart:19:24 - unnecessary_new
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\fitness_app\ui_view\running_view.dart:41:63 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\fitness_app\ui_view\running_view.dart:104:46 - deprecated_member_use
+   info - Parameter 'key' could be a super parameter - lib\features\fitness_app\ui_view\title_view.dart:10:9 - use_super_parameters
+   info - Unnecessary 'new' keyword - lib\features\fitness_app\ui_view\title_view.dart:25:18 - unnecessary_new
+   info - Unnecessary 'new' keyword - lib\features\fitness_app\ui_view\title_view.dart:26:24 - unnecessary_new
+   info - Unnecessary instance of 'Container' - lib\features\fitness_app\ui_view\title_view.dart:28:20 - avoid_unnecessary_containers
+   info - The imported package 'vector_math' isn't a dependency of the importing package - lib\features\fitness_app\ui_view\wave_view.dart:4:8 - depend_on_referenced_packages
+   info - Parameter 'key' could be a super parameter - lib\features\fitness_app\ui_view\wave_view.dart:9:9 - use_super_parameters
+   info - Invalid use of a private type in a public API - lib\features\fitness_app\ui_view\wave_view.dart:11:3 - library_private_types_in_public_api
+   info - Unnecessary cascade expression - lib\features\fitness_app\ui_view\wave_view.dart:28:5 - avoid_single_cascade_in_expression_statements
+   info - Unnecessary 'new' keyword - lib\features\fitness_app\ui_view\wave_view.dart:40:11 - unnecessary_new
+   info - Unnecessary 'new' keyword - lib\features\fitness_app\ui_view\wave_view.dart:53:11 - unnecessary_new
+   info - Unnecessary 'new' keyword - lib\features\fitness_app\ui_view\wave_view.dart:80:14 - unnecessary_new
+   info - Unnecessary 'new' keyword - lib\features\fitness_app\ui_view\wave_view.dart:81:20 - unnecessary_new
+   info - Unnecessary 'new' keyword - lib\features\fitness_app\ui_view\wave_view.dart:85:38 - unnecessary_new
+   info - Unnecessary 'new' keyword - lib\features\fitness_app\ui_view\wave_view.dart:87:13 - unnecessary_new
+   info - The 'child' argument should be last in widget constructor invocations - lib\features\fitness_app\ui_view\wave_view.dart:88:15 - sort_child_properties_last
+   info - Unnecessary 'new' keyword - lib\features\fitness_app\ui_view\wave_view.dart:88:22 - unnecessary_new
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\fitness_app\ui_view\wave_view.dart:90:57 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\fitness_app\ui_view\wave_view.dart:98:54 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\fitness_app\ui_view\wave_view.dart:99:54 - deprecated_member_use
+   info - Unnecessary 'new' keyword - lib\features\fitness_app\ui_view\wave_view.dart:106:24 - unnecessary_new
+   info - Unnecessary 'new' keyword - lib\features\fitness_app\ui_view\wave_view.dart:108:13 - unnecessary_new
+   info - The 'child' argument should be last in widget constructor invocations - lib\features\fitness_app\ui_view\wave_view.dart:109:15 - sort_child_properties_last
+   info - Unnecessary 'new' keyword - lib\features\fitness_app\ui_view\wave_view.dart:109:22 - unnecessary_new
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\fitness_app\ui_view\wave_view.dart:114:54 - deprecated_member_use
+   info - Unnecessary 'new' keyword - lib\features\fitness_app\ui_view\wave_view.dart:127:24 - unnecessary_new
+   info - Unnecessary 'new' keyword - lib\features\fitness_app\ui_view\wave_view.dart:169:22 - unnecessary_new
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\fitness_app\ui_view\wave_view.dart:178:50 - deprecated_member_use
+   info - Unnecessary 'new' keyword - lib\features\fitness_app\ui_view\wave_view.dart:188:22 - unnecessary_new
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\fitness_app\ui_view\wave_view.dart:197:50 - deprecated_member_use
+   info - Unnecessary 'new' keyword - lib\features\fitness_app\ui_view\wave_view.dart:207:22 - unnecessary_new
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\fitness_app\ui_view\wave_view.dart:216:50 - deprecated_member_use
+   info - Unnecessary 'new' keyword - lib\features\fitness_app\ui_view\wave_view.dart:226:22 - unnecessary_new
+   info - Unnecessary 'new' keyword - lib\features\fitness_app\ui_view\wave_view.dart:227:28 - unnecessary_new
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\fitness_app\ui_view\wave_view.dart:233:50 - deprecated_member_use
+   info - Unnecessary 'new' keyword - lib\features\fitness_app\ui_view\wave_view.dart:266:17 - unnecessary_new
+   info - Parameter 'key' could be a super parameter - lib\features\fitness_app\ui_view\workout_view.dart:9:9 - use_super_parameters
+   info - Unnecessary 'new' keyword - lib\features\fitness_app\ui_view\workout_view.dart:19:18 - unnecessary_new
+   info - Unnecessary 'new' keyword - lib\features\fitness_app\ui_view\workout_view.dart:20:24 - unnecessary_new
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\fitness_app\ui_view\workout_view.dart:38:53 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\fitness_app\ui_view\workout_view.dart:115:44 - deprecated_member_use
+warning - Duplicate import - lib\features\home\presentation\widgets\dashboard_tab.dart:4:8 - duplicate_import
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\home\presentation\widgets\settings_tab.dart:74:64 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\onboarding\presentation\screens\onboarding_screen.dart:53:40 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\onboarding\presentation\screens\onboarding_screen.dart:79:42 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\onboarding\presentation\screens\onboarding_screen.dart:107:43 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\onboarding\presentation\screens\onboarding_screen.dart:139:48 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\onboarding\presentation\screens\onboarding_screen.dart:150:48 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\profile\presentation\screens\profile_screen.dart:63:58 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\profile\presentation\screens\profile_screen.dart:71:58 - deprecated_member_use
+warning - Unused import: 'package:mobile/core/widgets/tour_item.dart' - lib\features\todos\presentation\screens\todos_screen.dart:4:8 - unused_import
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\shared\widgets\app_button.dart:36:50 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\shared\widgets\app_button.dart:47:44 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\shared\widgets\app_button.dart:48:46 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\shared\widgets\app_card.dart:53:33 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\shared\widgets\app_text_field.dart:86:48 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\shared\widgets\app_text_field.dart:93:93 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\shared\widgets\app_text_field.dart:108:50 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\shared\widgets\custom_switch.dart:26:87 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\shared\widgets\settings_group.dart:20:47 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\shared\widgets\task_tile.dart:60:51 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\shared\widgets\task_tile.dart:61:51 - deprecated_member_use
+warning - This case is covered by the previous cases - lib\shared\widgets\theme_mode_toggle.dart:247:9 - unreachable_switch_case
+warning - This case is covered by the previous cases - lib\shared\widgets\theme_mode_toggle.dart:305:9 - unreachable_switch_case
+

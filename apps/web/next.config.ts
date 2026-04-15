@@ -1,6 +1,7 @@
 import "dotenv/config"
 
 import type { NextConfig } from "next"
+import path from "node:path"
 
 import "./env"
 
@@ -8,6 +9,7 @@ import "./env"
 const config: NextConfig = {
 	typedRoutes: true,
 	output: "standalone",
+	outputFileTracingRoot: path.resolve(import.meta.dirname, "../../"),
 
 	/** Enables hot reloading for local packages without a build step */
 	transpilePackages: [

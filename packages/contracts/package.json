@@ -13,6 +13,9 @@
 		"dev": "tsc --watch",
 		"format": "prettier --write \"src/**/*.ts\"",
 		"lint": "eslint --flag unstable_native_nodejs_ts_config \"src/**/*.ts\" --fix",
+		"test": "vitest run",
+		"test:cov": "vitest run --coverage",
+		"test:watch": "vitest",
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
@@ -27,9 +30,12 @@
 		"@repo/prettier-config": "workspace:*",
 		"@repo/tsconfig": "workspace:*",
 		"@types/node": "catalog:",
+		"@vitest/coverage-v8": "^4.1.2",
+		"@vitest/ui": "^4.1.2",
 		"eslint": "catalog:",
 		"prettier": "catalog:",
-		"typescript": "catalog:"
+		"typescript": "catalog:",
+		"vitest": "^4.1.2"
 	},
 	"prettier": "@repo/prettier-config"
 }

@@ -11,6 +11,9 @@
 		"format:fix": "prettier --write . --ignore-path ../../.gitignore",
 		"lint": "eslint --flag unstable_native_nodejs_ts_config",
 		"start": "next start -p 3001",
+		"test": "vitest run",
+		"test:cov": "vitest run --coverage",
+		"test:watch": "vitest",
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
@@ -53,16 +56,24 @@
 		"@repo/tsconfig": "workspace:*",
 		"@tailwindcss/postcss": "catalog:",
 		"@tanstack/eslint-plugin-query": "catalog:",
+		"@testing-library/jest-dom": "^6.9.1",
+		"@testing-library/react": "^16.3.2",
+		"@testing-library/user-event": "^14.6.1",
 		"@types/node": "catalog:",
 		"@types/react": "catalog:",
 		"@types/react-dom": "catalog:",
+		"@vitejs/plugin-react": "^6.0.1",
+		"@vitest/coverage-v8": "^4.1.2",
+		"@vitest/ui": "^4.1.2",
 		"babel-plugin-react-compiler": "1.0.0",
 		"baseline-browser-mapping": "^2.9.11",
 		"dotenv": "catalog:",
 		"eslint": "catalog:",
+		"jsdom": "^29.0.1",
 		"prettier": "catalog:",
 		"tailwindcss": "catalog:",
-		"typescript": "catalog:"
+		"typescript": "catalog:",
+		"vitest": "^4.1.2"
 	},
 	"prettier": "@repo/prettier-config"
 }

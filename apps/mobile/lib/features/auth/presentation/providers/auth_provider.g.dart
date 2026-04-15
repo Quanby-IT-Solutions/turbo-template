@@ -33,7 +33,7 @@ final class AuthStateProvider
   AuthState create() => AuthState();
 }
 
-String _$authStateHash() => r'8b9ac6d850a63ad763492c422f7e0a2dac4a2b0d';
+String _$authStateHash() => r'db4b94ac4ec4338d8b7e2b56957859ecbb279762';
 
 abstract class _$AuthState extends $AsyncNotifier<SessionModel?> {
   FutureOr<SessionModel?> build();

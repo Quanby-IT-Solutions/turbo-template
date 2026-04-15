@@ -13,7 +13,7 @@ export const v1Contract = oc.prefix("/v1").router(
 		health: healthContract,
 		example: v1Example,
 		ticket: ticketContract,
-	}),
+	})
 )
 
 export type V1Contract = typeof v1Contract

@@ -1,3 +1,4 @@
+import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -50,7 +51,8 @@ Future<void> main() async {
 /// This runs on the main isolate after [runApp], so it has access to the
 /// navigator and can route the user to the appropriate screen. Extend this
 /// function to add routing logic based on the payload.
-void _handleNotificationAction(receivedAction) {
+@pragma('vm:entry-point')
+Future<void> _handleNotificationAction(ReceivedAction receivedAction) async {
   final payload = receivedAction.payload;
   if (payload == null) return;
 

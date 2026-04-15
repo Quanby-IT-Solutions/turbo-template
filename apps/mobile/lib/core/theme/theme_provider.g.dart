@@ -296,4 +296,4 @@ final class ThemeModeDisplayNameProvider
 }
 
 String _$themeModeDisplayNameHash() =>
-    r'976df7fbf8b6faa823555976419b3fd55189dd5d';
+    r'f18b6f607fec9af6106ae8296f392fb573d045fd';

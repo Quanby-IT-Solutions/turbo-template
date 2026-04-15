@@ -54,7 +54,7 @@ final class NavigationControllerProvider
 }
 
 String _$navigationControllerHash() =>
-    r'bdee14f8b4e23738ba2c267156c2d18423d9e0f3';
+    r'e038a483d8d6065259835c2fdd025d2aca6c33b1';
 
 /// Provider for the PersistentTabController to manage bottom navigation state.
 ///
@@ -79,48 +79,3 @@ abstract class _$NavigationController extends $Notifier<int> {
     element.handleValue(ref, created);
   }
 }
-
-/// Provider for the current navigation tab index.
-
-@ProviderFor(currentTabIndex)
-const currentTabIndexProvider = CurrentTabIndexProvider._();
-
-/// Provider for the current navigation tab index.
-
-final class CurrentTabIndexProvider extends $FunctionalProvider<int, int, int>
-    with $Provider<int> {
-  /// Provider for the current navigation tab index.
-  const CurrentTabIndexProvider._()
-    : super(
-        from: null,
-        argument: null,
-        retry: null,
-        name: r'currentTabIndexProvider',
-        isAutoDispose: true,
-        dependencies: null,
-        $allTransitiveDependencies: null,
-      );
-
-  @override
-  String debugGetCreateSourceHash() => _$currentTabIndexHash();
-
-  @$internal
-  @override
-  $ProviderElement<int> $createElement($ProviderPointer pointer) =>
-      $ProviderElement(pointer);
-
-  @override
-  int create(Ref ref) {
-    return currentTabIndex(ref);
-  }
-
-  /// {@macro riverpod.override_with_value}
-  Override overrideWithValue(int value) {
-    return $ProviderOverride(
-      origin: this,
-      providerOverride: $SyncValueProvider<int>(value),
-    );
-  }
-}
-
-String _$currentTabIndexHash() => r'34f3ea7de9e179cc1645d860cb8c9457ff3bcb41';

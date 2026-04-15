@@ -98,6 +98,8 @@
 		"coverageDirectory": "../coverage",
 		"testEnvironment": "node",
 		"moduleNameMapper": {
+			"^@repo/db/(.*)$": "<rootDir>/../../../packages/db/src/$1",
+			"^@repo/contracts$": "<rootDir>/../../../packages/contracts/src",
 			"^@/(.*)$": "<rootDir>/$1"
 		}
 	}

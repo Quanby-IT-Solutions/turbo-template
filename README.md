@@ -23,6 +23,7 @@ pnpm install
 cp apps/backend/.env.example apps/backend/.env
 cp apps/web/.env.example apps/web/.env
 cp packages/db/.env.example packages/db/.env
+cp apps/mobile/.env.example apps/mobile/.env
 
 # Push database schema
 pnpm db:push
@@ -212,6 +213,20 @@ aws logs tail /ecs/<PROJECT_NAME>-backend-production --follow
 ```
 
 </details>
+
+## Git Hooks
+
+This repo uses [Husky](https://typicode.github.io/husky/) to run tests before pushing.
+
+| Hook       | What it does                                           |
+| ---------- | ------------------------------------------------------ |
+| `pre-push` | Runs `turbo test --affected` to block failing pushes   |
+
+To bypass the hook (e.g., for WIP pushes):
+
+```bash
+git push --no-verify
+```
 
 ## Links
 

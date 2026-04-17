@@ -1,0 +1,14 @@
+Project: PROCUREMENT OF WEB DEVELOPMENT AND UX/UI DESIGN SERVICES FOR ENHANCEMENT OF THE CDC CORPORATE WEBSITE
+Agency: CLARK DEVELOPMENT CORPORATION
+Solicitation: 26-03-068
+
+TECH SPECS / REQUIREMENTS:
+- Enhance the official CDC website into a modern, secure, and integrated digital platform
+- Central hub for business, tourism, governance, and stakeholder engagement
+- Duration: Four (4) Months
+- Project Manager / Account Manager - With experience in managing website development, CMS deployment, or similar ICT projects
+- UI/UX Designer / UI/UX Expert - Must have relevant experience in designing modern, accessible, responsive, and user-centered websites or portals
+- UI/UX capability in: user interface design, user experience planning, responsive design for desktop, tablet, and mobile platforms
+- Full Stack Web Developer / Lead Developer - With experience in PHP and MySQL development
+- Developer/s - With experience in responsive web design, accessibility implementation, and front-end optimization
+- Developer/s - With experience in CMS development, user roles and permissions, APIs, integrations, and secure database-driven applications

@@ -144,6 +144,7 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 /.codex/skills
 /.cursor/skills
 /.gemini/skills
+/.windsurf/skills
 /AGENTS.md
 /AGENTS.md.bak
 /CLAUDE.md

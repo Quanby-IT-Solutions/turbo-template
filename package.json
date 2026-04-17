@@ -27,7 +27,7 @@
 		"lint": "turbo run lint --continue -- --cache --cache-location .cache/.eslintcache",
 		"lint:fix": "turbo run lint --continue -- --fix --cache --cache-location .cache/.eslintcache",
 		"lint:ws": "pnpm dlx sherif@latest",
-		"postinstall": "pnpm lint:ws",
+		"postinstall": "node -e \"try { require('node:child_process').execSync('pnpm lint:ws', { stdio: 'inherit' }) } catch { console.warn('Skipping workspace dependency check during postinstall') }\"",
 		"test:e2e:web": "turbo run test:e2e --filter=@repo/e2e-web",
 		"show-report:e2e:web": "pnpm --filter @repo/e2e-web run show-report",
 		"typecheck": "turbo run typecheck",

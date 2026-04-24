@@ -1,4 +1,4 @@
-name: Deploy Staging (EC2 + ALB)
+name: Deploy Staging (EC2 + Elastic IP)
 
 on:
   push:
@@ -18,31 +18,22 @@ env:
   IMAGE_TAG: ${{ github.sha }}
 
 jobs:
-  # ──────────────────────────────────────────────
-  # Gate: CI must pass before deploying
-  # ──────────────────────────────────────────────
   ci:
     name: CI
     uses: ./.github/workflows/ci.yml
 
   deploy-staging:
-    name: Deploy to Staging (EC2 + ALB)
+    name: Deploy to Staging (EC2 + Elastic IP)
     needs: ci
     runs-on: ubuntu-latest
     environment: staging
     env:
-      # ==========================================================
-      # AWS Configuration
-      # ==========================================================
       AWS_REGION: ${{ vars.AWS_REGION }}
       PROJECT_NAME: ${{ vars.PROJECT_NAME }}
+      ECR_REGISTRY: ${{ vars.ECR_REGISTRY }}
       ECR_REPOSITORY_WEB: ${{ vars.ECR_REPOSITORY_WEB }}
       ECR_REPOSITORY_BACKEND: ${{ vars.ECR_REPOSITORY_BACKEND }}
-      ASG_NAME: ${{ vars.ASG_NAME }}
-
-      # ==========================================================
-      # App Environment Variables
-      # ==========================================================
+      STG_EC2_HOST: ${{ vars.STG_EC2_HOST }}
       NODE_ENV: "production"
       NEXT_PUBLIC_APP_URL: ${{ vars.NEXT_PUBLIC_APP_URL }}
       NEXT_PUBLIC_API_BASE_URL: ${{ vars.NEXT_PUBLIC_API_BASE_URL }}
@@ -56,43 +47,26 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
-      # ──────────────────────────────────────────────
-      # Validate required variables
-      # ──────────────────────────────────────────────
-      - name: Validate required deployment variables
+      - name: Validate required variables
         run: |
           set -euo pipefail
-
-          require_var() {
-            local name="$1"
-            if [ -z "${!name:-}" ]; then
-              echo "❌ Missing required variable: $name"
-              exit 1
-            fi
-          }
-
-          # AWS
+          require_var() { [ -n "${!1:-}" ] || { echo "❌ Missing: $1"; exit 1; }; }
           require_var AWS_REGION
-          require_var PROJECT_NAME
+          require_var ECR_REGISTRY
           require_var ECR_REPOSITORY_WEB
           require_var ECR_REPOSITORY_BACKEND
-          require_var ASG_NAME
-
-          # App
+          require_var STG_EC2_HOST
           require_var NEXT_PUBLIC_APP_URL
           require_var NEXT_PUBLIC_API_BASE_URL
           require_var DATABASE_URL
           require_var CORS_ORIGINS
           require_var BETTER_AUTH_SECRET
           require_var BETTER_AUTH_TRUSTED_ORIGINS
+          echo "✅ All required variables present"
 
-          echo "✅ Required deployment variables are set"
-
-      # ──────────────────────────────────────────────
-      # Build and push Docker images to ECR
-      # ──────────────────────────────────────────────
+      # ── Build & push Docker images to ECR ──────────────────────
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -110,49 +84,30 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Cache Docker layers
-        uses: actions/cache@v5
+        uses: actions/cache@v4
         with:
           path: /tmp/.buildx-cache
           key: ${{ runner.os }}-buildx-staging-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-buildx-staging-
+          restore-keys: ${{ runner.os }}-buildx-staging-
 
-      - name: Build and push Web image to ECR
-        id: build-web
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+      - name: Build and push Web image
         run: |
-          echo "=========================================="
-          echo "Building Web Docker Image (staging)"
-          echo "=========================================="
-
           docker buildx build \
             --file apps/web/Dockerfile \
             --build-arg NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL \
             --build-arg NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL \
-            --build-arg NEXT_PUBLIC_API_VERSION=$NEXT_PUBLIC_API_VERSION \
+            --build-arg NEXT_PUBLIC_API_VERSION=${NEXT_PUBLIC_API_VERSION:-v1} \
             --cache-from type=local,src=/tmp/.buildx-cache \
             --cache-to type=local,dest=/tmp/.buildx-cache-new,mode=max \
             --push \
             --tag $ECR_REGISTRY/$ECR_REPOSITORY_WEB:$IMAGE_TAG \
             --tag $ECR_REGISTRY/$ECR_REPOSITORY_WEB:latest \
             .
+          rm -rf /tmp/.buildx-cache && mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+          echo "✅ Web image pushed: $ECR_REGISTRY/$ECR_REPOSITORY_WEB:$IMAGE_TAG"
 
-          rm -rf /tmp/.buildx-cache
-          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
-
-          echo "✓ Web image pushed"
-          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY_WEB:$IMAGE_TAG" >> $GITHUB_OUTPUT
-
-      - name: Build and push Backend image to ECR
-        id: build-backend
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+      - name: Build and push Backend image
         run: |
-          echo "=========================================="
-          echo "Building Backend Docker Image (staging)"
-          echo "=========================================="
-
           docker buildx build \
             --file apps/backend/Dockerfile \
             --cache-from type=local,src=/tmp/.buildx-cache \
@@ -161,190 +116,84 @@ jobs:
             --tag $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:$IMAGE_TAG \
             --tag $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:latest \
             .
+          rm -rf /tmp/.buildx-cache && mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+          echo "✅ Backend image pushed: $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:$IMAGE_TAG"
 
-          rm -rf /tmp/.buildx-cache
-          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
-
-          echo "✓ Backend image pushed"
-          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:$IMAGE_TAG" >> $GITHUB_OUTPUT
-
-      # ──────────────────────────────────────────────
-      # Update SSM parameters and deploy via SSM RunCommand
-      # ──────────────────────────────────────────────
-      - name: Update SSM parameters
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+      # ── SSH deploy to EC2 ───────────────────────────────────────
+      - name: Write SSH key
         run: |
-          echo "=========================================="
-          echo "Updating SSM parameters"
-          echo "=========================================="
+          echo "${{ secrets.STG_EC2_SSH_KEY }}" > /tmp/staging.pem
+          chmod 600 /tmp/staging.pem
 
-          # Store docker-compose.staging.yml in SSM (base64)
-          COMPOSE_B64=$(base64 -w0 docker-compose.staging.yml)
-          aws ssm put-parameter \
-            --name "/${PROJECT_NAME}/staging/docker-compose" \
-            --type String \
-            --value "$COMPOSE_B64" \
-            --overwrite
+      - name: Deploy via SSH
+        run: |
+          ssh -o StrictHostKeyChecking=no -i /tmp/staging.pem ec2-user@$STG_EC2_HOST << DEPLOY
+            set -euo pipefail
 
-          # Store .env in SSM (base64)
-          cat > /tmp/deploy.env << ENV_EOF
+            # ECR login on the instance
+            aws ecr get-login-password --region $AWS_REGION | \
+              docker login --username AWS --password-stdin $ECR_REGISTRY
+
+            # Write .env
+            cat > /opt/staging/.env << ENV
           ECR_REGISTRY=$ECR_REGISTRY
-          ECR_REPOSITORY_WEB=$ECR_REPOSITORY_WEB
+          ECR_REPOSITORY_WEB=$ECR_REPOSITORY_BACKEND
           ECR_REPOSITORY_BACKEND=$ECR_REPOSITORY_BACKEND
           IMAGE_TAG=$IMAGE_TAG
           NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
           NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
-          NEXT_PUBLIC_API_VERSION=$NEXT_PUBLIC_API_VERSION
+          NEXT_PUBLIC_API_VERSION=${NEXT_PUBLIC_API_VERSION:-v1}
           DATABASE_URL=$DATABASE_URL
           CORS_ORIGINS=$CORS_ORIGINS
           BETTER_AUTH_SECRET=$BETTER_AUTH_SECRET
           BETTER_AUTH_TRUSTED_ORIGINS=$BETTER_AUTH_TRUSTED_ORIGINS
           GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID
           GOOGLE_CLIENT_SECRET=$GOOGLE_CLIENT_SECRET
-          ENV_EOF
+          ENV
 
-          ENV_B64=$(base64 -w0 /tmp/deploy.env)
-          aws ssm put-parameter \
-            --name "/${PROJECT_NAME}/staging/env" \
-            --type SecureString \
-            --value "$ENV_B64" \
-            --overwrite
+            # Write docker-compose.staging.yml
+            cat > /opt/staging/docker-compose.yml << 'COMPOSE'
+          $(cat docker-compose.staging.yml)
+          COMPOSE
 
-          rm -f /tmp/deploy.env
-          echo "✓ SSM parameters updated"
+            # Pull new images and restart
+            cd /opt/staging
+            docker compose pull
+            docker compose up -d --remove-orphans
+            docker image prune -f
 
-      - name: Get ASG instance IDs
-        id: asg-instances
+            echo "✅ Deploy complete"
+          DEPLOY
+
+      # ── Health check ────────────────────────────────────────────
+      - name: Health check
         run: |
-          INSTANCE_IDS=$(aws autoscaling describe-auto-scaling-groups \
-            --auto-scaling-group-names "$ASG_NAME" \
-            --query 'AutoScalingGroups[0].Instances[?LifecycleState==`InService`].InstanceId' \
-            --output text)
-
-          if [ -z "$INSTANCE_IDS" ]; then
-            echo "❌ No InService instances found in ASG $ASG_NAME"
-            exit 1
-          fi
-
-          echo "instances=$INSTANCE_IDS" >> $GITHUB_OUTPUT
-          echo "✓ Found instances: $INSTANCE_IDS"
-
-      - name: Deploy via SSM RunCommand
-        id: ssm-deploy
-        run: |
-          echo "=========================================="
-          echo "Deploying via SSM RunCommand"
-          echo "=========================================="
-
-          INSTANCE_IDS="${{ steps.asg-instances.outputs.instances }}"
-
-          COMMAND_ID=$(aws ssm send-command \
-            --targets "Key=instanceids,Values=${INSTANCE_IDS// /,}" \
-            --document-name "AWS-RunShellScript" \
-            --parameters commands='["/opt/app/deploy.sh"]' \
-            --timeout-seconds 300 \
-            --comment "Deploy staging ${{ github.sha }}" \
-            --query 'Command.CommandId' \
-            --output text)
-
-          echo "command_id=$COMMAND_ID" >> $GITHUB_OUTPUT
-          echo "✓ SSM command sent: $COMMAND_ID"
-
-          # Wait for command to complete
-          echo "Waiting for deploy to finish..."
-          for i in $(seq 1 60); do
-            STATUS=$(aws ssm list-commands \
-              --command-id "$COMMAND_ID" \
-              --query 'Commands[0].Status' \
-              --output text)
-
-            case "$STATUS" in
-              Success)
-                echo "✓ Deploy command succeeded"
-                break
-                ;;
-              Failed|TimedOut|Cancelled)
-                echo "❌ Deploy command $STATUS"
-
-                # Print command output for diagnostics
-                for INST_ID in $INSTANCE_IDS; do
-                  echo "── Output from $INST_ID ──"
-                  aws ssm get-command-invocation \
-                    --command-id "$COMMAND_ID" \
-                    --instance-id "$INST_ID" \
-                    --query '[StandardOutputContent, StandardErrorContent]' \
-                    --output text 2>/dev/null || true
-                done
-                exit 1
-                ;;
-              *)
-                sleep 5
-                ;;
-            esac
-          done
-
-      # ──────────────────────────────────────────────
-      # Health check via ALB target group
-      # ──────────────────────────────────────────────
-      - name: Verify ALB target health
-        id: health-check
-        continue-on-error: true
-        run: |
-          echo "=========================================="
-          echo "Verifying ALB target health"
-          echo "=========================================="
-
+          echo "Waiting 30s for containers to start..."
           sleep 30
 
-          # Check target group health for each service
-          for TG_NAME in "${PROJECT_NAME}-web-tg-staging" "${PROJECT_NAME}-backend-tg-staging"; do
-            TG_ARN=$(aws elbv2 describe-target-groups \
-              --names "$TG_NAME" \
-              --query 'TargetGroups[0].TargetGroupArn' \
-              --output text 2>/dev/null || echo "NOT_FOUND")
-
-            if [ "$TG_ARN" = "NOT_FOUND" ]; then
-              echo "⚠️  Target group $TG_NAME not found (may have different naming)"
-              continue
+          MAX=10
+          for i in $(seq 1 $MAX); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+              --max-time 10 \
+              "http://$STG_EC2_HOST:3000/api/v1/health" || echo "000")
+            echo "[$i/$MAX] Backend health: HTTP $STATUS"
+            if [ "$STATUS" = "200" ]; then
+              echo "✅ Backend is healthy"
+              break
             fi
-
-            HEALTH=$(aws elbv2 describe-target-health \
-              --target-group-arn "$TG_ARN" \
-              --query 'TargetHealthDescriptions[*].TargetHealth.State' \
-              --output text)
-
-            echo "Target group: $TG_NAME"
-            echo "Health states: $HEALTH"
-
-            if echo "$HEALTH" | grep -q "healthy"; then
-              echo "✓ $TG_NAME has healthy targets"
-            else
-              echo "❌ $TG_NAME has no healthy targets"
-              exit 1
-            fi
+            [ "$i" = "$MAX" ] && echo "❌ Health check failed" && exit 1
+            sleep 10
           done
 
-      - name: Fail workflow if health check failed
-        if: steps.health-check.outcome == 'failure'
-        run: |
-          echo "❌ Deployment failed health checks"
-          echo "Check ALB target group health in AWS Console"
-          exit 1
-
-      # ──────────────────────────────────────────────
-      # Summary
-      # ──────────────────────────────────────────────
       - name: Deployment summary
         run: |
-          echo "=========================================="
-          echo "Staging Deployment Complete!"
-          echo "=========================================="
-          echo "Strategy:     EC2 + ALB (SSM deploy)"
-          echo "ASG:          ${{ vars.ASG_NAME }}"
-          echo "Branch:       staging"
-          echo "Commit SHA:   ${{ github.sha }}"
-          echo ""
-          echo "Web Image:    ${{ steps.build-web.outputs.image }}"
-          echo "Backend Image: ${{ steps.build-backend.outputs.image }}"
-          echo "=========================================="
+          echo "==========================================="
+          echo "✅ Staging Deployment Complete!"
+          echo "==========================================="
+          echo "EC2 Host:    $STG_EC2_HOST"
+          echo "Web URL:     $NEXT_PUBLIC_APP_URL"
+          echo "API URL:     $NEXT_PUBLIC_API_BASE_URL"
+          echo "Image Tag:   $IMAGE_TAG"
+          echo "Branch:      staging"
+          echo "Commit:      ${{ github.sha }}"
+          echo "==========================================="

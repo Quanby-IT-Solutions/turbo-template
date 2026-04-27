@@ -52,6 +52,7 @@ Runs on [http://localhost:3001](http://localhost:3001)
 
 | Variable                   | Description              |
 | -------------------------- | ------------------------ |
+| `INTERNAL_API_BASE_URL`    | Optional server-only API URL |
 | `NEXT_PUBLIC_APP_URL`      | Web app URL              |
 | `NEXT_PUBLIC_API_BASE_URL` | Backend API base URL     |
 | `NEXT_PUBLIC_API_VERSION`  | API version (default: 1) |

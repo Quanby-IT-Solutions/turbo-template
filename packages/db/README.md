@@ -39,6 +39,7 @@ const user = await db.query.users.findFirst({ where: eq(users.id, "123") })
 | `pnpm db:studio`   | Open Drizzle Studio     |
 | `pnpm db:generate` | Generate migrations     |
 | `pnpm db:migrate`  | Run migrations          |
+| `pnpm db:seed`     | Push schema, then seed users and mock data |
 
 ## Adding Tables
 

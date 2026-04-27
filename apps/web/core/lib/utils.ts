@@ -4,7 +4,7 @@ import { twMerge } from "tailwind-merge"
 
 import { env } from "@/env"
 
-const DEFAULT_APP_URL = "http://localhost:3000"
+const DEFAULT_APP_URL = "http://localhost:3001"
 const DEFAULT_API_BASE_URL = `${DEFAULT_APP_URL}/api`
 const DEFAULT_API_VERSION = "v1"
 

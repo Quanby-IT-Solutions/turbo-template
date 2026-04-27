@@ -37,7 +37,8 @@
 		"push": "pnpm build && drizzle-kit push",
 		"studio": "pnpm build && drizzle-kit studio",
 		"generate": "pnpm build && drizzle-kit generate",
-		"migrate": "pnpm build && drizzle-kit migrate"
+		"migrate": "pnpm build && drizzle-kit migrate",
+		"seed": "pnpm push && tsx src/seed.ts"
 	},
 	"dependencies": {
 		"drizzle-orm": "catalog:",

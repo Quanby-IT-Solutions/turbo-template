@@ -2,9 +2,22 @@ import "dotenv/config"
 
 import { inArray, or } from "drizzle-orm"
 import { drizzle } from "drizzle-orm/node-postgres"
+import { randomBytes, scryptSync } from "node:crypto"
 import { Pool } from "pg"
 
-import { schema, tickets, todos, users } from "./schema.js"
+import { accounts, schema, tickets, todos, users } from "./schema.js"
+
+async function hashPassword(password: string): Promise<string> {
+	const saltHex = randomBytes(16).toString("hex")
+	const key = scryptSync(password.normalize("NFKC"), saltHex, 64, {
+		N: 16384,
+		r: 16,
+		p: 1,
+		maxmem: 128 * 16384 * 16 * 2,
+	})
+
+	return `${saltHex}:${key.toString("hex")}`
+}
 
 async function seedDatabase() {
 	const connectionString = process.env.DATABASE_URL
@@ -16,6 +29,8 @@ async function seedDatabase() {
 	const pool = new Pool({ connectionString })
 	const db = drizzle({ client: pool, schema })
 	const now = new Date()
+	const seedPassword = "password123"
+	const hashedSeedPassword = await hashPassword(seedPassword)
 
 	const seedUsers: Array<typeof users.$inferInsert> = [
 		{
@@ -116,6 +131,14 @@ async function seedDatabase() {
 
 	const seededUserIds = seedUsers.map(user => user.id)
 	const seededTicketEmails = seedTickets.map(ticket => ticket.email)
+	const seedCredentialAccounts: Array<typeof accounts.$inferInsert> = seedUsers.map(user => ({
+		providerId: "credential",
+		accountId: user.id,
+		userId: user.id,
+		password: hashedSeedPassword,
+		createdAt: now,
+		updatedAt: now,
+	}))
 
 	try {
 		await db.transaction(async tx => {
@@ -135,6 +158,20 @@ async function seedDatabase() {
 					})
 			}
 
+			for (const account of seedCredentialAccounts) {
+				await tx
+					.insert(accounts)
+					.values(account)
+					.onConflictDoUpdate({
+						target: [accounts.providerId, accounts.accountId],
+						set: {
+							userId: account.userId,
+							password: account.password,
+							updatedAt: now,
+						},
+					})
+			}
+
 			await tx.delete(todos).where(inArray(todos.authorId, seededUserIds))
 
 			await tx
@@ -145,7 +182,9 @@ async function seedDatabase() {
 			await tx.insert(tickets).values(seedTickets)
 		})
 
-		console.log(`Seeded ${seedUsers.length} users, ${seedTodos.length} todos, and ${seedTickets.length} tickets.`)
+		console.log(
+			`Seeded ${seedUsers.length} users, ${seedCredentialAccounts.length} credential accounts, ${seedTodos.length} todos, and ${seedTickets.length} tickets. Default password: ${seedPassword}`
+		)
 	} finally {
 		await pool.end()
 	}

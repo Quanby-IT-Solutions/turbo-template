@@ -176,7 +176,9 @@ async function seedDatabase() {
 
 			await tx
 				.delete(tickets)
-				.where(or(inArray(tickets.email, seededTicketEmails), inArray(tickets.authorId, seededUserIds)))
+				.where(
+					or(inArray(tickets.email, seededTicketEmails), inArray(tickets.authorId, seededUserIds))
+				)
 
 			await tx.insert(todos).values(seedTodos)
 			await tx.insert(tickets).values(seedTickets)

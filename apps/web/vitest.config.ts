@@ -30,6 +30,10 @@ export default defineConfig({
 	},
 	resolve: {
 		alias: {
+			"@repo/contracts": path.resolve(__dirname, "../../packages/contracts/src/index.ts"),
+			"@repo/auth": path.resolve(__dirname, "../../packages/auth/src/index.ts"),
+			"@repo/db/schema": path.resolve(__dirname, "../../packages/db/src/schema.ts"),
+			"@repo/db/client": path.resolve(__dirname, "../../packages/db/src/client.ts"),
 			"@": path.resolve(__dirname, "."),
 		},
 	},

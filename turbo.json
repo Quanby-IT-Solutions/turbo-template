@@ -34,12 +34,12 @@
 			"cache": true
 		},
 		"test": {
-			"dependsOn": ["^test"],
+			"dependsOn": ["^build", "^test"],
 			"cache": true,
 			"outputs": ["coverage/**"]
 		},
 		"test:cov": {
-			"dependsOn": ["^test:cov"],
+			"dependsOn": ["^build", "^test:cov"],
 			"cache": true,
 			"outputs": ["coverage/**"]
 		},

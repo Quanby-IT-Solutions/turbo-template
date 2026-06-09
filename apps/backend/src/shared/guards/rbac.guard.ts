@@ -1,13 +1,13 @@
 import {
-	type CanActivate,
-	type ExecutionContext,
 	ForbiddenException,
 	Injectable,
 	UnauthorizedException,
+	type CanActivate,
+	type ExecutionContext,
 } from "@nestjs/common"
 import { Reflector } from "@nestjs/core"
-import { fromNodeHeaders } from "better-auth/node"
 import type { IncomingHttpHeaders } from "http"
+import { fromNodeHeaders } from "better-auth/node"
 
 import { getAuth } from "@repo/auth"
 

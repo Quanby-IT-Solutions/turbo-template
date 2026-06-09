@@ -10,6 +10,7 @@ import {
 	Logout01Icon,
 } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
+
 import { type PermissionName } from "@repo/contracts"
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/core/components/ui/avatar"
@@ -41,12 +42,11 @@ import {
 	SidebarMenuItem,
 	SidebarRail,
 	SidebarSeparator,
-	SidebarTrigger,
 	useSidebar,
 } from "@/core/components/ui/sidebar"
+import { cn } from "@/core/lib/utils"
 import { useSignOutMutation } from "@/features/auth/api/session.hooks"
 import { getAccessibleNavItems } from "@/features/dashboard/lib/nav-items"
-import { cn } from "@/core/lib/utils"
 
 interface SidebarUser {
 	name: string | null
@@ -106,8 +106,10 @@ export function AppSidebar({ user, access }: AppSidebarProps) {
 	return (
 		<Sidebar collapsible="icon">
 			<SidebarHeader>
-				<div className="flex items-center gap-2 px-2 py-1.5">
-					<SidebarTrigger className="-ml-1" />
+				<div className="flex items-center gap-2 px-2 py-1.5 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
+					<div className="bg-primary text-primary-foreground flex size-8 shrink-0 items-center justify-center rounded-md text-sm font-semibold">
+						D
+					</div>
 					<div className="min-w-0 group-data-[collapsible=icon]:hidden">
 						<p className="truncate text-sm font-semibold">Dashboard</p>
 						<p className="text-muted-foreground truncate text-xs">Workspace</p>
@@ -127,7 +129,11 @@ export function AppSidebar({ user, access }: AppSidebarProps) {
 								className="mt-2 h-7 px-2 text-xs"
 								onClick={() => router.refresh()}
 							>
-								<HugeiconsIcon icon={ArrowReloadHorizontalIcon} strokeWidth={2} className="size-3.5" />
+								<HugeiconsIcon
+									icon={ArrowReloadHorizontalIcon}
+									strokeWidth={2}
+									className="size-3.5"
+								/>
 								Retry
 							</Button>
 						</div>
@@ -166,11 +172,7 @@ export function AppSidebar({ user, access }: AppSidebarProps) {
 								}
 							>
 								<span>Administration</span>
-								<HugeiconsIcon
-									icon={ArrowDown01Icon}
-									strokeWidth={2}
-									className="ml-auto size-4"
-								/>
+								<HugeiconsIcon icon={ArrowDown01Icon} strokeWidth={2} className="ml-auto size-4" />
 							</SidebarGroupLabel>
 							<CollapsibleContent>
 								<SidebarGroupContent>
@@ -219,7 +221,9 @@ export function AppSidebar({ user, access }: AppSidebarProps) {
 									</DropdownMenuLabel>
 								</DropdownMenuGroup>
 								<DropdownMenuSeparator />
-								<DropdownMenuItem render={<Link href="/account" onClick={closeMobileSidebarOnSelect} />}>
+								<DropdownMenuItem
+									render={<Link href="/account" onClick={closeMobileSidebarOnSelect} />}
+								>
 									<HugeiconsIcon icon={AccountSetting01Icon} strokeWidth={2} />
 									Profile
 								</DropdownMenuItem>

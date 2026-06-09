@@ -1,11 +1,7 @@
 import { Injectable, NotFoundException } from "@nestjs/common"
 import { and, eq } from "drizzle-orm"
 
-import {
-	ADMIN_ROLE,
-	PERMISSION_NAMES,
-	type MePermissions,
-} from "@repo/contracts"
+import { ADMIN_ROLE, PERMISSION_NAMES, type MePermissions } from "@repo/contracts"
 import { permissions, rolePermissions, roles, userRoles, users } from "@repo/db/schema"
 
 import { db } from "@/common/database/database.client"

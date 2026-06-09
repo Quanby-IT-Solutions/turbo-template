@@ -1,10 +1,17 @@
 "use client"
 
 import { useMemo } from "react"
-import { Cancel01Icon } from "@hugeicons/core-free-icons"
+import { Cancel01Icon, UserGroupIcon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 
 import { Badge } from "@/core/components/ui/badge"
+import {
+	Empty,
+	EmptyDescription,
+	EmptyHeader,
+	EmptyMedia,
+	EmptyTitle,
+} from "@/core/components/ui/empty"
 import {
 	Select,
 	SelectContent,
@@ -12,6 +19,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/core/components/ui/select"
+import { Skeleton } from "@/core/components/ui/skeleton"
 import {
 	Table,
 	TableBody,
@@ -42,7 +50,13 @@ export function UsersPanel() {
 				<p className="text-muted-foreground text-sm">Assign and remove roles for each user.</p>
 			</div>
 
-			{isLoading ? <p className="text-muted-foreground text-sm">Loading users...</p> : null}
+			{isLoading ? (
+				<div className="flex flex-col gap-2">
+					<Skeleton className="h-10 w-full" />
+					<Skeleton className="h-10 w-full" />
+					<Skeleton className="h-10 w-full" />
+				</div>
+			) : null}
 
 			{isError ? (
 				<p className="text-destructive text-sm">
@@ -83,7 +97,11 @@ export function UsersPanel() {
 																className="hover:text-destructive inline-flex items-center"
 																aria-label={`Remove ${roleName} from ${user.email}`}
 															>
-																<HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} className="size-3" />
+																<HugeiconsIcon
+																	icon={Cancel01Icon}
+																	strokeWidth={2}
+																	className="size-3"
+																/>
 															</button>
 														</Badge>
 													))}
@@ -123,7 +141,15 @@ export function UsersPanel() {
 			) : null}
 
 			{users && users.length === 0 ? (
-				<p className="text-muted-foreground text-sm">No users found.</p>
+				<Empty className="border">
+					<EmptyHeader>
+						<EmptyMedia variant="icon">
+							<HugeiconsIcon icon={UserGroupIcon} strokeWidth={2} />
+						</EmptyMedia>
+						<EmptyTitle>No users found</EmptyTitle>
+						<EmptyDescription>Users will appear here once they sign up.</EmptyDescription>
+					</EmptyHeader>
+				</Empty>
 			) : null}
 		</div>
 	)

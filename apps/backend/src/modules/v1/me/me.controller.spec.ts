@@ -68,9 +68,7 @@ describe("MeController", () => {
 			permissions: ["posts:read"],
 		})
 
-		await expect(
-			controller.getPermissions({ user: { id: "user-1" } } as never)
-		).resolves.toEqual({
+		await expect(controller.getPermissions({ user: { id: "user-1" } } as never)).resolves.toEqual({
 			roles: ["User"],
 			permissions: ["posts:read"],
 		})
@@ -78,9 +76,7 @@ describe("MeController", () => {
 	})
 
 	it("throws UnauthorizedException if the session is missing", async () => {
-		await expect(controller.getPermissions(undefined)).rejects.toBeInstanceOf(
-			UnauthorizedException
-		)
+		await expect(controller.getPermissions(undefined)).rejects.toBeInstanceOf(UnauthorizedException)
 		expect(rbacService.getUserAccess).not.toHaveBeenCalled()
 	})
 })

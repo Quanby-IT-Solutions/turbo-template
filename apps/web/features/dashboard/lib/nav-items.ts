@@ -5,6 +5,7 @@ import {
 	UserMultipleIcon,
 } from "@hugeicons/core-free-icons"
 import { type IconSvgElement } from "@hugeicons/react"
+
 import { type PermissionName } from "@repo/contracts"
 
 import { canAccess, type AccessProfile, type RoleRequirement } from "./access"

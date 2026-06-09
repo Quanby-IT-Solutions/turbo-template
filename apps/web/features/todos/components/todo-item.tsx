@@ -8,10 +8,7 @@ import type { Todo } from "@repo/contracts"
 import { Button } from "@/core/components/ui/button"
 import { Checkbox } from "@/core/components/ui/checkbox"
 import { cn } from "@/core/lib/utils"
-import {
-	useDeleteTodoMutation,
-	useToggleTodoMutation,
-} from "@/features/todos/api/todos.hooks"
+import { useDeleteTodoMutation, useToggleTodoMutation } from "@/features/todos/api/todos.hooks"
 
 interface TodoItemProps {
 	todo: Todo
@@ -38,10 +35,7 @@ export function TodoItem({ todo, canEdit, canDelete }: TodoItemProps) {
 					aria-label={`Toggle ${todo.title}`}
 				/>
 				<span
-					className={cn(
-						"flex-1 text-sm",
-						todo.completed && "text-muted-foreground line-through"
-					)}
+					className={cn("flex-1 text-sm", todo.completed && "text-muted-foreground line-through")}
 				>
 					{todo.title}
 				</span>

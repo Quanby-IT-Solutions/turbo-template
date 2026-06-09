@@ -1,7 +1,12 @@
 "use client"
 
 import { useState } from "react"
-import { Add01Icon, Delete02Icon, PencilEdit02Icon } from "@hugeicons/core-free-icons"
+import {
+	Add01Icon,
+	Delete02Icon,
+	PencilEdit02Icon,
+	UserMultipleIcon,
+} from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 
 import type { Role } from "@repo/contracts"
@@ -18,6 +23,14 @@ import {
 } from "@/core/components/ui/alert-dialog"
 import { Badge } from "@/core/components/ui/badge"
 import { Button } from "@/core/components/ui/button"
+import {
+	Empty,
+	EmptyDescription,
+	EmptyHeader,
+	EmptyMedia,
+	EmptyTitle,
+} from "@/core/components/ui/empty"
+import { Skeleton } from "@/core/components/ui/skeleton"
 import {
 	Table,
 	TableBody,
@@ -68,7 +81,13 @@ export function RolesPanel() {
 				</Button>
 			</div>
 
-			{isLoading ? <p className="text-muted-foreground text-sm">Loading roles...</p> : null}
+			{isLoading ? (
+				<div className="flex flex-col gap-2">
+					<Skeleton className="h-10 w-full" />
+					<Skeleton className="h-10 w-full" />
+					<Skeleton className="h-10 w-full" />
+				</div>
+			) : null}
 
 			{isError ? (
 				<p className="text-destructive text-sm">
@@ -146,7 +165,15 @@ export function RolesPanel() {
 			) : null}
 
 			{roles && roles.length === 0 ? (
-				<p className="text-muted-foreground text-sm">No roles yet. Create your first role.</p>
+				<Empty className="border">
+					<EmptyHeader>
+						<EmptyMedia variant="icon">
+							<HugeiconsIcon icon={UserMultipleIcon} strokeWidth={2} />
+						</EmptyMedia>
+						<EmptyTitle>No roles yet</EmptyTitle>
+						<EmptyDescription>Create your first role to start granting access.</EmptyDescription>
+					</EmptyHeader>
+				</Empty>
 			) : null}
 
 			<RoleFormDialog open={dialogOpen} onOpenChange={setDialogOpen} role={editingRole} />

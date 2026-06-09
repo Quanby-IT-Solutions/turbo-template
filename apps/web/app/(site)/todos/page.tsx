@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 
-import { TodosView } from "@/features/todos/components/todos-view"
 import { getAccess } from "@/features/dashboard/server/get-access"
+import { TodosView } from "@/features/todos/components/todos-view"
 
 export const metadata: Metadata = {
 	title: "Todos / Posts",

@@ -14,26 +14,20 @@ describe("canAccess", () => {
 	})
 
 	it("allows the Admin role to satisfy permission requirements", () => {
-		expect(canAccess({ roles: ["Admin"], permissions: [] }, { requiredPermission: "users:manage" })).toBe(
-			true
-		)
+		expect(
+			canAccess({ roles: ["Admin"], permissions: [] }, { requiredPermission: "users:manage" })
+		).toBe(true)
 	})
 
 	it("allows exact permission matches", () => {
 		expect(
-			canAccess(
-				{ roles: [], permissions: ["posts:read"] },
-				{ requiredPermission: "posts:read" }
-			)
+			canAccess({ roles: [], permissions: ["posts:read"] }, { requiredPermission: "posts:read" })
 		).toBe(true)
 	})
 
 	it("allows resource wildcard permission matches", () => {
 		expect(
-			canAccess(
-				{ roles: [], permissions: ["posts:*"] },
-				{ requiredPermission: "posts:delete" }
-			)
+			canAccess({ roles: [], permissions: ["posts:*"] }, { requiredPermission: "posts:delete" })
 		).toBe(true)
 	})
 
@@ -93,9 +87,9 @@ describe("navItems", () => {
 			getAccessibleNavItems({ roles: [], permissions: ["users:read"] }).map(item => item.label)
 		).toContain("User Management")
 
-		expect(getAccessibleNavItems({ roles: ["Admin"], permissions: [] }).map(item => item.label)).toEqual(
-			["Dashboard", "Submit Ticket", "Todos / Posts", "User Management"]
-		)
+		expect(
+			getAccessibleNavItems({ roles: ["Admin"], permissions: [] }).map(item => item.label)
+		).toEqual(["Dashboard", "Submit Ticket", "Todos / Posts", "User Management"])
 	})
 
 	it("resolves mobile header titles from dashboard routes", () => {

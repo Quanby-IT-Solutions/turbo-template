@@ -1,7 +1,9 @@
 "use client"
 
 import { useState } from "react"
+import { Ticket01Icon } from "@hugeicons/core-free-icons"
 
+import { PageHeader } from "@/core/components/page-header"
 import { Button } from "@/core/components/ui/button"
 import {
 	Card,
@@ -12,6 +14,13 @@ import {
 } from "@/core/components/ui/card"
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/core/components/ui/field"
 import { Input } from "@/core/components/ui/input"
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/core/components/ui/select"
 import { Textarea } from "@/core/components/ui/textarea"
 
 type FormState = "idle" | "submitting" | "success" | "error"
@@ -19,12 +28,16 @@ type FormState = "idle" | "submitting" | "success" | "error"
 export default function SubmitTicketPage() {
 	return (
 		<section className="mx-auto flex w-full max-w-2xl flex-col gap-6">
+			<PageHeader
+				icon={Ticket01Icon}
+				title="Submit a support ticket"
+				description="Mirrors the ticket contract handled by the NestJS backend."
+			/>
 			<Card>
 				<CardHeader>
-					<CardTitle>Submit a support ticket</CardTitle>
+					<CardTitle>Ticket details</CardTitle>
 					<CardDescription>
-						This form mirrors the `ticket` contract handled by the NestJS backend. Hook the submit
-						handler up to the oRPC call when you are ready.
+						Hook the submit handler up to the oRPC call when you are ready.
 					</CardDescription>
 				</CardHeader>
 				<CardContent>
@@ -73,17 +86,17 @@ function SubmitTicketForm() {
 				</Field>
 				<Field>
 					<FieldLabel htmlFor="priority">Priority</FieldLabel>
-					<select
-						id="priority"
-						name="priority"
-						className="border-input focus-visible:ring-ring ring-offset-background placeholder:text-muted-foreground inline-flex h-10 w-full rounded-md border bg-transparent px-3 py-2 text-sm transition focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-						defaultValue="medium"
-					>
-						<option value="low">Low</option>
-						<option value="medium">Medium</option>
-						<option value="high">High</option>
-						<option value="urgent">Urgent</option>
-					</select>
+					<Select name="priority" defaultValue="medium">
+						<SelectTrigger id="priority" className="w-full">
+							<SelectValue />
+						</SelectTrigger>
+						<SelectContent>
+							<SelectItem value="low">Low</SelectItem>
+							<SelectItem value="medium">Medium</SelectItem>
+							<SelectItem value="high">High</SelectItem>
+							<SelectItem value="urgent">Urgent</SelectItem>
+						</SelectContent>
+					</Select>
 				</Field>
 				<Field>
 					<FieldLabel htmlFor="concern">Concern</FieldLabel>

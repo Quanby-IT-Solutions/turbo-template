@@ -1,10 +1,10 @@
 import { redirect } from "next/navigation"
 
 import { SidebarInset, SidebarProvider } from "@/core/components/ui/sidebar"
-import { AppSidebar } from "@/features/dashboard/components/app-sidebar"
-import { MobileSiteHeader } from "@/features/dashboard/components/mobile-site-header"
-import { getAccess } from "@/features/dashboard/server/get-access"
 import { getSession } from "@/services/better-auth/auth-server"
+import { AppSidebar } from "@/features/dashboard/components/app-sidebar"
+import { SiteHeader } from "@/features/dashboard/components/site-header"
+import { getAccess } from "@/features/dashboard/server/get-access"
 
 export default async function SiteLayout({
 	children,
@@ -28,8 +28,8 @@ export default async function SiteLayout({
 		<SidebarProvider>
 			<AppSidebar user={user} access={access} />
 			<SidebarInset>
-				<MobileSiteHeader />
-				<div className="container py-8">
+				<SiteHeader />
+				<div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
 					<main className="min-w-0">{children}</main>
 				</div>
 			</SidebarInset>

@@ -99,7 +99,9 @@
       "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\({k:d[k] for k in [''''name'''',''''version'''',''''main'''',''''module'''',''''exports''''] if k in d}, indent=2\\)\\)\")",
       "Bash(node:*)",
       "Bash(pnpm test:e2e:web)",
-      "Bash(node_modules/.bin/playwright test:*)"
+      "Bash(node_modules/.bin/playwright test:*)",
+      "Bash(netstat -ano)",
+      "Bash(findstr :5432)"
     ]
   }
 }

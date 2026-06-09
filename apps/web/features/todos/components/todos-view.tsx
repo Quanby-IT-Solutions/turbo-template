@@ -1,7 +1,10 @@
 "use client"
 
 import { useState } from "react"
+import { Task01Icon } from "@hugeicons/core-free-icons"
+import { HugeiconsIcon } from "@hugeicons/react"
 
+import { PageHeader } from "@/core/components/page-header"
 import { Badge } from "@/core/components/ui/badge"
 import { Button } from "@/core/components/ui/button"
 import {
@@ -11,10 +14,18 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/core/components/ui/card"
+import {
+	Empty,
+	EmptyDescription,
+	EmptyHeader,
+	EmptyMedia,
+	EmptyTitle,
+} from "@/core/components/ui/empty"
 import { Input } from "@/core/components/ui/input"
+import { Skeleton } from "@/core/components/ui/skeleton"
+import { canAccess, type AccessProfile } from "@/features/dashboard/lib/access"
 import { useCreateTodoMutation, useTodosQuery } from "@/features/todos/api/todos.hooks"
 import { TodoItem } from "@/features/todos/components/todo-item"
-import { canAccess, type AccessProfile } from "@/features/dashboard/lib/access"
 
 interface TodosViewProps {
 	access: AccessProfile
@@ -33,20 +44,16 @@ export function TodosView({ access }: TodosViewProps) {
 		event.preventDefault()
 		const trimmed = title.trim()
 		if (!trimmed) return
-		createTodo.mutate(
-			{ title: trimmed, completed: false },
-			{ onSuccess: () => setTitle("") }
-		)
+		createTodo.mutate({ title: trimmed, completed: false }, { onSuccess: () => setTitle("") })
 	}
 
 	return (
 		<section className="flex w-full max-w-2xl flex-col gap-6">
-			<div>
-				<h1 className="text-2xl font-bold">Todos / Posts</h1>
-				<p className="text-muted-foreground">
-					CRUD wired to the protected NestJS endpoints. Buttons reflect your permissions.
-				</p>
-			</div>
+			<PageHeader
+				icon={Task01Icon}
+				title="Todos / Posts"
+				description="CRUD wired to the protected NestJS endpoints. Buttons reflect your permissions."
+			/>
 
 			<Card>
 				<CardHeader className="gap-2">
@@ -79,14 +86,30 @@ export function TodosView({ access }: TodosViewProps) {
 			</Card>
 
 			<div className="flex flex-col gap-2">
-				{isLoading ? <p className="text-muted-foreground text-sm">Loading todos...</p> : null}
+				{isLoading ? (
+					<>
+						<Skeleton className="h-12 w-full" />
+						<Skeleton className="h-12 w-full" />
+						<Skeleton className="h-12 w-full" />
+					</>
+				) : null}
 				{isError ? (
 					<p className="text-destructive text-sm">
 						{error instanceof Error ? error.message : "Failed to load todos"}
 					</p>
 				) : null}
 				{todos && todos.length === 0 ? (
-					<p className="text-muted-foreground text-sm">No todos yet.</p>
+					<Empty className="border">
+						<EmptyHeader>
+							<EmptyMedia variant="icon">
+								<HugeiconsIcon icon={Task01Icon} strokeWidth={2} />
+							</EmptyMedia>
+							<EmptyTitle>No todos yet</EmptyTitle>
+							<EmptyDescription>
+								{canCreate ? "Add your first todo above." : "Items will appear here once created."}
+							</EmptyDescription>
+						</EmptyHeader>
+					</Empty>
 				) : null}
 				{todos?.map(todo => (
 					<TodoItem key={todo.id} todo={todo} canEdit={canEdit} canDelete={canDelete} />

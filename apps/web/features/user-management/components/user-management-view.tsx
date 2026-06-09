@@ -1,5 +1,8 @@
 "use client"
 
+import { UserMultipleIcon } from "@hugeicons/core-free-icons"
+
+import { PageHeader } from "@/core/components/page-header"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/core/components/ui/tabs"
 import { RolesPanel } from "@/features/user-management/components/roles-panel"
 import { UsersPanel } from "@/features/user-management/components/users-panel"
@@ -7,10 +10,11 @@ import { UsersPanel } from "@/features/user-management/components/users-panel"
 export function UserManagementView() {
 	return (
 		<section className="flex w-full flex-col gap-6">
-			<div>
-				<h1 className="text-2xl font-bold">User Management</h1>
-				<p className="text-muted-foreground">Manage roles, permissions, and user assignments.</p>
-			</div>
+			<PageHeader
+				icon={UserMultipleIcon}
+				title="User Management"
+				description="Manage roles, permissions, and user assignments."
+			/>
 
 			<Tabs defaultValue="roles">
 				<TabsList>

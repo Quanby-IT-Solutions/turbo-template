@@ -1,8 +1,8 @@
 import "dotenv/config"
 
+import { randomBytes, scryptSync } from "node:crypto"
 import { inArray, or } from "drizzle-orm"
 import { drizzle } from "drizzle-orm/node-postgres"
-import { randomBytes, scryptSync } from "node:crypto"
 import { Pool } from "pg"
 
 import {
@@ -259,9 +259,7 @@ async function seedDatabase() {
 			const roleRows = await tx.select().from(roles)
 			const permissionRows = await tx.select().from(permissions)
 			const roleIdByName = new Map<string, number>(roleRows.map(r => [r.name, r.id]))
-			const permissionIdByName = new Map<string, number>(
-				permissionRows.map(p => [p.name, p.id])
-			)
+			const permissionIdByName = new Map<string, number>(permissionRows.map(p => [p.name, p.id]))
 
 			const seedRolePermissions: Array<typeof rolePermissions.$inferInsert> = []
 			for (const [roleName, permNames] of Object.entries(rolePermissionNames)) {

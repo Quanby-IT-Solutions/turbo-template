@@ -1,4 +1,4 @@
-import { ForbiddenException, type ExecutionContext, UnauthorizedException } from "@nestjs/common"
+import { ForbiddenException, UnauthorizedException, type ExecutionContext } from "@nestjs/common"
 import { Reflector } from "@nestjs/core"
 import { Test, type TestingModule } from "@nestjs/testing"
 
@@ -96,9 +96,9 @@ describe("RbacGuard", () => {
 	it("throws UnauthorizedException when session is absent and user is absent", async () => {
 		reflector.getAllAndOverride.mockReturnValue(["posts:create"])
 
-		await expect(
-			guard.canActivate(buildContext(undefined, undefined))
-		).rejects.toBeInstanceOf(UnauthorizedException)
+		await expect(guard.canActivate(buildContext(undefined, undefined))).rejects.toBeInstanceOf(
+			UnauthorizedException
+		)
 		expect(rbacService.hasAllPermissions).not.toHaveBeenCalled()
 	})
 
@@ -106,9 +106,9 @@ describe("RbacGuard", () => {
 		reflector.getAllAndOverride.mockReturnValue(["posts:create"])
 		rbacService.hasAllPermissions.mockResolvedValue(false)
 
-		await expect(
-			guard.canActivate(buildContext(undefined, { id: "u1" }))
-		).rejects.toBeInstanceOf(ForbiddenException)
+		await expect(guard.canActivate(buildContext(undefined, { id: "u1" }))).rejects.toBeInstanceOf(
+			ForbiddenException
+		)
 		expect(rbacService.hasAllPermissions).toHaveBeenCalledWith("u1", ["posts:create"])
 	})
 
@@ -116,9 +116,7 @@ describe("RbacGuard", () => {
 		reflector.getAllAndOverride.mockReturnValue(["posts:create"])
 		rbacService.hasAllPermissions.mockResolvedValue(true)
 
-		await expect(
-			guard.canActivate(buildContext(undefined, { id: "u1" }))
-		).resolves.toBe(true)
+		await expect(guard.canActivate(buildContext(undefined, { id: "u1" }))).resolves.toBe(true)
 	})
 
 	it("prefers req.session.user.id over req.user.id when both present", async () => {
@@ -135,9 +133,9 @@ describe("RbacGuard", () => {
 		reflector.getAllAndOverride.mockReturnValue(["posts:create"])
 		rbacService.hasAllPermissions.mockResolvedValue(false)
 
-		await expect(
-			guard.canActivate(buildContext({ user: { id: "u1" } }))
-		).rejects.toBeInstanceOf(ForbiddenException)
+		await expect(guard.canActivate(buildContext({ user: { id: "u1" } }))).rejects.toBeInstanceOf(
+			ForbiddenException
+		)
 		expect(rbacService.hasAllPermissions).toHaveBeenCalledWith("u1", ["posts:create"])
 	})
 
@@ -196,9 +194,7 @@ describe("RbacGuard", () => {
 				message: "Forbidden",
 				missingPermissions: ["posts:delete", "posts:read"],
 			})
-			expect((response as Record<string, unknown>).missingPermissions).not.toContain(
-				"posts:create"
-			)
+			expect((response as Record<string, unknown>).missingPermissions).not.toContain("posts:create")
 			expect(rbacService.getMissingPermissions).toHaveBeenCalledWith("u1", [
 				"posts:create",
 				"posts:delete",

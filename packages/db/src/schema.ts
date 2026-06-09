@@ -147,10 +147,7 @@ export const userRoles = createTable(
 			.notNull()
 			.references(() => roles.id, { onDelete: "cascade" }),
 	}),
-	t => [
-		primaryKey({ columns: [t.userId, t.roleId] }),
-		index("user_roles_user_id_idx").on(t.userId),
-	]
+	t => [primaryKey({ columns: [t.userId, t.roleId] }), index("user_roles_user_id_idx").on(t.userId)]
 )
 
 export const rolePermissions = createTable(
@@ -174,62 +171,62 @@ export const rolePermissions = createTable(
 export const relations = defineRelations(
 	{ users, sessions, accounts, todos, tickets, roles, permissions, userRoles, rolePermissions },
 	r => ({
-	users: {
-		sessions: r.many.sessions(),
-		accounts: r.many.accounts(),
-		userRoles: r.many.userRoles(),
-	},
-	sessions: {
-		user: r.one.users({
-			from: r.sessions.userId,
-			to: r.users.id,
-		}),
-	},
-	accounts: {
-		user: r.one.users({
-			from: r.accounts.userId,
-			to: r.users.id,
-		}),
-	},
-	todos: {
-		author: r.one.users({
-			from: r.todos.authorId,
-			to: r.users.id,
-		}),
-	},
-	tickets: {
-		author: r.one.users({
-			from: r.tickets.authorId,
-			to: r.users.id,
-		}),
-	},
-	roles: {
-		userRoles: r.many.userRoles(),
-		rolePermissions: r.many.rolePermissions(),
-	},
-	permissions: {
-		rolePermissions: r.many.rolePermissions(),
-	},
-	userRoles: {
-		user: r.one.users({
-			from: r.userRoles.userId,
-			to: r.users.id,
-		}),
-		role: r.one.roles({
-			from: r.userRoles.roleId,
-			to: r.roles.id,
-		}),
-	},
-	rolePermissions: {
-		role: r.one.roles({
-			from: r.rolePermissions.roleId,
-			to: r.roles.id,
-		}),
-		permission: r.one.permissions({
-			from: r.rolePermissions.permissionId,
-			to: r.permissions.id,
-		}),
-	},
+		users: {
+			sessions: r.many.sessions(),
+			accounts: r.many.accounts(),
+			userRoles: r.many.userRoles(),
+		},
+		sessions: {
+			user: r.one.users({
+				from: r.sessions.userId,
+				to: r.users.id,
+			}),
+		},
+		accounts: {
+			user: r.one.users({
+				from: r.accounts.userId,
+				to: r.users.id,
+			}),
+		},
+		todos: {
+			author: r.one.users({
+				from: r.todos.authorId,
+				to: r.users.id,
+			}),
+		},
+		tickets: {
+			author: r.one.users({
+				from: r.tickets.authorId,
+				to: r.users.id,
+			}),
+		},
+		roles: {
+			userRoles: r.many.userRoles(),
+			rolePermissions: r.many.rolePermissions(),
+		},
+		permissions: {
+			rolePermissions: r.many.rolePermissions(),
+		},
+		userRoles: {
+			user: r.one.users({
+				from: r.userRoles.userId,
+				to: r.users.id,
+			}),
+			role: r.one.roles({
+				from: r.userRoles.roleId,
+				to: r.roles.id,
+			}),
+		},
+		rolePermissions: {
+			role: r.one.roles({
+				from: r.rolePermissions.roleId,
+				to: r.roles.id,
+			}),
+			permission: r.one.permissions({
+				from: r.rolePermissions.permissionId,
+				to: r.permissions.id,
+			}),
+		},
 	})
 )
 

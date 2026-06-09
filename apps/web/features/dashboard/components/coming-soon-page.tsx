@@ -19,7 +19,7 @@ interface ComingSoonPageProps {
 export function ComingSoonPage({ title, description, icon }: ComingSoonPageProps) {
 	return (
 		<section className="mx-auto flex min-h-[calc(100vh-10rem)] w-full max-w-3xl items-center">
-			<Empty className="border bg-card/50">
+			<Empty className="bg-card/50 border">
 				<EmptyHeader>
 					<EmptyMedia variant="icon">
 						<HugeiconsIcon icon={icon} strokeWidth={2} />

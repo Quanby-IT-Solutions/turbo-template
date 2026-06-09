@@ -4,9 +4,19 @@
 # This Docker Compose configuration sets up the full application stack
 # for local development with both web and backend services.
 #
-# Single entrypoint: Nginx reverse proxy on http://localhost
+# Single entrypoint (default): Nginx reverse proxy on http://localhost
 #   /api/* -> backend (NestJS),  /* -> web (Next.js)
-# Web/backend are NOT published directly — only Nginx is.
+#
+# SWAPPING THE PROXY
+# ------------------
+# The bundled Nginx is gated behind the "docker-proxy" compose profile,
+# enabled by default via COMPOSE_PROFILES in the root .env. To use your
+# OWN/external Nginx instead, set COMPOSE_PROFILES= (empty) in .env — the
+# nginx container won't start, freeing port 80. web/backend are always
+# published on 127.0.0.1:3001 / :3000, so a host Nginx can reach them.
+#
+# Edit routing live: ./nginx/nginx.conf is volume-mounted; after changes
+#   docker compose restart nginx
 #
 # Usage:
 #   docker-compose up -d --build      # Build + start all services
@@ -16,13 +26,17 @@
 
 services:
   # ----------------------------------------------------------
-  # Reverse Proxy (Nginx) — single entrypoint
+  # Reverse Proxy (Nginx) — single entrypoint, toggleable
   # ----------------------------------------------------------
   # Routes /api/* -> backend:3000, everything else -> web:3001.
   # Access the whole stack at http://localhost
+  #
+  # Gated by the "docker-proxy" profile. ON by default (COMPOSE_PROFILES
+  # in .env). Set COMPOSE_PROFILES= empty to disable and use external Nginx.
   nginx:
     image: nginx:alpine
     container_name: turbo-template-nginx
+    profiles: ["docker-proxy"]
     ports:
       - "80:80" # single published port (clean URLs, no :port)
     volumes:
@@ -47,9 +61,11 @@ services:
         - NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL}
         - NEXT_PUBLIC_API_VERSION=${NEXT_PUBLIC_API_VERSION}
     container_name: turbo-template-web
-    # No published host port — Nginx is the only entrypoint.
-    expose:
-      - "3001"
+    # Bound to loopback so an external/host Nginx can reach it when the
+    # bundled proxy is disabled. Not exposed to the LAN. The Docker Nginx
+    # still reaches it by service name (web:3001) over the internal network.
+    ports:
+      - "127.0.0.1:3001:3001"
     environment:
       # Server Configuration
       - NODE_ENV=production
@@ -81,9 +97,11 @@ services:
       context: .
       dockerfile: apps/backend/Dockerfile
     container_name: turbo-template-backend
-    # No published host port — reachable only via the internal network / Nginx.
-    expose:
-      - "3000"
+    # Bound to loopback so an external/host Nginx can reach it when the
+    # bundled proxy is disabled. Not exposed to the LAN. The Docker Nginx
+    # still reaches it by service name (backend:3000) over the internal network.
+    ports:
+      - "127.0.0.1:3000:3000"
     # Lets the container reach a Postgres running on the host via
     # host.docker.internal (set DATABASE_URL accordingly). Harmless if you
     # instead run a Postgres service in compose.

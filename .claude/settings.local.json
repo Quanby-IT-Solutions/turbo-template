@@ -101,7 +101,9 @@
       "Bash(pnpm test:e2e:web)",
       "Bash(node_modules/.bin/playwright test:*)",
       "Bash(netstat -ano)",
-      "Bash(findstr :5432)"
+      "Bash(findstr :5432)",
+      "Bash(docker compose *)",
+      "Bash(COMPOSE_PROFILES= docker compose config --services)"
     ]
   }
 }

@@ -67,14 +67,34 @@ docker compose up -d --build
 
 Notes:
 
-- Nginx is the only published port (`80`). Web/backend are not exposed directly.
-- Same origin → no browser CORS. Proxy config lives in `nginx/nginx.conf`.
+- The bundled Nginx publishes port `80`. web/backend also bind to loopback
+  (`127.0.0.1:3001` / `127.0.0.1:3000`) so an external proxy can reach them;
+  they're not exposed to the LAN.
+- Same origin → no browser CORS. Proxy config lives in `nginx/nginx.conf`
+  (volume-mounted — edit then `docker compose restart nginx`).
 - Set the backend's `DATABASE_URL` to `host.docker.internal:5432` to reach a
   Postgres running on your host (the container's `localhost` is itself).
 - `CORS_ORIGINS` / `BETTER_AUTH_TRUSTED_ORIGINS` must include the proxy origin
   (`http://localhost`).
 - Change the host port by editing the `nginx` service `ports` (e.g. `8080:80`),
   and update `NEXT_PUBLIC_*` in `.env` to match.
+
+#### Use your own Nginx instead
+
+The bundled Nginx is gated behind the `docker-proxy` compose profile, enabled by
+default via `COMPOSE_PROFILES=docker-proxy` in the root `.env`. To swap in an
+external/host Nginx, set `COMPOSE_PROFILES=` (empty) and bring the stack up:
+
+```bash
+docker compose up -d --build   # web + backend only; port 80 is free
+```
+
+Point your Nginx at `127.0.0.1:3001` (web) and `127.0.0.1:3000` (backend) —
+reuse the routing in `nginx/nginx.conf`. If the external proxy keeps the same
+single origin (`/api/*` → backend, `/*` → web), no CORS or `NEXT_PUBLIC_*`
+changes are needed; if it splits web/api across different domains, update
+`NEXT_PUBLIC_API_BASE_URL` (rebuild web) and the backend `CORS_ORIGINS` /
+`BETTER_AUTH_TRUSTED_ORIGINS`.
 
 ## Project Structure
 
@@ -105,6 +125,7 @@ Notes:
 | `NEXT_PUBLIC_API_BASE_URL`    | ✅       | Web         | Backend API base URL                  |
 | `NEXT_PUBLIC_API_VERSION`     | ✅       | Web         | API version (default: v1)             |
 | `INTERNAL_API_BASE_URL`       | ❌       | Web         | SSR-only API URL (Docker net)         |
+| `COMPOSE_PROFILES`            | ❌       | Root/Docker | `docker-proxy` runs bundled Nginx; empty = external proxy |
 
 Copy from `.env.example` in each app: `apps/backend/.env`, `apps/web/.env`, `packages/db/.env`.
 
@@ -240,12 +261,18 @@ cp .env.example .env            # single-origin build args for the web image
 docker-compose up -d --build    # start nginx + web + backend
 ```
 
-Open **http://localhost** for the whole app. Web (`3001`) and backend
-(`3000`) are no longer published directly — Nginx is the only entrypoint.
+Open **http://localhost** for the whole app. web (`3001`) and backend
+(`3000`) are bound to loopback (`127.0.0.1`) for an external proxy but not
+exposed to the LAN — the bundled Nginx is the entrypoint on port `80`.
 
 Because the browser uses one origin, there is no CORS on the client path. Config
 lives in `nginx/nginx.conf`. SSR still talks to the backend over the internal
 Docker network via `INTERNAL_API_BASE_URL=http://backend:3000/api`.
+
+**Swap the proxy:** the bundled Nginx runs under the `docker-proxy` compose
+profile (`COMPOSE_PROFILES=docker-proxy` in `.env`, on by default). Set
+`COMPOSE_PROFILES=` empty to skip it and use your own Nginx against
+`127.0.0.1:3001` / `127.0.0.1:3000`.
 
 **Production extension:** uncomment the 443/TLS server block in
 `nginx/nginx.conf`, set `server_name` to your one domain, and drop in a single

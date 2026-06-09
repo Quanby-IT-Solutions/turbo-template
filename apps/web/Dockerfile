@@ -21,21 +21,30 @@ RUN turbo prune @repo/web --docker
 # ========================================
 FROM base AS builder
 
-# Build-time arguments for Next.js public environment variables
-# These get inlined into the JavaScript bundle during build
+# First install the dependencies (as they change less often).
+# Kept BEFORE the NEXT_PUBLIC_* args so changing the public URL does NOT
+# invalidate (and re-download) the install layer.
+COPY --from=prepare /app/out/json/ .
+COPY --from=prepare /app/out/pnpm-lock.yaml ./pnpm-lock.yaml
+# Resilient install: cached pnpm store (survives retries) + generous retries
+# for slow/flaky networks. Cache mount requires BuildKit (default here).
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
+  pnpm config set store-dir /pnpm/store && \
+  pnpm config set fetch-retries 5 && \
+  pnpm config set fetch-retry-maxtimeout 120000 && \
+  pnpm config set network-concurrency 8 && \
+  pnpm install --frozen-lockfile
+
+# Build-time arguments for Next.js public environment variables.
+# These get inlined into the JS bundle during build, so they live right
+# before the build step (changing them only re-runs the build).
 ARG NEXT_PUBLIC_APP_URL
 ARG NEXT_PUBLIC_API_BASE_URL
 ARG NEXT_PUBLIC_API_VERSION
-
-# Set as environment variables for the build process
 ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
 ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
 ENV NEXT_PUBLIC_API_VERSION=$NEXT_PUBLIC_API_VERSION
 
-# First install the dependencies (as they change less often)
-COPY --from=prepare /app/out/json/ .
-COPY --from=prepare /app/out/pnpm-lock.yaml ./pnpm-lock.yaml
-RUN pnpm install --frozen-lockfile
 # Build the project
 COPY --from=prepare /app/out/full/ .
 RUN pnpm --filter @repo/web build

@@ -34,9 +34,47 @@ pnpm build
 # Generate AI agent rules (recommended - includes sub-agent-first workflow policy)
 pnpm dlx @intellectronica/ruler apply
 
-# Start development
+# Start development (web :3001, backend :3000 — separate ports)
 pnpm dev
 ```
+
+After `pnpm dev`:
+
+| Service        | URL                                  |
+| -------------- | ------------------------------------ |
+| Web            | http://localhost:3001                |
+| Backend API    | http://localhost:3000/api/v1         |
+| API reference  | http://localhost:3000/api/v1/docs    |
+
+### Run on a single port (Docker + Nginx)
+
+Serve **web and backend through one origin** (and, in production, one TLS
+cert) via the bundled Nginx reverse proxy — `/api/*` → backend, `/*` → web.
+
+```bash
+# Copy the root env (single-origin build args for the web image)
+cp .env.example .env
+
+# Build + start nginx + web + backend
+docker compose up -d --build
+```
+
+| Service        | URL                            |
+| -------------- | ------------------------------ |
+| App (web)      | http://localhost               |
+| Backend API    | http://localhost/api/v1        |
+| API reference  | http://localhost/api/v1/docs   |
+
+Notes:
+
+- Nginx is the only published port (`80`). Web/backend are not exposed directly.
+- Same origin → no browser CORS. Proxy config lives in `nginx/nginx.conf`.
+- Set the backend's `DATABASE_URL` to `host.docker.internal:5432` to reach a
+  Postgres running on your host (the container's `localhost` is itself).
+- `CORS_ORIGINS` / `BETTER_AUTH_TRUSTED_ORIGINS` must include the proxy origin
+  (`http://localhost`).
+- Change the host port by editing the `nginx` service `ports` (e.g. `8080:80`),
+  and update `NEXT_PUBLIC_*` in `.env` to match.
 
 ## Project Structure
 
@@ -65,9 +103,16 @@ pnpm dev
 | `GOOGLE_CLIENT_SECRET`        | ❌       | Backend     | Google OAuth client secret            |
 | `NEXT_PUBLIC_APP_URL`         | ✅       | Web         | Web app URL                           |
 | `NEXT_PUBLIC_API_BASE_URL`    | ✅       | Web         | Backend API base URL                  |
-| `NEXT_PUBLIC_API_VERSION`     | ✅       | Web         | API version (default: 1)              |
+| `NEXT_PUBLIC_API_VERSION`     | ✅       | Web         | API version (default: v1)             |
+| `INTERNAL_API_BASE_URL`       | ❌       | Web         | SSR-only API URL (Docker net)         |
 
 Copy from `.env.example` in each app: `apps/backend/.env`, `apps/web/.env`, `packages/db/.env`.
+
+**Separate ports (native `pnpm dev`):** `NEXT_PUBLIC_APP_URL=http://localhost:3001`,
+`NEXT_PUBLIC_API_BASE_URL=http://localhost:3000/api`.
+**Single port (Docker proxy):** `NEXT_PUBLIC_APP_URL=http://localhost`,
+`NEXT_PUBLIC_API_BASE_URL=http://localhost/api` (set in the root `.env`; baked
+into the web image at build time).
 
 ## Scripts
 
@@ -182,11 +227,29 @@ sudo certbot renew --dry-run
 
 Production uses AWS ACM certificates via the ALB — no manual SSL needed.
 
-### Docker (Local)
+### Docker (Local) — single-port reverse proxy
+
+The local Docker stack runs behind an Nginx reverse proxy, so both apps share
+**one origin / one port** (and in production, **one TLS cert**):
+
+- `/api/*` → backend (NestJS)
+- `/*` → web (Next.js)
 
 ```bash
-docker-compose up -d    # Start web + backend locally
+cp .env.example .env            # single-origin build args for the web image
+docker-compose up -d --build    # start nginx + web + backend
 ```
+
+Open **http://localhost** for the whole app. Web (`3001`) and backend
+(`3000`) are no longer published directly — Nginx is the only entrypoint.
+
+Because the browser uses one origin, there is no CORS on the client path. Config
+lives in `nginx/nginx.conf`. SSR still talks to the backend over the internal
+Docker network via `INTERNAL_API_BASE_URL=http://backend:3000/api`.
+
+**Production extension:** uncomment the 443/TLS server block in
+`nginx/nginx.conf`, set `server_name` to your one domain, and drop in a single
+certbot/ACM cert. Same path routing — no second domain or cert needed.
 
 ### Troubleshooting
 

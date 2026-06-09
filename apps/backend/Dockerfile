@@ -23,7 +23,14 @@ FROM base AS builder
 # First install dependencies (as they change less often)
 COPY --from=prepare /app/out/json/ .
 COPY --from=prepare /app/out/pnpm-lock.yaml ./pnpm-lock.yaml
-RUN pnpm install --frozen-lockfile
+# Resilient install: cached pnpm store (survives retries) + generous retries
+# for slow/flaky networks. Cache mount requires BuildKit (default here).
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
+  pnpm config set store-dir /pnpm/store && \
+  pnpm config set fetch-retries 5 && \
+  pnpm config set fetch-retry-maxtimeout 120000 && \
+  pnpm config set network-concurrency 8 && \
+  pnpm install --frozen-lockfile
 # Build all workspace packages first, then backend (skip lint/typecheck in Docker)
 COPY --from=prepare /app/out/full/ .
 ENV TURBO_FORCE_BUILD=1

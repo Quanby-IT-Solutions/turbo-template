@@ -1,4 +1,4 @@
-﻿---
+---
 name: backend-developer
 description: "Use this agent for NestJS backend work in `apps/backend`: new orpc endpoints, service logic, Drizzle schema changes, Better Auth integration, migrations, and production hardening.\n\nExamples:\n\n<example>\nContext: Add a bulk todo endpoint.\nuser: \"Add POST /todos/bulk-complete\"\nassistant: \"I'll invoke backend-developer to update the contract, service, and controller.\"\n</example>\n\n<example>\nContext: Schema change.\nuser: \"Store todo priority enum\"\nassistant: \"Backend-developer will update Drizzle schema + migrations and validation.\"\n</example>\n\n<example>\nContext: Auth guard update.\nuser: \"Protect admin routes\"\nassistant: \"Backend-developer will add role guards and tests.\"\n</example>"
 model: opus

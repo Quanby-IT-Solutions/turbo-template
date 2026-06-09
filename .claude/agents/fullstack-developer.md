@@ -1,4 +1,4 @@
-﻿---
+---
 name: fullstack-developer
 description: "Use this agent for cross-layer work spanning contracts, backend, and frontend or mobile clients. Ideal for end-to-end feature delivery, coordinated migrations, and API/UX alignment.\n\nExamples:\n\n<example>\nContext: Build reminders across API + dashboard.\nuser: \"Add reminders to todos and show them on the dashboard\"\nassistant: \"I'll launch fullstack-developer to update contracts, backend logic, and frontend widgets.\"\n</example>\n\n<example>\nContext: Breaking API rename with migration.\nuser: \"Rename todo priority and migrate existing data\"\nassistant: \"Fullstack-developer will manage the contract change, DB migration, backend update, and client adjustments.\"\n</example>"
 model: opus

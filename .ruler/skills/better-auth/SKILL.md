@@ -168,6 +168,37 @@ export class TodosController {
 }
 ```
 
+### Custom guards reading the session (IMPORTANT)
+
+`@thallesp/nestjs-better-auth` attaches `request.session` / `request.user` inside
+its own global `AuthGuard` (registered via `AuthModule.forRoot`). Any *other* global
+guard (e.g. a custom `RbacGuard` registered as `APP_GUARD`) may run **before** that
+guard — global guard execution order is **not** guaranteed. A custom guard that reads
+`request.session?.user?.id` can therefore see `undefined` and wrongly throw 401, even
+though the cookie is valid and `@Session()` works fine in the controller (it runs
+later, after the library guard).
+
+Make the custom guard resolve the session itself instead of depending on order:
+
+```typescript
+import { fromNodeHeaders } from "better-auth/node"
+import { getAuth } from "@repo/auth"
+
+let userId = request.session?.user?.id ?? request.user?.id
+if (!userId) {
+  const session = await getAuth().api.getSession({ headers: fromNodeHeaders(request.headers) })
+  if (session) {
+    request.session = session   // attach for downstream @Session() consumers
+    request.user = session.user
+    userId = session.user?.id
+  }
+}
+if (!userId) throw new UnauthorizedException("Authentication required")
+```
+
+Symptom this fixes: protected route returns **401 "Authentication required"** for a
+logged-in user, while `/me`-style routes (no custom guard) return 200 with the same cookie.
+
 ## Frontend Auth — Browser Client
 
 ### Auth Client Setup

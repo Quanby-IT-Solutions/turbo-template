@@ -1,4 +1,4 @@
-﻿---
+---
 name: code-reviewer
 description: "Use this agent for focused code reviews. Provide diffs/PRs and it will analyze correctness, regressions, security implications, testing coverage, and rule compliance.\n\nExamples:\n\n<example>\nContext: Review backend PR.\nuser: \"Does this new orpc endpoint handle auth + validation?\"\nassistant: \"I'll invoke code-reviewer to examine the diff and surface issues.\"\n</example>\n\n<example>\nContext: Review frontend refactor.\nuser: \"We rewrote the dashboard cards\"\nassistant: \"code-reviewer will check for accessibility/performance regressions.\"\n</example>"
 model: opus

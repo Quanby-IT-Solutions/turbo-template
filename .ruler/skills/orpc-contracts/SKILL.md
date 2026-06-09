@@ -224,7 +224,8 @@ export class TodosController {
 
 ```typescript
 // apps/backend/src/modules/v1/examples/todos/todos.service.ts
-import { Injectable, NotFoundException } from "@nestjs/common"
+import { Injectable } from "@nestjs/common"
+import { ORPCError } from "@orpc/server" // NOT NestJS HTTP exceptions — see note below
 import { eq } from "drizzle-orm"
 import { todos } from "@repo/db/schema"
 import { db } from "@/common/database/database.client"
@@ -236,6 +237,12 @@ type CreateTodoInput = V1Inputs["example"]["todo"]["create"]
 export class TodosService {
   async findAll() {
     return db.select().from(todos)
+  }
+
+  async findOne({ id }: { id: number }) {
+    const [todo] = await db.select().from(todos).where(eq(todos.id, id))
+    if (!todo) throw new ORPCError("NOT_FOUND", { message: `Todo ${id} not found` })
+    return todo
   }
 
   async create({ payload, authorId }: { payload: CreateTodoInput; authorId: string }) {
@@ -253,6 +260,32 @@ export class TodosService {
 - Type service inputs from `V1Inputs["path"]["to"]["procedure"]`
 - No manual validation — contract handles it
 - Direct Drizzle queries with `@repo/db/schema`
+
+### Error handling inside oRPC handlers (IMPORTANT)
+
+**Do NOT throw NestJS HTTP exceptions (`NotFoundException`, `ForbiddenException`,
+`ConflictException`, …) from code that runs inside `implement().handler()`.** oRPC
+catches them and returns a generic `INTERNAL_SERVER_ERROR 500` — the real status
+and message are lost. (This is why a "not found" or "forbidden" wrongly shows up
+as a 500 in the browser.)
+
+Throw `ORPCError` from `@orpc/server` instead. Its code maps to the HTTP status:
+
+```typescript
+import { ORPCError } from "@orpc/server"
+
+if (!role) throw new ORPCError("NOT_FOUND", { message: `Role ${id} not found` })       // 404
+if (existing) throw new ORPCError("CONFLICT", { message: "Name already taken" })        // 409
+if (isProtected) throw new ORPCError("FORBIDDEN", { message: "Cannot delete Admin" })   // 403
+if (bad) throw new ORPCError("BAD_REQUEST", { message: "Invalid permissions" })         // 400
+```
+
+Common codes → status: `BAD_REQUEST` 400, `UNAUTHORIZED` 401, `FORBIDDEN` 403,
+`NOT_FOUND` 404, `CONFLICT` 409, `INTERNAL_SERVER_ERROR` 500. Response body is
+`{ code, status, message }`; frontend `fetch` wrappers should read `body.message`.
+
+> Guards (`@RequirePermissions`, auth) run OUTSIDE the handler, so exceptions they
+> throw map to status codes normally — only handler/service code needs `ORPCError`.
 
 ## Layer 11: Frontend oRPC Client
 

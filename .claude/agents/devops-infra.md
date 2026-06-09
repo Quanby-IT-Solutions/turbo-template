@@ -1,4 +1,4 @@
-﻿---
+---
 name: devops-infra
 description: "Use this agent for infrastructure, CI/CD, Docker, Terraform/AWS, monitoring, and deployment automation tasks. Trigger it when editing GitHub Actions, Dockerfiles, compose setups, AWS scripts, secrets, or ops docs.\n\nExamples:\n\n<example>\nContext: Optimize Docker image.\nuser: \"Slim the backend Dockerfile\"\nassistant: \"Invoking devops-infra to refactor multi-stage builds and update docs.\"\n</example>\n\n<example>\nContext: Add lint/typecheck to CI.\nuser: \"Ensure pipelines run pnpm lint && pnpm typecheck\"\nassistant: \"Handing to devops-infra to update workflow YAML and caching.\"\n</example>\n\n<example>\nContext: Provision AWS resources.\nuser: \"Add an SQS queue + IAM policy\"\nassistant: \"devops-infra will modify Terraform and document new env vars.\"\n</example>"
 model: opus

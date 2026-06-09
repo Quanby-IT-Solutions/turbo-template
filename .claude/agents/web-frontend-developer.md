@@ -1,4 +1,4 @@
-﻿---
+---
 name: web-frontend-developer
 description: "Use this agent for Next.js (App Router) work in `apps/web`: feature modules, TanStack Query hooks, server/client components, Tailwind/Shadcn UI, and Better Auth flows. Great for accessibility, React performance, and orpc client wiring tasks.\n\nExamples:\n\n<example>\nContext: Implement a dashboard widget consuming an orpc endpoint.\nuser: "Add a KPIs card that fetches todo stats"\nassistant: "I'll engage web-frontend-developer to build the hook + component."\n</example>\n\n<example>\nContext: Fix hydration flicker.\nuser: "The todo list flashes on load"\nassistant: "Invoking web-frontend-developer to optimize suspense + caching."\n</example>\n\n<example>\nContext: Better Auth UI update.\nuser: "Add profile dropdown showing session info"\nassistant: "web-frontend-developer will integrate the auth client + UI."\n</example>"
 model: opus

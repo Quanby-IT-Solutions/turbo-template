@@ -1,6 +1,10 @@
-import path from "path"
+import { fileURLToPath } from "node:url"
 import react from "@vitejs/plugin-react"
 import { defineConfig } from "vitest/config"
+
+// ESM-safe directory resolution (this package is "type": "module")
+const rootDir = fileURLToPath(new URL(".", import.meta.url))
+const fromRoot = (relativePath: string) => fileURLToPath(new URL(relativePath, import.meta.url))
 
 export default defineConfig({
 	plugins: [react()],
@@ -30,11 +34,11 @@ export default defineConfig({
 	},
 	resolve: {
 		alias: {
-			"@repo/contracts": path.resolve(__dirname, "../../packages/contracts/src/index.ts"),
-			"@repo/auth": path.resolve(__dirname, "../../packages/auth/src/index.ts"),
-			"@repo/db/schema": path.resolve(__dirname, "../../packages/db/src/schema.ts"),
-			"@repo/db/client": path.resolve(__dirname, "../../packages/db/src/client.ts"),
-			"@": path.resolve(__dirname, "."),
+			"@repo/contracts": fromRoot("../../packages/contracts/src/index.ts"),
+			"@repo/auth": fromRoot("../../packages/auth/src/index.ts"),
+			"@repo/db/schema": fromRoot("../../packages/db/src/schema.ts"),
+			"@repo/db/client": fromRoot("../../packages/db/src/client.ts"),
+			"@": rootDir,
 		},
 	},
 })

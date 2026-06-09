@@ -1,6 +1,9 @@
-import Link from "next/link"
 import { redirect } from "next/navigation"
 
+import { SidebarInset, SidebarProvider } from "@/core/components/ui/sidebar"
+import { AppSidebar } from "@/features/dashboard/components/app-sidebar"
+import { MobileSiteHeader } from "@/features/dashboard/components/mobile-site-header"
+import { getAccess } from "@/features/dashboard/server/get-access"
 import { getSession } from "@/services/better-auth/auth-server"
 
 export default async function SiteLayout({
@@ -14,27 +17,22 @@ export default async function SiteLayout({
 		redirect("/login")
 	}
 
+	const access = await getAccess()
+	const user = {
+		name: session.user.name ?? null,
+		email: session.user.email,
+		image: session.user.image ?? null,
+	}
+
 	return (
-		<div className="container py-8">
-			<div className="grid min-h-[calc(100vh-6rem)] grid-cols-1 gap-6 md:grid-cols-[240px_1fr]">
-				<aside className="bg-card text-card-foreground hidden rounded-xl border p-4 md:block">
-					<nav className="space-y-1">
-						<Link
-							href="/dashboard"
-							className="hover:bg-accent hover:text-accent-foreground block rounded-md px-3 py-2 text-sm font-medium"
-						>
-							Dashboard
-						</Link>
-						<Link
-							href="/submit-ticket"
-							className="hover:bg-accent hover:text-accent-foreground block rounded-md px-3 py-2 text-sm font-medium"
-						>
-							Submit Ticket
-						</Link>
-					</nav>
-				</aside>
-				<main className="min-w-0">{children}</main>
-			</div>
-		</div>
+		<SidebarProvider>
+			<AppSidebar user={user} access={access} />
+			<SidebarInset>
+				<MobileSiteHeader />
+				<div className="container py-8">
+					<main className="min-w-0">{children}</main>
+				</div>
+			</SidebarInset>
+		</SidebarProvider>
 	)
 }

@@ -116,12 +116,68 @@ export const tickets = createTable("tickets", t => ({
 }))
 
 // ============================================================================
+// RBAC
+// ============================================================================
+
+export const roles = createTable("roles", t => ({
+	id: t.serial("id").primaryKey(),
+	name: t.text("name").notNull().unique(),
+	description: t.text("description"),
+	createdAt: t.timestamp("created_at").notNull().defaultNow(),
+	updatedAt: t.timestamp("updated_at").notNull().defaultNow(),
+}))
+
+export const permissions = createTable("permissions", t => ({
+	id: t.serial("id").primaryKey(),
+	name: t.text("name").notNull().unique(),
+	description: t.text("description"),
+	createdAt: t.timestamp("created_at").notNull().defaultNow(),
+	updatedAt: t.timestamp("updated_at").notNull().defaultNow(),
+}))
+
+export const userRoles = createTable(
+	"user_roles",
+	t => ({
+		userId: t
+			.text("user_id")
+			.notNull()
+			.references(() => users.id, { onDelete: "cascade" }),
+		roleId: t
+			.integer("role_id")
+			.notNull()
+			.references(() => roles.id, { onDelete: "cascade" }),
+	}),
+	t => [
+		primaryKey({ columns: [t.userId, t.roleId] }),
+		index("user_roles_user_id_idx").on(t.userId),
+	]
+)
+
+export const rolePermissions = createTable(
+	"role_permissions",
+	t => ({
+		roleId: t
+			.integer("role_id")
+			.notNull()
+			.references(() => roles.id, { onDelete: "cascade" }),
+		permissionId: t
+			.integer("permission_id")
+			.notNull()
+			.references(() => permissions.id, { onDelete: "cascade" }),
+	}),
+	t => [primaryKey({ columns: [t.roleId, t.permissionId] })]
+)
+
+// ============================================================================
 // RELATIONS
 // ============================================================================
-export const relations = defineRelations({ users, sessions, accounts, todos, tickets }, r => ({
+export const relations = defineRelations(
+	{ users, sessions, accounts, todos, tickets, roles, permissions, userRoles, rolePermissions },
+	r => ({
 	users: {
 		sessions: r.many.sessions(),
 		accounts: r.many.accounts(),
+		userRoles: r.many.userRoles(),
 	},
 	sessions: {
 		user: r.one.users({
@@ -147,7 +203,35 @@ export const relations = defineRelations({ users, sessions, accounts, todos, tic
 			to: r.users.id,
 		}),
 	},
-}))
+	roles: {
+		userRoles: r.many.userRoles(),
+		rolePermissions: r.many.rolePermissions(),
+	},
+	permissions: {
+		rolePermissions: r.many.rolePermissions(),
+	},
+	userRoles: {
+		user: r.one.users({
+			from: r.userRoles.userId,
+			to: r.users.id,
+		}),
+		role: r.one.roles({
+			from: r.userRoles.roleId,
+			to: r.roles.id,
+		}),
+	},
+	rolePermissions: {
+		role: r.one.roles({
+			from: r.rolePermissions.roleId,
+			to: r.roles.id,
+		}),
+		permission: r.one.permissions({
+			from: r.rolePermissions.permissionId,
+			to: r.permissions.id,
+		}),
+	},
+	})
+)
 
 // ============================================================================
 // SCHEMA
@@ -160,6 +244,10 @@ export const schema = Object.assign(
 		verifications,
 		todos,
 		tickets,
+		roles,
+		permissions,
+		userRoles,
+		rolePermissions,
 	},
 	relations
 )

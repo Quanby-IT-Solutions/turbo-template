@@ -5,7 +5,25 @@ import { drizzle } from "drizzle-orm/node-postgres"
 import { randomBytes, scryptSync } from "node:crypto"
 import { Pool } from "pg"
 
-import { accounts, schema, tickets, todos, users } from "./schema.js"
+import {
+	ADMIN_ROLE,
+	PERMISSION_NAMES,
+	ROLE_NAMES,
+	type PermissionName,
+	type RoleName,
+} from "@repo/contracts"
+
+import {
+	accounts,
+	permissions,
+	rolePermissions,
+	roles,
+	schema,
+	tickets,
+	todos,
+	userRoles,
+	users,
+} from "./schema.js"
 
 async function hashPassword(password: string): Promise<string> {
 	const saltHex = randomBytes(16).toString("hex")
@@ -140,6 +158,52 @@ async function seedDatabase() {
 		updatedAt: now,
 	}))
 
+	const roleDescriptions: Record<RoleName, string> = {
+		Admin: "Super-administrator; full access via role-name short-circuit",
+		Manager: "Can manage posts and read users",
+		User: "Standard user with read access to posts",
+	}
+
+	const seedRoles: Array<typeof roles.$inferInsert> = ROLE_NAMES.map(name => ({
+		name,
+		description: roleDescriptions[name],
+		createdAt: now,
+		updatedAt: now,
+	}))
+
+	const permissionDescriptions: Record<PermissionName, string> = {
+		"posts:read": "Read posts",
+		"posts:create": "Create posts",
+		"posts:edit": "Edit posts",
+		"posts:delete": "Delete posts",
+		"posts:*": "All actions on posts",
+		"users:read": "Read user profiles",
+		"users:manage": "Manage users",
+	}
+
+	const seedPermissions: Array<typeof permissions.$inferInsert> = PERMISSION_NAMES.map(name => ({
+		name,
+		description: permissionDescriptions[name],
+		createdAt: now,
+		updatedAt: now,
+	}))
+
+	// Role -> permission names. Admin omitted: granted via role-name short-circuit.
+	const rolePermissionNames: Partial<Record<RoleName, PermissionName[]>> = {
+		Manager: ["posts:*", "users:read"],
+		User: ["posts:read"],
+	}
+
+	// User id -> role name.
+	const userRoleAssignments: Array<{ userId: string; roleName: RoleName }> = [
+		{ userId: "seed-user-admin", roleName: ADMIN_ROLE },
+		{ userId: "seed-user-alex", roleName: "User" },
+		{ userId: "seed-user-sam", roleName: "User" },
+	]
+
+	let rolePermissionCount = 0
+	let userRoleCount = 0
+
 	try {
 		await db.transaction(async tx => {
 			for (const user of seedUsers) {
@@ -172,6 +236,61 @@ async function seedDatabase() {
 					})
 			}
 
+			for (const role of seedRoles) {
+				await tx
+					.insert(roles)
+					.values(role)
+					.onConflictDoUpdate({
+						target: roles.name,
+						set: { description: role.description, updatedAt: now },
+					})
+			}
+
+			for (const permission of seedPermissions) {
+				await tx
+					.insert(permissions)
+					.values(permission)
+					.onConflictDoUpdate({
+						target: permissions.name,
+						set: { description: permission.description, updatedAt: now },
+					})
+			}
+
+			const roleRows = await tx.select().from(roles)
+			const permissionRows = await tx.select().from(permissions)
+			const roleIdByName = new Map<string, number>(roleRows.map(r => [r.name, r.id]))
+			const permissionIdByName = new Map<string, number>(
+				permissionRows.map(p => [p.name, p.id])
+			)
+
+			const seedRolePermissions: Array<typeof rolePermissions.$inferInsert> = []
+			for (const [roleName, permNames] of Object.entries(rolePermissionNames)) {
+				const roleId = roleIdByName.get(roleName)
+				if (roleId === undefined || !permNames) continue
+				for (const permName of permNames) {
+					const permissionId = permissionIdByName.get(permName)
+					if (permissionId === undefined) continue
+					seedRolePermissions.push({ roleId, permissionId })
+				}
+			}
+
+			for (const row of seedRolePermissions) {
+				await tx.insert(rolePermissions).values(row).onConflictDoNothing()
+			}
+			rolePermissionCount = seedRolePermissions.length
+
+			const seedUserRoles: Array<typeof userRoles.$inferInsert> = []
+			for (const assignment of userRoleAssignments) {
+				const roleId = roleIdByName.get(assignment.roleName)
+				if (roleId === undefined) continue
+				seedUserRoles.push({ userId: assignment.userId, roleId })
+			}
+
+			for (const row of seedUserRoles) {
+				await tx.insert(userRoles).values(row).onConflictDoNothing()
+			}
+			userRoleCount = seedUserRoles.length
+
 			await tx.delete(todos).where(inArray(todos.authorId, seededUserIds))
 
 			await tx
@@ -185,7 +304,9 @@ async function seedDatabase() {
 		})
 
 		console.log(
-			`Seeded ${seedUsers.length} users, ${seedCredentialAccounts.length} credential accounts, ${seedTodos.length} todos, and ${seedTickets.length} tickets. Default password: ${seedPassword}`
+			`Seeded ${seedUsers.length} users, ${seedCredentialAccounts.length} credential accounts, ${seedTodos.length} todos, and ${seedTickets.length} tickets.\n` +
+				`RBAC: ${seedRoles.length} roles, ${seedPermissions.length} permissions, ${rolePermissionCount} role-permission mappings, ${userRoleCount} user-role assignments.\n` +
+				`Default password: ${seedPassword}`
 		)
 	} finally {
 		await pool.end()

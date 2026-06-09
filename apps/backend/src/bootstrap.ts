@@ -2,7 +2,7 @@ import { Logger, VersioningType, type INestApplication } from "@nestjs/common"
 import { NestFactory } from "@nestjs/core"
 
 import { AppModule } from "@/app.module"
-import { configureApp } from "@/config/app.config"
+import { configureApp, configureCors } from "@/config/app.config"
 import { setupBetterAuth } from "@/config/auth.config"
 import { env } from "@/config/env.config"
 import { setupSwagger } from "@/config/swagger.config"
@@ -24,6 +24,12 @@ function setupVersioning(app: INestApplication): void {
 async function createApplication(): Promise<INestApplication> {
 	logger.log("Creating NestJS application...")
 	const app = await NestFactory.create(AppModule, { bodyParser: false })
+
+	// IMPORTANT: CORS must be registered BEFORE the Better Auth middleware.
+	// The auth middleware short-circuits /api/v1/auth/* requests, so if CORS
+	// runs after it, auth responses (and OPTIONS preflight) get no CORS headers
+	// and the browser blocks them.
+	configureCors(app)
 
 	// IMPORTANT: Better Auth must be registered BEFORE express.json() body parser.
 	// Better Auth's toNodeHandler reads the raw request stream for body parsing.

@@ -4,6 +4,7 @@ import { implement } from "@orpc/server"
 import { AllowAnonymous, Session, type UserSession } from "@thallesp/nestjs-better-auth"
 
 import { v1 } from "@/config/api-versions.config"
+import { RequirePermissions } from "@/shared/decorators/require-permissions.decorator"
 
 import { TodosService } from "./todos.service"
 
@@ -27,6 +28,7 @@ export class TodosController {
 		})
 	}
 
+	@RequirePermissions("posts:create")
 	@Implement(v1.example.todo.create)
 	async createTodo(
 		@Session()
@@ -37,6 +39,7 @@ export class TodosController {
 		})
 	}
 
+	@RequirePermissions("posts:edit")
 	@Implement(v1.example.todo.update)
 	async updateTodo() {
 		return implement(v1.example.todo.update).handler(async ({ input }) => {
@@ -44,6 +47,7 @@ export class TodosController {
 		})
 	}
 
+	@RequirePermissions("posts:delete")
 	@Implement(v1.example.todo.delete)
 	async removeTodo() {
 		return implement(v1.example.todo.delete).handler(async ({ input }) => {

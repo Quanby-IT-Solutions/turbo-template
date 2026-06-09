@@ -19,8 +19,13 @@ function configureBodyParser(app: INestApplication): void {
 
 /**
  * Configure CORS for the application
+ *
+ * Must run BEFORE Better Auth middleware is registered so that auth routes
+ * (/api/v1/auth/*) receive CORS headers and OPTIONS preflight is handled.
+ * Express runs middleware in registration order; the auth middleware
+ * short-circuits matching requests, so CORS must come first.
  */
-function configureCors(app: INestApplication): void {
+export function configureCors(app: INestApplication): void {
 	const origins = env.CORS_ORIGINS.split(",").map(origin => origin.trim())
 	app.enableCors({ origin: origins, credentials: true })
 	logger.log(`CORS enabled for origins: ${origins.join(", ")}`)
@@ -53,6 +58,5 @@ function enableGracefulShutdown(app: INestApplication): void {
  */
 export function configureApp(app: INestApplication): void {
 	configureBodyParser(app)
-	configureCors(app)
 	enableGracefulShutdown(app)
 }

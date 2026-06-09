@@ -29,18 +29,20 @@
 		}
 	},
 	"scripts": {
-		"build": "tsc",
+		"prebuild:contracts": "pnpm --filter @repo/contracts build",
+		"build": "pnpm prebuild:contracts && tsc",
 		"dev": "tsc --watch",
 		"format": "prettier --write \"src/**/*.ts\"",
 		"lint": "eslint --flag unstable_native_nodejs_ts_config \"src/**/*.ts\" --fix",
-		"typecheck": "tsc --noEmit",
+		"typecheck": "pnpm prebuild:contracts && tsc --noEmit",
 		"push": "pnpm build && drizzle-kit push",
 		"studio": "pnpm build && drizzle-kit studio",
 		"generate": "pnpm build && drizzle-kit generate",
 		"migrate": "pnpm build && drizzle-kit migrate",
-		"seed": "pnpm push && tsx src/seed.ts"
+		"seed": "pnpm --filter @repo/contracts build && pnpm push && tsx src/seed.ts"
 	},
 	"dependencies": {
+		"@repo/contracts": "workspace:*",
 		"drizzle-orm": "catalog:",
 		"pg": "catalog:"
 	},

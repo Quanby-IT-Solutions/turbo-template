@@ -1,4 +1,5 @@
-import { Injectable, InternalServerErrorException, NotFoundException } from "@nestjs/common"
+import { Injectable } from "@nestjs/common"
+import { ORPCError } from "@orpc/server"
 import { desc, eq } from "drizzle-orm"
 
 import { todos } from "@repo/db/schema"
@@ -23,7 +24,7 @@ export class TodosService {
 	async findOne({ id }: { id: TodoIdInput["id"] }) {
 		const idNum = id as number
 		const [todo] = await db.select().from(todos).where(eq(todos.id, idNum))
-		if (!todo) throw new NotFoundException(`Todo with ID ${idNum} not found`)
+		if (!todo) throw new ORPCError("NOT_FOUND", { message: `Todo with ID ${idNum} not found` })
 		return todo
 	}
 
@@ -36,7 +37,7 @@ export class TodosService {
 				authorId,
 			})
 			.returning()
-		if (!todo) throw new InternalServerErrorException("Todo not created")
+		if (!todo) throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Todo not created" })
 		return todo
 	}
 
@@ -51,7 +52,7 @@ export class TodosService {
 			})
 			.where(eq(todos.id, id))
 			.returning()
-		if (!todo) throw new InternalServerErrorException("Todo not updated")
+		if (!todo) throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Todo not updated" })
 		return todo
 	}
 

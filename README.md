@@ -57,6 +57,9 @@ cp .env.example .env
 
 # Build + start nginx + web + backend
 docker compose up -d --build
+
+# New clone tip: start/restart only the Nginx proxy without dependencies
+docker compose up -d --no-deps nginx
 ```
 
 | Service        | URL                            |

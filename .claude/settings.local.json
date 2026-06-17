@@ -103,7 +103,10 @@
       "Bash(netstat -ano)",
       "Bash(findstr :5432)",
       "Bash(docker compose *)",
-      "Bash(COMPOSE_PROFILES= docker compose config --services)"
+      "Bash(COMPOSE_PROFILES= docker compose config --services)",
+      "PowerShell(docker compose restart *)",
+      "PowerShell($p = @\\(3000,3001\\); foreach\\($x in $p\\){ $r = Get-NetTCPConnection -LocalPort $x -State Listen -ErrorAction SilentlyContinue; if\\($r\\){\"$x LISTENING\"}else{\"$x free\"} })",
+      "PowerShell(try { $r = Invoke-WebRequest -Uri \"http://localhost/login\" -UseBasicParsing -TimeoutSec 10; \"STATUS: $\\($r.StatusCode\\)\" } catch { \"ERR: $\\($_.Exception.Message\\)\" })"
     ]
   }
 }

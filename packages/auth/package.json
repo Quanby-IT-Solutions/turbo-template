@@ -20,12 +20,15 @@
 		"format": "prettier --write \"src/**/*.ts\"",
 		"lint": "eslint --flag unstable_native_nodejs_ts_config \"src/**/*.ts\" --fix",
 		"typecheck": "tsc --noEmit",
+		"test": "vitest run",
+		"test:watch": "vitest",
 		"generate": "better-auth generate"
 	},
 	"dependencies": {
 		"@repo/db": "workspace:*",
 		"@t3-oss/env-core": "catalog:",
 		"better-auth": "catalog:",
+		"nodemailer": "^6.9.16",
 		"zod": "catalog:"
 	},
 	"devDependencies": {
@@ -33,9 +36,11 @@
 		"@repo/prettier-config": "workspace:*",
 		"@repo/tsconfig": "workspace:*",
 		"@types/node": "catalog:",
+		"@types/nodemailer": "^6.4.17",
 		"eslint": "catalog:",
 		"prettier": "catalog:",
-		"typescript": "catalog:"
+		"typescript": "catalog:",
+		"vitest": "^4.1.2"
 	},
 	"prettier": "@repo/prettier-config"
 }

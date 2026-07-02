@@ -27,7 +27,11 @@ function configureBodyParser(app: INestApplication): void {
  */
 export function configureCors(app: INestApplication): void {
 	const origins = env.CORS_ORIGINS.split(",").map(origin => origin.trim())
-	app.enableCors({ origin: origins, credentials: true })
+	app.enableCors({
+		origin: origins,
+		credentials: true,
+		exposedHeaders: ["Retry-After", "X-Retry-After", "X-Request-Id"],
+	})
 	logger.log(`CORS enabled for origins: ${origins.join(", ")}`)
 }
 

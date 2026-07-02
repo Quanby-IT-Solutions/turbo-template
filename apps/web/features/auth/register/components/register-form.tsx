@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { useForm } from "@tanstack/react-form"
@@ -15,16 +16,25 @@ import {
 	FieldSeparator,
 } from "@/core/components/ui/field"
 import { Input } from "@/core/components/ui/input"
+import { useRateLimitCountdown } from "@/core/hooks/use-rate-limit-countdown"
+import { parseRateLimitError } from "@/core/lib/rate-limit-utils"
 import { cn } from "@/core/lib/utils"
 import { PasswordInput } from "@/features/auth/components/password-input"
+import { RateLimitBanner } from "@/features/auth/components/rate-limit-banner"
 import { SocialLoginButtons } from "@/features/auth/components/social-login-buttons"
 import { TermsPrivacyNote } from "@/features/auth/components/terms-privacy-note"
 
 import { useRegisterMutation } from "../api/register.hooks"
 import { RegisterSchema } from "../api/register.schema"
+import { CheckYourEmailView } from "./check-your-email-view"
 
 export function RegisterForm({ className, ...props }: React.ComponentProps<"div">) {
+	const [verificationEmail, setVerificationEmail] = useState<string | null>(null)
 	const { mutateAsync: register, isPending, isError, error } = useRegisterMutation()
+	const rateLimit = parseRateLimitError(error)
+	const { secondsLeft, isActive } = useRateLimitCountdown(
+		rateLimit.isRateLimit ? rateLimit.retryAfter : null
+	)
 
 	const form = useForm({
 		defaultValues: {
@@ -36,9 +46,16 @@ export function RegisterForm({ className, ...props }: React.ComponentProps<"div"
 			onSubmit: RegisterSchema,
 		},
 		onSubmit: async ({ value }) => {
-			await register(value)
+			const result = await register(value)
+			if (result.requiresVerification) {
+				setVerificationEmail(result.email)
+			}
 		},
 	})
+
+	if (verificationEmail) {
+		return <CheckYourEmailView email={verificationEmail} />
+	}
 
 	return (
 		<div className={cn("flex flex-col gap-6", className)} {...props}>
@@ -57,7 +74,11 @@ export function RegisterForm({ className, ...props }: React.ComponentProps<"div"
 								<p className="text-muted-foreground text-balance">Sign up to get started</p>
 							</div>
 
-							{isError && (
+							{isError && rateLimit.isRateLimit && (
+								<RateLimitBanner message={rateLimit.message} secondsLeft={secondsLeft} />
+							)}
+
+							{isError && !rateLimit.isRateLimit && (
 								<div className="bg-destructive/10 text-destructive dark:bg-destructive/20 rounded-lg p-3 text-sm">
 									{error instanceof Error ? error.message : "An unexpected error occurred"}
 								</div>
@@ -139,8 +160,16 @@ export function RegisterForm({ className, ...props }: React.ComponentProps<"div"
 							/>
 
 							<Field>
-								<Button type="submit" disabled={isPending} className="w-full hover:cursor-pointer">
-									{isPending ? "Creating account..." : "Create account"}
+								<Button
+									type="submit"
+									disabled={isPending || isActive}
+									className="w-full hover:cursor-pointer"
+								>
+									{isActive
+										? `Try again in ${secondsLeft}s`
+										: isPending
+											? "Creating account..."
+											: "Create account"}
 								</Button>
 							</Field>
 

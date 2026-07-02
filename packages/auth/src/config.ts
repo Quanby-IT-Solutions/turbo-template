@@ -1,11 +1,18 @@
 import { createEnv } from "@t3-oss/env-core"
 import { betterAuth } from "better-auth"
 import { drizzleAdapter } from "better-auth/adapters/drizzle"
+import { APIError } from "better-auth/api"
 import { openAPI } from "better-auth/plugins"
 import { z } from "zod"
 
 import { createDBClient } from "@repo/db/client"
 import { accounts, sessions, users, verifications } from "@repo/db/schema"
+
+import { booleanFromEnv } from "./mailer/bool-schema.js"
+import { sendMail } from "./mailer/send-mail.js"
+import { buildResetPasswordEmail } from "./mailer/templates/reset-password-email.js"
+import { buildVerificationEmail } from "./mailer/templates/verification-email.js"
+import { createTransport } from "./mailer/transport-factory.js"
 
 /**
  * Type-safe environment variable validation for Auth package
@@ -23,6 +30,23 @@ export const authEnv = createEnv({
 		// OAuth Providers (Google)
 		GOOGLE_CLIENT_ID: z.string().optional(),
 		GOOGLE_CLIENT_SECRET: z.string().optional(),
+
+		// SMTP / Mailer
+		SMTP_HOST: z.string().optional(),
+		SMTP_PORT: z.coerce.number().int().positive().optional(),
+		SMTP_USER: z.string().optional(),
+		SMTP_PASS: z.string().optional(),
+		SMTP_SECURE: booleanFromEnv.optional().default(false),
+		MAIL_FROM: z.string().optional().default('"Dev Mailer" <no-reply@localhost>'),
+		APP_WEB_URL: z.string().url().optional().default("http://localhost:3001"),
+
+		// Email verification behaviour
+		EMAIL_VERIFICATION_ENABLED: booleanFromEnv.optional().default(true),
+		EMAIL_VERIFICATION_REQUIRED: booleanFromEnv.optional().default(false),
+
+		// Auth rate limiting
+		AUTH_RATE_LIMIT_WINDOW: z.coerce.number().int().positive().optional().default(60),
+		AUTH_RATE_LIMIT_MAX: z.coerce.number().int().positive().optional().default(10),
 	},
 	runtimeEnv: process.env,
 	skipValidation: !!process.env.CI || process.env.npm_lifecycle_event === "lint",
@@ -49,6 +73,18 @@ export const AUTH_BASE_PATH = "/auth"
 export function createAuth(): ReturnType<typeof betterAuth> {
 	const db = createDBClient()
 
+	const transporter = createTransport({
+		smtpHost: authEnv.SMTP_HOST,
+		smtpPort: authEnv.SMTP_PORT,
+		smtpUser: authEnv.SMTP_USER,
+		smtpPass: authEnv.SMTP_PASS,
+		smtpSecure: authEnv.SMTP_SECURE,
+	})
+	const mailFrom = authEnv.MAIL_FROM
+	const appWebUrl = authEnv.APP_WEB_URL
+	const verificationEnabled = authEnv.EMAIL_VERIFICATION_ENABLED
+	const verificationRequired = authEnv.EMAIL_VERIFICATION_REQUIRED
+
 	return betterAuth({
 		database: drizzleAdapter(db, {
 			provider: "pg",
@@ -62,9 +98,68 @@ export function createAuth(): ReturnType<typeof betterAuth> {
 		}),
 		basePath: AUTH_BASE_PATH,
 		secret: authEnv.BETTER_AUTH_SECRET,
+		rateLimit: {
+			enabled: true,
+			window: authEnv.AUTH_RATE_LIMIT_WINDOW,
+			max: authEnv.AUTH_RATE_LIMIT_MAX,
+		},
+		emailVerification: {
+			sendOnSignUp: verificationEnabled,
+			sendVerificationEmail: async ({ user, token }) => {
+				// Honor disabled-sending config for both automatic signup sends
+				// and explicit resend-verification actions.
+				if (!verificationEnabled) {
+					return
+				}
+
+				const verificationUrl = `${appWebUrl}/verify-email?token=${token}`
+				const email = buildVerificationEmail({
+					verificationUrl,
+					userEmail: user.email,
+				})
+				const message = {
+					to: user.email,
+					subject: email.subject,
+					html: email.html,
+					text: email.text,
+				}
+
+				if (verificationRequired) {
+					try {
+						await sendMail(transporter, mailFrom, message)
+					} catch (err) {
+						// Log the raw transport failure server-side, but surface a
+						// sanitized error to clients so SMTP internals never leak.
+						console.error("[mailer] verification email failed:", err)
+						throw new APIError("INTERNAL_SERVER_ERROR", {
+							message: "Verification email is currently unavailable. Please try again later.",
+						})
+					}
+				} else {
+					try {
+						await sendMail(transporter, mailFrom, message)
+					} catch (err) {
+						console.error("[mailer] verification email failed:", err)
+					}
+				}
+			},
+		},
 		emailAndPassword: {
 			enabled: true,
-			requireEmailVerification: false,
+			requireEmailVerification: verificationRequired,
+			sendResetPassword: async ({ user, token }) => {
+				const resetUrl = `${appWebUrl}/reset-password?token=${token}`
+				const email = buildResetPasswordEmail({
+					resetUrl,
+					userEmail: user.email,
+				})
+				await sendMail(transporter, mailFrom, {
+					to: user.email,
+					subject: email.subject,
+					html: email.html,
+					text: email.text,
+				})
+			},
 		},
 		socialProviders: {
 			google: {

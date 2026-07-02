@@ -4,6 +4,7 @@ import { implement } from "@orpc/server"
 
 import { v1 } from "@/config/api-versions.config"
 import { RequirePermissions } from "@/shared/decorators/require-permissions.decorator"
+import { StrictThrottle } from "@/shared/decorators/strict-throttle.decorator"
 
 import { RbacAdminService } from "./rbac-admin.service"
 
@@ -20,6 +21,7 @@ export class RbacController {
 		})
 	}
 
+	@StrictThrottle()
 	@RequirePermissions("users:manage")
 	@Implement(v1.rbac.roles.create)
 	async createRole() {
@@ -28,6 +30,7 @@ export class RbacController {
 		})
 	}
 
+	@StrictThrottle()
 	@RequirePermissions("users:manage")
 	@Implement(v1.rbac.roles.update)
 	async updateRole() {
@@ -36,6 +39,7 @@ export class RbacController {
 		})
 	}
 
+	@StrictThrottle()
 	@RequirePermissions("users:manage")
 	@Implement(v1.rbac.roles.setPermissions)
 	async setRolePermissions() {
@@ -44,6 +48,7 @@ export class RbacController {
 		})
 	}
 
+	@StrictThrottle()
 	@RequirePermissions("users:manage")
 	@Implement(v1.rbac.roles.delete)
 	async deleteRole() {
@@ -70,6 +75,7 @@ export class RbacController {
 		})
 	}
 
+	@StrictThrottle()
 	@RequirePermissions("users:manage")
 	@Implement(v1.rbac.users.assignRole)
 	async assignRole() {
@@ -78,6 +84,7 @@ export class RbacController {
 		})
 	}
 
+	@StrictThrottle()
 	@RequirePermissions("users:manage")
 	@Implement(v1.rbac.users.removeRole)
 	async removeRole() {

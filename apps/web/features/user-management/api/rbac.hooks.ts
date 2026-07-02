@@ -11,6 +11,7 @@ import type {
 	UserWithRoles,
 } from "@repo/contracts"
 
+import { ApiError } from "@/core/lib/api-error"
 import { env } from "@/env"
 
 const API_BASE = `${env.NEXT_PUBLIC_API_BASE_URL}/${env.NEXT_PUBLIC_API_VERSION}`
@@ -33,7 +34,13 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 		} catch {
 			// ignore non-JSON error bodies
 		}
-		throw new Error(message)
+		// Throw a status-carrying ApiError (matching the todo mutations) so the
+		// shared 429 detection can classify rate limits and read Retry-After.
+		const retryAfterHeader =
+			response.headers.get("retry-after") ?? response.headers.get("x-retry-after")
+		const parsedRetryAfter = retryAfterHeader ? Number.parseInt(retryAfterHeader, 10) : NaN
+		const retryAfter = Number.isNaN(parsedRetryAfter) ? undefined : parsedRetryAfter
+		throw new ApiError(response.status, message, retryAfter)
 	}
 
 	if (response.status === 204) {

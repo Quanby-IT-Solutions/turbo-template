@@ -50,17 +50,28 @@ function registerAuthOpenApiEndpoint(httpServer: any, authPath: string): void {
  * Routes are registered at /api/v1/auth/*, /api/v2/auth/*, etc.
  * All versions share the same Better Auth instance with URL rewriting.
  */
-export function setupBetterAuth(app: INestApplication): void {
+export function setupBetterAuth(app: INestApplication, enableApiDocs: boolean): void {
 	const httpServer = app.getHttpAdapter().getInstance()
 	const versions = getVersionKeys()
 	const authPaths = versions.map(version => `/api/${version}/auth`)
 
-	// Single middleware handles all versioned auth routes
-	httpServer.use(createAuthMiddleware(authPaths))
-
-	// Register OpenAPI endpoints for each version
-	for (const authPath of authPaths) {
-		registerAuthOpenApiEndpoint(httpServer, authPath)
-		logger.log(`Auth routes registered at ${authPath}/*`)
+	// The open-api endpoint is documentation-only and gated by enableApiDocs.
+	// It MUST be registered before the catch-all Better Auth middleware below:
+	// createAuthMiddleware() matches any /api/v*/auth/* URL and returns the
+	// Better Auth handler without calling next(), so registering it afterwards
+	// would leave /api/v*/auth/open-api unreachable. Express dispatches routes
+	// in registration order, so this specific GET wins over the later use().
+	if (enableApiDocs) {
+		for (const authPath of authPaths) {
+			registerAuthOpenApiEndpoint(httpServer, authPath)
+			logger.log(`Auth routes registered at ${authPath}/* (open-api endpoint enabled)`)
+		}
+	} else {
+		for (const authPath of authPaths) {
+			logger.log(`Auth routes registered at ${authPath}/* (open-api endpoint disabled)`)
+		}
 	}
+
+	// Single middleware handles all remaining versioned auth routes (always registered)
+	httpServer.use(createAuthMiddleware(authPaths))
 }

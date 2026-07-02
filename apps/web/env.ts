@@ -22,6 +22,9 @@ export const env = createEnv({
 	 */
 	server: {
 		INTERNAL_API_BASE_URL: z.url().optional(),
+		VERCEL_GIT_COMMIT_SHA: z.string().optional(),
+		GITHUB_SHA: z.string().optional(),
+		GIT_COMMIT_SHA: z.string().optional(),
 	},
 
 	/**
@@ -43,6 +46,9 @@ export const env = createEnv({
 		// Server Configuration
 		NODE_ENV: process.env.NODE_ENV,
 		INTERNAL_API_BASE_URL: process.env.INTERNAL_API_BASE_URL,
+		VERCEL_GIT_COMMIT_SHA: process.env.VERCEL_GIT_COMMIT_SHA,
+		GITHUB_SHA: process.env.GITHUB_SHA,
+		GIT_COMMIT_SHA: process.env.GIT_COMMIT_SHA,
 
 		// Client-side variables
 		NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,

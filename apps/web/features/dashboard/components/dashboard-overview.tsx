@@ -206,7 +206,7 @@ interface RecentTodosProps {
 	isError: boolean
 	todos:
 		| {
-				id: number
+				id: number | string
 				title: string
 				completed: boolean
 		  }[]

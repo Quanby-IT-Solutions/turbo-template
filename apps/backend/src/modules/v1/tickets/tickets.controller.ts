@@ -3,6 +3,7 @@ import { Implement } from "@orpc/nest"
 import { implement } from "@orpc/server"
 
 import { v1 } from "@/config/api-versions.config"
+import { StrictThrottle } from "@/shared/decorators/strict-throttle.decorator"
 
 import { TicketsService } from "./tickets.service"
 
@@ -24,6 +25,7 @@ export class TicketsController {
 		})
 	}
 
+	@StrictThrottle()
 	@Implement(v1.ticket.submit)
 	async submitTicket() {
 		return implement(v1.ticket.submit).handler(async ({ input }) => {

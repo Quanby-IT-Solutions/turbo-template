@@ -5,6 +5,7 @@ export default defineConfig({
 		projects: [
 			"apps/web/vitest.config.ts",
 			"packages/contracts/vitest.config.ts",
+			"packages/auth/vitest.config.ts",
 		],
 	},
 })

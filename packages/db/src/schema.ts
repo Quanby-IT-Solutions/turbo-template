@@ -116,6 +116,17 @@ export const tickets = createTable("tickets", t => ({
 }))
 
 // ============================================================================
+// IDEMPOTENCY KEYS
+// ============================================================================
+
+export const idempotencyKeys = createTable("idempotency_keys", t => ({
+	key: t.text("key").primaryKey(),
+	authorId: t.text("author_id").notNull(),
+	response: t.jsonb("response").notNull().$type<unknown>(),
+	createdAt: t.timestamp("created_at").notNull().defaultNow(),
+}))
+
+// ============================================================================
 // RBAC
 // ============================================================================
 
@@ -169,7 +180,18 @@ export const rolePermissions = createTable(
 // RELATIONS
 // ============================================================================
 export const relations = defineRelations(
-	{ users, sessions, accounts, todos, tickets, roles, permissions, userRoles, rolePermissions },
+	{
+		users,
+		sessions,
+		accounts,
+		todos,
+		tickets,
+		idempotencyKeys,
+		roles,
+		permissions,
+		userRoles,
+		rolePermissions,
+	},
 	r => ({
 		users: {
 			sessions: r.many.sessions(),
@@ -241,6 +263,7 @@ export const schema = Object.assign(
 		verifications,
 		todos,
 		tickets,
+		idempotencyKeys,
 		roles,
 		permissions,
 		userRoles,

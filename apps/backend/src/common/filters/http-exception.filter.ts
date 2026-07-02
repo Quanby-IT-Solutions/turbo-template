@@ -1,22 +1,33 @@
-import { ArgumentsHost, Catch, ExceptionFilter, HttpException, Logger } from "@nestjs/common"
+import { ArgumentsHost, Catch, ExceptionFilter, HttpException } from "@nestjs/common"
+import { Logger } from "nestjs-pino"
 import { ZodSerializationException } from "nestjs-zod"
 import { ZodError } from "zod"
 
 @Catch(HttpException)
 export class HttpExceptionFilter implements ExceptionFilter {
-	private readonly logger = new Logger(HttpExceptionFilter.name)
+	// Injected by Nest DI (registered as APP_FILTER, never `new`-ed).
+	constructor(private readonly logger: Logger) {}
 
 	catch(exception: HttpException, host: ArgumentsHost) {
 		const ctx = host.switchToHttp()
+		const request = ctx.getRequest()
 		const response = ctx.getResponse()
 		const status = exception.getStatus()
 		const exceptionResponse = exception.getResponse()
 
-		// Log Zod serialization errors
+		// pino-http is the authoritative request/response logger, so we only emit
+		// EXTRA server-side diagnostics here (not a line per HttpException).
+		const requestId = request?.headers?.["x-request-id"]
+
+		// Zod serialization failures carry structured detail (the Zod issue tree)
+		// that the standard pino-http log line does NOT capture, so we emit that
+		// extra diagnostic here. Ordinary HttpExceptions (including 5xx) are
+		// already logged authoritatively by pino-http, so we do NOT emit a second
+		// generic error line for them.
 		if (exception instanceof ZodSerializationException) {
 			const zodError = exception.getZodError()
 			if (zodError instanceof ZodError) {
-				this.logger.error(`ZodSerializationException: ${zodError.message}`)
+				this.logger.error({ requestId, err: zodError }, "ZodSerializationException")
 			}
 		}
 
@@ -59,6 +70,9 @@ export class HttpExceptionFilter implements ExceptionFilter {
 			timestamp: new Date().toISOString(),
 		}
 
+		// Any Retry-After header the throttler guard set on `response` before
+		// throwing is already present; response.json() below preserves existing
+		// headers, so the 429 Retry-After passes through unchanged.
 		response.status(status).json(errorResponse)
 	}
 }

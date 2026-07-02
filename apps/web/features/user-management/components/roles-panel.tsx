@@ -39,12 +39,14 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/core/components/ui/table"
+import { useRateLimitToast } from "@/core/hooks/use-rate-limit-toast"
 import { useDeleteRoleMutation, useRolesQuery } from "@/features/user-management/api/rbac.hooks"
 import { RoleFormDialog } from "@/features/user-management/components/role-form-dialog"
 
 export function RolesPanel() {
 	const { data: roles, isLoading, isError, error } = useRolesQuery()
 	const deleteRole = useDeleteRoleMutation()
+	const deleteRateLimit = useRateLimitToast(deleteRole.error, { toastId: "rbac-role-delete" })
 
 	const [dialogOpen, setDialogOpen] = useState(false)
 	const [editingRole, setEditingRole] = useState<Role | undefined>(undefined)
@@ -196,9 +198,13 @@ export function RolesPanel() {
 						<AlertDialogAction
 							variant="destructive"
 							onClick={confirmDelete}
-							disabled={deleteRole.isPending}
+							disabled={deleteRole.isPending || deleteRateLimit.isActive}
 						>
-							{deleteRole.isPending ? "Deleting..." : "Delete"}
+							{deleteRateLimit.isActive
+								? `Try again in ${deleteRateLimit.secondsLeft}s`
+								: deleteRole.isPending
+									? "Deleting..."
+									: "Delete"}
 						</AlertDialogAction>
 					</AlertDialogFooter>
 				</AlertDialogContent>

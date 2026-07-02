@@ -28,6 +28,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/core/components/ui/table"
+import { useRateLimitToast } from "@/core/hooks/use-rate-limit-toast"
 import {
 	useAssignRoleMutation,
 	useRemoveRoleMutation,
@@ -40,6 +41,10 @@ export function UsersPanel() {
 	const { data: roles } = useRolesQuery()
 	const assignRole = useAssignRoleMutation()
 	const removeRole = useRemoveRoleMutation()
+
+	// Live 429 countdowns; keep only the triggering control disabled per window.
+	const assignRateLimit = useRateLimitToast(assignRole.error, { toastId: "rbac-assign-role" })
+	const removeRateLimit = useRateLimitToast(removeRole.error, { toastId: "rbac-remove-role" })
 
 	const allRoleNames = useMemo(() => (roles ?? []).map(role => role.name), [roles])
 
@@ -93,7 +98,7 @@ export function UsersPanel() {
 															<button
 																type="button"
 																onClick={() => removeRole.mutate({ userId: user.id, roleName })}
-																disabled={removeRole.isPending}
+																disabled={removeRole.isPending || removeRateLimit.isActive}
 																className="hover:text-destructive inline-flex items-center"
 																aria-label={`Remove ${roleName} from ${user.email}`}
 															>
@@ -118,7 +123,9 @@ export function UsersPanel() {
 														assignRole.mutate({ userId: user.id, roleName: value })
 													}
 												}}
-												disabled={available.length === 0 || assignRole.isPending}
+												disabled={
+													available.length === 0 || assignRole.isPending || assignRateLimit.isActive
+												}
 											>
 												<SelectTrigger size="sm" className="w-full">
 													<SelectValue>Add role</SelectValue>

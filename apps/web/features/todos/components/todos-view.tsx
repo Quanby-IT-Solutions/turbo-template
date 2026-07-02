@@ -23,8 +23,14 @@ import {
 } from "@/core/components/ui/empty"
 import { Input } from "@/core/components/ui/input"
 import { Skeleton } from "@/core/components/ui/skeleton"
+import { useRateLimitToast } from "@/core/hooks/use-rate-limit-toast"
+import { ApiError } from "@/core/lib/api-error"
 import { canAccess, type AccessProfile } from "@/features/dashboard/lib/access"
-import { useCreateTodoMutation, useTodosQuery } from "@/features/todos/api/todos.hooks"
+import {
+	useCreateTodoMutation,
+	useTodoReplayErrors,
+	useTodosQuery,
+} from "@/features/todos/api/todos.hooks"
 import { TodoItem } from "@/features/todos/components/todo-item"
 
 interface TodosViewProps {
@@ -38,13 +44,37 @@ export function TodosView({ access }: TodosViewProps) {
 
 	const { data: todos, isLoading, isError, error } = useTodosQuery()
 	const createTodo = useCreateTodoMutation()
+	const replay = useTodoReplayErrors()
 	const [title, setTitle] = useState("")
+
+	// Live 429 countdown for the create action. Only the Add control is disabled
+	// during the server-advertised retry window; the toast text ticks each second.
+	const createRateLimit = useRateLimitToast(createTodo.error, { toastId: "todo-create-rate-limit" })
+
+	// A mutation paused by `networkMode: "online"` stays `isPending` for the whole
+	// offline session. Only treat an actively in-flight (non-paused) submission as
+	// "submitting" so the user can keep queuing todos while disconnected.
+	const isSubmitting = createTodo.isPending && !createTodo.isPaused
 
 	function handleCreate(event: React.FormEvent) {
 		event.preventDefault()
+		if (createRateLimit.isActive) return
 		const trimmed = title.trim()
 		if (!trimmed) return
-		createTodo.mutate({ title: trimmed, completed: false }, { onSuccess: () => setTitle("") })
+		// Clear the input immediately; the optimistic row appears in the same tick.
+		setTitle("")
+		createTodo.mutate(
+			{ title: trimmed, completed: false },
+			{
+				onError: error => {
+					// Restore the draft when the create was rejected by the rate limiter so
+					// the user's entered title survives the 429 countdown (Core Flow 6).
+					if (error instanceof ApiError && error.status === 429) {
+						setTitle(prev => (prev.trim() ? prev : trimmed))
+					}
+				},
+			}
+		)
 	}
 
 	return (
@@ -71,15 +101,28 @@ export function TodosView({ access }: TodosViewProps) {
 							value={title}
 							onChange={e => setTitle(e.target.value)}
 							placeholder={canCreate ? "New todo title" : "You lack posts:create"}
-							disabled={!canCreate || createTodo.isPending}
+							disabled={!canCreate}
 						/>
-						<Button type="submit" disabled={!canCreate || createTodo.isPending}>
-							{createTodo.isPending ? "Adding..." : "Add"}
+						<Button type="submit" disabled={!canCreate || createRateLimit.isActive}>
+							{createRateLimit.isActive
+								? `Try again in ${createRateLimit.secondsLeft}s`
+								: isSubmitting
+									? "Adding..."
+									: "Add"}
 						</Button>
 					</form>
 					{createTodo.isError ? (
 						<p className="text-destructive pt-2 text-xs">
 							{createTodo.error instanceof Error ? createTodo.error.message : "Create failed"}
+						</p>
+					) : null}
+					{replay.hasErrors ? (
+						<p
+							className="text-destructive pt-2 text-xs"
+							role="alert"
+							data-testid="todo-replay-error"
+						>
+							{replay.message}
 						</p>
 					) : null}
 				</CardContent>

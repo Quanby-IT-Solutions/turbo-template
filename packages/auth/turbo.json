@@ -17,6 +17,9 @@
 		},
 		"format": {
 			"outputs": []
+		},
+		"test": {
+			"outputs": []
 		}
 	}
 }

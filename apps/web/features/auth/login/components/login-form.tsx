@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { useForm } from "@tanstack/react-form"
@@ -15,16 +16,27 @@ import {
 	FieldSeparator,
 } from "@/core/components/ui/field"
 import { Input } from "@/core/components/ui/input"
+import { useRateLimitCountdown } from "@/core/hooks/use-rate-limit-countdown"
+import { parseRateLimitError } from "@/core/lib/rate-limit-utils"
 import { cn } from "@/core/lib/utils"
 import { PasswordInput } from "@/features/auth/components/password-input"
+import { RateLimitBanner } from "@/features/auth/components/rate-limit-banner"
 import { SocialLoginButtons } from "@/features/auth/components/social-login-buttons"
 import { TermsPrivacyNote } from "@/features/auth/components/terms-privacy-note"
+import { ResendVerificationForm } from "@/features/auth/verify-email/components/resend-verification-form"
 
-import { useLoginMutation } from "../api/login.hooks"
+import { UnverifiedEmailError, useLoginMutation } from "../api/login.hooks"
 import { LoginSchema } from "../api/login.schema"
 
 export function LoginForm({ className, ...props }: React.ComponentProps<"div">) {
+	const [showResend, setShowResend] = useState(false)
 	const { mutateAsync: login, isPending, isError, error } = useLoginMutation()
+
+	const isUnverified = error instanceof UnverifiedEmailError
+	const rateLimit = parseRateLimitError(error)
+	const { secondsLeft, isActive } = useRateLimitCountdown(
+		rateLimit.isRateLimit ? rateLimit.retryAfter : null
+	)
 
 	const form = useForm({
 		defaultValues: {
@@ -56,10 +68,32 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
 								<p className="text-muted-foreground text-balance">Login to your account</p>
 							</div>
 
-							{isError && (
+							{isError && isUnverified && (
+								<div className="bg-destructive/10 text-destructive dark:bg-destructive/20 flex flex-col items-start gap-1 rounded-lg p-3 text-sm">
+									<span>Please verify your email before signing in.</span>
+									<Button
+										type="button"
+										variant="link"
+										className="text-destructive h-auto px-0"
+										onClick={() => setShowResend(true)}
+									>
+										Resend verification email
+									</Button>
+								</div>
+							)}
+
+							{isError && !isUnverified && rateLimit.isRateLimit && (
+								<RateLimitBanner message={rateLimit.message} secondsLeft={secondsLeft} />
+							)}
+
+							{isError && !isUnverified && !rateLimit.isRateLimit && (
 								<div className="bg-destructive/10 text-destructive dark:bg-destructive/20 rounded-lg p-3 text-sm">
 									{error instanceof Error ? error.message : "An unexpected error occurred"}
 								</div>
+							)}
+
+							{showResend && isUnverified && (
+								<ResendVerificationForm prefillEmail={(error as UnverifiedEmailError).email} />
 							)}
 
 							<form.Field
@@ -97,7 +131,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
 											<div className="flex items-center">
 												<FieldLabel htmlFor={field.name}>Password</FieldLabel>
 												<Link
-													href="#"
+													href="/forgot-password"
 													className={cn(
 														buttonVariants({ size: "sm", variant: "link" }),
 														"text-card-foreground ml-auto h-auto"
@@ -124,8 +158,16 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
 							/>
 
 							<Field>
-								<Button type="submit" disabled={isPending} className="w-full hover:cursor-pointer">
-									{isPending ? "Signing in..." : "Login"}
+								<Button
+									type="submit"
+									disabled={isPending || isActive}
+									className="w-full hover:cursor-pointer"
+								>
+									{isActive
+										? `Try again in ${secondsLeft}s`
+										: isPending
+											? "Signing in..."
+											: "Login"}
 								</Button>
 							</Field>
 

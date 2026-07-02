@@ -2,6 +2,7 @@ import "dotenv/config"
 
 import type { NextConfig } from "next"
 import path from "node:path"
+import { withSerwist } from "@serwist/turbopack"
 
 import "./env"
 
@@ -29,4 +30,4 @@ const config: NextConfig = {
 	},
 }
 
-export default config
+export default withSerwist(config)

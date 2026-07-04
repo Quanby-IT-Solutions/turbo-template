@@ -149,7 +149,8 @@
       "PowerShell(node scripts/tickets-to-issues.mjs docs/TICKETS.md --dry-run 2>&1)",
       "PowerShell(git status *)",
       "PowerShell(git check-ignore *)",
-      "PowerShell(git push *)"
+      "PowerShell(git push *)",
+      "Bash(rtk ls *)"
     ]
   }
 }

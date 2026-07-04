@@ -62,7 +62,7 @@ docker compose up -d --build
 docker compose up -d --no-deps nginx
 ```
 
-| Service        | URL                            |
+| Services        | URL                            |
 | -------------- | ------------------------------ |
 | App (web)      | http://localhost               |
 | Backend API    | http://localhost/api/v1        |

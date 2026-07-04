@@ -150,7 +150,12 @@
       "PowerShell(git status *)",
       "PowerShell(git check-ignore *)",
       "PowerShell(git push *)",
-      "Bash(rtk ls *)"
+      "Bash(rtk ls *)",
+      "Bash(rtk grep *)",
+      "Bash(rtk read *)",
+      "Bash(rtk git *)",
+      "Bash(rtk pnpm *)",
+      "Bash(rtk proxy *)"
     ]
   }
 }

@@ -1,0 +1,68 @@
+name: Auto Draft PR
+
+on:
+  push:
+    branches: ['[0-9]+-**']
+
+# Least-privilege default; the App token carries its own elevated permissions.
+permissions:
+  contents: read
+
+jobs:
+  draft-pr:
+    name: Open draft PR for issue branch
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mint GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ vars.PR_BOT_APP_ID }}
+          private-key: ${{ secrets.PR_BOT_APP_PRIVATE_KEY }}
+          # GitHub App must be granted: contents:write, pull-requests:write, issues:write
+
+      - name: Derive issue number from branch name
+        id: issue
+        run: |
+          BRANCH="${{ github.ref_name }}"
+          ISSUE_NUM=$(echo "$BRANCH" | grep -oE '^[0-9]+')
+          echo "number=${ISSUE_NUM}" >> "$GITHUB_OUTPUT"
+
+      - name: Check for existing open PR
+        id: existing
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          COUNT=$(gh pr list \
+            --head "${{ github.ref_name }}" \
+            --state open \
+            --json number \
+            --jq 'length' \
+            --repo "${{ github.repository }}")
+          echo "count=${COUNT}" >> "$GITHUB_OUTPUT"
+
+      - name: Fetch issue title
+        id: meta
+        if: steps.existing.outputs.count == '0'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          TITLE=$(gh issue view "${{ steps.issue.outputs.number }}" \
+            --json title \
+            --jq '.title' \
+            --repo "${{ github.repository }}")
+          echo "title=${TITLE}" >> "$GITHUB_OUTPUT"
+
+      - name: Create draft PR
+        if: steps.existing.outputs.count == '0'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          PR_TITLE: ${{ steps.meta.outputs.title }}
+        run: |
+          gh pr create \
+            --draft \
+            --base dev \
+            --head "${{ github.ref_name }}" \
+            --title "$PR_TITLE" \
+            --body "Closes #${{ steps.issue.outputs.number }}" \
+            --repo "${{ github.repository }}"

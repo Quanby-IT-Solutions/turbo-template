@@ -143,7 +143,10 @@
       "Bash(pnpm --filter @repo/backend lint)",
       "Bash(pnpm --filter @repo/auth test)",
       "Bash(pnpm --filter @repo/backend test)",
-      "Bash(pnpm --filter @repo/web build)"
+      "Bash(pnpm --filter @repo/web build)",
+      "PowerShell(gh auth *)",
+      "PowerShell(node --check scripts/tickets-to-issues.mjs; echo \"syntax OK\")",
+      "PowerShell(node scripts/tickets-to-issues.mjs docs/TICKETS.md --dry-run 2>&1)"
     ]
   }
 }

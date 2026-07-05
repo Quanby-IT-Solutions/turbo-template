@@ -248,7 +248,7 @@ Before your first deploy, go to **Settings → Environments** and create `stagin
 After the first staging deployment, SSH into EC2 to set up HTTPS:
 
 ```bash
-ssh -i your-key.pem ubuntu@<EC2_HOST>
+ssh -i your-key.pem ubuntu@EC2_HOST
 sudo certbot --nginx -d stg-turbo.quanbyit.com -d stg-turbo-be.quanbyit.com
 sudo certbot renew --dry-run
 ```
@@ -291,7 +291,7 @@ certbot/ACM cert. Same path routing — no second domain or cert needed.
 <summary>Staging</summary>
 
 ```bash
-ssh -i your-key.pem ubuntu@<EC2_HOST>
+ssh -i your-key.pem ubuntu@EC2_HOST
 cd /opt/staging && docker compose -f docker-compose.staging.yml ps
 docker compose -f docker-compose.staging.yml logs web
 docker compose -f docker-compose.staging.yml logs backend
@@ -304,9 +304,9 @@ sudo nginx -t && sudo systemctl status nginx
 <summary>Production</summary>
 
 ```bash
-aws ecs describe-services --cluster <CLUSTER> --services <SERVICE> --query 'services[0].events[:5]'
-aws logs tail /ecs/<PROJECT_NAME>-web-production --follow
-aws logs tail /ecs/<PROJECT_NAME>-backend-production --follow
+aws ecs describe-services --cluster CLUSTER --services SERVICE --query 'services[0].events[:5]'
+aws logs tail /ecs/PROJECT_NAME-web-production --follow
+aws logs tail /ecs/PROJECT_NAME-backend-production --follow
 ```
 
 </details>
@@ -328,5 +328,3 @@ git push --no-verify
 ## Links
 
 - [Turborepo](https://turbo.build/docs) · [Next.js](https://nextjs.org/docs) · [NestJS](https://docs.nestjs.com/) · [Drizzle](https://orm.drizzle.team/) · [Better Auth](https://better-auth.com/docs)
- 
- 

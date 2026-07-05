@@ -19,7 +19,7 @@ export default defineConfig({
 		video: "off",
 	},
 	webServer: {
-		command: "pnpm --filter @repo/web build && pnpm --filter @repo/web start",
+		command: "pnpm turbo run start --filter=@repo/web",
 		url: "http://localhost:3001",
 		timeout: 120_000,
 		reuseExistingServer: !process.env.CI,

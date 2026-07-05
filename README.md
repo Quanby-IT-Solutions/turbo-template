@@ -46,6 +46,10 @@ After `pnpm dev`:
 | Backend API    | http://localhost:3000/api/v1         |
 | API reference  | http://localhost:3000/api/v1/docs    |
 
+## Coverage thresholds are a floor
+
+These coverage numbers are the minimum for the scaffold. In your real project, raise them as you add tested features following the template's patterns — never lower them. Example modules (todo/notes) are excluded from coverage because you'll replace them. See `docs/QA-SETUP-CHANGES.md` for the full table.
+
 ### Run on a single port (Docker + Nginx)
 
 Serve **web and backend through one origin** (and, in production, one TLS

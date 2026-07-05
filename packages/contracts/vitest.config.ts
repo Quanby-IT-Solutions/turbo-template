@@ -22,6 +22,7 @@ export default defineConfig({
 				"**/*.test.*",
 				"**/*.d.ts",
 				"**/node_modules/**",
+				"**/modules/v1/examples/**",
 			],
 		},
 	},

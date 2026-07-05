@@ -17,10 +17,12 @@
 	"scripts": {
 		"build": "tsc",
 		"dev": "tsc --watch",
-		"format": "prettier --write \"src/**/*.ts\"",
+		"format": "prettier --check \"src/**/*.ts\"",
+		"format:fix": "prettier --write \"src/**/*.ts\"",
 		"lint": "eslint --flag unstable_native_nodejs_ts_config \"src/**/*.ts\" --fix",
 		"typecheck": "tsc --noEmit",
 		"test": "vitest run",
+		"test:cov": "vitest run --coverage",
 		"test:watch": "vitest",
 		"generate": "better-auth generate"
 	},
@@ -37,6 +39,7 @@
 		"@repo/tsconfig": "workspace:*",
 		"@types/node": "catalog:",
 		"@types/nodemailer": "^6.4.17",
+		"@vitest/coverage-v8": "^4.1.2",
 		"eslint": "catalog:",
 		"prettier": "catalog:",
 		"typescript": "catalog:",

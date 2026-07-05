@@ -1,0 +1,112 @@
+name: Release + Changelog
+
+on:
+  push:
+    branches: [production]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: production
+
+      - name: Compute date-based version tag
+        id: version
+        run: |
+          set -euo pipefail
+          DATE=$(date -u +'%Y.%m.%d')
+          BASE="v${DATE}"
+          if git rev-parse "$BASE" >/dev/null 2>&1; then
+            N=2
+            while git rev-parse "${BASE}.${N}" >/dev/null 2>&1; do N=$((N+1)); done
+            TAG="${BASE}.${N}"
+          else
+            TAG="$BASE"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Release tag: $TAG"
+
+      - name: Find the previous release tag
+        id: prev
+        run: |
+          set -euo pipefail
+          PREV=$(git tag --list 'v[0-9]*' --sort=-creatordate | head -n1 || true)
+          echo "prev=$PREV" >> "$GITHUB_OUTPUT"
+          echo "Previous release: ${PREV:-<none>}"
+
+      - name: Generate changelog body from merged PR titles
+        id: changelog
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          PREV="${{ steps.prev.outputs.prev }}"
+          TAG="${{ steps.version.outputs.tag }}"
+          if [ -n "$PREV" ]; then
+            RANGE="${PREV}..HEAD"
+          else
+            RANGE="HEAD"
+          fi
+          PR_NUMS=$(git log $RANGE --pretty=%s | grep -oE '#[0-9]+' | tr -d '#' | sort -u || true)
+          OUT="## ${TAG} — $(date -u +'%Y-%m-%d')\n\n"
+          if [ -z "$PR_NUMS" ]; then
+            OUT="${OUT}_No pull requests found in this release._\n"
+          else
+            declare -A GROUPS
+            for N in $PR_NUMS; do
+              TITLE=$(gh pr view "$N" --json title --jq '.title' 2>/dev/null || echo '')
+              [ -z "$TITLE" ] && continue
+              EPIC=$(gh pr view "$N" --json labels --jq '[.labels[].name | select(. != "ticket")][0] // "Other"' 2>/dev/null || echo 'Other')
+              [ -z "$EPIC" ] && EPIC="Other"
+              GROUPS["$EPIC"]+="- ${TITLE} (#${N})"$'\n'
+            done
+            for EPIC in $(printf '%s\n' "${!GROUPS[@]}" | sort); do
+              [ "$EPIC" = "Other" ] && continue
+              OUT="${OUT}### ${EPIC}\n${GROUPS[$EPIC]}\n"
+            done
+            if [ -n "${GROUPS[Other]:-}" ]; then
+              OUT="${OUT}### Other\n${GROUPS[Other]}\n"
+            fi
+          fi
+          printf "%b" "$OUT" > release-body.md
+          echo "----- changelog preview -----"
+          cat release-body.md
+
+      - name: Prepend to CHANGELOG.md
+        run: |
+          set -euo pipefail
+          touch CHANGELOG.md
+          { echo "# Changelog"; echo ""; cat release-body.md; echo ""; tail -n +2 CHANGELOG.md; } > CHANGELOG.new
+          mv CHANGELOG.new CHANGELOG.md
+
+      - name: Commit changelog + create tag
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.version.outputs.tag }}"
+          git config user.name  "release-bot"
+          git config user.email "release-bot@users.noreply.github.com"
+          git add CHANGELOG.md
+          git commit -m "chore(release): ${TAG}" || echo "no changelog change to commit"
+          git push origin production
+          git tag -a "$TAG" -m "Release ${TAG}"
+          git push origin "$TAG"
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.version.outputs.tag }}"
+          gh release create "$TAG" --title "$TAG" --notes-file release-body.md --target production

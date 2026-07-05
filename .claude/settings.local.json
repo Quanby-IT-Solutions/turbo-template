@@ -155,7 +155,9 @@
       "Bash(rtk read *)",
       "Bash(rtk git *)",
       "Bash(rtk pnpm *)",
-      "Bash(rtk proxy *)"
+      "Bash(rtk proxy *)",
+      "Bash(rtk npx *)",
+      "Bash(pnpm dlx *)"
     ]
   }
 }

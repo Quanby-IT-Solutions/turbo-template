@@ -157,7 +157,8 @@
       "Bash(rtk pnpm *)",
       "Bash(rtk proxy *)",
       "Bash(rtk npx *)",
-      "Bash(pnpm dlx *)"
+      "Bash(pnpm dlx *)",
+      "Bash(rtk find *)"
     ]
   }
 }

@@ -23,7 +23,6 @@
 		"@orpc/contract": "catalog:",
 		"@orpc/nest": "catalog:",
 		"nestjs-zod": "catalog:",
-		"orpc": "^0.1.1",
 		"zod": "catalog:"
 	},
 	"devDependencies": {

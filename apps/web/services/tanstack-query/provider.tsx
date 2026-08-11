@@ -16,31 +16,82 @@ import { setupOnlineManagerBridge } from "@/features/pwa/lib/online-manager-brid
 import { registerTodosMutationDefaults } from "@/features/todos/api/todos.hooks"
 
 import {
+	ANONYMOUS_CACHE_IDENTITY,
+	createIdentityScopedStorage,
+	PERSISTED_CACHE_BUSTER,
+	PERSISTED_CACHE_KEY_PREFIX,
+	PERSISTED_CACHE_MAX_AGE,
+	readCacheIdentity,
+	writeCacheIdentity,
+} from "./cache-persistence"
+import {
 	deserializeQueryData,
 	getQueryClient,
 	serializeQueryData,
 	shouldDehydrateMutation,
-	shouldDehydrateQuery,
+	shouldPersistQuery,
 } from "./query-client"
 
 // IndexedDB-backed AsyncStorage adapter for the persister. Wrapped in a
 // `typeof window` guard so it is never constructed on the server.
+//
+// WC-1: the key is explicit and identity-scoped (the adapter appends the
+// current identity), so one browser profile keeps one bucket per user instead
+// of a single shared one.
 function createIdbPersister() {
 	if (typeof window === "undefined") return null
 
 	return createAsyncStoragePersister({
-		storage: {
-			getItem: key => get(key),
-			setItem: (key, value) => set(key, value),
-			removeItem: key => del(key),
-		},
+		key: PERSISTED_CACHE_KEY_PREFIX,
+		storage: createIdentityScopedStorage({
+			get: key => get<string>(key),
+			set: (key, value) => set(key, value),
+			del: key => del(key),
+		}),
 	})
+}
+
+/**
+ * Records which user owns the persisted cache (WC-1).
+ *
+ * Mounted by `CacheIdentity` inside the authenticated subtrees rather than by
+ * `QueryProvider` itself, because resolving the session is a cookie read and
+ * doing that in the root layout makes **every** route dynamic — including
+ * `/login`, `/register` and the PWA's `/~offline` fallback, which must stay
+ * prerenderable.
+ *
+ * The stamp happens during render, not in an effect. React runs a child's
+ * render before its parent's effects, and `PersistQueryClientProvider` starts
+ * its restore in a parent effect — so writing the identity here is guaranteed
+ * to land before the first snapshot is read from disk.
+ */
+export function CacheIdentityStamp({ userId }: Readonly<{ userId: string | null }>) {
+	const queryClient = getQueryClient()
+
+	React.useState(() => writeCacheIdentity(userId))
+
+	// A handover within one tab (signing in as someone else) must not carry the
+	// previous user's in-memory rows over. Only a swap between two *identified*
+	// users needs the clear; anon -> user is a normal first load.
+	React.useEffect(() => {
+		const previous = readCacheIdentity()
+		writeCacheIdentity(userId)
+		const next = readCacheIdentity()
+
+		if (previous !== next && previous !== ANONYMOUS_CACHE_IDENTITY) {
+			queryClient.clear()
+		}
+	}, [userId, queryClient])
+
+	return null
 }
 
 export function QueryProvider({ children }: Readonly<{ children: React.ReactNode }>) {
 	const queryClient = getQueryClient()
 
-	// Instantiate the persister once, lazily, and only on the client.
+	// Instantiate the persister once, lazily, and only on the client. It reads
+	// the cache identity on every storage call, so a stamp from a descendant
+	// takes effect without reconstructing anything.
 	const [persister] = React.useState(createIdbPersister)
 
 	// Register rehydratable mutation defaults synchronously so newly created
@@ -70,13 +121,21 @@ export function QueryProvider({ children }: Readonly<{ children: React.ReactNode
 			client={queryClient}
 			persistOptions={{
 				persister,
+				// WC-1: a restored snapshot expires well before the in-memory
+				// 24h gcTime, and the buster discards every snapshot whenever
+				// the persisted shape changes.
+				maxAge: PERSISTED_CACHE_MAX_AGE,
+				buster: PERSISTED_CACHE_BUSTER,
 				// PersistQueryClientProvider does NOT merge these with the
 				// QueryClient defaults — it uses them directly. So the IndexedDB
 				// snapshot must explicitly reuse the same serializer-aware
 				// dehydrate/hydrate logic as query-client.ts, or restored cache
 				// loses oRPC serialization semantics.
+				//
+				// `shouldPersistQuery` (not `shouldDehydrateQuery`) applies here:
+				// session and rbac data must never reach disk.
 				dehydrateOptions: {
-					shouldDehydrateQuery,
+					shouldDehydrateQuery: shouldPersistQuery,
 					shouldDehydrateMutation,
 					serializeData: serializeQueryData,
 				},

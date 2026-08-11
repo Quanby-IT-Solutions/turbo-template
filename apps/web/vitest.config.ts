@@ -13,6 +13,12 @@ export default defineConfig({
 		setupFiles: ["./vitest.setup.ts"],
 		globals: true,
 		passWithNoTests: true,
+		// `next build` copies the whole app (tests included) into
+		// `.next/standalone`. Without this, every suite runs twice — once from
+		// source and once from a build snapshot that is stale the moment anyone
+		// edits a file, so a broken change can be reported green by its own
+		// outdated copy. Only source is ever collected.
+		exclude: ["**/node_modules/**", "**/dist/**", "**/.next/**"],
 		coverage: {
 			provider: "v8",
 			reporter: ["text", "json", "json-summary", "html"],

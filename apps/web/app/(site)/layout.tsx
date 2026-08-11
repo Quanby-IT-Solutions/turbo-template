@@ -2,6 +2,7 @@ import { redirect } from "next/navigation"
 
 import { SidebarInset, SidebarProvider } from "@/core/components/ui/sidebar"
 import { getSession } from "@/services/better-auth/auth-server"
+import { CacheIdentity } from "@/services/tanstack-query/cache-identity"
 import { AppSidebar } from "@/features/dashboard/components/app-sidebar"
 import { SiteHeader } from "@/features/dashboard/components/site-header"
 import { getAccess } from "@/features/dashboard/server/get-access"
@@ -26,6 +27,8 @@ export default async function SiteLayout({
 
 	return (
 		<SidebarProvider>
+			{/* WC-1: scope the persisted cache to this user before anything reads it. */}
+			<CacheIdentity />
 			<AppSidebar user={user} access={access} />
 			<SidebarInset>
 				<SiteHeader />

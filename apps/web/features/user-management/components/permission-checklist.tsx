@@ -6,6 +6,7 @@ import type { PermissionName } from "@repo/contracts"
 
 import { Checkbox } from "@/core/components/ui/checkbox"
 import { Field, FieldLabel } from "@/core/components/ui/field"
+import { useIsQueryLoading } from "@/services/tanstack-query/use-query-loading"
 import { usePermissionsQuery } from "@/features/user-management/api/rbac.hooks"
 
 interface PermissionChecklistProps {
@@ -15,7 +16,13 @@ interface PermissionChecklistProps {
 }
 
 export function PermissionChecklist({ value, onChange, disabled }: PermissionChecklistProps) {
-	const { data: permissions, isLoading, isError, error } = usePermissionsQuery()
+	const permissionsQuery = usePermissionsQuery()
+	const { data: permissions, isError, error } = permissionsQuery
+
+	// WC-1: during the persisted-cache restore a pending query reports
+	// `isLoading === false`; without this the checklist flashes "no permissions"
+	// before the snapshot lands. See `useIsQueryLoading`.
+	const isQueryLoading = useIsQueryLoading()
 
 	const grouped = useMemo(() => {
 		const groups = new Map<string, PermissionName[]>()
@@ -38,7 +45,7 @@ export function PermissionChecklist({ value, onChange, disabled }: PermissionChe
 		}
 	}
 
-	if (isLoading) {
+	if (isQueryLoading(permissionsQuery)) {
 		return <p className="text-muted-foreground text-sm">Loading permissions...</p>
 	}
 

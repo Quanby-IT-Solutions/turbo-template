@@ -36,6 +36,50 @@ export function shouldDehydrateMutation(mutation: { state: { isPaused: boolean }
 }
 
 /**
+ * Query-key roots that must never be written to IndexedDB (WC-1 / F-04).
+ *
+ * `session` carries the signed-in identity; `rbac` carries the full user
+ * directory including every email address. Persisting either hands the next
+ * person on a shared browser profile a readable copy of the previous user's
+ * data. This is an exclusion, not an allowlist of safe keys — new sensitive
+ * roots must be added here, and anything unrecognised stays out by falling
+ * through to the SSR predicate only when its root is not listed.
+ */
+export const NON_PERSISTED_QUERY_ROOTS = ["session", "rbac"] as const
+
+/**
+ * The string labels in a query key's first segment. Handles both plain keys
+ * (`["session"]`, `["rbac","users"]`) and oRPC's nested path segment
+ * (`[["orpc","example","todo","list"], { type, input }]`).
+ */
+function queryKeyLabels(queryKey: readonly unknown[]): string[] {
+	const [first] = queryKey
+
+	if (typeof first === "string") return [first]
+	if (Array.isArray(first)) return first.filter((part): part is string => typeof part === "string")
+	return []
+}
+
+/**
+ * Whether a query may be written to the persisted (IndexedDB) cache.
+ *
+ * Deliberately separate from `shouldDehydrateQuery`: SSR dehydration streams
+ * to the same client that made the request and may legitimately carry session
+ * data, while persistence outlives the session and the tab.
+ */
+export function shouldPersistQuery(query: {
+	queryKey: readonly unknown[]
+	state: { status: string }
+}) {
+	const denied = new Set<string>(NON_PERSISTED_QUERY_ROOTS)
+	if (queryKeyLabels(query.queryKey).some(label => denied.has(label))) {
+		return false
+	}
+
+	return shouldDehydrateQuery(query)
+}
+
+/**
  * Creates a QueryClient with oRPC-compatible key hashing and dehydration/hydration.
  * Safe for both oRPC and non-oRPC queries (e.g. session).
  */

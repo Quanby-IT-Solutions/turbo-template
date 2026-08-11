@@ -2,8 +2,13 @@
 
 import { useRouter } from "next/navigation"
 import { queryOptions, useMutation, useQueryClient } from "@tanstack/react-query"
+import { toast } from "sonner"
 
 import { authClient } from "@/services/better-auth/auth-client"
+import {
+	purgePersistedCache,
+	writeCacheIdentity,
+} from "@/services/tanstack-query/cache-persistence"
 
 /**
  * Centralized query keys for session-related queries.
@@ -35,7 +40,13 @@ export const sessionOptions = queryOptions({
 /**
  * Mutation hook for signing out the current user.
  *
- * Invalidates the session query and redirects to home page on success.
+ * Purges every trace of the session's cached data, then redirects home.
+ *
+ * WC-1 / Risky Flow **RF1** — the order is normative: memory first
+ * (`queryClient.clear()`), then disk (`purgePersistedCache()`), then navigate.
+ * Clearing memory first stops the persister from re-writing a snapshot after
+ * the delete; navigating last means a purge failure surfaces as a failed
+ * sign-out rather than a silent hand-over of the previous user's data.
  */
 export function useSignOutMutation() {
 	const router = useRouter()
@@ -47,12 +58,26 @@ export function useSignOutMutation() {
 			if (result.error) {
 				throw new Error(result.error.message || "Failed to sign out")
 			}
+			// The purge lives in `mutationFn`, not `onSuccess`: a throw here is
+			// unambiguously a failed mutation, so the error state and the toast
+			// below actually fire. A throw from a success callback is not a
+			// dependable error channel.
+			queryClient.clear()
+			await purgePersistedCache()
+			writeCacheIdentity(null)
+
 			return result
 		},
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: sessionKeys.all })
 			router.push("/")
 			router.refresh()
+		},
+		// A purge that throws leaves a readable snapshot on disk. Say so out
+		// loud rather than navigating away as though sign-out were complete.
+		onError: () => {
+			toast.error("Sign-out could not clear this device's cached data. Please try again.", {
+				id: "sign-out-error",
+			})
 		},
 	})
 }

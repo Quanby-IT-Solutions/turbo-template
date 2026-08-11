@@ -28,6 +28,7 @@ import {
 } from "@/core/components/ui/empty"
 import { Skeleton } from "@/core/components/ui/skeleton"
 import { cn } from "@/core/lib/utils"
+import { useIsQueryLoading } from "@/services/tanstack-query/use-query-loading"
 import { canAccess, type AccessProfile } from "@/features/dashboard/lib/access"
 import { getAccessibleNavItems } from "@/features/dashboard/lib/nav-items"
 import { useTodosQuery } from "@/features/todos/api/todos.hooks"
@@ -50,6 +51,10 @@ export function DashboardOverview({ user, access }: DashboardOverviewProps) {
 	const todos = useTodosQuery()
 	const users = useUsersQuery()
 	const roles = useRolesQuery()
+
+	// WC-1: the persisted-cache restore pins `fetchStatus` to `idle`, so raw
+	// `isLoading` disagrees with the server render. See `useIsQueryLoading`.
+	const isQueryLoading = useIsQueryLoading()
 
 	const firstName = user.name?.trim().split(/\s+/)[0] || "there"
 	const completedTodos = todos.data?.filter(todo => todo.completed).length ?? 0
@@ -86,7 +91,7 @@ export function DashboardOverview({ user, access }: DashboardOverviewProps) {
 						label="Total todos"
 						value={todos.data?.length}
 						hint={`${completedTodos} completed`}
-						isLoading={todos.isLoading}
+						isLoading={isQueryLoading(todos)}
 						isError={todos.isError}
 					/>
 				) : null}
@@ -96,7 +101,7 @@ export function DashboardOverview({ user, access }: DashboardOverviewProps) {
 						label="Users"
 						value={users.data?.length}
 						hint="Across all roles"
-						isLoading={users.isLoading}
+						isLoading={isQueryLoading(users)}
 						isError={users.isError}
 					/>
 				) : null}
@@ -106,7 +111,7 @@ export function DashboardOverview({ user, access }: DashboardOverviewProps) {
 						label="Roles"
 						value={roles.data?.length}
 						hint="Defined in the workspace"
-						isLoading={roles.isLoading}
+						isLoading={isQueryLoading(roles)}
 						isError={roles.isError}
 					/>
 				) : null}
@@ -155,7 +160,7 @@ export function DashboardOverview({ user, access }: DashboardOverviewProps) {
 					<CardContent>
 						<RecentTodos
 							enabled={canReadPosts}
-							isLoading={todos.isLoading}
+							isLoading={isQueryLoading(todos)}
 							isError={todos.isError}
 							todos={todos.data}
 						/>

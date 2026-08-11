@@ -40,11 +40,18 @@ import {
 	TableRow,
 } from "@/core/components/ui/table"
 import { useRateLimitToast } from "@/core/hooks/use-rate-limit-toast"
+import { useIsQueryLoading } from "@/services/tanstack-query/use-query-loading"
 import { useDeleteRoleMutation, useRolesQuery } from "@/features/user-management/api/rbac.hooks"
 import { RoleFormDialog } from "@/features/user-management/components/role-form-dialog"
 
 export function RolesPanel() {
-	const { data: roles, isLoading, isError, error } = useRolesQuery()
+	const rolesQuery = useRolesQuery()
+	const { data: roles, isError, error } = rolesQuery
+
+	// WC-1: the persisted-cache restore pins `fetchStatus` to `idle`, so raw
+	// `isLoading` disagrees with the server render. See `useIsQueryLoading`.
+	const isQueryLoading = useIsQueryLoading()
+
 	const deleteRole = useDeleteRoleMutation()
 	const deleteRateLimit = useRateLimitToast(deleteRole.error, { toastId: "rbac-role-delete" })
 
@@ -83,7 +90,7 @@ export function RolesPanel() {
 				</Button>
 			</div>
 
-			{isLoading ? (
+			{isQueryLoading(rolesQuery) ? (
 				<div className="flex flex-col gap-2">
 					<Skeleton className="h-10 w-full" />
 					<Skeleton className="h-10 w-full" />

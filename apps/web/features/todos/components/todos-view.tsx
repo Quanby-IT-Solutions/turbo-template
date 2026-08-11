@@ -25,6 +25,7 @@ import { Input } from "@/core/components/ui/input"
 import { Skeleton } from "@/core/components/ui/skeleton"
 import { useRateLimitToast } from "@/core/hooks/use-rate-limit-toast"
 import { ApiError } from "@/core/lib/api-error"
+import { useIsQueryLoading } from "@/services/tanstack-query/use-query-loading"
 import { canAccess, type AccessProfile } from "@/features/dashboard/lib/access"
 import {
 	useCreateTodoMutation,
@@ -42,7 +43,13 @@ export function TodosView({ access }: TodosViewProps) {
 	const canEdit = canAccess(access, { requiredPermission: "posts:edit" })
 	const canDelete = canAccess(access, { requiredPermission: "posts:delete" })
 
-	const { data: todos, isLoading, isError, error } = useTodosQuery()
+	const todosQuery = useTodosQuery()
+	const { data: todos, isError, error } = todosQuery
+
+	// WC-1: the persisted-cache restore pins `fetchStatus` to `idle`, so raw
+	// `isLoading` disagrees with the server render. See `useIsQueryLoading`.
+	const isQueryLoading = useIsQueryLoading()
+
 	const createTodo = useCreateTodoMutation()
 	const replay = useTodoReplayErrors()
 	const [title, setTitle] = useState("")
@@ -129,7 +136,7 @@ export function TodosView({ access }: TodosViewProps) {
 			</Card>
 
 			<div className="flex flex-col gap-2">
-				{isLoading ? (
+				{isQueryLoading(todosQuery) ? (
 					<>
 						<Skeleton className="h-12 w-full" />
 						<Skeleton className="h-12 w-full" />

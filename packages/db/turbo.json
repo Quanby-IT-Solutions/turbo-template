@@ -21,6 +21,15 @@
 		},
 		"migrate": {
 			"cache": false
+		},
+		"typecheck": {
+			"outputs": []
+		},
+		"format": {
+			"outputs": []
+		},
+		"test": {
+			"outputs": []
 		}
 	}
 }

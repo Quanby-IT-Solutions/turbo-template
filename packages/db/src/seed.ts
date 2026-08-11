@@ -1,7 +1,8 @@
+/* eslint-disable no-console -- CLI entrypoint: stdout/stderr is this script's only UI. */
 import "dotenv/config"
 
 import { randomBytes, scryptSync } from "node:crypto"
-import { inArray, or } from "drizzle-orm"
+import { and, eq, inArray, or } from "drizzle-orm"
 import { drizzle } from "drizzle-orm/node-postgres"
 import { Pool } from "pg"
 
@@ -24,6 +25,15 @@ import {
 	userRoles,
 	users,
 } from "./schema.js"
+import {
+	ALLOW_REMOTE_SEED_ENV,
+	assertSeedAllowed,
+	FORCE_PASSWORD_FLAG,
+	hasForcePasswordFlag,
+	resolveSeedPassword,
+	SeedRefusedError,
+	shouldWritePassword,
+} from "./seed-guard.js"
 
 async function hashPassword(password: string): Promise<string> {
 	const saltHex = randomBytes(16).toString("hex")
@@ -44,10 +54,22 @@ async function seedDatabase() {
 		throw new Error("DATABASE_URL environment variable is not set")
 	}
 
+	// RF3: refuse production (and any non-local database) BEFORE opening a pool
+	// or writing a single row. Throws SeedRefusedError -> non-zero exit below.
+	assertSeedAllowed({
+		nodeEnv: process.env.NODE_ENV,
+		databaseUrl: connectionString,
+		allowRemote: process.env[ALLOW_REMOTE_SEED_ENV] === "true",
+	})
+
+	const forcePassword = hasForcePasswordFlag(process.argv.slice(2))
+	const { password: seedPassword, generated: passwordWasGenerated } = resolveSeedPassword(
+		process.env.SEED_ADMIN_PASSWORD
+	)
+
 	const pool = new Pool({ connectionString })
 	const db = drizzle({ client: pool, schema })
 	const now = new Date()
-	const seedPassword = "password123"
 	const hashedSeedPassword = await hashPassword(seedPassword)
 
 	const seedUsers: Array<typeof users.$inferInsert> = [
@@ -203,6 +225,7 @@ async function seedDatabase() {
 
 	let rolePermissionCount = 0
 	let userRoleCount = 0
+	let passwordsWritten = false
 
 	try {
 		await db.transaction(async tx => {
@@ -222,18 +245,36 @@ async function seedDatabase() {
 					})
 			}
 
+			// AC-2: re-running the seeder must NOT rotate credentials that already
+			// exist — only an explicit --force-password does that. New accounts still
+			// get the resolved password on the INSERT path.
+			const existingCredentialRows = await tx
+				.select({ accountId: accounts.accountId })
+				.from(accounts)
+				.where(
+					and(eq(accounts.providerId, "credential"), inArray(accounts.accountId, seededUserIds))
+				)
+			const existingCredentialIds = new Set(existingCredentialRows.map(row => row.accountId))
+
 			for (const account of seedCredentialAccounts) {
+				const writePassword = shouldWritePassword({
+					accountExists: existingCredentialIds.has(account.accountId),
+					forcePassword,
+				})
+
 				await tx
 					.insert(accounts)
 					.values(account)
 					.onConflictDoUpdate({
 						target: [accounts.providerId, accounts.accountId],
-						set: {
-							userId: account.userId,
-							password: account.password,
-							updatedAt: now,
-						},
+						set: writePassword
+							? { userId: account.userId, password: account.password, updatedAt: now }
+							: { userId: account.userId, updatedAt: now },
 					})
+
+				if (writePassword) {
+					passwordsWritten = true
+				}
 			}
 
 			for (const role of seedRoles) {
@@ -301,10 +342,20 @@ async function seedDatabase() {
 			await tx.insert(tickets).values(seedTickets)
 		})
 
+		// The password is printed ONLY when this run generated it AND actually
+		// wrote it. An operator-supplied SEED_ADMIN_PASSWORD is never echoed, and
+		// a preserved existing password is not ours to disclose.
+		const credentialNote = !passwordsWritten
+			? `Existing seed credentials left untouched (re-run with ${FORCE_PASSWORD_FLAG} to reset them).`
+			: passwordWasGenerated
+				? `Generated seed password (shown once, not stored anywhere): ${seedPassword}`
+				: "Seed password taken from SEED_ADMIN_PASSWORD (not printed)."
+
 		console.log(
 			`Seeded ${seedUsers.length} users, ${seedCredentialAccounts.length} credential accounts, ${seedTodos.length} todos, and ${seedTickets.length} tickets.\n` +
-				`RBAC: ${seedRoles.length} roles, ${seedPermissions.length} permissions, ${rolePermissionCount} role-permission mappings, ${userRoleCount} user-role assignments.\n` +
-				`Default password: ${seedPassword}`
+				`RBAC: ${seedRoles.length} roles, ${seedPermissions.length} permissions, ${rolePermissionCount} role-permission mappings, ${userRoleCount} user-role assignments.\n${
+					credentialNote
+				}`
 		)
 	} finally {
 		await pool.end()
@@ -312,7 +363,13 @@ async function seedDatabase() {
 }
 
 void seedDatabase().catch(error => {
-	console.error("Database seeding failed.")
-	console.error(error)
+	// A refusal is a deliberate outcome, not a crash: print the actionable
+	// message without a stack trace, but still exit non-zero so CI/scripts stop.
+	if (error instanceof SeedRefusedError) {
+		console.error(error.message)
+	} else {
+		console.error("Database seeding failed.")
+		console.error(error)
+	}
 	process.exitCode = 1
 })

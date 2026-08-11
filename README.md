@@ -40,11 +40,11 @@ pnpm dev
 
 After `pnpm dev`:
 
-| Service        | URL                                  |
-| -------------- | ------------------------------------ |
-| Web            | http://localhost:3001                |
-| Backend API    | http://localhost:3000/api/v1         |
-| API reference  | http://localhost:3000/api/v1/docs    |
+| Service       | URL                               |
+| ------------- | --------------------------------- |
+| Web           | http://localhost:3001             |
+| Backend API   | http://localhost:3000/api/v1      |
+| API reference | http://localhost:3000/api/v1/docs |
 
 ## Coverage thresholds are a floor
 
@@ -66,11 +66,11 @@ docker compose up -d --build
 docker compose up -d --no-deps nginx
 ```
 
-| Services        | URL                            |
-| -------------- | ------------------------------ |
-| App (web)      | http://localhost               |
-| Backend API    | http://localhost/api/v1        |
-| API reference  | http://localhost/api/v1/docs   |
+| Services      | URL                          |
+| ------------- | ---------------------------- |
+| App (web)     | http://localhost             |
+| Backend API   | http://localhost/api/v1      |
+| API reference | http://localhost/api/v1/docs |
 
 Notes:
 
@@ -119,19 +119,19 @@ changes are needed; if it splits web/api across different domains, update
 
 ## Environment Variables
 
-| Variable                      | Required | App         | Description                           |
-| ----------------------------- | -------- | ----------- | ------------------------------------- |
-| `DATABASE_URL`                | ✅       | Backend, DB | PostgreSQL connection string          |
-| `BETTER_AUTH_SECRET`          | ✅       | Backend     | Auth secret (openssl rand -base64 32) |
-| `BETTER_AUTH_TRUSTED_ORIGINS` | ✅       | Backend     | Comma-separated trusted origins       |
-| `CORS_ORIGINS`                | ✅       | Backend     | Comma-separated CORS origins          |
-| `PORT`                        | ❌       | Backend     | Server port (default: 3000)           |
-| `GOOGLE_CLIENT_ID`            | ❌       | Backend     | Google OAuth client ID                |
-| `GOOGLE_CLIENT_SECRET`        | ❌       | Backend     | Google OAuth client secret            |
-| `NEXT_PUBLIC_APP_URL`         | ✅       | Web         | Web app URL                           |
-| `NEXT_PUBLIC_API_BASE_URL`    | ✅       | Web         | Backend API base URL                  |
-| `NEXT_PUBLIC_API_VERSION`     | ✅       | Web         | API version (default: v1)             |
-| `INTERNAL_API_BASE_URL`       | ❌       | Web         | SSR-only API URL (Docker net)         |
+| Variable                      | Required | App         | Description                                               |
+| ----------------------------- | -------- | ----------- | --------------------------------------------------------- |
+| `DATABASE_URL`                | ✅       | Backend, DB | PostgreSQL connection string                              |
+| `BETTER_AUTH_SECRET`          | ✅       | Backend     | Auth secret (openssl rand -base64 32)                     |
+| `BETTER_AUTH_TRUSTED_ORIGINS` | ✅       | Backend     | Comma-separated trusted origins                           |
+| `CORS_ORIGINS`                | ✅       | Backend     | Comma-separated CORS origins                              |
+| `PORT`                        | ❌       | Backend     | Server port (default: 3000)                               |
+| `GOOGLE_CLIENT_ID`            | ❌       | Backend     | Google OAuth client ID                                    |
+| `GOOGLE_CLIENT_SECRET`        | ❌       | Backend     | Google OAuth client secret                                |
+| `NEXT_PUBLIC_APP_URL`         | ✅       | Web         | Web app URL                                               |
+| `NEXT_PUBLIC_API_BASE_URL`    | ✅       | Web         | Backend API base URL                                      |
+| `NEXT_PUBLIC_API_VERSION`     | ✅       | Web         | API version (default: v1)                                 |
+| `INTERNAL_API_BASE_URL`       | ❌       | Web         | SSR-only API URL (Docker net)                             |
 | `COMPOSE_PROFILES`            | ❌       | Root/Docker | `docker-proxy` runs bundled Nginx; empty = external proxy |
 
 Copy from `.env.example` in each app: `apps/backend/.env`, `apps/web/.env`, `packages/db/.env`.
@@ -153,6 +153,177 @@ into the web image at build time).
 | `pnpm format:fix` | Format code with Prettier  |
 | `pnpm db:push`    | Push schema to database    |
 | `pnpm db:studio`  | Open Drizzle Studio        |
+
+## From tickets to pull requests
+
+This repository can turn the Markdown tickets in `docs/TICKETS.md` into GitHub
+issues and project items. Work on each issue in an issue-linked branch; the
+first push then opens a draft pull request to `dev` automatically.
+
+```text
+docs/TICKETS.md -> GitHub issues -> GitHub Project -> issue branches -> draft PRs to dev
+```
+
+### One-time setup
+
+1. Install the [GitHub CLI](https://cli.github.com/) and authenticate it with
+   write access to the repository and its GitHub Project:
+
+   ```bash
+   gh auth login
+   gh auth refresh -s project
+   gh auth status
+   ```
+
+   If the organization enforces SAML SSO, authorize the CLI credentials for
+   that organization too.
+
+2. Create a GitHub App for the draft-PR workflow with these repository
+   permissions:
+
+   | Permission    | Access     |
+   | ------------- | ---------- |
+   | Contents      | Read/write |
+   | Issues        | Read/write |
+   | Pull requests | Read/write |
+
+3. Install the App on this repository, then configure these values under
+   **Settings -> Secrets and variables -> Actions**:
+
+   | Type     | Name                     | Value                        |
+   | -------- | ------------------------ | ---------------------------- |
+   | Variable | `PR_BOT_APP_ID`          | The GitHub App ID            |
+   | Secret   | `PR_BOT_APP_PRIVATE_KEY` | The complete private-key PEM |
+
+The repository must have Issues and Actions enabled, a `dev` branch, and an
+existing GitHub Project. The project number is the number in its URL, while the
+project owner is the organization or user login. Values stored only in a
+GitHub Environment are not available to this workflow because it does not use
+an environment.
+
+### 1. Write the tickets
+
+Use `docs/TICKETS.md` as a template. Separate ticket blocks with a line that is
+exactly `---`. Every ticket needs a title with an uppercase key; `Epic` and
+`Also touches` add labels when present.
+
+```markdown
+---
+
+**Title:** [NOTE-1] Create and view a personal note
+**Epic:** `notes`
+**Also touches:**
+`backend` `web`
+**Problem / context:** Explain why this work is needed.
+**Acceptance criteria:**
+
+- Describe an observable result.
+```
+
+The required title format is `**Title:** [UPPERCASE-KEY] Name`. See the full
+[sample ticket file](docs/TICKETS.md) for the recommended fields and build
+order. Build order and dependency fields are documentation only; the script
+does not enforce them.
+
+### 2. Preview the issues
+
+Run the script from the repository root. Keep the ticket file as the first
+argument and always provide the GitHub Project number and owner.
+
+```bash
+node scripts/tickets-to-issues.mjs docs/TICKETS.md --project <PROJECT_NUMBER> --project-owner <PROJECT_OWNER> --repo <REPOSITORY_OWNER/REPOSITORY> --dry-run
+```
+
+For example:
+
+```bash
+node scripts/tickets-to-issues.mjs docs/TICKETS.md --project 71 --project-owner Quanby-IT-Solutions --repo Quanby-IT-Solutions/turbo-template --dry-run
+```
+
+The preview parses the tickets and lists the labels and issues it would create.
+It still queries GitHub for existing issue titles, but it does not create or
+change labels, issues, or project items. Stop and fix authentication or network
+access if it warns that it could not fetch existing issues; otherwise the
+preview cannot identify tickets that already exist.
+
+### 3. Create the issues and project items
+
+After checking the preview, rerun the same command without `--dry-run`:
+
+```bash
+node scripts/tickets-to-issues.mjs docs/TICKETS.md --project <PROJECT_NUMBER> --project-owner <PROJECT_OWNER> --repo <REPOSITORY_OWNER/REPOSITORY>
+```
+
+For every new ticket, the script:
+
+- creates or updates the `ticket`, epic, and `Also touches` labels, setting
+  their color to blue (`0075ca`);
+- creates an issue whose title and body come from the ticket block;
+- adds the issue to the selected GitHub Project; and
+- prints the commands for starting work on that issue.
+
+When its issue lookup succeeds, the script skips exact title matches among the
+first 500 issues returned. It does not update those issues or repair a project
+item that previously failed to add. Do not continue a non-dry run if the script
+warns that it could not fetch existing issues, because duplicate detection is
+then unavailable.
+
+### 4. Work on one issue
+
+Use the issue number printed by the script:
+
+```bash
+gh issue develop 123 --base dev --checkout
+
+# Make and verify the changes, then commit them.
+git add <files>
+git commit -m "Implement issue 123"
+git push -u origin HEAD
+```
+
+Keep custom branch names in the form `123-short-description`. The workflow only
+runs for same-repository branches that start with the issue number followed by
+a hyphen. A branch pushed from a fork does not trigger this repository's
+`push` workflow.
+
+### 5. Review the draft pull request
+
+The first push triggers
+[`.github/workflows/auto-draft-pr.yml`](.github/workflows/auto-draft-pr.yml).
+The workflow:
+
+1. reads the leading issue number from the branch;
+2. skips creation when that branch already has an open pull request;
+3. copies the issue title to a new draft pull request targeting `dev`; and
+4. adds `Closes #123` to the pull request body.
+
+CI runs against the draft pull request. Add reviewers, mark it ready, and merge
+it through the normal review process. The workflow does not copy issue labels
+to the pull request, so add the epic label before merging if you want
+`release-changelog.yml` to group the change under that epic. GitHub closes the
+linked issue when the pull request reaches the repository's default branch;
+this template expects `dev` to be the default branch.
+
+### Troubleshooting
+
+- **`File not found: 71`:** Put `docs/TICKETS.md` before all flags.
+- **`Missing required flags`:** Supply both `--project` and `--project-owner`,
+  including during a dry run.
+- **Could not fetch existing issues:** Stop before a non-dry run and fix GitHub
+  authentication or network access. Duplicate detection is unavailable.
+- **Label creation or issue creation fails:** Confirm the account can manage
+  repository labels and issues. Fix or create the required labels, then rerun;
+  successfully fetched exact-title matches will be skipped.
+- **`Failed to add to project`:** Run `gh auth refresh -s project`, then add the
+  already-created issue with
+  `gh project item-add <PROJECT_NUMBER> --owner <PROJECT_OWNER> --url <ISSUE_URL>`.
+  A rerun will skip that issue instead of repairing its project item.
+- **The App-token step fails:** Verify the App installation and permissions,
+  the App ID Actions variable, and the complete private-key PEM Actions secret.
+- **No draft pull request appears:** Confirm the branch is in this repository,
+  begins with `<ISSUE_NUMBER>-`, has a commit that differs from `dev`, and has
+  no existing open pull request. Then inspect
+  **GitHub -> Actions -> Auto Draft PR**.
 
 ## Backend: Production-like Local Run
 
@@ -315,9 +486,9 @@ aws logs tail /ecs/PROJECT_NAME-backend-production --follow
 
 This repo uses [Husky](https://typicode.github.io/husky/) to run tests before pushing.
 
-| Hook       | What it does                                           |
-| ---------- | ------------------------------------------------------ |
-| `pre-push` | Runs `turbo test --affected` to block failing pushes   |
+| Hook       | What it does                                         |
+| ---------- | ---------------------------------------------------- |
+| `pre-push` | Runs `turbo test --affected` to block failing pushes |
 
 To bypass the hook (e.g., for WIP pushes):
 

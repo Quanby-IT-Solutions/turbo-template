@@ -160,7 +160,12 @@
       "Bash(pnpm dlx *)",
       "Bash(rtk find *)",
       "Bash(pnpm --filter @repo/contracts typecheck)",
-      "Bash(pnpm prettier *)"
+      "Bash(pnpm prettier *)",
+      "Bash(pnpm --filter @repo/auth exec vitest run src/secret-schema.spec.ts --reporter=verbose)",
+      "Bash(git check-ignore *)",
+      "Bash(pnpm --filter @repo/auth typecheck)",
+      "Bash(pnpm --filter @repo/auth build)",
+      "Bash(pnpm --filter @repo/auth lint)"
     ]
   }
 }

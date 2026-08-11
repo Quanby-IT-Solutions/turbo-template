@@ -119,6 +119,7 @@
 		"testEnvironment": "node",
 		"moduleNameMapper": {
 			"^@repo/db/(.*)$": "<rootDir>/../../../packages/db/src/$1",
+			"^@repo/auth/(.*)$": "<rootDir>/../../../packages/auth/src/$1",
 			"^@repo/contracts$": "<rootDir>/../../../packages/contracts/src",
 			"^@/(.*)$": "<rootDir>/$1",
 			"^(\\.{1,2}/.*)\\.js$": "$1"

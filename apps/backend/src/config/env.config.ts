@@ -1,6 +1,8 @@
 import { createEnv } from "@t3-oss/env-core"
 import { z } from "zod"
 
+import { authSecretSchema } from "@repo/auth/secret-schema"
+
 import { booleanFromEnv, isApiDocsEnabled } from "@/config/api-docs.config"
 
 export { isApiDocsEnabled }
@@ -46,8 +48,10 @@ export const env = createEnv({
 		// Database
 		DATABASE_URL: z.string(),
 
-		// Authentication
-		BETTER_AUTH_SECRET: z.string(),
+		// Authentication.
+		// Same schema object the @repo/auth package validates with — the two
+		// processes sign the same sessions, so their rules must never drift (F-03).
+		BETTER_AUTH_SECRET: authSecretSchema,
 		BETTER_AUTH_TRUSTED_ORIGINS: z.string(),
 
 		// OAuth (optional)

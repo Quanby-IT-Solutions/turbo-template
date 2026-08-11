@@ -13,6 +13,7 @@ import { sendMail } from "./mailer/send-mail.js"
 import { buildResetPasswordEmail } from "./mailer/templates/reset-password-email.js"
 import { buildVerificationEmail } from "./mailer/templates/verification-email.js"
 import { createTransport } from "./mailer/transport-factory.js"
+import { authSecretSchema } from "./secret-schema.js"
 
 /**
  * Type-safe environment variable validation for Auth package
@@ -22,8 +23,10 @@ import { createTransport } from "./mailer/transport-factory.js"
  */
 export const authEnv = createEnv({
 	server: {
-		// Authentication
-		BETTER_AUTH_SECRET: z.string(),
+		// Authentication.
+		// Shared with the backend's own env config via `authSecretSchema` so both
+		// processes reject the same weak/placeholder secrets (RF3, F-03).
+		BETTER_AUTH_SECRET: authSecretSchema,
 		BETTER_AUTH_TRUSTED_ORIGINS: z.string(),
 		BETTER_AUTH_COOKIE_DOMAIN: z.string().optional(),
 

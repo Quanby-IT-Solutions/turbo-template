@@ -12,6 +12,10 @@
 		".": {
 			"types": "./dist/index.d.ts",
 			"default": "./dist/index.js"
+		},
+		"./secret-schema": {
+			"types": "./dist/secret-schema.d.ts",
+			"default": "./dist/secret-schema.js"
 		}
 	},
 	"scripts": {

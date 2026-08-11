@@ -2,6 +2,9 @@ import { Controller, Get, HttpException, Post, type INestApplication } from "@ne
 import { APP_FILTER, APP_GUARD } from "@nestjs/core"
 import { Test, type TestingModule } from "@nestjs/testing"
 import { ThrottlerException, ThrottlerModule } from "@nestjs/throttler"
+import { readFileSync } from "fs"
+import { join } from "path"
+import type { Application, NextFunction, Request, Response } from "express"
 import { LoggerModule } from "nestjs-pino"
 import request from "supertest"
 import { type App } from "supertest/types"
@@ -49,10 +52,19 @@ describe("ThrottlerProxyGuard (unit)", () => {
 	})
 
 	describe("getTracker", () => {
-		it("returns the first proxy-forwarded IP from req.ips", async () => {
-			await expect(guard["getTracker"]({ ips: ["1.2.3.4"], ip: "10.0.0.1" })).resolves.toBe(
+		it("returns the single proxy-authored IP when the trusted hop wrote one entry", async () => {
+			await expect(guard["getTracker"]({ ips: ["1.2.3.4"], ip: "1.2.3.4" })).resolves.toBe(
 				"1.2.3.4"
 			)
+		})
+
+		// AB-1 / F-02: req.ips is ordered upstream-most -> downstream-most, so the
+		// LEFTMOST entries are the client-writable ones. Keying on ips[0] would let
+		// a caller mint a bucket per request.
+		it("uses the rightmost-untrusted entry, never the client-writable leftmost one", async () => {
+			await expect(
+				guard["getTracker"]({ ips: ["1.2.3.4", "5.6.7.8", "203.0.113.9"], ip: "203.0.113.9" })
+			).resolves.toBe("203.0.113.9")
 		})
 
 		it("falls back to req.ip when req.ips is empty", async () => {
@@ -157,5 +169,113 @@ describe("ThrottlerProxyGuard (integration)", () => {
 			const ok = await request(server()).post("/mutate")
 			expect([200, 201]).toContain(ok.status)
 		}
+	})
+})
+
+// ---------------------------------------------------------------------------
+// AB-1 / F-02 — forged X-Forwarded-For must not mint fresh rate-limit buckets.
+//
+// The control is a CHAIN, so it is tested as one (Risky Flow RF2):
+//   1. Nginx SETS X-Forwarded-For to $remote_addr (overwrite, not append), and
+//   2. the app runs with `trust proxy` = 1 (exactly one hop), so Express keeps
+//      only that proxy-authored entry in req.ips, and
+//   3. the guard keys on the rightmost-untrusted entry.
+// ---------------------------------------------------------------------------
+
+const buildProxiedApp = async (options: {
+	overwriteForwardedFor: boolean
+}): Promise<INestApplication<App>> => {
+	const moduleRef: TestingModule = await Test.createTestingModule({
+		imports: [
+			LoggerModule.forRoot({ pinoHttp: buildPinoHttpOptions({ autoLogging: false }) }),
+			ThrottlerModule.forRoot([{ name: "default", ttl: TTL, limit: DEFAULT_LIMIT }]),
+		],
+		controllers: [ThrottleTestController],
+		providers: [
+			{ provide: APP_GUARD, useClass: ThrottlerProxyGuard },
+			{ provide: APP_FILTER, useClass: HttpExceptionFilter },
+		],
+	}).compile()
+
+	const app: INestApplication<App> = moduleRef.createNestApplication()
+	const expressApp = app.getHttpAdapter().getInstance() as Application
+
+	// Deployed topology: a single trusted proxy hop in front of the app.
+	expressApp.set("trust proxy", 1)
+
+	if (options.overwriteForwardedFor) {
+		// Stand-in for `proxy_set_header X-Forwarded-For $remote_addr;`.
+		expressApp.use((req: Request, _res: Response, next: NextFunction) => {
+			req.headers["x-forwarded-for"] = req.socket.remoteAddress
+			next()
+		})
+	}
+
+	await app.init()
+	return app
+}
+
+describe("ThrottlerProxyGuard forged X-Forwarded-For (AB-1)", () => {
+	let app: INestApplication<App>
+
+	afterEach(async () => {
+		await app.close()
+	})
+
+	it("collapses forged headers into ONE bucket when the proxy overwrites X-Forwarded-For", async () => {
+		app = await buildProxiedApp({ overwriteForwardedFor: true })
+
+		// Every request forges a DIFFERENT chain. If the header were trusted, each
+		// would open its own bucket and none would ever be throttled.
+		for (let i = 0; i < DEFAULT_LIMIT; i++) {
+			await request(app.getHttpServer())
+				.get("/read")
+				.set("X-Forwarded-For", `1.2.3.${i}, 5.6.7.${i}`)
+				.expect(200)
+		}
+
+		const res = await request(app.getHttpServer())
+			.get("/read")
+			.set("X-Forwarded-For", "1.2.3.99, 5.6.7.99")
+
+		expect(res.status).toBe(429)
+	})
+
+	it("proves the Nginx overwrite is load-bearing: without it forged headers split the bucket", async () => {
+		app = await buildProxiedApp({ overwriteForwardedFor: false })
+
+		// Same traffic, but the proxy appended instead of overwriting: the
+		// rightmost-untrusted entry is now attacker-chosen, so each request lands
+		// in its own bucket and the limit never bites. This is the failure mode
+		// nginx.conf's `$remote_addr` directive exists to prevent.
+		for (let i = 0; i < DEFAULT_LIMIT + 2; i++) {
+			await request(app.getHttpServer())
+				.get("/read")
+				.set("X-Forwarded-For", `1.2.3.${i}, 5.6.7.${i}`)
+				.expect(200)
+		}
+	})
+})
+
+describe("nginx.conf client-IP directives (AB-1)", () => {
+	const conf = readFileSync(join(__dirname, "../../../../../nginx/nginx.conf"), "utf8")
+	const activeLines = conf
+		.split("\n")
+		.map(line => line.trim())
+		.filter(line => !line.startsWith("#"))
+
+	it("sets X-Forwarded-For to $remote_addr at every active proxy location", () => {
+		const forwardedFor = activeLines.filter(line => line.includes("X-Forwarded-For"))
+
+		expect(forwardedFor.length).toBeGreaterThanOrEqual(2)
+		for (const line of forwardedFor) {
+			expect(line).toBe("proxy_set_header X-Forwarded-For $remote_addr;")
+		}
+	})
+
+	// Comments are allowed to name the directive (they explain why it is banned);
+	// no *executable* line may use it.
+	it("never appends via $proxy_add_x_forwarded_for", () => {
+		expect(activeLines.filter(line => line.includes("$proxy_add_x_forwarded_for"))).toEqual([])
 	})
 })

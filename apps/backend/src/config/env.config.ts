@@ -28,7 +28,19 @@ export const env = createEnv({
 		THROTTLE_STRICT_TTL: z.coerce.number().int().positive().default(60000),
 		THROTTLE_STRICT_LIMIT: z.coerce.number().int().positive().default(10),
 
-		// Proxy trust (number of hops in front of the app)
+		// Proxy trust: the number of trusted reverse-proxy hops in front of the app.
+		//
+		// Risky Flow RF2 (client-IP trust chain). This value MUST match the real
+		// topology and stay in lockstep with nginx.conf:
+		//   1 = the shipped single-Nginx setup, where Nginx *overwrites*
+		//       X-Forwarded-For with $remote_addr, so Express keeps exactly the
+		//       proxy-authored entry and ThrottlerProxyGuard keys on a value no
+		//       client can influence.
+		//   0 = backend directly internet-exposed — X-Forwarded-For is ignored
+		//       entirely and the socket peer is used.
+		// Setting this HIGHER than the real hop count re-opens F-02: Express would
+		// retain client-written entries and a caller could mint a fresh rate-limit
+		// bucket per request.
 		TRUST_PROXY: z.coerce.number().int().min(0).default(1),
 
 		// Database

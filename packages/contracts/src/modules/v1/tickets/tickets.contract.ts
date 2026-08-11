@@ -7,28 +7,32 @@ export const ticketContract = {
 	/**
 	 * List all tickets
 	 * GET /tickets
+	 *
+	 * Requires `users:read` (enforced by the backend RbacGuard). Reporter PII
+	 * (name, email, subject, concern) is staff-only.
 	 */
 	list: oc
 		.route({
 			method: "GET",
 			path: "/tickets",
 			summary: "List all tickets",
-			description: "Retrieve all support tickets",
+			description: "Retrieve all support tickets. Requires `users:read`.",
 			tags: ["Tickets"],
-			spec: spec => ({ ...spec, security: [] }),
 		})
 		.output(z.array(TicketSchema)),
 
 	/**
 	 * Get a single ticket by ID
 	 * GET /tickets/{id}
+	 *
+	 * Requires `users:read` (enforced by the backend RbacGuard).
 	 */
 	get: oc
 		.route({
 			method: "GET",
 			path: "/tickets/{id}",
 			summary: "Get ticket by ID",
-			description: "Retrieve a single support ticket by its ID",
+			description: "Retrieve a single support ticket by its ID. Requires `users:read`.",
 			tags: ["Tickets"],
 		})
 		.input(TicketIdSchema)

@@ -158,7 +158,9 @@
       "Bash(rtk proxy *)",
       "Bash(rtk npx *)",
       "Bash(pnpm dlx *)",
-      "Bash(rtk find *)"
+      "Bash(rtk find *)",
+      "Bash(pnpm --filter @repo/contracts typecheck)",
+      "Bash(pnpm prettier *)"
     ]
   }
 }

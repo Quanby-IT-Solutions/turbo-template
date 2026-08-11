@@ -3,6 +3,7 @@ import { Implement } from "@orpc/nest"
 import { implement } from "@orpc/server"
 
 import { v1 } from "@/config/api-versions.config"
+import { RequirePermissions } from "@/shared/decorators/require-permissions.decorator"
 import { StrictThrottle } from "@/shared/decorators/strict-throttle.decorator"
 
 import { TicketsService } from "./tickets.service"
@@ -11,6 +12,7 @@ import { TicketsService } from "./tickets.service"
 export class TicketsController {
 	constructor(private readonly ticketsService: TicketsService) {}
 
+	@RequirePermissions("users:read")
 	@Implement(v1.ticket.list)
 	async listTickets() {
 		return implement(v1.ticket.list).handler(async () => {
@@ -18,6 +20,7 @@ export class TicketsController {
 		})
 	}
 
+	@RequirePermissions("users:read")
 	@Implement(v1.ticket.get)
 	async getTicket() {
 		return implement(v1.ticket.get).handler(async ({ input }) => {

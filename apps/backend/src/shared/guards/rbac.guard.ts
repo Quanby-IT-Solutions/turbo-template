@@ -1,6 +1,7 @@
 import {
 	ForbiddenException,
 	Injectable,
+	Logger,
 	UnauthorizedException,
 	type CanActivate,
 	type ExecutionContext,
@@ -17,10 +18,40 @@ import { REQUIRED_PERMISSIONS_KEY } from "@/shared/decorators/require-permission
 
 @Injectable()
 export class RbacGuard implements CanActivate {
+	// Instance logger (not injected) so the guard keeps a zero-dependency
+	// constructor. `app.useLogger(nestjs-pino Logger)` in bootstrap.ts routes
+	// these lines through Pino, so denials land in the same structured sink as
+	// request logs.
+	private readonly logger = new Logger(RbacGuard.name)
+
 	constructor(
 		private readonly reflector: Reflector,
 		private readonly rbacService: RbacService
 	) {}
+
+	/**
+	 * Record a permission denial so every rejected privileged read/write is
+	 * attributable (AZ-1 acceptance: "the denial is auditable").
+	 *
+	 * Deliberately generic — actor / action / target / outcome — so AZ-4's
+	 * append-only `audit_log` helper can adopt this call site without changing
+	 * the shape. Logs the handler identity rather than `req.url`: the URL can
+	 * carry token-bearing query parameters (see LG-1).
+	 */
+	private auditDenial(
+		context: ExecutionContext,
+		actorId: string,
+		requiredPermissions: string[],
+		missingPermissions?: string[]
+	): void {
+		this.logger.warn({
+			event: "rbac.permission_denied",
+			actorId,
+			action: `${context.getClass().name}.${context.getHandler().name}`,
+			requiredPermissions,
+			missingPermissions,
+		})
+	}
 
 	async canActivate(context: ExecutionContext): Promise<boolean> {
 		// Handler-level metadata overrides class-level (standard NestJS precedence):
@@ -90,9 +121,11 @@ export class RbacGuard implements CanActivate {
 				userId,
 				requiredPermissions
 			)
+			this.auditDenial(context, userId, requiredPermissions, missingPermissions)
 			throw new ForbiddenException({ message: "Forbidden", missingPermissions })
 		}
 
+		this.auditDenial(context, userId, requiredPermissions)
 		throw new ForbiddenException("Forbidden")
 	}
 }

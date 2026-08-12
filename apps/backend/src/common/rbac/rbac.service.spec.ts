@@ -40,7 +40,12 @@ describe("RbacService", () => {
 			invalidate: jest.fn(),
 		}
 
-		const service = new RbacService(cacheService as never)
+		// AZ-4: RbacService now writes an audit entry inside every grant/removal
+		// transaction. This test only exercises the read path, so the collaborator
+		// is a stub — the in-transaction behaviour is covered in audit.service.spec.
+		const auditService = { record: jest.fn(), list: jest.fn() }
+
+		const service = new RbacService(cacheService as never, auditService as never)
 
 		await expect(service.getUserAccess("user-1")).resolves.toEqual({
 			roles: ["Admin", "Owner", "User"],

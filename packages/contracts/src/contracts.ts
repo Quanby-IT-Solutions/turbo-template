@@ -36,6 +36,10 @@ export {
 	AssignRoleRequestSchema,
 	RemoveRoleRequestSchema,
 	UserRoleMutationResponseSchema,
+	AuditOutcomeSchema,
+	AuditLogEntrySchema,
+	ListAuditLogRequestSchema,
+	ListAuditLogResponseSchema,
 } from "./modules/v1/rbac/rbac.schema.js"
 export type {
 	Role,
@@ -46,6 +50,10 @@ export type {
 	UserWithRoles,
 	AssignRoleRequest,
 	RemoveRoleRequest,
+	AuditOutcome,
+	AuditLogEntry,
+	ListAuditLogRequest,
+	ListAuditLogResponse,
 } from "./modules/v1/rbac/rbac.schema.js"
 
 // Current-user access schemas

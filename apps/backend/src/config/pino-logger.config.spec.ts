@@ -2,7 +2,7 @@ import express from "express"
 import { pinoHttp } from "pino-http"
 import request from "supertest"
 
-import type { buildPinoHttpOptions as BuildPinoHttpOptions } from "@/config/pino-logger.config"
+import { buildPinoHttpOptions } from "@/config/pino-logger.config"
 
 /**
  * Log-scan test for LG-1 / F-05.
@@ -29,24 +29,6 @@ const SESSION_TOKEN = "sess-tok-7b21ffee90"
 
 /** Every secret that must never appear in a log line. */
 const SECRETS = [PASSWORD, NEW_PASSWORD, RESET_TOKEN, VERIFY_TOKEN, SESSION_TOKEN]
-
-/**
- * `env.config` validates at module load, so the module under test is required
- * only after a valid environment exists. Real values rather than a skip flag:
- * the skip is itself being removed (CI-4), and this test should not depend on
- * which escape hatch happens to be in force.
- */
-let buildPinoHttpOptions: typeof BuildPinoHttpOptions
-
-beforeAll(() => {
-	process.env.CORS_ORIGINS ??= "http://localhost:3001"
-	process.env.DATABASE_URL ??= "postgres://postgres:postgres@localhost:5432/test"
-	process.env.BETTER_AUTH_TRUSTED_ORIGINS ??= "http://localhost:3001"
-	process.env.BETTER_AUTH_SECRET ??= "j8Kq2ZfP5xR7nT1wV4yB6cE9hL0mS3uA"
-
-	// eslint-disable-next-line @typescript-eslint/no-require-imports -- must load after env is set
-	;({ buildPinoHttpOptions } = require("@/config/pino-logger.config"))
-})
 
 function createApp(): { app: express.Express; readLogs: () => string } {
 	const chunks: string[] = []

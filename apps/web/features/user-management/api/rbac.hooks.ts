@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import type {
 	CreateRoleInput,
+	ListAuditLogResponse,
 	PermissionCatalogEntry,
 	PermissionName,
 	Role,
@@ -54,6 +55,7 @@ export const rbacKeys = {
 	roles: ["rbac", "roles"] as const,
 	permissions: ["rbac", "permissions"] as const,
 	users: ["rbac", "users"] as const,
+	auditLog: ["rbac", "audit-log"] as const,
 }
 
 // ---------------------------------------------------------------- queries
@@ -76,6 +78,20 @@ export function useUsersQuery() {
 	return useQuery({
 		queryKey: rbacKeys.users,
 		queryFn: () => apiFetch<UserWithRoles[]>("/rbac/users"),
+	})
+}
+
+/**
+ * Privileged-mutation audit trail (AZ-4 / F-17). Read-only: there is no
+ * corresponding mutation hook, and none should be added.
+ *
+ * Note the `rbac` key root — WC-1's persistence allowlist already excludes it,
+ * so these entries (which name actors and targets) never reach IndexedDB.
+ */
+export function useAuditLogQuery(limit = 50) {
+	return useQuery({
+		queryKey: [...rbacKeys.auditLog, limit],
+		queryFn: () => apiFetch<ListAuditLogResponse>(`/rbac/audit-log?limit=${limit}`),
 	})
 }
 

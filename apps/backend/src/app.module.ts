@@ -15,6 +15,7 @@ import { skipStrictThrottle } from "@/shared/decorators/strict-throttle.decorato
 import { RbacGuard } from "@/shared/guards/rbac.guard"
 import { ThrottlerProxyGuard } from "@/shared/guards/throttler-proxy.guard"
 
+import { AuditModule } from "./common/audit/audit.module"
 import { ORPCCommonModule } from "./common/orpc/orpc.module"
 import { RbacModule } from "./common/rbac/rbac.module"
 import { env } from "./config/env.config"
@@ -59,6 +60,8 @@ import { env } from "./config/env.config"
 		// oRPC setup
 		ORPCCommonModule,
 		// RBAC services
+		// Global: the audit trail is meant to outgrow RBAC (AZ-4).
+		AuditModule,
 		RbacModule,
 		// Versioned modules
 		V1Module,

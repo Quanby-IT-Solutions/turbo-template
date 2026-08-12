@@ -86,8 +86,52 @@ export const UserRoleMutationResponseSchema = z.object({
 })
 
 // ============================================================================
+// AUDIT LOG
+// ============================================================================
+
+/**
+ * Whether a recorded attempt went through or was refused. Denials are kept
+ * because "who tried to escalate and was stopped" is the question an audit
+ * trail most often has to answer (AZ-4 / F-17).
+ */
+export const AuditOutcomeSchema = z.enum(["success", "denied"])
+
+export const AuditLogEntrySchema = z.object({
+	id: z.number().int(),
+	domain: z.string(),
+	action: z.string(),
+	outcome: AuditOutcomeSchema,
+	actorId: z.string().nullable(),
+	/** Resolved for display; null when the actor's account no longer exists. */
+	actorEmail: z.string().nullable(),
+	targetType: z.string().nullable(),
+	targetId: z.string().nullable(),
+	oldValue: z.unknown().nullable(),
+	newValue: z.unknown().nullable(),
+	reason: z.string().nullable(),
+	createdAt: z.date(),
+})
+
+/** Reverse-chronological page of audit entries. */
+export const ListAuditLogRequestSchema = z.object({
+	limit: z.coerce.number().int().min(1).max(200).optional().default(50),
+	/** Return only entries older than this id — cursor paging, stable under
+	 *  concurrent appends in a way OFFSET is not. */
+	before: z.coerce.number().int().positive().optional(),
+})
+
+export const ListAuditLogResponseSchema = z.object({
+	entries: z.array(AuditLogEntrySchema),
+	nextCursor: z.number().int().nullable(),
+})
+
+// ============================================================================
 // TYPES
 // ============================================================================
+export type AuditOutcome = z.infer<typeof AuditOutcomeSchema>
+export type AuditLogEntry = z.infer<typeof AuditLogEntrySchema>
+export type ListAuditLogRequest = z.infer<typeof ListAuditLogRequestSchema>
+export type ListAuditLogResponse = z.infer<typeof ListAuditLogResponseSchema>
 export type Role = z.infer<typeof RoleSchema>
 export type CreateRoleInput = z.infer<typeof CreateRoleSchema>
 export type UpdateRoleRequest = z.infer<typeof UpdateRoleRequestSchema>

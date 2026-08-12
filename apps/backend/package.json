@@ -123,6 +123,9 @@
 			"^@repo/contracts$": "<rootDir>/../../../packages/contracts/src",
 			"^@/(.*)$": "<rootDir>/$1",
 			"^(\\.{1,2}/.*)\\.js$": "$1"
-		}
+		},
+		"setupFiles": [
+			"<rootDir>/../jest.setup.ts"
+		]
 	}
 }

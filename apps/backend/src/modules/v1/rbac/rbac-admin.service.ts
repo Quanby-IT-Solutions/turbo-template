@@ -7,6 +7,8 @@ import {
 	PERMISSION_NAMES,
 	type AssignRoleRequest,
 	type CreateRoleInput,
+	type ListAuditLogRequest,
+	type ListAuditLogResponse,
 	type PermissionCatalogEntry,
 	type PermissionName,
 	type RemoveRoleRequest,
@@ -17,6 +19,7 @@ import {
 } from "@repo/contracts"
 import { permissions, rolePermissions, roles, userRoles, users } from "@repo/db/schema"
 
+import { AUDIT_DOMAIN_RBAC, AuditService } from "@/common/audit/audit.service"
 import { db } from "@/common/database/database.client"
 import { RbacCacheService } from "@/common/rbac/rbac-cache.service"
 import { RbacService } from "@/common/rbac/rbac.service"
@@ -27,7 +30,8 @@ const PERMISSION_CATALOG = new Set<string>(PERMISSION_NAMES)
 export class RbacAdminService {
 	constructor(
 		private readonly rbacService: RbacService,
-		private readonly cacheService: RbacCacheService
+		private readonly cacheService: RbacCacheService,
+		private readonly auditService: AuditService
 	) {}
 
 	// ---------------------------------------------------------------- roles
@@ -68,51 +72,101 @@ export class RbacAdminService {
 		}))
 	}
 
-	async createRole(payload: CreateRoleInput): Promise<Role> {
-		const [existing] = await db.select().from(roles).where(eq(roles.name, payload.name))
-		if (existing) {
-			throw new ORPCError("CONFLICT", { message: `Role "${payload.name}" already exists` })
-		}
+	async createRole(payload: CreateRoleInput, actorId: string | null): Promise<Role> {
+		// AZ-4: the role row and its audit entry share one transaction, so a
+		// role can never appear without a record of who created it.
+		const roleId = await db.transaction(async tx => {
+			const [existing] = await tx.select().from(roles).where(eq(roles.name, payload.name))
+			if (existing) {
+				throw new ORPCError("CONFLICT", { message: `Role "${payload.name}" already exists` })
+			}
 
-		const [role] = await db
-			.insert(roles)
-			.values({ name: payload.name, description: payload.description ?? null })
-			.returning()
+			const [role] = await tx
+				.insert(roles)
+				.values({ name: payload.name, description: payload.description ?? null })
+				.returning()
 
-		if (!role) {
-			throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Role could not be created" })
-		}
+			if (!role) {
+				throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Role could not be created" })
+			}
 
-		return this.buildRole(role.id)
+			await this.auditService.record(
+				{
+					domain: AUDIT_DOMAIN_RBAC,
+					action: "role.create",
+					actorId,
+					targetType: "role",
+					targetId: String(role.id),
+					oldValue: null,
+					newValue: { name: role.name, description: role.description },
+				},
+				tx
+			)
+
+			return role.id
+		})
+
+		return this.buildRole(roleId)
 	}
 
-	async updateRole(payload: UpdateRoleRequest): Promise<Role> {
+	async updateRole(payload: UpdateRoleRequest, actorId: string | null): Promise<Role> {
 		const role = await this.getRoleRowOrThrow(payload.id)
 
 		if (role.name === ADMIN_ROLE && payload.name !== undefined && payload.name !== ADMIN_ROLE) {
+			// A denial is evidence: record the refused attempt, then reject.
+			await this.auditService.record({
+				domain: AUDIT_DOMAIN_RBAC,
+				action: "role.update",
+				outcome: "denied",
+				actorId,
+				targetType: "role",
+				targetId: String(role.id),
+				oldValue: { name: role.name },
+				newValue: { name: payload.name },
+				reason: "The Admin role cannot be renamed",
+			})
 			throw new ORPCError("FORBIDDEN", { message: "The Admin role cannot be renamed" })
 		}
 
-		if (payload.name !== undefined && payload.name !== role.name) {
-			const [clash] = await db.select().from(roles).where(eq(roles.name, payload.name))
-			if (clash) {
-				throw new ORPCError("CONFLICT", { message: `Role "${payload.name}" already exists` })
+		await db.transaction(async tx => {
+			if (payload.name !== undefined && payload.name !== role.name) {
+				const [clash] = await tx.select().from(roles).where(eq(roles.name, payload.name))
+				if (clash) {
+					throw new ORPCError("CONFLICT", { message: `Role "${payload.name}" already exists` })
+				}
 			}
-		}
 
-		await db
-			.update(roles)
-			.set({
+			const next = {
 				name: payload.name ?? role.name,
 				description: payload.description !== undefined ? payload.description : role.description,
-				updatedAt: new Date(),
-			})
-			.where(eq(roles.id, role.id))
+			}
+
+			await tx
+				.update(roles)
+				.set({ ...next, updatedAt: new Date() })
+				.where(eq(roles.id, role.id))
+
+			await this.auditService.record(
+				{
+					domain: AUDIT_DOMAIN_RBAC,
+					action: "role.update",
+					actorId,
+					targetType: "role",
+					targetId: String(role.id),
+					oldValue: { name: role.name, description: role.description },
+					newValue: next,
+				},
+				tx
+			)
+		})
 
 		return this.buildRole(role.id)
 	}
 
-	async setRolePermissions(payload: SetRolePermissionsRequest): Promise<Role> {
+	async setRolePermissions(
+		payload: SetRolePermissionsRequest,
+		actorId: string | null
+	): Promise<Role> {
 		const role = await this.getRoleRowOrThrow(payload.id)
 
 		const uniqueNames = Array.from(new Set(payload.permissions))
@@ -126,6 +180,13 @@ export class RbacAdminService {
 			throw new ORPCError("BAD_REQUEST", { message: `Unknown permissions: ${missing.join(", ")}` })
 		}
 
+		// Captured before the transaction so the audit entry can show old→new.
+		const previous = await db
+			.select({ name: permissions.name })
+			.from(rolePermissions)
+			.innerJoin(permissions, eq(rolePermissions.permissionId, permissions.id))
+			.where(eq(rolePermissions.roleId, role.id))
+
 		await db.transaction(async tx => {
 			await tx.delete(rolePermissions).where(eq(rolePermissions.roleId, role.id))
 			if (permissionRows.length) {
@@ -133,20 +194,73 @@ export class RbacAdminService {
 					.insert(rolePermissions)
 					.values(permissionRows.map(p => ({ roleId: role.id, permissionId: p.id })))
 			}
+
+			// This is the single most privilege-relevant RBAC write there is:
+			// it decides what every holder of the role may do.
+			await this.auditService.record(
+				{
+					domain: AUDIT_DOMAIN_RBAC,
+					action: "role.setPermissions",
+					actorId,
+					targetType: "role",
+					targetId: String(role.id),
+					oldValue: { permissions: previous.map(p => p.name).sort() },
+					newValue: { permissions: uniqueNames.slice().sort() },
+				},
+				tx
+			)
 		})
 
 		this.cacheService.clear()
 		return this.buildRole(role.id)
 	}
 
-	async deleteRole(id: number): Promise<{ success: boolean; id: number }> {
+	async deleteRole(id: number, actorId: string | null): Promise<{ success: boolean; id: number }> {
 		const role = await this.getRoleRowOrThrow(id)
 
 		if (role.name === ADMIN_ROLE) {
+			await this.auditService.record({
+				domain: AUDIT_DOMAIN_RBAC,
+				action: "role.delete",
+				outcome: "denied",
+				actorId,
+				targetType: "role",
+				targetId: String(role.id),
+				oldValue: { name: role.name },
+				reason: "The Admin role cannot be deleted",
+			})
 			throw new ORPCError("FORBIDDEN", { message: "The Admin role cannot be deleted" })
 		}
 
-		await db.delete(roles).where(eq(roles.id, role.id))
+		// Deleting a role revokes it from every holder at once, so the entry
+		// records what was destroyed -- the row itself is about to be gone.
+		const grantedPermissions = await db
+			.select({ name: permissions.name })
+			.from(rolePermissions)
+			.innerJoin(permissions, eq(rolePermissions.permissionId, permissions.id))
+			.where(eq(rolePermissions.roleId, role.id))
+
+		await db.transaction(async tx => {
+			await tx.delete(roles).where(eq(roles.id, role.id))
+
+			await this.auditService.record(
+				{
+					domain: AUDIT_DOMAIN_RBAC,
+					action: "role.delete",
+					actorId,
+					targetType: "role",
+					targetId: String(role.id),
+					oldValue: {
+						name: role.name,
+						description: role.description,
+						permissions: grantedPermissions.map(p => p.name).sort(),
+					},
+					newValue: null,
+				},
+				tx
+			)
+		})
+
 		this.cacheService.clear()
 		return { success: true, id: role.id }
 	}
@@ -186,14 +300,19 @@ export class RbacAdminService {
 		}))
 	}
 
-	async assignUserRole(payload: AssignRoleRequest) {
-		await this.rbacService.assignRole(payload.userId, payload.roleName)
+	async assignUserRole(payload: AssignRoleRequest, actorId: string | null) {
+		await this.rbacService.assignRole(payload.userId, payload.roleName, actorId)
 		return { success: true, userId: payload.userId, roleName: payload.roleName }
 	}
 
-	async removeUserRole(payload: RemoveRoleRequest) {
-		await this.rbacService.removeRole(payload.userId, payload.roleName)
+	async removeUserRole(payload: RemoveRoleRequest, actorId: string | null) {
+		await this.rbacService.removeRole(payload.userId, payload.roleName, actorId)
 		return { success: true, userId: payload.userId, roleName: payload.roleName }
+	}
+
+	// ------------------------------------------------------------ audit log
+	async listAuditLog(query: ListAuditLogRequest): Promise<ListAuditLogResponse> {
+		return this.auditService.list(query)
 	}
 
 	// -------------------------------------------------------------- helpers

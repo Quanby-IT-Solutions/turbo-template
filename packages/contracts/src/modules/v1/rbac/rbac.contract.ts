@@ -5,6 +5,8 @@ import {
 	AssignRoleRequestSchema,
 	CreateRoleSchema,
 	DeleteRoleResponseSchema,
+	ListAuditLogRequestSchema,
+	ListAuditLogResponseSchema,
 	PermissionSchema,
 	RemoveRoleRequestSchema,
 	RoleIdSchema,
@@ -123,5 +125,23 @@ export const rbacContract = {
 			})
 			.input(RemoveRoleRequestSchema)
 			.output(UserRoleMutationResponseSchema),
+	},
+
+	/**
+	 * Append-only audit trail (AZ-4 / F-17). Read-only by design: there is no
+	 * update or delete route here, and none may be added — a log the
+	 * application can rewrite is not evidence.
+	 */
+	audit: {
+		list: oc
+			.route({
+				method: "GET",
+				path: "/rbac/audit-log",
+				summary: "List audit log entries",
+				description: "List privileged-mutation audit entries, newest first. Requires `users:read`.",
+				tags: ["RBAC"],
+			})
+			.input(ListAuditLogRequestSchema)
+			.output(ListAuditLogResponseSchema),
 	},
 }

@@ -1,6 +1,6 @@
 # QA Setup Changes
 
-Records what the QA gate baked into this template does, and why the numbers are what they are.
+Records what the QA gate baked into this templates does, and why the numbers are what they are.
 
 ## Coverage thresholds are a floor
 

@@ -3,7 +3,7 @@ import type { IncomingMessage, ServerResponse } from "http"
 import type { Options } from "pino-http"
 
 import { env } from "@/config/env.config"
-import { sanitizeLogQuery, sanitizeLogUrl } from "@/utils/log-redaction"
+import { sanitizeLogQuery, sanitizeLogUrl, sanitizeRequestId } from "@/utils/log-redaction"
 
 /**
  * Build the shared pino-http options used by BOTH:
@@ -81,11 +81,12 @@ export function buildPinoHttpOptions(overrides?: { autoLogging?: boolean }): Opt
 		genReqId: (req: IncomingMessage, res: ServerResponse) => {
 			// pino-http augments IncomingMessage with `id` (ReqId = string|number|object).
 			const existing = (req as { id?: unknown }).id
-			const inbound = req.headers["x-request-id"]
-			const id =
-				(existing != null ? String(existing) : undefined) ||
-				(Array.isArray(inbound) ? inbound[0] : inbound) ||
-				randomUUID()
+			// LG-2 / F-37: an inbound id is honoured only when it cannot forge a
+			// log line or a response header. Anything else gets a fresh UUID
+			// rather than being rejected — a malformed correlation id is not a
+			// reason to fail a request.
+			const inbound = sanitizeRequestId(req.headers["x-request-id"])
+			const id = (existing != null ? String(existing) : undefined) || inbound || randomUUID()
 			res.setHeader("X-Request-Id", id)
 			return id
 		},

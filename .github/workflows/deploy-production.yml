@@ -12,7 +12,14 @@ on:
 
 concurrency:
   group: deploy-production
+  # Never cancel an in-flight production deploy: interrupting a rolling
+  # instance refresh leaves the ASG split across two image versions.
   cancel-in-progress: false
+
+# CI-5: least privilege. This workflow reads the repo and talks to AWS with
+# its own credentials; it never needs to write anything back to GitHub.
+permissions:
+  contents: read
 
 env:
   IMAGE_TAG: ${{ github.sha }}
@@ -180,6 +187,10 @@ jobs:
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
+          # CI-5 / RF4: refuse to continue past an error, so a partial run
+          # cannot proceed to publish a half-built parameter.
+          set -euo pipefail
+
           echo "=========================================="
           echo "Updating SSM parameters"
           echo "=========================================="
@@ -192,32 +203,45 @@ jobs:
             --value "$COMPOSE_B64" \
             --overwrite
 
-          # Store .env in SSM (base64)
-          cat > /tmp/deploy.env << ENV_EOF
-          ECR_REGISTRY=$ECR_REGISTRY
-          ECR_REPOSITORY_WEB=$ECR_REPOSITORY_WEB
-          ECR_REPOSITORY_BACKEND=$ECR_REPOSITORY_BACKEND
-          IMAGE_TAG=$IMAGE_TAG
-          NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
-          NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
-          NEXT_PUBLIC_API_VERSION=$NEXT_PUBLIC_API_VERSION
-          DATABASE_URL=$DATABASE_URL
-          CORS_ORIGINS=$CORS_ORIGINS
-          BETTER_AUTH_SECRET=$BETTER_AUTH_SECRET
-          BETTER_AUTH_TRUSTED_ORIGINS=$BETTER_AUTH_TRUSTED_ORIGINS
-          BETTER_AUTH_COOKIE_DOMAIN=$BETTER_AUTH_COOKIE_DOMAIN
-          GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID
-          GOOGLE_CLIENT_SECRET=$GOOGLE_CLIENT_SECRET
-          ENV_EOF
+          # CI-5 / F-25: the env file is PIPED, never written to disk.
+          #
+          # It used to be `cat > /tmp/deploy.env`, holding every production
+          # secret in plaintext on the runner. The `rm -f` that followed was
+          # not guaranteed to run: any failure between the write and the delete
+          # left the file behind for the rest of the job, and for anything else
+          # sharing that runner.
+          #
+          # Building the value in a pipeline keeps it in memory only, so there
+          # is no file to leak and no cleanup step to depend on. The value is
+          # fed to the AWS CLI on stdin rather than as an argument, so it never
+          # appears in the process list where `ps` would expose it.
+          ENV_B64=$(
+            {
+              printf 'ECR_REGISTRY=%s\n' "$ECR_REGISTRY"
+              printf 'ECR_REPOSITORY_WEB=%s\n' "$ECR_REPOSITORY_WEB"
+              printf 'ECR_REPOSITORY_BACKEND=%s\n' "$ECR_REPOSITORY_BACKEND"
+              printf 'IMAGE_TAG=%s\n' "$IMAGE_TAG"
+              printf 'NEXT_PUBLIC_APP_URL=%s\n' "$NEXT_PUBLIC_APP_URL"
+              printf 'NEXT_PUBLIC_API_BASE_URL=%s\n' "$NEXT_PUBLIC_API_BASE_URL"
+              printf 'NEXT_PUBLIC_API_VERSION=%s\n' "$NEXT_PUBLIC_API_VERSION"
+              printf 'DATABASE_URL=%s\n' "$DATABASE_URL"
+              printf 'CORS_ORIGINS=%s\n' "$CORS_ORIGINS"
+              printf 'BETTER_AUTH_SECRET=%s\n' "$BETTER_AUTH_SECRET"
+              printf 'BETTER_AUTH_TRUSTED_ORIGINS=%s\n' "$BETTER_AUTH_TRUSTED_ORIGINS"
+              printf 'BETTER_AUTH_COOKIE_DOMAIN=%s\n' "$BETTER_AUTH_COOKIE_DOMAIN"
+              printf 'GOOGLE_CLIENT_ID=%s\n' "$GOOGLE_CLIENT_ID"
+              printf 'GOOGLE_CLIENT_SECRET=%s\n' "$GOOGLE_CLIENT_SECRET"
+            } | base64 -w0
+          )
 
-          ENV_B64=$(base64 -w0 /tmp/deploy.env)
-          aws ssm put-parameter \
+          printf '%s' "$ENV_B64" | aws ssm put-parameter \
             --name "/${PROJECT_NAME}/production/env" \
             --type SecureString \
-            --value "$ENV_B64" \
+            --value file:///dev/stdin \
             --overwrite
 
-          rm -f /tmp/deploy.env
+          # Drop the value from the shell's memory as soon as it is published.
+          unset ENV_B64
           echo "✓ SSM parameters updated"
 
       # ──────────────────────────────────────────────

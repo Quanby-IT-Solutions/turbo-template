@@ -1,70 +1,31 @@
-import { expect, request, test as setup } from "@playwright/test"
+import { expect, test as setup } from "@playwright/test"
 
 import { AUTH_FILE } from "./constants"
+import { signInAs } from "./fixtures"
 
-const TEST_EMAIL = process.env.E2E_TEST_EMAIL ?? "test@gmail.com"
-const TEST_PASSWORD = process.env.E2E_TEST_PASSWORD ?? "Password123"
-const TEST_NAME = process.env.E2E_TEST_NAME ?? "E2E Test User"
-
-// Backend auth API — trailing slash is required for correct URL resolution with relative paths
-const AUTH_API = process.env.E2E_AUTH_API_URL ?? "http://localhost:3000/api/v1/auth/"
-
-// Web app origin — must be in BETTER_AUTH_TRUSTED_ORIGINS
-const WEB_ORIGIN = process.env.BASE_URL ?? "http://localhost:3001"
-
+/**
+ * Establishes the shared authenticated session the `chromium-authenticated`
+ * project reuses.
+ *
+ * HY-1: sign-in goes through the shared fixture, which registers the account
+ * when it does not exist and retries Better Auth's per-path 429. Doing it
+ * inline here used to fail the whole authenticated project whenever a serial
+ * run made enough sign-ins to trip that limit — one rate-limited request and
+ * every authenticated test was reported as broken.
+ */
 setup("authenticate", async ({ page }) => {
-	// ── Call the backend auth API directly — more reliable than form interaction ──
-	const api = await request.newContext({
-		baseURL: AUTH_API,
-		extraHTTPHeaders: {
-			"Content-Type": "application/json",
-			// Better Auth checks Origin against trustedOrigins for CSRF protection
-			"Origin": WEB_ORIGIN,
-		},
-	})
+	await signInAs(page, "userA")
 
-	// 1. Try sign-in with the test credentials
-	let authRes = await api.post("sign-in/email", {
-		data: { email: TEST_EMAIL, password: TEST_PASSWORD },
-	})
+	const cookies = await page.context().cookies()
+	expect(
+		cookies.some(c => c.name === "better-auth.session_token"),
+		"sign-in returned no session cookie"
+	).toBe(true)
 
-	// 2. If sign-in failed (user doesn't exist yet), register the account first
-	if (!authRes.ok()) {
-		const signUpRes = await api.post("sign-up/email", {
-			data: { email: TEST_EMAIL, password: TEST_PASSWORD, name: TEST_NAME },
-		})
-
-		if (!signUpRes.ok()) {
-			const body = await signUpRes.text()
-			throw new Error(`[e2e setup] Failed to create test account: ${signUpRes.status()} – ${body}`)
-		}
-
-		// Sign in after successful registration
-		authRes = await api.post("sign-in/email", {
-			data: { email: TEST_EMAIL, password: TEST_PASSWORD },
-		})
-
-		if (!authRes.ok()) {
-			const body = await authRes.text()
-			throw new Error(`[e2e setup] Failed to sign in after registration: ${authRes.status()} – ${body}`)
-		}
-	}
-
-	// ── Transfer auth cookies from API context → browser context ───────────────
-	const { cookies } = await api.storageState()
-
-	if (cookies.length === 0) {
-		throw new Error("[e2e setup] Sign-in succeeded but no session cookies were returned")
-	}
-
-	const hasSessionCookie = cookies.some(c => c.name === "better-auth.session_token")
-	expect(hasSessionCookie).toBe(true)
-
-	await page.context().addCookies(cookies)
-
-	// Navigate to the home page so Next.js validates the session server-side
+	// Navigate so Next.js validates the session server-side — a cookie the
+	// server rejects would otherwise surface as a confusing failure in every
+	// authenticated test rather than here.
 	await page.goto("/")
-
 	await expect(page.locator("p").filter({ hasText: /^Hello\s/ })).toBeVisible()
 
 	await page.goto("/dashboard")
@@ -72,5 +33,4 @@ setup("authenticate", async ({ page }) => {
 
 	// Persist the full browser context (cookies + localStorage) for authenticated tests
 	await page.context().storageState({ path: AUTH_FILE })
-	await api.dispose()
 })

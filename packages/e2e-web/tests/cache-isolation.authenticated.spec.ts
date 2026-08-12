@@ -1,4 +1,6 @@
-import { expect, request, test, type Page } from "@playwright/test"
+import { expect, test, type Page } from "@playwright/test"
+
+import { ACCOUNTS, signInAs, trySignInAs } from "../fixtures"
 
 /**
  * WC-1 / F-04 — cache isolation on a shared browser profile.
@@ -11,70 +13,19 @@ import { expect, request, test, type Page } from "@playwright/test"
  * DevTools without authenticating at all.
  *
  * These tests drive their own sign-in rather than inheriting the shared
- * `storageState`, because signing out invalidates that session for every other
- * test in the authenticated project.
+ * `storageState`, and they sign in as **userB** specifically: signing out
+ * invalidates that account's session server-side, and userA is the account the
+ * shared `storageState` holds a token for. Using userA here would log the rest
+ * of the authenticated project out mid-run (HY-1).
  */
-
-const AUTH_API = process.env.E2E_AUTH_API_URL ?? "http://localhost:3000/api/v1/auth/"
-const WEB_ORIGIN = process.env.BASE_URL ?? "http://localhost:3001"
-
-const TEST_EMAIL = process.env.E2E_TEST_EMAIL ?? "test@gmail.com"
-const TEST_PASSWORD = process.env.E2E_TEST_PASSWORD ?? "Password123"
 
 // The seeded Admin holds `users:read`, so `/user-management` returns the real
 // email directory — the exact PII the audit found sitting on disk.
-const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL ?? "admin@turbo-template.local"
-const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? "Password123"
+const ADMIN_EMAIL = ACCOUNTS.admin.email
+const TEST_EMAIL = ACCOUNTS.userB.email
 
 // Start each test from a clean, signed-out profile.
 test.use({ storageState: { cookies: [], origins: [] } })
-
-/**
- * Sign in through the auth API and move the cookies into the browser context.
- *
- * Better Auth applies its own per-path rate limit to `sign-in/email`, so a
- * suite that authenticates several times can trip a 429 that has nothing to do
- * with what is under test. Retry on 429 only — any other failure is real and
- * is reported verbatim.
- */
-async function signIn(
-	page: Page,
-	email: string,
-	password: string
-): Promise<{ ok: boolean; detail: string }> {
-	let detail = ""
-
-	for (let attempt = 1; attempt <= 3; attempt++) {
-		const api = await request.newContext({
-			baseURL: AUTH_API,
-			extraHTTPHeaders: { "Content-Type": "application/json", "Origin": WEB_ORIGIN },
-		})
-
-		const res = await api.post("sign-in/email", { data: { email, password } })
-
-		if (res.ok()) {
-			const { cookies } = await api.storageState()
-			await page.context().addCookies(cookies)
-			await api.dispose()
-			return { ok: true, detail: "" }
-		}
-
-		const status = res.status()
-		detail = `${status} ${await res.text()}`
-		await api.dispose()
-
-		if (status !== 429) break
-		await page.waitForTimeout(11_000)
-	}
-
-	return { ok: false, detail }
-}
-
-/** Sign in and fail the test with the server's reason if it doesn't work. */
-async function signInOrFail(page: Page, email: string, password: string) {
-	const { ok, detail } = await signIn(page, email, password)
-	expect(ok, `sign-in for ${email} failed: ${detail}`).toBe(true)
-}
 
 /**
  * Dump every value held in every IndexedDB database for this origin.
@@ -163,13 +114,13 @@ test.describe("persisted cache isolation", () => {
 	test("never writes the session identity or the email directory to IndexedDB", async ({
 		page,
 	}) => {
-		const { ok: isAdmin, detail } = await signIn(page, ADMIN_EMAIL, ADMIN_PASSWORD)
+		const isAdmin = await trySignInAs(page, "admin")
 		if (!isAdmin) {
 			// Fall back to the standard test account: the session-exclusion half of
 			// the fix is still provable without the directory.
 			// eslint-disable-next-line no-console
-			console.warn(`[wc-1] admin sign-in unavailable (${detail}); directory check skipped`)
-			await signInOrFail(page, TEST_EMAIL, TEST_PASSWORD)
+			console.warn("[wc-1] admin unavailable; directory check skipped")
+			await signInAs(page, "userB")
 		}
 
 		const email = isAdmin ? ADMIN_EMAIL : TEST_EMAIL
@@ -197,7 +148,7 @@ test.describe("persisted cache isolation", () => {
 	})
 
 	test("writes to an identity-scoped key, never the shared default", async ({ page }) => {
-		await signInOrFail(page, TEST_EMAIL, TEST_PASSWORD)
+		await signInAs(page, "userB")
 		await visitCachePopulatingPages(page, false)
 
 		const keys = await waitForPersistedSnapshot(page)
@@ -210,7 +161,7 @@ test.describe("persisted cache isolation", () => {
 	})
 
 	test("gives a second user a different cache bucket than the first", async ({ page }) => {
-		await signInOrFail(page, TEST_EMAIL, TEST_PASSWORD)
+		await signInAs(page, "userB")
 		await visitCachePopulatingPages(page, false)
 		const firstUserKeys = await waitForPersistedSnapshot(page)
 
@@ -220,7 +171,7 @@ test.describe("persisted cache isolation", () => {
 		await page.getByRole("button", { name: /logout/i }).click()
 		await expect(page.getByRole("link", { name: /^login$/i })).toBeVisible()
 
-		const { ok: isAdmin } = await signIn(page, ADMIN_EMAIL, ADMIN_PASSWORD)
+		const isAdmin = await trySignInAs(page, "admin")
 		test.skip(!isAdmin, "second account unavailable in this environment")
 
 		await visitCachePopulatingPages(page, true)
@@ -245,7 +196,7 @@ test.describe("persisted cache isolation", () => {
 		// The Admin account, because listing todos needs `posts:read`; the plain
 		// test account holds no role and would render an empty list either way,
 		// which would prove nothing about restore.
-		const { ok: isAdmin } = await signIn(page, ADMIN_EMAIL, ADMIN_PASSWORD)
+		const isAdmin = await trySignInAs(page, "admin")
 		test.skip(!isAdmin, "admin account unavailable in this environment")
 
 		await visitCachePopulatingPages(page, true)
@@ -272,7 +223,7 @@ test.describe("persisted cache isolation", () => {
 	})
 
 	test("sign-out purges every persisted cache entry from IndexedDB", async ({ page }) => {
-		await signInOrFail(page, TEST_EMAIL, TEST_PASSWORD)
+		await signInAs(page, "userB")
 		await visitCachePopulatingPages(page, false)
 		const signedInKeys = await waitForPersistedSnapshot(page)
 

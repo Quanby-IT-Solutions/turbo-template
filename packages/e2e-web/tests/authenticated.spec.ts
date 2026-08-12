@@ -1,4 +1,6 @@
-import { expect, request, test, type Page } from "@playwright/test"
+import { expect, test, type Page } from "@playwright/test"
+
+import { signInAs } from "../fixtures"
 
 // All tests in this file run with stored auth session (chromium-authenticated project)
 
@@ -151,21 +153,11 @@ test.describe("sign-out", () => {
 	test.use({ storageState: { cookies: [], origins: [] } })
 
 	test("returns to the logged-out state and re-guards protected routes", async ({ page }) => {
-		const authApi = process.env.E2E_AUTH_API_URL ?? "http://localhost:3000/api/v1/auth/"
-		const webOrigin = process.env.BASE_URL ?? "http://localhost:3001"
-		const testEmail = process.env.E2E_TEST_EMAIL ?? "test@gmail.com"
-		const testPassword = process.env.E2E_TEST_PASSWORD ?? "Password123"
-
-		const api = await request.newContext({
-			baseURL: authApi,
-			extraHTTPHeaders: { "Content-Type": "application/json", Origin: webOrigin },
-		})
-		const res = await api.post("sign-in/email", {
-			data: { email: testEmail, password: testPassword },
-		})
-		expect(res.ok(), await res.text()).toBe(true)
-		await page.context().addCookies((await api.storageState()).cookies)
-		await api.dispose()
+		// HY-1: the shared fixture, so this sign-in gets the same 429 retry as
+		// every other. Better Auth rate-limits `sign-in/email` per path, and a
+		// full serial run makes enough sign-ins to trip it — which used to fail
+		// this test for a reason unrelated to sign-out.
+		await signInAs(page, "userB")
 
 		await page.goto("/")
 		await page.getByRole("button", { name: /logout/i }).click()

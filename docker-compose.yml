@@ -40,17 +40,37 @@ services:
     ports:
       - "80:80" # single published port (clean URLs, no :port)
       - "443:443" # TLS, used by the production config
+    # Upstream hosts, so one config serves both dev topologies. Defaults are the
+    # compose service names; override in the root .env to point at the host when
+    # only Nginx runs in Docker and the apps run under `pnpm dev`:
+    #   WEB_UPSTREAM=host.docker.internal:3001
+    #   BACKEND_UPSTREAM=host.docker.internal:3000
+    environment:
+      - WEB_UPSTREAM=${WEB_UPSTREAM:-web:3001}
+      - BACKEND_UPSTREAM=${BACKEND_UPSTREAM:-backend:3000}
+    # Lets the container reach apps running on the host, which is what the
+    # host.docker.internal upstreams above resolve through.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       # ED-2: defaults to the HTTP-only dev config so a fresh clone works with
       # no certificates. Point NGINX_CONF at ./nginx/nginx.conf for the
       # TLS-terminating production config, and mount certificates alongside.
-      - ${NGINX_CONF:-./nginx/nginx.dev.conf}:/etc/nginx/conf.d/default.conf:ro
+      #
+      # Mounted as a TEMPLATE, not straight into conf.d: the image's entrypoint
+      # runs envsubst over /etc/nginx/templates and writes the result to
+      # conf.d/default.conf. Only names that exist in the environment are
+      # substituted, so Nginx's own $host / $remote_addr survive untouched.
+      - ${NGINX_CONF:-./nginx/nginx.dev.conf}:/etc/nginx/templates/default.conf.template:ro
       # Certificates and the ACME webroot. Both are optional locally; the dev
       # config never reads them.
       - ${NGINX_CERTS_DIR:-./nginx/certs}:/etc/nginx/certs:ro
       - ${NGINX_ACME_WEBROOT:-./nginx/certbot}:/var/www/certbot
     networks:
       - app-network
+    # Only meaningful when the apps run as compose services. With the host
+    # upstreams above there is nothing here to wait for, which is why the
+    # README's `--no-deps` form exists.
     depends_on:
       - web
       - backend

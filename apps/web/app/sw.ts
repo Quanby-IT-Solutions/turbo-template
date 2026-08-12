@@ -29,7 +29,18 @@ declare const self: ServiceWorkerGlobalScope
 
 const serwist = new Serwist({
 	precacheEntries: self.__SW_MANIFEST,
-	skipWaiting: true,
+	// WC-4 / F-49: the new worker does NOT take over mid-session.
+	//
+	// `skipWaiting: true` activated a freshly-installed worker immediately,
+	// swapping the code serving an open tab underneath the user — a half-loaded
+	// page can end up mixing old and new chunks, and there was no production
+	// path to recover from a bad worker.
+	//
+	// It now waits. `SerwistRegistrationProvider` detects the waiting worker and
+	// prompts; the user chooses when to reload. `clientsClaim` stays true so
+	// that once a worker DOES activate it controls existing tabs rather than
+	// leaving them uncontrolled until the next navigation.
+	skipWaiting: false,
 	clientsClaim: true,
 	navigationPreload: true,
 	runtimeCaching: [
@@ -67,6 +78,14 @@ const serwist = new Serwist({
 			},
 		],
 	},
+})
+
+// WC-4 / F-49: the page asks the waiting worker to activate, once the user has
+// agreed. This is the only path that skips waiting.
+self.addEventListener("message", event => {
+	if ((event.data as { type?: string } | undefined)?.type === "SKIP_WAITING") {
+		void self.skipWaiting()
+	}
 })
 
 serwist.addEventListeners()

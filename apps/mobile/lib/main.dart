@@ -1,6 +1,5 @@
 import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile/app.dart';
 import 'package:mobile/services/api/api_client.dart';
@@ -13,7 +12,10 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Load environment variables
-  await dotenv.load(fileName: '.env');
+  // MB-2 / F-42: no `.env` is loaded. It used to be bundled as a Flutter
+  // asset, which ships it inside the APK in cleartext where unzipping the
+  // package reveals it. Configuration now arrives via --dart-define; see
+  // ApiConstants.
 
   // Initialize awesome_notifications before runApp so channels are registered.
   await NotificationService.instance.initialize();

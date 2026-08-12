@@ -75,5 +75,7 @@ dev_dependencies:
 flutter:
   uses-material-design: true
 
-  assets:
-    - .env
+  # MB-2 / F-42: `.env` is deliberately NOT bundled. A Flutter asset ships
+  # inside the APK in cleartext and is readable by unzipping it, so config
+  # arrives via --dart-define instead (see ApiConstants).
+  assets: []

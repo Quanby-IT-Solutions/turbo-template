@@ -1,5 +1,20 @@
 import { RbacService } from "./rbac.service"
 
+// `RbacService` refuses with `ORPCError` so oRPC maps denials to real statuses
+// rather than a 500 (AZ-2). `@orpc/server` is ESM and this jest config does not
+// transform it, so it is stubbed here as it is in the other RBAC specs.
+jest.mock("@orpc/server", () => ({
+	ORPCError: class ORPCError extends Error {
+		constructor(
+			public code: string,
+			options?: { message?: string }
+		) {
+			super(options?.message ?? code)
+			this.name = "ORPCError"
+		}
+	},
+}))
+
 jest.mock("@repo/contracts", () => ({
 	ADMIN_ROLE: "Admin",
 	PERMISSION_NAMES: [

@@ -11,6 +11,7 @@ import {
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools"
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client"
 import { del, get, set } from "idb-keyval"
+import { toast } from "sonner"
 
 import { setupOnlineManagerBridge } from "@/features/pwa/lib/online-manager-bridge"
 import { registerTodosMutationDefaults } from "@/features/todos/api/todos.hooks"
@@ -24,6 +25,7 @@ import {
 	readCacheIdentity,
 	writeCacheIdentity,
 } from "./cache-persistence"
+import { discardForeignPausedMutations } from "./paused-mutation-identity"
 import {
 	deserializeQueryData,
 	getQueryClient,
@@ -149,8 +151,24 @@ export function QueryProvider({ children }: Readonly<{ children: React.ReactNode
 			// Without this, writes queued offline stay stuck when the app reopens
 			// with connectivity already back — they'd only replay on a future
 			// offline→online transition.
+			// After the persisted state is restored, discard anything queued by a
+			// different identity, THEN resume the rest (WC-3 / F-19). The order is
+			// the whole guarantee: once `resumePausedMutations()` starts there is
+			// no interception point, and a mutation that has begun replaying has
+			// already been sent.
 			onSuccess={() => {
 				registerTodosMutationDefaults(queryClient)
+
+				const discarded = discardForeignPausedMutations(queryClient)
+				if (discarded > 0) {
+					toast.warning(
+						discarded === 1
+							? "1 offline change from a previous session was discarded."
+							: `${discarded} offline changes from a previous session were discarded.`,
+						{ id: "paused-mutations-discarded" }
+					)
+				}
+
 				void queryClient.resumePausedMutations()
 			}}
 		>

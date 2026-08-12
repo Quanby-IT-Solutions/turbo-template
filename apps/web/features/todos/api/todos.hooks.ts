@@ -11,6 +11,10 @@ import {
 import type { Todo } from "@repo/contracts"
 
 import { ApiError } from "@/core/lib/api-error"
+import {
+	stampIdentity,
+	type IdentityStamped,
+} from "@/services/tanstack-query/paused-mutation-identity"
 import { env } from "@/env"
 
 const API_BASE = `${env.NEXT_PUBLIC_API_BASE_URL}/${env.NEXT_PUBLIC_API_VERSION}`
@@ -59,9 +63,20 @@ export type TodoUi = {
 	updatedAt: Date
 }
 
-type CreateTodoVars = { title: string; completed: boolean; idempotencyKey: string }
-type UpdateTodoVars = { id: number; title: string; completed: boolean; idempotencyKey: string }
-type DeleteTodoVars = { id: number; idempotencyKey: string }
+// WC-3: every rehydratable mutation carries the identity that queued it, so a
+// device handover cannot replay one person's offline writes as another's.
+type CreateTodoVars = {
+	title: string
+	completed: boolean
+	idempotencyKey: string
+} & IdentityStamped
+type UpdateTodoVars = {
+	id: number
+	title: string
+	completed: boolean
+	idempotencyKey: string
+} & IdentityStamped
+type DeleteTodoVars = { id: number; idempotencyKey: string } & IdentityStamped
 
 export const todosKeys = {
 	all: ["todos"] as const,
@@ -204,7 +219,8 @@ export function useCreateTodoMutation() {
 		mutate: (
 			payload: { title: string; completed: boolean },
 			options?: MutateOptions<Todo, Error, CreateTodoVars>
-		) => mutation.mutate({ ...payload, idempotencyKey: crypto.randomUUID() }, options),
+		) =>
+			mutation.mutate(stampIdentity({ ...payload, idempotencyKey: crypto.randomUUID() }), options),
 	}
 }
 
@@ -220,7 +236,10 @@ export function useToggleTodoMutation() {
 			options?: MutateOptions<Todo, Error, UpdateTodoVars>
 		) => {
 			if (typeof vars.id !== "number") return // skip optimistic rows without a server id
-			mutation.mutate({ ...vars, id: vars.id, idempotencyKey: crypto.randomUUID() }, options)
+			mutation.mutate(
+				stampIdentity({ ...vars, id: vars.id, idempotencyKey: crypto.randomUUID() }),
+				options
+			)
 		},
 	}
 }
@@ -237,7 +256,7 @@ export function useDeleteTodoMutation() {
 			options?: MutateOptions<{ success: boolean; id: number }, Error, DeleteTodoVars>
 		) => {
 			if (typeof id !== "number") return // skip optimistic rows without a server id
-			mutation.mutate({ id, idempotencyKey: crypto.randomUUID() }, options)
+			mutation.mutate(stampIdentity({ id, idempotencyKey: crypto.randomUUID() }), options)
 		},
 	}
 }

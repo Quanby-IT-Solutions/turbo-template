@@ -69,6 +69,7 @@ describe("TicketsService", () => {
 		const service = new TicketsService()
 		await expect(
 			service.submit({
+				authorId: "spec-author",
 				payload: { name: "Ada", email: "ada@example.com", subject: "Bug", concern: "It broke" },
 			})
 		).resolves.toEqual(ticket)
@@ -84,6 +85,7 @@ describe("TicketsService", () => {
 		const service = new TicketsService()
 		await expect(
 			service.submit({
+				authorId: "spec-author",
 				payload: { name: "Ada", email: "ada@example.com", subject: "Bug", concern: "It broke" },
 			})
 		).rejects.toThrow(InternalServerErrorException)

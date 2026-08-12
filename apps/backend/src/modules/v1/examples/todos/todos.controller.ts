@@ -47,9 +47,12 @@ export class TodosController {
 	@RequirePermissions("posts:edit")
 	@UseInterceptors(IdempotencyInterceptor)
 	@Implement(v1.example.todo.update)
-	async updateTodo() {
+	async updateTodo(
+		@Session()
+		session: UserSession
+	) {
 		return implement(v1.example.todo.update).handler(async ({ input }) => {
-			return this.todosService.update({ payload: input })
+			return this.todosService.update({ payload: input, authorId: session.user.id })
 		})
 	}
 
@@ -57,9 +60,12 @@ export class TodosController {
 	@RequirePermissions("posts:delete")
 	@UseInterceptors(IdempotencyInterceptor)
 	@Implement(v1.example.todo.delete)
-	async removeTodo() {
+	async removeTodo(
+		@Session()
+		session: UserSession
+	) {
 		return implement(v1.example.todo.delete).handler(async ({ input }) => {
-			return this.todosService.delete({ id: input.id })
+			return this.todosService.delete({ id: input.id, authorId: session.user.id })
 		})
 	}
 }

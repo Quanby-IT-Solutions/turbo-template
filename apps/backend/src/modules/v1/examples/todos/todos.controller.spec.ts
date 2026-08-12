@@ -108,9 +108,11 @@ describe("TodosController (v1)", () => {
 	}
 
 	// Helper to set up delete mock
-	const setupDeleteMock = () => {
+	// AZ-3: delete is now ownership-scoped and uses `.returning()` to tell
+	// "deleted" from "not yours / not there", so the mock must resolve rows.
+	const setupDeleteMock = (rows: unknown[] = [createMockTodo({ id: 3 })]) => {
 		mockDb.delete.mockReturnValueOnce({
-			where: jest.fn(() => Promise.resolve(undefined)),
+			where: jest.fn(() => ({ returning: jest.fn(() => Promise.resolve(rows)) })),
 		})
 	}
 
@@ -178,6 +180,7 @@ describe("TodosController (v1)", () => {
 		setupUpdateMock(updated)
 
 		const result = await service.update({
+			authorId: "spec-author",
 			payload: { id: 3, title: "Updated Title" },
 		})
 
@@ -192,7 +195,7 @@ describe("TodosController (v1)", () => {
 		setupSelectMock(existingTodo)
 		setupDeleteMock()
 
-		await service.delete({ id: 3 })
+		await service.delete({ authorId: "spec-author", id: 3 })
 
 		expect(mockDb.delete).toHaveBeenCalled()
 	})

@@ -1,6 +1,7 @@
 import { Controller } from "@nestjs/common"
 import { Implement } from "@orpc/nest"
 import { implement } from "@orpc/server"
+import { Session, type UserSession } from "@thallesp/nestjs-better-auth"
 
 import { v1 } from "@/config/api-versions.config"
 import { RequirePermissions } from "@/shared/decorators/require-permissions.decorator"
@@ -30,9 +31,14 @@ export class TicketsController {
 
 	@StrictThrottle()
 	@Implement(v1.ticket.submit)
-	async submitTicket() {
+	async submitTicket(@Session() session?: UserSession) {
 		return implement(v1.ticket.submit).handler(async ({ input }) => {
-			return this.ticketsService.submit({ payload: input })
+			// AZ-3 / F-30: attribute the submission. Optional so the route keeps
+			// working if it is ever opened to anonymous reporters.
+			return this.ticketsService.submit({
+				payload: input,
+				authorId: session?.user?.id ?? null,
+			})
 		})
 	}
 }

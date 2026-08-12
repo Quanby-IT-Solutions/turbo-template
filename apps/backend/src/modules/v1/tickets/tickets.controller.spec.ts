@@ -8,6 +8,14 @@ import { RbacGuard } from "@/shared/guards/rbac.guard"
 
 import { TicketsController } from "./tickets.controller"
 
+// AZ-3 threaded the session into `submitTicket` so submissions are attributed.
+// `@thallesp/nestjs-better-auth` ships ESM that this jest config does not
+// transform, so the decorator is stubbed exactly as in the todos controller spec.
+jest.mock("@thallesp/nestjs-better-auth", () => ({
+	AllowAnonymous: () => () => undefined,
+	Session: () => () => ({ user: { id: "template-user-id" } }),
+}))
+
 // AZ-1: tickets.list / tickets.get must be gated on `users:read` — any
 // self-registered user must NOT be able to read reporter PII. This suite
 // proves the wiring (decorator present) AND the runtime outcome (permitted

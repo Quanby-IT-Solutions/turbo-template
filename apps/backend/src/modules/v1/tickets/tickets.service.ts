@@ -23,7 +23,16 @@ export class TicketsService {
 		return ticket
 	}
 
-	async submit({ payload }: { payload: CreateTicketInput }) {
+	/**
+	 * Record a submitted ticket.
+	 *
+	 * AZ-3 / F-30: `authorId` was never stored, so tickets were unattributable
+	 * even though the route required a session. It is nullable rather than
+	 * required — the column is additive over rows that predate this, and the
+	 * submit route is not permission-gated, so a future anonymous form would
+	 * still record a ticket rather than fail. Reads stay staff-gated (AZ-1).
+	 */
+	async submit({ payload, authorId }: { payload: CreateTicketInput; authorId: string | null }) {
 		const [ticket] = await db
 			.insert(tickets)
 			.values({
@@ -32,6 +41,7 @@ export class TicketsService {
 				subject: payload.subject,
 				priority: payload.priority ?? "medium",
 				concern: payload.concern,
+				authorId,
 			})
 			.returning()
 		if (!ticket) throw new InternalServerErrorException("Ticket not created")

@@ -257,25 +257,33 @@ describe("ThrottlerProxyGuard forged X-Forwarded-For (AB-1)", () => {
 	})
 })
 
-describe("nginx.conf client-IP directives (AB-1)", () => {
-	const conf = readFileSync(join(__dirname, "../../../../../nginx/nginx.conf"), "utf8")
-	const activeLines = conf
-		.split("\n")
-		.map(line => line.trim())
-		.filter(line => !line.startsWith("#"))
+// Both shipped configs, not just production. nginx.dev.conf is the default a
+// fresh clone runs — the compose mount falls back to it — so a regression there
+// reaches far more people than one in nginx.conf, and only this file was
+// covered. The trust chain (RF2) is only sound while EVERY proxy that fronts
+// the app overwrites the header.
+describe.each([["nginx.conf"], ["nginx.dev.conf"]])(
+	"%s client-IP directives (AB-1)",
+	(configFile: string) => {
+		const conf = readFileSync(join(__dirname, "../../../../../nginx", configFile), "utf8")
+		const activeLines = conf
+			.split("\n")
+			.map(line => line.trim())
+			.filter(line => !line.startsWith("#"))
 
-	it("sets X-Forwarded-For to $remote_addr at every active proxy location", () => {
-		const forwardedFor = activeLines.filter(line => line.includes("X-Forwarded-For"))
+		it("sets X-Forwarded-For to $remote_addr at every active proxy location", () => {
+			const forwardedFor = activeLines.filter(line => line.includes("X-Forwarded-For"))
 
-		expect(forwardedFor.length).toBeGreaterThanOrEqual(2)
-		for (const line of forwardedFor) {
-			expect(line).toBe("proxy_set_header X-Forwarded-For $remote_addr;")
-		}
-	})
+			expect(forwardedFor.length).toBeGreaterThanOrEqual(2)
+			for (const line of forwardedFor) {
+				expect(line).toBe("proxy_set_header X-Forwarded-For $remote_addr;")
+			}
+		})
 
-	// Comments are allowed to name the directive (they explain why it is banned);
-	// no *executable* line may use it.
-	it("never appends via $proxy_add_x_forwarded_for", () => {
-		expect(activeLines.filter(line => line.includes("$proxy_add_x_forwarded_for"))).toEqual([])
-	})
-})
+		// Comments are allowed to name the directive (they explain why it is banned);
+		// no *executable* line may use it.
+		it("never appends via $proxy_add_x_forwarded_for", () => {
+			expect(activeLines.filter(line => line.includes("$proxy_add_x_forwarded_for"))).toEqual([])
+		})
+	}
+)

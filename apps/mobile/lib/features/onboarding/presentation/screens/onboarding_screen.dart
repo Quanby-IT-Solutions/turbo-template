@@ -141,7 +141,11 @@ class OnboardingScreen extends ConsumerWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const SizedBox(height: 64),
+            // Flexible, not a fixed box: this is decorative top spacing, and
+            // on a short viewport 64 + the 180 circle exceeds the slot the
+            // carousel gives this widget, overflowing by a few pixels.
+            // Letting the spacer absorb the shortfall keeps the art intact.
+            const Flexible(child: SizedBox(height: 64)),
             Container(
               width: 180,
               height: 180,

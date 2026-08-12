@@ -128,6 +128,9 @@ changes are needed; if it splits web/api across different domains, update
 | `PORT`                        | ❌       | Backend     | Server port (default: 3000)                               |
 | `GOOGLE_CLIENT_ID`            | ❌       | Backend     | Google OAuth client ID                                    |
 | `GOOGLE_CLIENT_SECRET`        | ❌       | Backend     | Google OAuth client secret                                |
+| `REDIS_URL`                   | ❌       | Backend     | Shared throttle counters + RBAC cache (see below)         |
+| `REDIS_KEY_PREFIX`            | ❌       | Backend     | Key namespace (default: `turbo-template`)                 |
+| `REDIS_PASSWORD`              | ❌       | Docker      | Required by the compose `redis` service                   |
 | `NEXT_PUBLIC_APP_URL`         | ✅       | Web         | Web app URL                                               |
 | `NEXT_PUBLIC_API_BASE_URL`    | ✅       | Web         | Backend API base URL                                      |
 | `NEXT_PUBLIC_API_VERSION`     | ✅       | Web         | API version (default: v1)                                 |
@@ -135,6 +138,29 @@ changes are needed; if it splits web/api across different domains, update
 | `COMPOSE_PROFILES`            | ❌       | Root/Docker | `docker-proxy` runs bundled Nginx; empty = external proxy |
 
 Copy from `.env.example` in each app: `apps/backend/.env`, `apps/web/.env`, `packages/db/.env`.
+
+### Redis — when you need it
+
+Optional for a single backend instance, **required for more than one**. Two
+subsystems keep state that has to be shared:
+
+- **Rate limiting.** Counters are per-process without Redis, so a limit of 100
+  becomes 100 × instances.
+- **RBAC permission cache.** A revoked role keeps working on every instance
+  except the one that revoked it, until the 60s TTL lapses.
+
+Set `REDIS_URL=redis://:<password>@<host>:6379`. The compose files include a
+`redis` service with `requirepass` and **no published port** — it is reachable
+only on the internal network. It requires `REDIS_PASSWORD` and refuses to start
+without one.
+
+If Redis becomes unavailable the app keeps serving, degrading two different
+ways on purpose:
+
+| Subsystem | Behaviour | Why |
+| --- | --- | --- |
+| RBAC cache | **Fail closed** — every read falls through to the database | Slower but always correct. A cache that answers from a store it can no longer invalidate is how revoked access survives. |
+| Throttler | **Fail open** — requests are allowed, logged once | It guards how *often*, not *who*. Refusing all traffic because the counter is unreachable turns a dependency outage into a full outage. |
 
 **Separate ports (native `pnpm dev`):** `NEXT_PUBLIC_APP_URL=http://localhost:3001`,
 `NEXT_PUBLIC_API_BASE_URL=http://localhost:3000/api`.

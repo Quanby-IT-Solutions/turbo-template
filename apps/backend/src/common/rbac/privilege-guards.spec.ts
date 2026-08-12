@@ -79,7 +79,7 @@ async function adminCount(): Promise<number> {
 }
 
 function makeService() {
-	return new RbacService(new RbacCacheService(), new AuditService())
+	return new RbacService(new RbacCacheService(null), new AuditService())
 }
 
 async function denialsFor(actorId: string) {

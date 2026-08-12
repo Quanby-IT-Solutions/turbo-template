@@ -20,6 +20,7 @@
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
+		"@nest-lab/throttler-storage-redis": "^1.2.0",
 		"@nestjs/common": "catalog:",
 		"@nestjs/config": "^4.0.2",
 		"@nestjs/core": "catalog:",
@@ -45,6 +46,7 @@
 		"dotenv": "catalog:",
 		"drizzle-orm": "catalog:",
 		"express": "^5.2.1",
+		"ioredis": "^6.0.0",
 		"lru-cache": "^11.0.0",
 		"nestjs-pino": "^4.6.1",
 		"nestjs-zod": "^5.1.1",

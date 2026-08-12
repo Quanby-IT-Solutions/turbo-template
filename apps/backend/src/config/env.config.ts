@@ -48,6 +48,15 @@ export const env = createEnv({
 		// Database
 		DATABASE_URL: z.string(),
 
+		// Redis (AB-2). Shared state for the throttler and the RBAC permission
+		// cache. Optional so a single-instance local run still boots, but see
+		// the degradation notes in redis.provider.ts: without it, rate limits
+		// multiply by instance count and a revoked permission only dies on the
+		// instance that revoked it.
+		REDIS_URL: z.string().optional(),
+		/** Key prefix, so several environments can share one Redis safely. */
+		REDIS_KEY_PREFIX: z.string().optional().default("turbo-template"),
+
 		// Authentication.
 		// Same schema object the @repo/auth package validates with — the two
 		// processes sign the same sessions, so their rules must never drift (F-03).

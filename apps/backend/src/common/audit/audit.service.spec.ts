@@ -114,11 +114,11 @@ const itDb: jest.It = ((name: string, fn: jest.ProvidesCallback, timeout?: numbe
 	)) as jest.It
 
 function makeRbacService() {
-	return new RbacService(new RbacCacheService(), new AuditService())
+	return new RbacService(new RbacCacheService(null), new AuditService())
 }
 
 function makeAdminService() {
-	const cache = new RbacCacheService()
+	const cache = new RbacCacheService(null)
 	const audit = new AuditService()
 	return new RbacAdminService(new RbacService(cache, audit), cache, audit)
 }
@@ -166,7 +166,7 @@ describe("audit trail is written in the same transaction as the mutation", () =>
 		const audit = new AuditService()
 		jest.spyOn(audit, "record").mockRejectedValue(new Error("audit sink unavailable"))
 
-		const service = new RbacService(new RbacCacheService(), audit)
+		const service = new RbacService(new RbacCacheService(null), audit)
 
 		await expect(service.assignRole(TEST_USER, TEST_ROLE, TEST_ACTOR)).rejects.toThrow(
 			/audit sink unavailable/
@@ -189,7 +189,11 @@ describe("audit trail is written in the same transaction as the mutation", () =>
 		jest.spyOn(audit, "record").mockRejectedValue(new Error("audit sink unavailable"))
 
 		await expect(
-			new RbacService(new RbacCacheService(), audit).removeRole(TEST_USER, TEST_ROLE, TEST_ACTOR)
+			new RbacService(new RbacCacheService(null), audit).removeRole(
+				TEST_USER,
+				TEST_ROLE,
+				TEST_ACTOR
+			)
 		).rejects.toThrow(/audit sink unavailable/)
 
 		const [role] = await db.select().from(roles).where(eq(roles.name, TEST_ROLE))

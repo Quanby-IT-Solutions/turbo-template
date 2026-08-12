@@ -211,7 +211,7 @@ export class RbacAdminService {
 			)
 		})
 
-		this.cacheService.clear()
+		await this.cacheService.clear()
 		return this.buildRole(role.id)
 	}
 
@@ -261,7 +261,7 @@ export class RbacAdminService {
 			)
 		})
 
-		this.cacheService.clear()
+		await this.cacheService.clear()
 		return { success: true, id: role.id }
 	}
 

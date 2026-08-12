@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common"
 import { ConfigModule } from "@nestjs/config"
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR, APP_PIPE } from "@nestjs/core"
 import { ThrottlerModule } from "@nestjs/throttler"
+import { ThrottlerStorageRedisService } from "@nest-lab/throttler-storage-redis"
 import { AuthModule } from "@thallesp/nestjs-better-auth"
 import { LoggerModule } from "nestjs-pino"
 import { ZodSerializerInterceptor, ZodValidationPipe } from "nestjs-zod"
@@ -18,6 +19,9 @@ import { ThrottlerProxyGuard } from "@/shared/guards/throttler-proxy.guard"
 import { AuditModule } from "./common/audit/audit.module"
 import { ORPCCommonModule } from "./common/orpc/orpc.module"
 import { RbacModule } from "./common/rbac/rbac.module"
+import { RedisModule } from "./common/redis/redis.module"
+import { REDIS_CLIENT, type RedisClient } from "./common/redis/redis.provider"
+import { ResilientThrottlerStorage } from "./common/redis/resilient-throttler.storage"
 import { env } from "./config/env.config"
 
 @Module({
@@ -37,28 +41,47 @@ import { env } from "./config/env.config"
 		// middleware (see buildPinoHttpOptions), so both agree on one correlation
 		// id and the response header is never overwritten with a fresh one.
 		LoggerModule.forRoot({ pinoHttp: buildPinoHttpOptions({ autoLogging: false }) }),
-		// Rate limiting
-		// NOTE: Uses in-memory ThrottlerStorageService (default).
-		// Multi-instance deployments require a shared store (e.g. Redis ThrottlerStorageRedis).
-		ThrottlerModule.forRoot([
-			{
-				name: "default",
-				ttl: env.THROTTLE_TTL,
-				limit: env.THROTTLE_LIMIT,
-			},
-			{
-				name: "strict",
-				ttl: env.THROTTLE_STRICT_TTL,
-				limit: env.THROTTLE_STRICT_LIMIT,
-				// Opt-in only: skipped for every route except handlers marked
-				// with @StrictThrottle(). Keeps reads on the `default` limiter.
-				skipIf: skipStrictThrottle,
-			},
-		]),
+		// Rate limiting (AB-2 / F-38).
+		//
+		// Counters live in Redis when REDIS_URL is set, so a limit of N is N
+		// across the whole cluster rather than N per instance. Without it the
+		// module falls back to its in-memory store: correct for a single
+		// instance, and the startup warning in redis.provider.ts says so.
+		//
+		// Degradation is deliberately FAIL-OPEN: if Redis goes away, requests
+		// are allowed rather than refused. The throttler is a supporting abuse
+		// control, and turning a Redis outage into a total outage trades a
+		// small risk for a large one. This is the opposite of the RBAC cache's
+		// fail-closed choice, because that one guards correctness.
+		ThrottlerModule.forRootAsync({
+			inject: [REDIS_CLIENT],
+			useFactory: (redis: RedisClient) => ({
+				throttlers: [
+					{
+						name: "default",
+						ttl: env.THROTTLE_TTL,
+						limit: env.THROTTLE_LIMIT,
+					},
+					{
+						name: "strict",
+						ttl: env.THROTTLE_STRICT_TTL,
+						limit: env.THROTTLE_STRICT_LIMIT,
+						// Opt-in only: skipped for every route except handlers
+						// marked with @StrictThrottle(). Keeps reads on `default`.
+						skipIf: skipStrictThrottle,
+					},
+				],
+				...(redis
+					? { storage: new ResilientThrottlerStorage(new ThrottlerStorageRedisService(redis)) }
+					: {}),
+			}),
+		}),
 		// Authentication (controllers disabled - we register versioned routes in setupBetterAuth)
 		AuthModule.forRoot({ auth: getAuth(), disableControllers: true }),
 		// oRPC setup
 		ORPCCommonModule,
+		// Shared Redis connection for the throttler and the RBAC cache (AB-2).
+		RedisModule,
 		// RBAC services
 		// Global: the audit trail is meant to outgrow RBAC (AZ-4).
 		AuditModule,

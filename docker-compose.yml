@@ -131,6 +131,29 @@ services:
       start_period: 40s
     restart: unless-stopped
 
+  # ----------------------------------------------------------
+  # Redis — shared throttle counters + RBAC permission cache (AB-2)
+  # ----------------------------------------------------------
+  # No `ports:` mapping on purpose. Redis is reachable only from the compose
+  # network by service name; publishing it would expose an authenticated but
+  # internet-facing data store for no reason.
+  redis:
+    image: redis:7-alpine
+    container_name: turbo-template-redis
+    # `requirepass` via command so the password comes from the environment
+    # rather than a baked-in config file. REDIS_PASSWORD has no default: an
+    # unauthenticated Redis must not be reachable even inside the network.
+    command:
+      ["redis-server", "--requirepass", "${REDIS_PASSWORD:?REDIS_PASSWORD is required}", "--appendonly", "no"]
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
 networks:
   app-network:
     driver: bridge

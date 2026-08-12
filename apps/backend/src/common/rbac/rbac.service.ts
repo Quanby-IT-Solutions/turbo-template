@@ -43,7 +43,7 @@ export class RbacService {
 	) {}
 
 	private async resolveForUser(userId: string): Promise<ResolvedPermissionSet> {
-		const cached = this.cacheService.get(userId)
+		const cached = await this.cacheService.get(userId)
 		if (cached) return cached
 
 		const rows = await db
@@ -67,7 +67,7 @@ export class RbacService {
 			if (row.permissionName) set.permissionNames.add(row.permissionName)
 		}
 
-		this.cacheService.set(userId, set)
+		await this.cacheService.set(userId, set)
 		return set
 	}
 
@@ -207,7 +207,7 @@ export class RbacService {
 			}
 		)
 
-		this.cacheService.invalidate(userId)
+		await this.cacheService.invalidate(userId)
 	}
 
 	/**
@@ -278,7 +278,7 @@ export class RbacService {
 			}
 		)
 
-		this.cacheService.invalidate(userId)
+		await this.cacheService.invalidate(userId)
 	}
 
 	/**

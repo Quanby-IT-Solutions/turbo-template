@@ -119,8 +119,20 @@ services:
       # Server Configuration
       - NODE_ENV=production
       - PORT=3000
+      # AB-2: point the backend at the `redis` service this file already starts.
+      # Without it the stack ran a Redis nothing connected to — the backend fell
+      # back to process-local throttle counters and RBAC cache, so the guarantee
+      # that limits hold cluster-wide and a revoked role dies everywhere at once
+      # silently did not apply here, unlike staging and production which both
+      # set this. The host is the service name, not localhost: inside the
+      # container `localhost` is the backend itself.
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
     env_file:
       - apps/backend/.env
+    # Redis is a plain cache, so this only orders startup — the app degrades
+    # deliberately when the store is unreachable rather than refusing to boot.
+    depends_on:
+      - redis
     networks:
       - app-network
     healthcheck:

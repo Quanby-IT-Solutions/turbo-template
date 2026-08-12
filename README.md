@@ -59,10 +59,16 @@ cert) via the bundled Nginx reverse proxy — `/api/*` → backend, `/*` → web
 # Copy the root env (single-origin build args for the web image)
 cp .env.example .env
 
+# Then set REDIS_PASSWORD in .env — it ships empty and every compose command
+# refuses to run until it has a value:
+#   openssl rand -base64 24
+
 # Build + start nginx + web + backend
 docker compose up -d --build
 
-# New clone tip: start/restart only the Nginx proxy without dependencies
+# New clone tip: start/restart only the Nginx proxy without dependencies.
+# Still needs a complete root .env: --no-deps limits what STARTS, not what
+# Compose parses, and it interpolates the whole file before choosing services.
 docker compose up -d --no-deps nginx
 ```
 
@@ -130,7 +136,7 @@ changes are needed; if it splits web/api across different domains, update
 | `GOOGLE_CLIENT_SECRET`        | ❌       | Backend     | Google OAuth client secret                                |
 | `REDIS_URL`                   | ❌       | Backend     | Shared throttle counters + RBAC cache (see below)         |
 | `REDIS_KEY_PREFIX`            | ❌       | Backend     | Key namespace (default: `turbo-template`)                 |
-| `REDIS_PASSWORD`              | ❌       | Docker      | Required by the compose `redis` service                   |
+| `REDIS_PASSWORD`              | ✅ Docker | Docker      | Set in the **root** `.env`. Every `docker compose` command needs it — including `--no-deps` ones — because Compose interpolates the whole file before choosing services |
 | `NEXT_PUBLIC_APP_URL`         | ✅       | Web         | Web app URL                                               |
 | `NEXT_PUBLIC_API_BASE_URL`    | ✅       | Web         | Backend API base URL                                      |
 | `NEXT_PUBLIC_API_VERSION`     | ✅       | Web         | API version (default: v1)                                 |

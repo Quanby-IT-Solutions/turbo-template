@@ -34,6 +34,11 @@ jobs:
       ECR_REPOSITORY_WEB: ${{ vars.ECR_REPOSITORY_WEB }}
       ECR_REPOSITORY_BACKEND: ${{ vars.ECR_REPOSITORY_BACKEND }}
       STG_EC2_HOST: ${{ vars.STG_EC2_HOST }}
+      # Public host key of the staging EC2 instance, in known_hosts format
+      # (`ssh-keyscan -t ed25519 <host>`). A repo *variable*, not a secret — it
+      # is public key material, and keeping it readable means a change is
+      # visible in review rather than silently swapped. See RF4.
+      STG_EC2_HOST_KEY: ${{ vars.STG_EC2_HOST_KEY }}
       NODE_ENV: "production"
       NEXT_PUBLIC_APP_URL: ${{ vars.NEXT_PUBLIC_APP_URL }}
       NEXT_PUBLIC_API_BASE_URL: ${{ vars.NEXT_PUBLIC_API_BASE_URL }}
@@ -58,6 +63,10 @@ jobs:
           require_var ECR_REPOSITORY_WEB
           require_var ECR_REPOSITORY_BACKEND
           require_var STG_EC2_HOST
+          # Without a pinned host key there is nothing to verify the server
+          # against, so refuse to deploy rather than fall back to trusting
+          # whatever answers (RF4).
+          require_var STG_EC2_HOST_KEY
           require_var NEXT_PUBLIC_APP_URL
           require_var NEXT_PUBLIC_API_BASE_URL
           require_var DATABASE_URL
@@ -120,14 +129,42 @@ jobs:
           echo "✅ Backend image pushed: $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:$IMAGE_TAG"
 
       # ── SSH deploy to EC2 ───────────────────────────────────────
-      - name: Write SSH key
+      - name: Load deploy key into ssh-agent and pin the host key
+        env:
+          STG_EC2_SSH_KEY: ${{ secrets.STG_EC2_SSH_KEY }}
         run: |
-          echo "${{ secrets.STG_EC2_SSH_KEY }}" > /tmp/staging.pem
-          chmod 600 /tmp/staging.pem
+          set -euo pipefail
+
+          # RF4: the private key goes straight from the secret store into the
+          # agent's memory. It is never written to the runner's disk, so a
+          # failed or compromised later step has no file to read — and no
+          # cleanup step has to be relied on to run.
+          eval "$(ssh-agent -s)" > /dev/null
+          echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> "$GITHUB_ENV"
+          echo "SSH_AGENT_PID=$SSH_AGENT_PID" >> "$GITHUB_ENV"
+          printf '%s\n' "$STG_EC2_SSH_KEY" | ssh-add - > /dev/null
+
+          # Pin the expected host key. Public material, so writing it is safe.
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$STG_EC2_HOST_KEY" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+          echo "Pinned host keys for: $(cut -d' ' -f1 ~/.ssh/known_hosts | tr '\n' ' ')"
 
       - name: Deploy via SSH
         run: |
-          ssh -o StrictHostKeyChecking=no -i /tmp/staging.pem ec2-user@$STG_EC2_HOST << DEPLOY
+          set -euo pipefail
+
+          # StrictHostKeyChecking=yes + BatchMode=yes is the fail-closed pair:
+          # an unknown or changed host key aborts the connection instead of
+          # being auto-accepted (the old `=no`) or learned on first sight
+          # (`accept-new`), and no prompt can hang the job waiting for input.
+          ssh \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+            -o BatchMode=yes \
+            ec2-user@$STG_EC2_HOST << DEPLOY
             set -euo pipefail
 
             # ECR login on the instance
@@ -137,7 +174,7 @@ jobs:
             # Write .env
             cat > /opt/staging/.env << ENV
           ECR_REGISTRY=$ECR_REGISTRY
-          ECR_REPOSITORY_WEB=$ECR_REPOSITORY_BACKEND
+          ECR_REPOSITORY_WEB=$ECR_REPOSITORY_WEB
           ECR_REPOSITORY_BACKEND=$ECR_REPOSITORY_BACKEND
           IMAGE_TAG=$IMAGE_TAG
           NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
@@ -168,22 +205,32 @@ jobs:
       # ── Health check ────────────────────────────────────────────
       - name: Health check
         run: |
+          set -uo pipefail
           echo "Waiting 30s for containers to start..."
           sleep 30
 
-          MAX=10
-          for i in $(seq 1 $MAX); do
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-              --max-time 10 \
-              "http://$STG_EC2_HOST:3000/api/v1/health" || echo "000")
-            echo "[$i/$MAX] Backend health: HTTP $STATUS"
-            if [ "$STATUS" = "200" ]; then
-              echo "✅ Backend is healthy"
-              break
-            fi
-            [ "$i" = "$MAX" ] && echo "❌ Health check failed" && exit 1
-            sleep 10
-          done
+          # Both services are probed. Only the backend used to be, which is
+          # exactly why the ECR_REPOSITORY_WEB variable swap survived: staging
+          # ran the backend image twice and reported itself healthy while no
+          # web container was ever started.
+          check() {
+            local name="$1" url="$2" max=10 i status
+            for i in $(seq 1 $max); do
+              status=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$url" || echo "000")
+              echo "[$i/$max] $name: HTTP $status"
+              case "$status" in
+                200|301|302|307|308) echo "✅ $name is healthy"; return 0 ;;
+              esac
+              sleep 10
+            done
+            echo "❌ $name health check failed ($url)"
+            return 1
+          }
+
+          failed=0
+          check "Backend" "http://$STG_EC2_HOST:3000/api/v1/health" || failed=1
+          check "Web" "http://$STG_EC2_HOST:3001/" || failed=1
+          exit $failed
 
       - name: Deployment summary
         run: |

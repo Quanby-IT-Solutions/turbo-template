@@ -383,6 +383,9 @@ Before your first deploy, go to **Settings → Environments** and create `stagin
 | --------------------------- | ------------------------- | ----------------------------------- | ----------------------------------- |
 | `AWS_REGION`                | AWS region                | `ap-southeast-1`                    | `ap-southeast-1`                    |
 | `PROJECT_NAME`              | Project identifier        | `turbo-template`                    | `turbo-template`                    |
+| `ECR_REGISTRY`              | ECR registry host         | `123...dkr.ecr.ap-southeast-1.amazonaws.com` | `123...dkr.ecr.ap-southeast-1.amazonaws.com` |
+| `STG_EC2_HOST`              | Staging EC2 IP / hostname | `54.123.45.67`                      |                                     |
+| `STG_EC2_HOST_KEY`          | Pinned SSH host key (see below) | `54.123.45.67 ssh-ed25519 AAAAC3...` |                                |
 | `ECR_REPOSITORY_WEB`        | ECR repo name for web     | `turbo-template-web-staging`        | `turbo-template-web-production`     |
 | `ECR_REPOSITORY_BACKEND`    | ECR repo name for backend | `turbo-template-backend-staging`    | `turbo-template-backend-production` |
 | `DOMAIN_WEB`                | Web domain                | `stg-turbo.quanbyit.com`            | `turbo.quanbyit.com`                |
@@ -402,9 +405,7 @@ Before your first deploy, go to **Settings → Environments** and create `stagin
 | ----------------------------- | ------------------------ | ------------------------------------- | ------------------------------------- |
 | `AWS_ACCESS_KEY_ID`           | IAM access key           | `AKIA...`                             | `AKIA...`                             |
 | `AWS_SECRET_ACCESS_KEY`       | IAM secret key           | `wJal...`                             | `wJal...`                             |
-| `EC2_HOST`                    | EC2 public IP / hostname | `54.123.45.67`                        |                                       |
-| `EC2_USER`                    | SSH user                 | `ubuntu`                              |                                       |
-| `EC2_SSH_KEY`                 | EC2 SSH private key      | `-----BEGIN RSA PRIVATE KEY-----...`  |                                       |
+| `STG_EC2_SSH_KEY`             | Staging EC2 SSH private key | `-----BEGIN OPENSSH PRIVATE KEY-----...` |                                  |
 | `DATABASE_URL`                | PostgreSQL connection    | `postgresql://user:pass@host:5432/db` | `postgresql://user:pass@host:5432/db` |
 | `BETTER_AUTH_SECRET`          | Auth signing secret      | `openssl rand -base64 32`             | `openssl rand -base64 32`             |
 | `BETTER_AUTH_TRUSTED_ORIGINS` | Trusted origins          | `https://stg-turbo.quanbyit.com`      | `https://turbo.quanbyit.com`          |
@@ -413,6 +414,27 @@ Before your first deploy, go to **Settings → Environments** and create `stagin
 | `GOOGLE_CLIENT_SECRET`        | Google OAuth secret      | `GOCSPX-...`                          | `GOCSPX-...`                          |
 
 > Get values from `terraform output` in the [turbo-infrastructure](https://github.com/Quanby-IT-Solutions/turbo-infrastructure) repo.
+
+#### Pinning the staging SSH host key
+
+The staging deploy verifies the EC2 instance's identity before sending anything
+to it. Without a pinned key the workflow would have to trust whatever answers on
+port 22, which is exactly how a deploy's secrets get handed to the wrong host.
+
+Generate the value once per instance (re-run it whenever the instance is
+rebuilt, since a new instance gets a new key):
+
+```bash
+ssh-keyscan -t ed25519 <STG_EC2_HOST>
+```
+
+Copy the output line — it looks like `54.123.45.67 ssh-ed25519 AAAAC3Nza...` —
+into the `STG_EC2_HOST_KEY` **variable** (not a secret: it is public key
+material, and keeping it readable means a change shows up in review).
+
+The deploy fails closed: a missing variable stops the run at the validation
+step, and a key that does not match aborts the SSH connection with
+`Host key verification failed` rather than proceeding.
 
 ### First-Time Staging SSL
 

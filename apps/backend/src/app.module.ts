@@ -17,6 +17,7 @@ import { RbacGuard } from "@/shared/guards/rbac.guard"
 import { ThrottlerProxyGuard } from "@/shared/guards/throttler-proxy.guard"
 
 import { AuditModule } from "./common/audit/audit.module"
+import { MaintenanceModule } from "./common/maintenance/maintenance.module"
 import { ORPCCommonModule } from "./common/orpc/orpc.module"
 import { RbacModule } from "./common/rbac/rbac.module"
 import { RedisModule } from "./common/redis/redis.module"
@@ -86,6 +87,8 @@ import { env } from "./config/env.config"
 		// Global: the audit trail is meant to outgrow RBAC (AZ-4).
 		AuditModule,
 		RbacModule,
+		// Scheduled sweeps of expired rows (AB-3; HY-2 extends it).
+		MaintenanceModule,
 		// Versioned modules
 		V1Module,
 	],

@@ -119,12 +119,34 @@ export const tickets = createTable("tickets", t => ({
 // IDEMPOTENCY KEYS
 // ============================================================================
 
-export const idempotencyKeys = createTable("idempotency_keys", t => ({
-	key: t.text("key").primaryKey(),
-	authorId: t.text("author_id").notNull(),
-	response: t.jsonb("response").notNull().$type<unknown>(),
-	createdAt: t.timestamp("created_at").notNull().defaultNow(),
-}))
+/**
+ * Replay cache for mutating requests (AB-3 / F-13).
+ *
+ * The primary key is composite on `(authorId, key)`. It used to be `key`
+ * alone, which made the keyspace global: whoever sent a value first owned it,
+ * so one user could squat another's key and the second user's request was
+ * rejected as a duplicate — a denial-of-service against any client using
+ * predictable keys. Idempotency is identity-scoped by design; two users
+ * sending the same key are sending two unrelated requests.
+ *
+ * This is a cache, not a record. Rows expire and are swept.
+ */
+export const idempotencyKeys = createTable(
+	"idempotency_keys",
+	t => ({
+		key: t.text("key").notNull(),
+		authorId: t.text("author_id").notNull(),
+		response: t.jsonb("response").notNull().$type<unknown>(),
+		createdAt: t.timestamp("created_at").notNull().defaultNow(),
+		/** When this row stops being a valid replay target. */
+		expiresAt: t.timestamp("expires_at").notNull(),
+	}),
+	t => [
+		primaryKey({ columns: [t.authorId, t.key] }),
+		// The sweeper deletes by expiry; without this it seq-scans the table.
+		index("idempotency_keys_expires_at_idx").on(t.expiresAt),
+	]
+)
 
 // ============================================================================
 // RBAC

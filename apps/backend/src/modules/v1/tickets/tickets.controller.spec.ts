@@ -13,6 +13,7 @@ import { TicketsController } from "./tickets.controller"
 // transform, so the decorator is stubbed exactly as in the todos controller spec.
 jest.mock("@thallesp/nestjs-better-auth", () => ({
 	AllowAnonymous: () => () => undefined,
+	OptionalAuth: () => () => undefined,
 	Session: () => () => ({ user: { id: "template-user-id" } }),
 }))
 

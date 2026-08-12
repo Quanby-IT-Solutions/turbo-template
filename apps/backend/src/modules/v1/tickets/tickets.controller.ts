@@ -1,7 +1,7 @@
 import { Controller } from "@nestjs/common"
 import { Implement } from "@orpc/nest"
 import { implement } from "@orpc/server"
-import { Session, type UserSession } from "@thallesp/nestjs-better-auth"
+import { OptionalAuth, Session, type UserSession } from "@thallesp/nestjs-better-auth"
 
 import { v1 } from "@/config/api-versions.config"
 import { RequirePermissions } from "@/shared/decorators/require-permissions.decorator"
@@ -30,6 +30,18 @@ export class TicketsController {
 	}
 
 	@StrictThrottle()
+	// Submission is open to anonymous callers, and must stay that way: AZ-1 gates
+	// ticket *reads* on `users:read`, not writes. The global AuthGuard protects
+	// every route by default, so without this the support form 401s for exactly
+	// the people most likely to need it. The contract already declares the route
+	// unauthenticated (`security: []`); that is OpenAPI metadata and does not
+	// reach the guard, so the opt-out has to be stated here too.
+	//
+	// `OptionalAuth` rather than `AllowAnonymous`: both leave the session
+	// resolved (the guard populates it before either check), but this one states
+	// the actual rule — authentication is optional here, not absent — so a signed
+	// -in reporter still gets `authorId` recorded per AZ-3.
+	@OptionalAuth()
 	@Implement(v1.ticket.submit)
 	async submitTicket(@Session() session?: UserSession) {
 		return implement(v1.ticket.submit).handler(async ({ input }) => {

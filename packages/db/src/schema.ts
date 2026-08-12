@@ -71,6 +71,11 @@ export const verifications = createTable(
 	t => [
 		// Composite primary key on identifier and value
 		primaryKey({ columns: [t.identifier, t.value] }),
+		// HY-2 / F-40. Rows here are short-lived tokens, but nothing deleted them,
+		// so the table only ever grew — every unverified signup and every password
+		// reset, kept forever. The sweeper deletes by expiry; without this index it
+		// seq-scans a table whose whole problem is that it is large.
+		index("verifications_expires_at_idx").on(t.expiresAt),
 	]
 )
 

@@ -12,7 +12,10 @@ const baseTicketSchema = z.object({
 	email: z.string().email("Invalid email address"),
 	subject: z.string().min(1, "Subject is required").max(255, "Subject too long"),
 	priority: TicketPrioritySchema.default("medium"),
-	concern: z.string().min(1, "Concern is required"),
+	// The only string in the contract set without an upper bound. Unbounded, a
+	// single request could park megabytes in a column read back on every ticket
+	// list. 5000 is generous for prose and still small enough to be cheap.
+	concern: z.string().min(1, "Concern is required").max(5000, "Concern too long"),
 	status: TicketStatusSchema.default("received"),
 	authorId: z.string().nullable(),
 	createdAt: z
@@ -36,3 +39,9 @@ export const CreateTicketSchema = TicketSchema.pick({
 	priority: true,
 	concern: true,
 })
+
+// Inferred types, mirroring the todos contract: clients import these rather
+// than restating the shape.
+export type Ticket = z.infer<typeof TicketSchema>
+export type TicketIdInput = z.infer<typeof TicketIdSchema>
+export type CreateTicketInput = z.infer<typeof CreateTicketSchema>

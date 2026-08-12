@@ -444,7 +444,7 @@ Before your first deploy, go to **Settings → Environments** and create `stagin
 
 | Secret                        | Description              | Staging                               | Production                            |
 | ----------------------------- | ------------------------ | ------------------------------------- | ------------------------------------- |
-| `AWS_ACCESS_KEY_ID`           | IAM access key           | `AKIA...`                             | `AKIA...`                             |
+| `AWS_ACCESS_KEY_ID`           | IAM access key           | `<aws-access-key-id>`                             | `<aws-access-key-id>`                             |
 | `AWS_SECRET_ACCESS_KEY`       | IAM secret key           | `wJal...`                             | `wJal...`                             |
 | `STG_EC2_SSH_KEY`             | Staging EC2 SSH private key | `-----BEGIN OPENSSH PRIVATE KEY-----...` |                                  |
 | `DATABASE_URL`                | PostgreSQL connection    | `postgresql://user:pass@host:5432/db` | `postgresql://user:pass@host:5432/db` |
@@ -452,7 +452,7 @@ Before your first deploy, go to **Settings → Environments** and create `stagin
 | `BETTER_AUTH_TRUSTED_ORIGINS` | Trusted origins          | `https://stg-turbo.quanbyit.com`      | `https://turbo.quanbyit.com`          |
 | `CORS_ORIGINS`                | Allowed CORS origins     | `https://stg-turbo.quanbyit.com`      | `https://turbo.quanbyit.com`          |
 | `GOOGLE_CLIENT_ID`            | Google OAuth client ID   | `123...apps.googleusercontent.com`    | `456...apps.googleusercontent.com`    |
-| `GOOGLE_CLIENT_SECRET`        | Google OAuth secret      | `GOCSPX-...`                          | `GOCSPX-...`                          |
+| `GOOGLE_CLIENT_SECRET`        | Google OAuth secret      | `<google-oauth-client-secret>`                          | `<google-oauth-client-secret>`                          |
 
 > Get values from `terraform output` in the [turbo-infrastructure](https://github.com/Quanby-IT-Solutions/turbo-infrastructure) repo.
 

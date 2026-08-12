@@ -1,0 +1,1 @@
+CREATE INDEX "verifications_expires_at_idx" ON "verifications" ("expires_at");

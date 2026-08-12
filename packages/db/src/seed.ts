@@ -200,6 +200,7 @@ async function seedDatabase() {
 		"posts:delete": "Delete posts",
 		"posts:*": "All actions on posts",
 		"users:read": "Read user profiles",
+		"users:read-directory": "Read user email addresses (directory PII)",
 		"users:manage": "Manage users",
 	}
 
@@ -210,7 +211,13 @@ async function seedDatabase() {
 		updatedAt: now,
 	}))
 
-	// Role -> permission names. Admin omitted: granted via role-name short-circuit.
+	// Role -> permission names. Admin omitted: granted via role-name
+	// short-circuit, which is also how it picks up `users:read-directory`
+	// without a migration — no admin loses access (AZ-5 / F-51).
+	//
+	// Manager deliberately does NOT get `users:read-directory`. That is the
+	// point of the split: it can triage tickets and see who exists, without
+	// holding the complete email directory.
 	const rolePermissionNames: Partial<Record<RoleName, PermissionName[]>> = {
 		Manager: ["posts:*", "users:read"],
 		User: ["posts:read"],

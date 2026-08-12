@@ -3,6 +3,7 @@ import { Implement } from "@orpc/nest"
 import { implement } from "@orpc/server"
 import { Session, type UserSession } from "@thallesp/nestjs-better-auth"
 
+import { RbacService } from "@/common/rbac/rbac.service"
 import { v1 } from "@/config/api-versions.config"
 import { RequirePermissions } from "@/shared/decorators/require-permissions.decorator"
 import { StrictThrottle } from "@/shared/decorators/strict-throttle.decorator"
@@ -24,7 +25,10 @@ function actorId(session?: UserSession): string | null {
 
 @Controller()
 export class RbacController {
-	constructor(private readonly rbacAdminService: RbacAdminService) {}
+	constructor(
+		private readonly rbacAdminService: RbacAdminService,
+		private readonly rbacService: RbacService
+	) {}
 
 	// ---------------------------------------------------------------- roles
 	@RequirePermissions("users:read")
@@ -85,11 +89,19 @@ export class RbacController {
 	}
 
 	// ---------------------------------------------------------------- users
+	// AZ-5 / F-51: the LIST needs `users:read`; the EMAIL ADDRESSES additionally
+	// need `users:read-directory`. Splitting them means ticket triage no longer
+	// carries the full directory.
 	@RequirePermissions("users:read")
 	@Implement(v1.rbac.users.list)
-	async listUsers() {
+	async listUsers(@Session() session?: UserSession) {
 		return implement(v1.rbac.users.list).handler(async () => {
-			return this.rbacAdminService.listUsers()
+			const userId = session?.user?.id
+			const includeDirectory = userId
+				? await this.rbacService.hasPermission(userId, "users:read-directory")
+				: false
+
+			return this.rbacAdminService.listUsers(includeDirectory)
 		})
 	}
 

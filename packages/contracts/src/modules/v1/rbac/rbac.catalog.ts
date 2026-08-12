@@ -53,6 +53,18 @@ export const PERMISSION_NAMES = [
 	// User management actions
 	"users:read",
 	"users:manage",
+	// AZ-5 / F-51: directory PII, split from `users:read`.
+	//
+	// `users:read` grants operational reads — the user list with names and
+	// roles, and (per AZ-1) support-ticket triage. It used to also yield every
+	// email address, so granting someone ticket triage handed them the complete
+	// email directory as a side effect.
+	//
+	// Note the naming: `users:read-directory` is deliberately NOT
+	// `users:directory-read`, because the wildcard convention above matches on
+	// the segment before the colon. A `users:*` holder still gets it, which is
+	// intended — that wildcard means "everything about users".
+	"users:read-directory",
 ] as const
 
 /** Zod enum validating a permission name. */

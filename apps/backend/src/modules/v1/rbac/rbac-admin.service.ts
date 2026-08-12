@@ -277,7 +277,20 @@ export class RbacAdminService {
 	}
 
 	// ---------------------------------------------------------------- users
-	async listUsers(): Promise<UserWithRoles[]> {
+	/**
+	 * List users (AZ-5 / F-51).
+	 *
+	 * `includeDirectory` decides whether email addresses are returned. Holding
+	 * `users:read` used to yield the complete email directory, so granting
+	 * someone support-ticket triage (AZ-1, also on `users:read`) handed them
+	 * every address as a side effect.
+	 *
+	 * The design call: the endpoint OMITS the emails rather than returning 403.
+	 * A 403 would break the user-management screen entirely for triage staff
+	 * who legitimately need to see who exists and what roles they hold; the
+	 * useful part of the list survives without the PII.
+	 */
+	async listUsers(includeDirectory: boolean): Promise<UserWithRoles[]> {
 		const userRows = await db.select().from(users).orderBy(users.email)
 
 		const roleRows = await db
@@ -295,7 +308,10 @@ export class RbacAdminService {
 		return userRows.map(user => ({
 			id: user.id,
 			name: user.name,
-			email: user.email,
+			// Empty string, not the address, when the caller lacks the directory
+			// permission. The field stays present so the contract is unchanged
+			// and clients need no conditional handling.
+			email: includeDirectory ? user.email : "",
 			roles: (rolesByUser.get(user.id) ?? []).sort(),
 		}))
 	}

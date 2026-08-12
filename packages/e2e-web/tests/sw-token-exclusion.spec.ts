@@ -14,14 +14,14 @@ const VERIFY_TOKEN = "wc2-verify-token-def456"
 
 /** Wait for the service worker to control the page, or report that it never did. */
 async function serviceWorkerReady(page: Page): Promise<boolean> {
+	// `serviceWorker.ready` never rejects — it simply never settles when no
+	// worker takes control, which hangs the whole test instead of reporting a
+	// skip. Race it against a deadline so the answer is always "yes" or "no".
 	return page.evaluate(async () => {
 		if (!("serviceWorker" in navigator)) return false
-		try {
-			await navigator.serviceWorker.ready
-			return true
-		} catch {
-			return false
-		}
+		const ready = navigator.serviceWorker.ready.then(() => true)
+		const timeout = new Promise<boolean>(resolve => setTimeout(() => resolve(false), 10_000))
+		return Promise.race([ready, timeout])
 	})
 }
 

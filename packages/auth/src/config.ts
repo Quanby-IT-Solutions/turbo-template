@@ -14,6 +14,7 @@ import { sendMail } from "./mailer/send-mail.js"
 import { buildResetPasswordEmail } from "./mailer/templates/reset-password-email.js"
 import { buildVerificationEmail } from "./mailer/templates/verification-email.js"
 import { createTransport } from "./mailer/transport-factory.js"
+import { parseOriginList } from "./origin-list.js"
 import { authSecretSchema } from "./secret-schema.js"
 
 /**
@@ -53,6 +54,10 @@ export const authEnv = createEnv({
 		// Defaulting it off meant an unverified address could sign in, which is
 		// the opposite of what was agreed.
 		EMAIL_VERIFICATION_REQUIRED: booleanFromEnv.optional().default(true),
+
+		// Debug surfaces. Mirrors the backend's ENABLE_API_DOCS so one deployment
+		// cannot expose auth docs while the API hides its own.
+		ENABLE_API_DOCS: booleanFromEnv.optional().default(false),
 
 		// Auth rate limiting
 		AUTH_RATE_LIMIT_WINDOW: z.coerce.number().int().positive().optional().default(60),
@@ -206,14 +211,32 @@ export function createAuth(): ReturnType<typeof betterAuth> {
 				}
 			},
 		},
+		/**
+		 * AC-5 / F-35: the Google provider is registered only when BOTH
+		 * credentials are present.
+		 *
+		 * It used to register unconditionally with `as string` casting
+		 * `undefined` into the config, so a half-configured deployment exposed a
+		 * sign-in route that could only fail — and failed in whatever way the
+		 * provider chose, not in a way this app controls. The cast is gone; the
+		 * absence is now expressed in the type system rather than hidden from it.
+		 */
 		socialProviders: {
-			google: {
-				prompt: "select_account",
-				clientId: authEnv.GOOGLE_CLIENT_ID as string,
-				clientSecret: authEnv.GOOGLE_CLIENT_SECRET as string,
-			},
+			...(authEnv.GOOGLE_CLIENT_ID && authEnv.GOOGLE_CLIENT_SECRET
+				? {
+						google: {
+							prompt: "select_account" as const,
+							clientId: authEnv.GOOGLE_CLIENT_ID,
+							clientSecret: authEnv.GOOGLE_CLIENT_SECRET,
+						},
+					}
+				: {}),
 		},
-		trustedOrigins: authEnv.BETTER_AUTH_TRUSTED_ORIGINS?.split(",") ?? [],
+		// AC-5 / F-32: trimmed and emptied-filtered. A list written with spaces
+		// after the commas produced entries like " http://localhost:3001" that
+		// match nothing, and a trailing comma produced an empty string — which
+		// some origin checks treat as "any". Both are silent failures.
+		trustedOrigins: parseOriginList(authEnv.BETTER_AUTH_TRUSTED_ORIGINS),
 
 		/**
 		 * Session lifetime, pinned rather than inherited (AC-3 / F-56).
@@ -287,11 +310,16 @@ export function createAuth(): ReturnType<typeof betterAuth> {
 				},
 			}),
 		},
-		plugins: [
-			openAPI({
-				path: "/reference",
-			}),
-		],
+		/**
+		 * AC-5 / F-34: the openAPI reference is a debug surface and is
+		 * registered only when API docs are enabled.
+		 *
+		 * It used to mount unconditionally, so `/api/v1/auth/reference` listed
+		 * every auth route in production. Gated on the same flag the backend
+		 * uses for its own docs, so the two cannot disagree about whether this
+		 * deployment exposes documentation.
+		 */
+		plugins: [...(authEnv.ENABLE_API_DOCS ? [openAPI({ path: "/reference" })] : [])],
 	})
 }
 

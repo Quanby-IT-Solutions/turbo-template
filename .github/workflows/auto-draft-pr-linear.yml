@@ -1,0 +1,87 @@
+name: Auto Draft PR (Linear)
+
+on:
+  push:
+    branches:
+      - '*-[0-9]+-**'      # Linear branch names: bid-4-add-vendor-parsing
+      - '**/*-[0-9]+-**'   # also match branches under a prefix, e.g. feat/bid-4-...
+
+# Least-privilege default; the App token carries its own elevated permissions.
+permissions:
+  contents: read
+
+jobs:
+  draft-pr:
+    name: Open draft PR for Linear branch
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mint GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
+        with:
+          app-id: ${{ vars.PR_BOT_APP_ID }}
+          private-key: ${{ secrets.PR_BOT_APP_PRIVATE_KEY }}
+          # GitHub App must be granted: contents:write, pull-requests:write
+          # (issues:write is no longer needed — issues live in Linear)
+
+      - name: Derive Linear ID and PR title from branch name
+        id: meta
+        run: |
+          set -euo pipefail
+          BRANCH="${{ github.ref_name }}"
+          # Strip any path prefix (feat/bid-4-... -> bid-4-...)
+          NAME="${BRANCH##*/}"
+
+          # bid-4-add-vendor-parsing -> BID-4
+          LINEAR_ID=$(printf '%s' "$NAME" | grep -oiE '^[a-z0-9]+-[0-9]+' | tr '[:lower:]' '[:upper:]' || true)
+
+          if [ -z "$LINEAR_ID" ]; then
+            echo "::warning::Branch '$BRANCH' has no Linear ID prefix; skipping PR creation."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Remainder -> "Add vendor parsing"
+          SLUG=$(printf '%s' "$NAME" | sed -E 's/^[a-zA-Z0-9]+-[0-9]+-?//' | tr '-' ' ')
+          if [ -z "$SLUG" ]; then
+            TITLE="$LINEAR_ID"
+          else
+            FIRST=$(printf '%s' "${SLUG:0:1}" | tr '[:lower:]' '[:upper:]')
+            TITLE="${LINEAR_ID}: ${FIRST}${SLUG:1}"
+          fi
+
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+          echo "id=${LINEAR_ID}" >> "$GITHUB_OUTPUT"
+          echo "title=${TITLE}" >> "$GITHUB_OUTPUT"
+
+      - name: Check for existing open PR
+        id: existing
+        if: steps.meta.outputs.skip == 'false'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          COUNT=$(gh pr list \
+            --head "${{ github.ref_name }}" \
+            --state open \
+            --json number \
+            --jq 'length' \
+            --repo "${{ github.repository }}")
+          echo "count=${COUNT}" >> "$GITHUB_OUTPUT"
+
+      - name: Create draft PR
+        if: steps.meta.outputs.skip == 'false' && steps.existing.outputs.count == '0'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          PR_TITLE: ${{ steps.meta.outputs.title }}
+          LINEAR_ID: ${{ steps.meta.outputs.id }}
+        run: |
+          gh pr create \
+            --draft \
+            --base dev \
+            --head "${{ github.ref_name }}" \
+            --title "$PR_TITLE" \
+            --body "Part of ${LINEAR_ID}
+
+          Linear links this PR automatically from the branch name.
+          Merging moves the issue to **In QA** — QA verifies acceptance criteria before Done." \
+            --repo "${{ github.repository }}"

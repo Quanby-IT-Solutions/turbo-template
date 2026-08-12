@@ -24,7 +24,21 @@ function createAuthMiddleware(versionedAuthPaths: string[]) {
 
 	return (req: IncomingMessage, res: ServerResponse, next: () => void) => {
 		const url = req.url ?? ""
-		const matchedPath = versionedAuthPaths.find(path => url.startsWith(path))
+
+		// AC-5 / F-57: match on a PREFIX BOUNDARY, not a bare `startsWith`.
+		//
+		// `startsWith("/api/v1/auth")` also matched `/api/v1/authx/...` and
+		// `/api/v1/authorize`, so any current or future route whose name merely
+		// begins with "auth" was swallowed by the Better Auth handler and never
+		// reached Nest — silently, and with Better Auth deciding the response.
+		//
+		// A path matches only when it IS the base path, or continues with `/`
+		// or `?`.
+		const matchedPath = versionedAuthPaths.find(path => {
+			if (!url.startsWith(path)) return false
+			const next = url.charAt(path.length)
+			return next === "" || next === "/" || next === "?"
+		})
 
 		if (matchedPath) {
 			req.url = url.replace(matchedPath, AUTH_BASE_PATH)

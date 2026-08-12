@@ -1,6 +1,8 @@
 import { Logger, type INestApplication } from "@nestjs/common"
 import * as express from "express"
 
+import { parseOriginList } from "@repo/auth"
+
 import { env } from "@/config/env.config"
 
 const logger = new Logger("AppConfig")
@@ -46,7 +48,10 @@ function configureBodyParser(app: INestApplication): void {
  * short-circuits matching requests, so CORS must come first.
  */
 export function configureCors(app: INestApplication): void {
-	const origins = env.CORS_ORIGINS.split(",").map(origin => origin.trim())
+	// AC-5 / F-32: the same parser @repo/auth uses for its trusted-origin list,
+	// so the two allowlists cannot drift. This one trimmed but did not drop
+	// empties, so a trailing comma produced an empty origin.
+	const origins = parseOriginList(env.CORS_ORIGINS)
 	app.enableCors({
 		origin: origins,
 		credentials: true,

@@ -57,8 +57,14 @@ yarn-error.log*
 !*.tfvars.example
 
 # local env files
+#
+# Ignore every .env variant and re-admit only the committed templates. The
+# previous pair (`.env` + `.env*.local`) left everything else exposed —
+# `.env.backup`, `.env.production`, `.env.staging` — each of which holds the
+# same secrets as `.env`, so one `git add -A` was all it took.
 .env
-.env*.local
+.env.*
+!.env.example
 
 # vercel
 .vercel

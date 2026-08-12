@@ -139,6 +139,21 @@ changes are needed; if it splits web/api across different domains, update
 
 Copy from `.env.example` in each app: `apps/backend/.env`, `apps/web/.env`, `packages/db/.env`.
 
+### Environment validation
+
+All three validators (backend, `@repo/auth`, web) run at module load and fail
+the process on a missing or malformed value. They used to be skipped whenever
+`CI` was truthy — disabled in exactly the environment meant to catch
+misconfiguration.
+
+`SKIP_ENV_VALIDATION=true` is the one documented escape hatch, for build-only
+jobs with no runtime configuration to validate. It is deliberately explicit:
+nothing skips validation by accident.
+
+```bash
+SKIP_ENV_VALIDATION=true pnpm build   # e.g. a container image build
+```
+
 ### Redis — when you need it
 
 Optional for a single backend instance, **required for more than one**. Two

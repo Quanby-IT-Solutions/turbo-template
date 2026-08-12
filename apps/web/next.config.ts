@@ -22,7 +22,9 @@ const config: NextConfig = {
 		"@t3-oss/env-nextjs",
 	],
 
-	typescript: { ignoreBuildErrors: true },
+	// CI-4 / F-22: `typescript.ignoreBuildErrors` was true, so type errors in
+	// permission logic shipped silently. Deleted deliberately — do not restore
+	// it; fix the types instead.
 	reactCompiler: true,
 
 	devIndicators: {

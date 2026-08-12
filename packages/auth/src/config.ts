@@ -59,7 +59,15 @@ export const authEnv = createEnv({
 		AUTH_RATE_LIMIT_MAX: z.coerce.number().int().positive().optional().default(10),
 	},
 	runtimeEnv: process.env,
-	skipValidation: !!process.env.CI || process.env.npm_lifecycle_event === "lint",
+	// CI-4 / F-16 (RF3): validation is never skipped merely because CI is set.
+	// It was disabled in exactly the environment meant to catch misconfiguration,
+	// so a missing or malformed value shipped instead of failing the build.
+	// `SKIP_ENV_VALIDATION` is the one documented escape hatch, for build-only
+	// jobs that have no runtime configuration to validate.
+	// `lint` stays exempt: ESLint loads modules for type information and has no
+	// business asserting the runtime environment.
+	skipValidation:
+		process.env.SKIP_ENV_VALIDATION === "true" || process.env.npm_lifecycle_event === "lint",
 })
 
 /**

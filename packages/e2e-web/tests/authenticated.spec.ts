@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test"
 
+import { ADMIN_AUTH_FILE } from "../constants"
 import { signInAs } from "../fixtures"
 
 // All tests in this file run with stored auth session (chromium-authenticated project)
@@ -28,13 +29,15 @@ test.describe("authenticated home page", () => {
 		// imagined one.
 		await page.goto("/login")
 		await expect(page).toHaveURL(/\/login/)
-		await expect(page.getByRole("button", { name: /sign in/i }).first()).toBeVisible()
+		// The submit button reads "Login" (and "Signing in..." while pending) —
+		// `/sign in/i` matched neither, so this never passed. auth.spec.ts already
+		// targets the real control; same selector here.
+		await expect(page.getByRole("button", { name: /^login$/i })).toBeVisible()
 
 		// The session is unaffected by visiting it.
 		await page.goto("/dashboard")
 		await expect(page).toHaveURL(/\/dashboard/)
 	})
-
 })
 
 test.describe("authenticated dashboard", () => {
@@ -45,7 +48,9 @@ test.describe("authenticated dashboard", () => {
 
 	test("shows the Dashboard breadcrumb", async ({ page }) => {
 		await page.goto("/dashboard")
-		await expect(page.locator('[data-slot="breadcrumb-page"]', { hasText: /dashboard/i })).toBeVisible()
+		await expect(
+			page.locator('[data-slot="breadcrumb-page"]', { hasText: /dashboard/i })
+		).toBeVisible()
 	})
 })
 
@@ -67,7 +72,7 @@ test.describe("authenticated session page", () => {
 
 	test("server session is not null", async ({ page }) => {
 		// Session JSON is rendered inside a <pre> in the ServerSession component.
-		await expect(page.locator("pre").first()).not.toContainText("\"null\"")
+		await expect(page.locator("pre").first()).not.toContainText('"null"')
 	})
 
 	test("server session includes user email", async ({ page }) => {
@@ -83,11 +88,41 @@ test.describe("authenticated todos", () => {
 	// match what it actually renders.
 	const todoRows = (page: Page) => page.getByRole("checkbox", { name: /^Toggle / })
 
-	test("can create, complete, and delete a todo", async ({ page }, testInfo) => {
-		const title = `e2e todo ${testInfo.workerIndex} ${Date.now()}`
+	// The project-wide session belongs to userA, who holds no role, and the create
+	// form is permission-gated: todos-view renders the "New todo title"
+	// placeholder only when the viewer holds `posts:create`, and "You lack
+	// posts:create" otherwise. These tests were waiting 30s for an input RBAC was
+	// correctly hiding — the gate working, not a bug in the page.
+	//
+	// The admin session comes from the setup project, so this costs no extra
+	// sign-in per test. Better Auth rate-limits per path, and re-authenticating
+	// in each test made consecutive todo tests fail once that budget ran out.
+	test.use({ storageState: ADMIN_AUTH_FILE })
 
+	/**
+	 * Open /todos and confirm this identity may create, skipping where no admin
+	 * is seeded to hold the permission.
+	 *
+	 * Leaves the page on /todos deliberately: navigating here and again in the
+	 * test raced the first render, and the second `goto` could cut it off before
+	 * the heading appeared. One navigation per test, and the heading assertion
+	 * below is the hydration barrier.
+	 */
+	const openTodosWithCreatePermission = async (page: Page) => {
 		await page.goto("/todos")
 		await expect(page.getByRole("heading", { name: /todos \/ posts/i })).toBeVisible()
+
+		const canCreate = await page
+			.getByPlaceholder("New todo title")
+			.isVisible()
+			.catch(() => false)
+		test.skip(!canCreate, "creating todos needs posts:create; no admin in this environment")
+	}
+
+	test("can create, complete, and delete a todo", async ({ page }, testInfo) => {
+		await openTodosWithCreatePermission(page)
+
+		const title = `e2e todo ${testInfo.workerIndex} ${Date.now()}`
 
 		await page.getByPlaceholder("New todo title").fill(title)
 		await page.getByRole("button", { name: /^add$/i }).click()
@@ -103,17 +138,61 @@ test.describe("authenticated todos", () => {
 	})
 
 	test("created todo persists after reload", async ({ page }, testInfo) => {
+		// Also the hydration barrier: without waiting for the page the fill races
+		// hydration and the create silently does nothing.
+		await openTodosWithCreatePermission(page)
+
 		const title = `e2e persist ${testInfo.workerIndex} ${Date.now()}`
 
-		await page.goto("/todos")
-		// Wait for the page before interacting: without this the fill races
-		// hydration and the create silently does nothing.
-		await expect(page.getByRole("heading", { name: /todos \/ posts/i })).toBeVisible()
 		await page.getByPlaceholder("New todo title").fill(title)
 		await page.getByRole("button", { name: /^add$/i }).click()
 
 		const toggle = page.getByRole("checkbox", { name: `Toggle ${title}` })
 		await expect(toggle).toBeVisible()
+
+		// Reloading the instant the row appears raced WC-1's persister. It writes
+		// on a throttle, so the snapshot on disk could still predate this todo;
+		// after the reload TanStack hydrates that older list and, being inside its
+		// 30s staleTime, does not refetch — so the row was legitimately absent and
+		// the assertion below failed on a cache that was merely behind.
+		//
+		// Waiting for the snapshot to actually contain the title states the real
+		// precondition ("it was persisted") instead of guessing at a delay, and
+		// keeps the assertion about what the test is named for: that a reload
+		// brings it back.
+		await expect
+			.poll(
+				async () =>
+					page.evaluate(async persistedTitle => {
+						const databases = await indexedDB.databases()
+						for (const { name } of databases) {
+							if (!name) continue
+							const dump = await new Promise<string>(resolve => {
+								const open = indexedDB.open(name)
+								open.onerror = () => resolve("")
+								open.onsuccess = () => {
+									const db = open.result
+									const stores = Array.from(db.objectStoreNames)
+									if (!stores.length) return resolve("")
+									const tx = db.transaction(stores, "readonly")
+									const all = stores.map(
+										store =>
+											new Promise<string>(done => {
+												const req = tx.objectStore(store).getAll()
+												req.onerror = () => done("")
+												req.onsuccess = () => done(JSON.stringify(req.result))
+											})
+									)
+									void Promise.all(all).then(parts => resolve(parts.join("")))
+								}
+							})
+							if (dump.includes(persistedTitle)) return true
+						}
+						return false
+					}, title),
+				{ timeout: 15_000 }
+			)
+			.toBe(true)
 
 		await page.reload()
 		await expect(toggle).toBeVisible()

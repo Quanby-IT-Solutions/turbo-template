@@ -1,17 +1,19 @@
 import fs from "fs"
 import path from "path"
 
-import { AUTH_FILE } from "./constants"
+import { ADMIN_AUTH_FILE, AUTH_FILE } from "./constants"
 
 /**
  * Runs once before Playwright starts any project.
- * Creates an empty auth file so that `storageState: AUTH_FILE` in the
- * chromium-authenticated project config doesn't throw ENOENT on the first run.
- * The real session is written by the "setup" project (global.setup.ts).
+ * Creates empty auth files so that `storageState: …` in the project config
+ * doesn't throw ENOENT on the first run. The real sessions are written by the
+ * "setup" project (global.setup.ts).
  */
 export default function globalSetup() {
-	fs.mkdirSync(path.dirname(AUTH_FILE), { recursive: true })
-	if (!fs.existsSync(AUTH_FILE)) {
-		fs.writeFileSync(AUTH_FILE, JSON.stringify({ cookies: [], origins: [] }))
+	for (const file of [AUTH_FILE, ADMIN_AUTH_FILE]) {
+		fs.mkdirSync(path.dirname(file), { recursive: true })
+		if (!fs.existsSync(file)) {
+			fs.writeFileSync(file, JSON.stringify({ cookies: [], origins: [] }))
+		}
 	}
 }

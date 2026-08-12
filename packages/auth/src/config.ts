@@ -132,6 +132,30 @@ export function createAuth(): ReturnType<typeof betterAuth> {
 			enabled: true,
 			window: authEnv.AUTH_RATE_LIMIT_WINDOW,
 			max: authEnv.AUTH_RATE_LIMIT_MAX,
+			customRules: {
+				/**
+				 * Session *reads* must not share the credential budget.
+				 *
+				 * `get-session` is what the app itself calls to resolve the viewer,
+				 * once per server-rendered navigation. Under the shared limit those
+				 * lookups consumed the same allowance as sign-in attempts, so a user
+				 * who simply browsed enough pages within one window started getting
+				 * 429s — and a 429 here reads as "no session", so the app renders
+				 * them logged out and protected routes bounce to /login. Measured
+				 * directly against this config: 30 reads succeeded and the next 10
+				 * returned 429, with a valid cookie throughout.
+				 *
+				 * The exposure a limit would buy here is small — the endpoint takes
+				 * no credentials and only echoes the session belonging to a cookie
+				 * the caller already holds — so this is deliberately generous rather
+				 * than disabled (`false`), keeping a ceiling on a flood while
+				 * leaving normal browsing, and shared egress IPs, well clear of it.
+				 *
+				 * Sign-in, sign-up and reset keep the strict default: those take
+				 * credentials, and throttling them is the point of the feature.
+				 */
+				"/get-session": { window: authEnv.AUTH_RATE_LIMIT_WINDOW, max: 500 },
+			},
 		},
 		emailVerification: {
 			sendOnSignUp: verificationEnabled,

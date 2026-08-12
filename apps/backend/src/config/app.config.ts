@@ -6,15 +6,35 @@ import { env } from "@/config/env.config"
 const logger = new Logger("AppConfig")
 
 /**
+ * Largest request body the app will parse (AB-4 / F-14).
+ *
+ * Both parsers were unbounded, so any endpoint would buffer an arbitrarily
+ * large body into memory before a single line of application code ran — a
+ * memory-exhaustion path on every mutation route.
+ *
+ * 100kb is far above the largest legitimate payload this app accepts. The
+ * biggest is a support ticket's `concern` field, capped at 5000 characters by
+ * the contract (HY-2 tightens that cap); even as 4-byte UTF-8 that is ~20kb,
+ * leaving room for the rest of the body and generous headroom.
+ *
+ * Nginx is set to 1m rather than 100kb on purpose: the proxy limit counts the
+ * whole request, so matching the two exactly would let header size decide
+ * whether a legitimate body is rejected, and by the wrong layer. The gap means
+ * oversized junk dies at the edge while borderline requests get a coherent 413
+ * from the app.
+ */
+export const MAX_REQUEST_BODY_SIZE = "100kb"
+
+/**
  * Configure body parser middleware for non-auth routes
  * Note: bodyParser is disabled in bootstrap.ts to allow Better Auth to handle its own body parsing.
  * We need to manually add JSON parsing for all other routes.
  */
 function configureBodyParser(app: INestApplication): void {
 	const httpAdapter = app.getHttpAdapter()
-	httpAdapter.use(express.json())
-	httpAdapter.use(express.urlencoded({ extended: true }))
-	logger.log("Body parser middleware configured")
+	httpAdapter.use(express.json({ limit: MAX_REQUEST_BODY_SIZE }))
+	httpAdapter.use(express.urlencoded({ extended: true, limit: MAX_REQUEST_BODY_SIZE }))
+	logger.log(`Body parser middleware configured (limit: ${MAX_REQUEST_BODY_SIZE})`)
 }
 
 /**

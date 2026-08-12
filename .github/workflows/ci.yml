@@ -8,7 +8,33 @@ on:
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
+
+# No `permissions:` block here on purpose. A called workflow can only restrict
+# the caller's token, never escalate it, and the quality gate needs
+# `pull-requests: write` + `checks: write` to post its coverage comments — so a
+# `contents: read` baseline on this caller would break them on every PR.
+# Least-privilege across all five workflows is CI-6, which can set it here
+# alongside the callee's actual requirements.
+
 jobs:
   quality:
-    uses: Quanby-IT-Solutions/.github/.github/workflows/quality-gate.yml@main
-    secrets: inherit
+    # Pinned to a full commit SHA, not @main: every deploy gates on this job
+    # (`needs: ci`), so a branch ref lets an external repository change our
+    # quality gate — or replace it — without a single review here.
+    #
+    # Pinned commit: db900a0 "Update timeout settings for jobs in quality gate
+    # workflow" (2026-07-05). Reviewed at this SHA on 2026-08-12 (CI-3 / F-09);
+    # it runs, in order: pnpm typecheck, pnpm lint, pnpm format, and
+    # `pnpm turbo test:cov` for unit tests, plus Playwright e2e when web or its
+    # upstream packages change. A final `quality-gate` job fails the run if
+    # static checks or e2e fail, so the gate is real rather than nominal.
+    #
+    # To move the pin: re-review the workflow at the new SHA, then update both
+    # the ref and this comment together.
+    uses: Quanby-IT-Solutions/.github/.github/workflows/quality-gate.yml@db900a082cd9f7d1315d1192748324cf49647410 # 2026-07-05
+    # `secrets: inherit` handed every repository secret — AWS keys, the auth
+    # signing secret, the database URL — to an external workflow that declares
+    # exactly one optional secret. Only that one is passed now, so a compromise
+    # of the external repo has nothing to exfiltrate.
+    secrets:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -2,11 +2,24 @@
 
 import * as React from "react"
 
-// Tiny, CORS-friendly connectivity endpoint (returns HTTP 204, no body). Used
-// by Android/Chrome for the same purpose. `no-cors` gives an opaque response we
-// don't read — we only care whether the request resolves (reachable) or throws
-// (no uplink).
-const PROBE_URL = "https://www.gstatic.com/generate_204"
+import { env } from "@/env"
+
+/**
+ * First-party connectivity probe (WC-4 / F-50, brought forward by ED-1).
+ *
+ * This used to hit `https://www.gstatic.com/generate_204`, which leaked the
+ * user's IP and session duration to a third party every 15 seconds. ED-1's CSP
+ * then made that actively harmful rather than merely leaky: `connect-src` does
+ * not allow gstatic, so the probe throws, the app concludes it is offline, and
+ * `networkMode: "online"` pauses **every** mutation indefinitely — todos never
+ * send, sign-out hangs on "Logging out…". The failure is timing-dependent
+ * because the state starts optimistic and only flips once the first probe
+ * fails, which is what made it look like flakiness.
+ *
+ * `/health` is `@AllowAnonymous`, so the probe works signed-out, and it is on
+ * the API origin the CSP already allows.
+ */
+const PROBE_URL = `${env.NEXT_PUBLIC_API_BASE_URL}/${env.NEXT_PUBLIC_API_VERSION}/health`
 
 // --- Shared, module-scoped connectivity source -----------------------------
 //

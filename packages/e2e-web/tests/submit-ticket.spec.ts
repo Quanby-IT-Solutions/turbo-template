@@ -9,6 +9,14 @@ import { expect, request, test } from "@playwright/test"
  *
  * The endpoint accepts anonymous submissions too (verified directly against
  * the API); this covers the UI path, which also exercises AZ-3 attribution.
+ *
+ * Every test here needs a live API — the sign-up in `loadCookies` and the
+ * POST /tickets under test both go to it. `E2E_AUTH_API_URL` is this suite's
+ * existing signal for "a backend is reachable": playwright.config.ts gates the
+ * whole authenticated project on it and auth.spec.ts skips on it. This file was
+ * the one backend-dependent spec in the ungated `chromium` project without the
+ * guard, so on a runner with no API all three failed with ECONNREFUSED against
+ * the :3000 default instead of reporting that they could not run.
  */
 const AUTH_API = process.env.E2E_AUTH_API_URL ?? "http://localhost:3000/api/v1/auth/"
 
@@ -18,20 +26,39 @@ const AUTH_API = process.env.E2E_AUTH_API_URL ?? "http://localhost:3000/api/v1/a
 let sessionCookies: Awaited<ReturnType<typeof loadCookies>> | undefined
 
 async function loadCookies() {
-	const api = await request.newContext()
-	const email = `hy2-e2e-${Date.now()}@test.local`
-	const response = await api.post(`${AUTH_API}sign-up/email`, {
-		data: { email, password: "Password123", name: "HY2 E2E" },
-	})
-	if (!response.ok()) {
-		throw new Error(`[hy2] sign-up failed: ${response.status()} ${await response.text()}`)
+	let detail = ""
+
+	// Better Auth rate-limits `sign-up/email` per path, and that budget is shared
+	// with every other spec in the suite that registers an account. Throwing on
+	// the first 429 failed all three tests here with a sign-up error that looks
+	// like a broken endpoint. Retried on the same schedule as `fixtures.ts`.
+	for (let attempt = 1; attempt <= 3; attempt++) {
+		const api = await request.newContext()
+		const email = `hy2-e2e-${Date.now()}@test.local`
+		const response = await api.post(`${AUTH_API}sign-up/email`, {
+			data: { email, password: "Password123", name: "HY2 E2E" },
+		})
+
+		if (response.ok()) {
+			const { cookies } = await api.storageState()
+			await api.dispose()
+			return cookies
+		}
+
+		const status = response.status()
+		detail = `${status} ${await response.text()}`
+		await api.dispose()
+
+		if (status !== 429) break
+		await new Promise(resolve => setTimeout(resolve, 11_000))
 	}
-	const { cookies } = await api.storageState()
-	await api.dispose()
-	return cookies
+
+	throw new Error(`[hy2] sign-up failed: ${detail}`)
 }
 
 test.beforeEach(async ({ page }) => {
+	test.skip(!process.env.E2E_AUTH_API_URL, "Requires backend")
+
 	sessionCookies ??= await loadCookies()
 	await page.context().addCookies(sessionCookies)
 

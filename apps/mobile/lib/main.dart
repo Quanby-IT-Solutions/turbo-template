@@ -26,14 +26,16 @@ Future<void> main() async {
 
   final sharedPreferences = results[0] as SharedPreferences;
   final storage = results[1] as SecureStorageService;
-  final dio = await createDio(storage);
+  final apiClient = await createApiClient(storage);
 
   runApp(
     ProviderScope(
       overrides: [
         sharedPreferencesProvider.overrideWithValue(sharedPreferences),
         secureStorageProvider.overrideWithValue(storage),
-        dioProvider.overrideWithValue(dio),
+        dioProvider.overrideWithValue(apiClient.dio),
+        // MB-1: sign-out purges the very jar the client writes to.
+        cookieJarProvider.overrideWithValue(apiClient.cookieJar),
       ],
       child: const App(),
     ),

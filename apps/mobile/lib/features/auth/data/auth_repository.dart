@@ -1,5 +1,6 @@
 import 'dart:developer' as developer;
 
+import 'package:cookie_jar/cookie_jar.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:mobile/core/constants/api_constants.dart';
@@ -16,10 +17,11 @@ part 'auth_repository.g.dart';
 /// (in api_client.dart) automatically persists `set-cookie` headers.
 /// We also store the session token in secure storage as a fallback.
 class AuthRepository {
-  AuthRepository(this._dio, this._storage);
+  AuthRepository(this._dio, this._storage, this._cookieJar);
 
   final Dio _dio;
   final SecureStorageService _storage;
+  final PersistCookieJar _cookieJar;
 
   /// Logs an auth diagnostic, debug builds only (LG-1 / F-05).
   ///
@@ -103,11 +105,18 @@ class AuthRepository {
     return null;
   }
 
-  /// Signs out and clears stored credentials.
+  /// Signs out and clears every stored credential on the device.
+  ///
+  /// MB-1 / F-43 (Risky Flow RF1, mobile leg): the cookie jar was unreachable
+  /// from here, so sign-out cleared secure storage while the session cookie
+  /// stayed on disk in the jar's persistence directory — the next launch
+  /// resumed the session. The jar is purged too, and the purge runs in
+  /// `finally` so a failed network sign-out still clears the device.
   Future<void> signOut() async {
     try {
       await _dio.post(ApiConstants.signOut);
     } finally {
+      await _cookieJar.deleteAll();
       await _storage.deleteSessionToken();
       await _storage.deleteCookie();
     }
@@ -139,5 +148,6 @@ class AuthRepository {
 AuthRepository authRepository(Ref ref) {
   final dio = ref.watch(dioProvider);
   final storage = ref.watch(secureStorageProvider);
-  return AuthRepository(dio, storage);
+  final cookieJar = ref.watch(cookieJarProvider);
+  return AuthRepository(dio, storage, cookieJar);
 }

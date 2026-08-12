@@ -13,9 +13,19 @@ part 'api_client.g.dart';
 /// - Sets the base URL from [ApiConstants].
 /// - Attaches a [PersistCookieJar] backed by the app's document directory
 ///   (via `path_provider`) so Better Auth session cookies survive app restarts.
-/// - Attaches an interceptor that reads the session cookie from
-///   [SecureStorageService] and injects it as a header when present.
-Future<Dio> createDio(SecureStorageService storage) async {
+///
+/// MB-1 / F-23: the jar is the SINGLE cookie store. A second interceptor used
+/// to copy the session cookie into secure storage and re-inject it as a header,
+/// which duplicated the credential and re-serialised it badly: it joined every
+/// `set-cookie` value with `'; '`, so cookie ATTRIBUTES (Path, HttpOnly,
+/// SameSite, Max-Age) became name=value pairs in the request header, and the
+/// scoping the server asked for was discarded. It also overwrote whatever
+/// [CookieManager] had negotiated. One store, one serialiser, no duplicate on
+/// disk to purge.
+Future<Dio> createDio(
+  SecureStorageService storage, {
+  required PersistCookieJar cookieJar,
+}) async {
   // Better Auth performs CSRF validation on POST requests by checking
   // the Origin header against its trustedOrigins list. Native mobile
   // HTTP clients don't send an Origin header by default, so we set one
@@ -36,35 +46,47 @@ Future<Dio> createDio(SecureStorageService storage) async {
   );
 
   // Persistent cookie jar — cookies are stored on disk so Better Auth
-  // session cookies survive between app launches.
+  // session cookies survive between app launches. Supplied by the caller so
+  // the same instance is reachable for the sign-out purge.
+  dio.interceptors.add(CookieManager(cookieJar));
+
+  return dio;
+}
+
+/// A configured [Dio] together with the cookie jar it uses.
+///
+/// MB-1 / F-43: the jar was previously unreachable outside [createDio], so
+/// nothing could purge it and the session cookie survived sign-out on disk.
+/// Returning it makes the single store addressable by the code that must
+/// clear it.
+class ApiClient {
+  const ApiClient({required this.dio, required this.cookieJar});
+
+  final Dio dio;
+  final PersistCookieJar cookieJar;
+}
+
+/// Build the [Dio] client and hand back its jar alongside it.
+Future<ApiClient> createApiClient(SecureStorageService storage) async {
   final appDocDir = await getApplicationDocumentsDirectory();
   final cookieJar = PersistCookieJar(
     storage: FileStorage('${appDocDir.path}/.cookies/'),
   );
-  dio.interceptors.add(CookieManager(cookieJar));
-
-  // Inject persisted cookie header when available
-  dio.interceptors.add(
-    InterceptorsWrapper(
-      onRequest: (options, handler) async {
-        final cookie = await storage.getCookie();
-        if (cookie != null && cookie.isNotEmpty) {
-          options.headers['cookie'] = cookie;
-        }
-        handler.next(options);
-      },
-      onResponse: (response, handler) async {
-        // Persist set-cookie header from the backend for subsequent requests
-        final setCookie = response.headers['set-cookie'];
-        if (setCookie != null && setCookie.isNotEmpty) {
-          await storage.setCookie(setCookie.join('; '));
-        }
-        handler.next(response);
-      },
-    ),
+  return ApiClient(
+    dio: await createDio(storage, cookieJar: cookieJar),
+    cookieJar: cookieJar,
   );
+}
 
-  return dio;
+/// Provider for the app's single cookie jar.
+///
+/// Overridden in main.dart with the jar the live [Dio] is using, so sign-out
+/// purges the same store the client writes to.
+@Riverpod(keepAlive: true)
+PersistCookieJar cookieJar(Ref ref) {
+  throw UnimplementedError(
+    'cookieJarProvider must be overridden in ProviderScope',
+  );
 }
 
 /// Provider for [Dio].

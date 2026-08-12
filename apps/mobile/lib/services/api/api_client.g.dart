@@ -8,6 +8,66 @@ part of 'api_client.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
+/// Provider for the app's single cookie jar.
+///
+/// Overridden in main.dart with the jar the live [Dio] is using, so sign-out
+/// purges the same store the client writes to.
+
+@ProviderFor(cookieJar)
+const cookieJarProvider = CookieJarProvider._();
+
+/// Provider for the app's single cookie jar.
+///
+/// Overridden in main.dart with the jar the live [Dio] is using, so sign-out
+/// purges the same store the client writes to.
+
+final class CookieJarProvider
+    extends
+        $FunctionalProvider<
+          PersistCookieJar,
+          PersistCookieJar,
+          PersistCookieJar
+        >
+    with $Provider<PersistCookieJar> {
+  /// Provider for the app's single cookie jar.
+  ///
+  /// Overridden in main.dart with the jar the live [Dio] is using, so sign-out
+  /// purges the same store the client writes to.
+  const CookieJarProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'cookieJarProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$cookieJarHash();
+
+  @$internal
+  @override
+  $ProviderElement<PersistCookieJar> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  PersistCookieJar create(Ref ref) {
+    return cookieJar(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(PersistCookieJar value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<PersistCookieJar>(value),
+    );
+  }
+}
+
+String _$cookieJarHash() => r'1c4c46cda5b35f4ad4ab8572b2ac640901a3ded8';
+
 /// Provider for [Dio].
 ///
 /// Overridden in main.dart with an eagerly created instance so the client

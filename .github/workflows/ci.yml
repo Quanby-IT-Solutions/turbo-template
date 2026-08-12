@@ -9,12 +9,24 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
-# No `permissions:` block here on purpose. A called workflow can only restrict
-# the caller's token, never escalate it, and the quality gate needs
-# `pull-requests: write` + `checks: write` to post its coverage comments — so a
-# `contents: read` baseline on this caller would break them on every PR.
-# Least-privilege across all five workflows is CI-6, which can set it here
-# alongside the callee's actual requirements.
+# CI-6 / F-26: least privilege, stated rather than inherited.
+#
+# Without a block here the job runs on whatever the repository/organization
+# default grants, which is commonly write-all — the caller's token is the
+# ceiling for the reusable workflow, so an unstated default is the broadest
+# possible grant to external code.
+#
+# This is deliberately not a bare `contents: read`. A called workflow can only
+# restrict the caller's token, never escalate it, and the quality gate posts
+# coverage comments and check results, which need `pull-requests: write` and
+# `checks: write`; a read-only baseline here would break them on every PR.
+# These three are the callee's actual requirements (confirmed in the CI-3
+# review of the pinned SHA below) and nothing more — no `packages`, no
+# `id-token`, no `actions: write`.
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
 
 jobs:
   quality:

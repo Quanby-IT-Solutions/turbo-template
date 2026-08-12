@@ -1,6 +1,7 @@
 import 'package:awesome_snackbar_content/awesome_snackbar_content.dart';
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:mobile/features/auth/presentation/utils/auth_error_message.dart';
+import 'package:mobile/features/auth/presentation/utils/auth_validation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/core/navigation/app_router.dart';
@@ -42,19 +43,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (authState.hasError) {
       if (!context.mounted) return;
 
-      // Extract a user-friendly error message from the error.
-      final error = authState.error;
-      String message;
-      if (error is DioException) {
-        final data = error.response?.data;
-        if (data is Map<String, dynamic> && data.containsKey('message')) {
-          message = data['message'].toString();
-        } else {
-          message = error.response?.statusMessage ?? error.message ?? 'Unknown network error';
-        }
-      } else {
-        message = error.toString();
-      }
+      // MB-3 / F-45: a fixed, mapped string. Never `toString()`, and never
+      // the server's own text — `error.message` embeds the host and port it
+      // tried to reach, which then lands in a user's screenshot.
+      final message = authErrorMessage(authState.error);
 
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
@@ -172,8 +164,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       if (value == null || value.isEmpty) {
                         return 'Password is required';
                       }
-                      if (value.length < 6) {
-                        return 'Password must be at least 6 characters';
+                      if (value.length < AuthValidation.passwordMinLength) {
+                        return AuthValidation.password(value);
                       }
                       return null;
                     },

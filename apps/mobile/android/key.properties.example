@@ -1,0 +1,17 @@
+# MB-3 / F-44 — Android release signing.
+#
+# Copy to android/key.properties (gitignored) and fill in. NEVER commit the
+# real file or the keystore it points at: whoever holds them can publish an
+# update to this app.
+#
+# Generate a keystore:
+#   keytool -genkey -v -keystore upload-keystore.jks -keyalg RSA \
+#     -keysize 2048 -validity 10000 -alias upload
+#
+# CI supplies the same four values as environment variables instead:
+#   ANDROID_KEYSTORE_PATH, ANDROID_KEYSTORE_PASSWORD,
+#   ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD
+storeFile=/absolute/path/to/upload-keystore.jks
+storePassword=<store password>
+keyAlias=upload
+keyPassword=<key password>

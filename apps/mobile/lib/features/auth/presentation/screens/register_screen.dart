@@ -1,5 +1,7 @@
 import 'package:awesome_snackbar_content/awesome_snackbar_content.dart';
 import 'package:flutter/material.dart';
+import 'package:mobile/features/auth/presentation/utils/auth_error_message.dart';
+import 'package:mobile/features/auth/presentation/utils/auth_validation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/features/auth/presentation/providers/auth_provider.dart';
@@ -54,7 +56,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             backgroundColor: Colors.transparent,
             content: AwesomeSnackbarContent(
               title: 'Sign Up Failed',
-              message: authState.error.toString(),
+              message: authErrorMessage(authState.error),
               contentType: ContentType.failure,
             ),
           ),
@@ -173,8 +175,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       if (value == null || value.isEmpty) {
                         return 'Password is required';
                       }
-                      if (value.length < 6) {
-                        return 'Password must be at least 6 characters';
+                      if (value.length < AuthValidation.passwordMinLength) {
+                        return AuthValidation.password(value);
                       }
                       return null;
                     },

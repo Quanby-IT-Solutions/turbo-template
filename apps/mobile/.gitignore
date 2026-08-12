@@ -43,3 +43,8 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# MB-3 / F-44: keystore material must never be committed.
+android/key.properties
+*.jks
+*.keystore

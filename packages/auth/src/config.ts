@@ -8,6 +8,7 @@ import { z } from "zod"
 import { createDBClient } from "@repo/db/client"
 import { accounts, sessions, users, verifications } from "@repo/db/schema"
 
+import { cookieDomainSchema } from "./cookie-domain-schema.js"
 import { booleanFromEnv } from "./mailer/bool-schema.js"
 import { sendMail } from "./mailer/send-mail.js"
 import { buildResetPasswordEmail } from "./mailer/templates/reset-password-email.js"
@@ -28,7 +29,10 @@ export const authEnv = createEnv({
 		// processes reject the same weak/placeholder secrets (RF3, F-03).
 		BETTER_AUTH_SECRET: authSecretSchema,
 		BETTER_AUTH_TRUSTED_ORIGINS: z.string(),
-		BETTER_AUTH_COOKIE_DOMAIN: z.string().optional(),
+		// AC-3 / F-33: any non-empty value used to enable cross-subdomain cookies,
+		// so a typo silently widened the session cookie's scope. Unset by default,
+		// which means a host-only cookie — the narrowest option.
+		BETTER_AUTH_COOKIE_DOMAIN: cookieDomainSchema,
 
 		// OAuth Providers (Google)
 		GOOGLE_CLIENT_ID: z.string().optional(),
@@ -45,7 +49,10 @@ export const authEnv = createEnv({
 
 		// Email verification behaviour
 		EMAIL_VERIFICATION_ENABLED: booleanFromEnv.optional().default(true),
-		EMAIL_VERIFICATION_REQUIRED: booleanFromEnv.optional().default(false),
+		// AC-3: the PRD records this business decision as "verification required".
+		// Defaulting it off meant an unverified address could sign in, which is
+		// the opposite of what was agreed.
+		EMAIL_VERIFICATION_REQUIRED: booleanFromEnv.optional().default(true),
 
 		// Auth rate limiting
 		AUTH_RATE_LIMIT_WINDOW: z.coerce.number().int().positive().optional().default(60),
@@ -88,8 +95,12 @@ export function createAuth(): ReturnType<typeof betterAuth> {
 	})
 	const mailFrom = authEnv.MAIL_FROM
 	const appWebUrl = authEnv.APP_WEB_URL
-	const verificationEnabled = authEnv.EMAIL_VERIFICATION_ENABLED
 	const verificationRequired = authEnv.EMAIL_VERIFICATION_REQUIRED
+	// AC-3: requiring verification while sending is disabled produces accounts
+	// that can never sign in — no mail is sent, so the gate never opens. The two
+	// flags are made coherent here rather than left to trip an operator: if
+	// verification is required, sending is on.
+	const verificationEnabled = authEnv.EMAIL_VERIFICATION_ENABLED || verificationRequired
 
 	return betterAuth({
 		database: drizzleAdapter(db, {
@@ -175,7 +186,72 @@ export function createAuth(): ReturnType<typeof betterAuth> {
 			},
 		},
 		trustedOrigins: authEnv.BETTER_AUTH_TRUSTED_ORIGINS?.split(",") ?? [],
+
+		/**
+		 * Session lifetime, pinned rather than inherited (AC-3 / F-56).
+		 *
+		 * These rode library defaults, so the security posture was whatever the
+		 * installed version happened to choose and could change under a patch
+		 * upgrade without anyone noticing.
+		 */
+		session: {
+			// Absolute lifetime of a session record.
+			expiresIn: 60 * 60 * 24 * 7, // 7 days
+			// Sliding renewal: an active session is extended once a day, so a
+			// user in daily use is not signed out mid-work, while an abandoned
+			// session still dies within the window above.
+			updateAge: 60 * 60 * 24, // 1 day
+			// Cookie cache is deliberately OFF. It serves session data from a
+			// signed cookie without hitting the database, which means a revoked
+			// session keeps working until the cache lapses — the same staleness
+			// AB-2 removed from the RBAC cache, and not worth reintroducing here.
+			cookieCache: { enabled: false },
+		},
+
+		/**
+		 * Account linking, stated explicitly (AC-3 / F-56).
+		 *
+		 * Trusted providers only, and only ones that verify the address they
+		 * assert. Automatic linking on an unverified email is an account-takeover
+		 * path: sign up with someone's address at a provider that never checks
+		 * it, and you inherit their account.
+		 */
+		account: {
+			accountLinking: {
+				enabled: true,
+				trustedProviders: ["google"],
+				allowDifferentEmails: false,
+			},
+		},
+
 		advanced: {
+			/**
+			 * Cookie attributes, pinned (AC-3 / F-58, F-59).
+			 *
+			 * F-59 asked which SameSite posture applies, because it gates how bad
+			 * F-21's clickjacking is. The answer is `lax`, chosen not defaulted:
+			 *
+			 *  - `strict` breaks the OAuth return leg — the browser drops the
+			 *    cookie on the top-level redirect back from Google, so the user
+			 *    lands signed out.
+			 *  - `none` would let any site send the session cookie on cross-site
+			 *    requests, which is exactly the CSRF surface to avoid.
+			 *  - `lax` withholds the cookie on cross-site subrequests (the CSRF
+			 *    case) while allowing it on top-level navigations (the OAuth
+			 *    case).
+			 *
+			 * With `lax` here and ED-1's `frame-ancestors 'none'`, F-21 is closed
+			 * from both directions: the page cannot be framed, and even if it
+			 * were, the cookie would not ride a cross-site subrequest.
+			 */
+			defaultCookieAttributes: {
+				httpOnly: true,
+				sameSite: "lax",
+				// Secure in production only: a Secure cookie is dropped over plain
+				// HTTP, which would break local development on http://localhost.
+				secure: process.env.NODE_ENV === "production",
+				path: "/",
+			},
 			...(authEnv.BETTER_AUTH_COOKIE_DOMAIN && {
 				crossSubDomainCookies: {
 					enabled: true,

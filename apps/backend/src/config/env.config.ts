@@ -45,6 +45,12 @@ export const env = createEnv({
 		// bucket per request.
 		TRUST_PROXY: z.coerce.number().int().min(0).default(1),
 
+		// Security headers (ED-1). HSTS is a promise the browser remembers, so it
+		// stays off until TLS actually terminates in the target environment
+		// (ED-2). Enabling it early pins clients to HTTPS a deployment cannot
+		// serve, and max-age cannot be withdrawn quickly.
+		ENABLE_HSTS: booleanFromEnv.optional().default(false),
+
 		// Database
 		DATABASE_URL: z.string(),
 

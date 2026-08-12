@@ -1,6 +1,7 @@
 import { VersioningType, type INestApplication } from "@nestjs/common"
 import { NestFactory } from "@nestjs/core"
 import type { Application } from "express"
+import helmet from "helmet"
 import { Logger } from "nestjs-pino"
 import pinoHttp from "pino-http"
 
@@ -9,6 +10,7 @@ import { configureApp, configureCors } from "@/config/app.config"
 import { setupBetterAuth } from "@/config/auth.config"
 import { env, isApiDocsEnabled } from "@/config/env.config"
 import { buildPinoHttpOptions } from "@/config/pino-logger.config"
+import { buildHelmetOptions } from "@/config/security-headers.config"
 import { setupSwagger } from "@/config/swagger.config"
 
 /**
@@ -38,6 +40,11 @@ async function createApplication(): Promise<INestApplication> {
 	const httpAdapter = app.getHttpAdapter()
 	const expressApp = httpAdapter.getInstance() as Application
 	expressApp.set("trust proxy", env.TRUST_PROXY)
+
+	// ED-1: security headers first, so they cover EVERY response — including
+	// the auth routes Better Auth short-circuits before Nest sees them, and
+	// error responses produced by later middleware.
+	expressApp.use(helmet(buildHelmetOptions()))
 
 	// IMPORTANT: CORS must be registered BEFORE the Better Auth middleware.
 	// The auth middleware short-circuits /api/v1/auth/* requests, so if CORS

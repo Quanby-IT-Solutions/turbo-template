@@ -20,12 +20,17 @@ export function useForgotPasswordMutation() {
 			})
 
 			const status = result.error?.status
+
+			// Rate limiting is the one outcome worth distinguishing: it tells the
+			// user to wait rather than implying anything about the address.
 			if (status === 429 && result.error) {
 				throw new RateLimitError(extractRetryAfterSeconds(result.error))
 			}
-			if (status && status >= 500) {
-				throw new Error(result.error?.message || "Failed to send reset email")
-			}
+
+			// AC-4 / F-18: every other outcome is reported identically. Surfacing
+			// a 5xx here would re-create the enumeration oracle the server side
+			// just closed — "this address errored, that one didn't" is the signal
+			// an attacker wants — and would leak whatever the server said.
 		},
 	})
 }

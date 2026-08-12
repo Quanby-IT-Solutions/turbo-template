@@ -164,18 +164,38 @@ export function createAuth(): ReturnType<typeof betterAuth> {
 		emailAndPassword: {
 			enabled: true,
 			requireEmailVerification: verificationRequired,
+			/**
+			 * Send a password-reset link (AC-4 / F-18).
+			 *
+			 * Failures are swallowed on purpose. Better Auth already returns the
+			 * same generic response whether or not the account exists; letting a
+			 * transport error escape from here would break that, because a
+			 * mailable address would 200 while an SMTP failure 500'd — turning
+			 * the endpoint into an account-enumeration oracle for anyone who can
+			 * make delivery fail for one address and not another.
+			 *
+			 * The real error goes to the server log, where LG-1's Pino redaction
+			 * applies, and never to the client: raw transport errors disclose
+			 * host, port and credentials-in-use.
+			 */
 			sendResetPassword: async ({ user, token }) => {
-				const resetUrl = `${appWebUrl}/reset-password?token=${token}`
-				const email = buildResetPasswordEmail({
-					resetUrl,
-					userEmail: user.email,
-				})
-				await sendMail(transporter, mailFrom, {
-					to: user.email,
-					subject: email.subject,
-					html: email.html,
-					text: email.text,
-				})
+				try {
+					const resetUrl = `${appWebUrl}/reset-password?token=${token}`
+					const email = buildResetPasswordEmail({
+						resetUrl,
+						userEmail: user.email,
+					})
+					await sendMail(transporter, mailFrom, {
+						to: user.email,
+						subject: email.subject,
+						html: email.html,
+						text: email.text,
+					})
+				} catch (err) {
+					// Logged, not returned. The message is deliberately free of the
+					// address and the reset URL — both are credentials in this flow.
+					console.error("[mailer] password reset email failed:", err)
+				}
 			},
 		},
 		socialProviders: {

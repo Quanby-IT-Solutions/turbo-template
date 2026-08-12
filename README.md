@@ -462,6 +462,37 @@ The deploy fails closed: a missing variable stops the run at the validation
 step, and a key that does not match aborts the SSH connection with
 `Host key verification failed` rather than proceeding.
 
+### TLS certificates (Docker proxy)
+
+The bundled Nginx ships **two** configs, both live — the production one is not
+commented out:
+
+| File | Use | Listens |
+| --- | --- | --- |
+| `nginx/nginx.dev.conf` | local development (**default**) | HTTP :80 |
+| `nginx/nginx.conf` | production, terminates TLS | :80 redirect + :443 |
+
+Both route `/api/*` to `backend:3000` and everything else to `web:3001` **by
+Compose service name**, so they work inside the network without
+`host.docker.internal`.
+
+A fresh clone needs no certificates: compose defaults to the dev config. To run
+the TLS config, issue a certificate and point compose at it:
+
+```bash
+# 1. Obtain a certificate (webroot is mounted at ./nginx/certbot)
+certbot certonly --webroot -w ./nginx/certbot -d <your-domain>
+
+# 2. Place fullchain.pem + privkey.pem in ./nginx/certs (or set NGINX_CERTS_DIR)
+# 3. Start with the production config
+NGINX_CONF=./nginx/nginx.conf docker compose --profile docker-proxy up -d
+```
+
+Baseline: TLS 1.2 and 1.3 only, forward-secret cipher suites, HTTP 301s to
+HTTPS, and the ACME challenge path stays on HTTP so renewal keeps working.
+Once this is live, enable `ENABLE_HSTS=true` (ED-1 keeps it off until TLS
+actually terminates, because `max-age` cannot be withdrawn quickly).
+
 ### First-Time Staging SSL
 
 After the first staging deployment, SSH into EC2 to set up HTTPS:

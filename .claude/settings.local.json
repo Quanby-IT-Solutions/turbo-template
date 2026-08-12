@@ -166,7 +166,10 @@
       "Bash(pnpm --filter @repo/auth typecheck)",
       "Bash(pnpm --filter @repo/auth build)",
       "Bash(pnpm --filter @repo/auth lint)",
-      "Bash(DATABASE_URL=\"postgres://postgres:password@127.0.0.1:59999/nope\" npx jest src/common/maintenance/expiry-cleanup.spec.ts)"
+      "Bash(DATABASE_URL=\"postgres://postgres:password@127.0.0.1:59999/nope\" npx jest src/common/maintenance/expiry-cleanup.spec.ts)",
+      "Bash(echo \"exit=$?\")",
+      "Bash(REDIS_PASSWORD=testpw123 docker compose config)",
+      "Bash(python -)"
     ]
   }
 }

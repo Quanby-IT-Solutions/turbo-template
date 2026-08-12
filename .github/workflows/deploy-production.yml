@@ -65,7 +65,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
       # ──────────────────────────────────────────────
       # Validate required variables
@@ -106,7 +106,7 @@ jobs:
       # Build and push Docker images to ECR
       # ──────────────────────────────────────────────
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -114,20 +114,26 @@ jobs:
 
       - name: Login to Amazon ECR
         id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
+        uses: aws-actions/amazon-ecr-login@d539f0932e70871a027e9d5a9d8fc38589180a64 # v2
         with:
           mask-password: true
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
 
       - name: Cache Docker layers
-        uses: actions/cache@v5
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
         with:
           path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-production-${{ github.sha }}
+          # CI-6 / F-27: the key is content-addressed on the Dockerfiles and
+          # the lockfile, and restore-keys is scoped to the same ref. A broad
+          # prefix let a build on any ref restore -- and then extend -- a cache
+          # populated by another ref, which is a path for a poisoned layer from
+          # an untrusted branch to reach a deploy build.
+          key: ${{ runner.os }}-buildx-production-${{ github.ref_name }}-${{ hashFiles('apps/*/Dockerfile', 'pnpm-lock.yaml') }}-${{ github.sha }}
           restore-keys: |
-            ${{ runner.os }}-buildx-production-
+            ${{ runner.os }}-buildx-production-${{ github.ref_name }}-${{ hashFiles('apps/*/Dockerfile', 'pnpm-lock.yaml') }}-
+            ${{ runner.os }}-buildx-production-${{ github.ref_name }}-
 
       - name: Build and push Web image to ECR
         id: build-web

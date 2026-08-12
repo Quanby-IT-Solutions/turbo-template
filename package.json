@@ -27,8 +27,7 @@
 		"format:fix": "turbo run format --continue -- --write --cache --cache-location .cache/.prettiercache",
 		"lint": "turbo run lint --continue -- --cache --cache-location .cache/.eslintcache",
 		"lint:fix": "turbo run lint --continue -- --fix --cache --cache-location .cache/.eslintcache",
-		"lint:ws": "pnpm dlx sherif@latest",
-		"postinstall": "node -e \"try { require('node:child_process').execSync('pnpm lint:ws', { stdio: 'inherit' }) } catch { console.warn('Skipping workspace dependency check during postinstall') }\"",
+		"lint:ws": "sherif",
 		"test:e2e:web": "turbo run test:e2e --filter=@repo/e2e-web",
 		"show-report:e2e:web": "pnpm --filter @repo/e2e-web run show-report",
 		"typecheck": "turbo run typecheck",
@@ -39,6 +38,7 @@
 		"@turbo/gen": "catalog:",
 		"husky": "^9.1.7",
 		"prettier": "catalog:",
+		"sherif": "1.10.0",
 		"turbo": "catalog:",
 		"typescript": "catalog:"
 	},

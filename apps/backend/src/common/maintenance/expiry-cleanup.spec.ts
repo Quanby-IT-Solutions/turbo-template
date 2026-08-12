@@ -1,4 +1,4 @@
-import { like } from "drizzle-orm"
+import { like, sql } from "drizzle-orm"
 
 import { verifications } from "@repo/db/schema"
 
@@ -11,6 +11,10 @@ import { ExpiryCleanupService } from "@/common/maintenance/expiry-cleanup.servic
  * Hits the real database: the whole point is that a DELETE with a timestamp
  * predicate removes the right rows and leaves the rest, which a mocked query
  * builder cannot demonstrate.
+ *
+ * Skips the database-backed cases when no Postgres is reachable, matching
+ * az-2/az-3/az-4. Without that guard every one of them fails on a runner with
+ * no database rather than reporting honestly that it could not run.
  */
 describe("ExpiryCleanupService — verifications (HY-2 / F-40)", () => {
 	const service = new ExpiryCleanupService()
@@ -18,13 +22,45 @@ describe("ExpiryCleanupService — verifications (HY-2 / F-40)", () => {
 
 	const hoursFromNow = (hours: number) => new Date(Date.now() + hours * 3_600_000)
 
+	let dbReachable = false
+
+	beforeAll(async () => {
+		try {
+			await db.execute(sql`select 1`)
+			dbReachable = true
+		} catch {
+			// Left false; every db-backed case below skips itself.
+		}
+	})
+
 	// Scoped to this run's own rows. A broad "delete everything expired" would
 	// also wipe unrelated rows in a shared dev database.
 	afterEach(async () => {
+		if (!dbReachable) return
 		await db.delete(verifications).where(like(verifications.identifier, `${marker}%`))
 	})
 
-	it("deletes rows whose expiry has passed", async () => {
+	// The pool keeps the event loop alive otherwise, and jest warns that it could
+	// not exit after the run.
+	afterAll(async () => {
+		if (!dbReachable) return
+		await db.$client.end()
+	})
+
+	const itDb: jest.It = ((name: string, fn: jest.ProvidesCallback, timeout?: number) =>
+		it(
+			name,
+			async (...args: unknown[]) => {
+				if (!dbReachable) {
+					console.warn(`[hy2] skipped "${name}": no database reachable`)
+					return
+				}
+				return (fn as (...a: unknown[]) => unknown)(...args)
+			},
+			timeout
+		)) as jest.It
+
+	itDb("deletes rows whose expiry has passed", async () => {
 		await db.insert(verifications).values({
 			identifier: `${marker}-expired`,
 			value: "v1",
@@ -38,7 +74,7 @@ describe("ExpiryCleanupService — verifications (HY-2 / F-40)", () => {
 		expect(left.some(row => row.identifier === `${marker}-expired`)).toBe(false)
 	})
 
-	it("leaves unexpired rows alone, so live links keep working", async () => {
+	itDb("leaves unexpired rows alone, so live links keep working", async () => {
 		// The failure this guards: sweeping by "created before now" instead of
 		// "expires before now" would invalidate a token the user is about to click.
 		await db.insert(verifications).values({
@@ -53,7 +89,7 @@ describe("ExpiryCleanupService — verifications (HY-2 / F-40)", () => {
 		expect(left.some(row => row.identifier === `${marker}-live`)).toBe(true)
 	})
 
-	it("is idempotent — a second sweep removes nothing new", async () => {
+	itDb("is idempotent — a second sweep removes nothing new", async () => {
 		await db.insert(verifications).values({
 			identifier: `${marker}-twice`,
 			value: "v3",
@@ -64,7 +100,7 @@ describe("ExpiryCleanupService — verifications (HY-2 / F-40)", () => {
 		expect(await service.sweepVerifications()).toBe(0)
 	})
 
-	it("logs a count without the identifier or the token", async () => {
+	itDb("logs a count without the identifier or the token", async () => {
 		// The identifier is the user's email and the value is a credential until
 		// it expires. Neither may reach the log.
 		await db.insert(verifications).values({

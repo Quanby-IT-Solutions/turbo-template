@@ -6,6 +6,10 @@ export default defineConfig({
 		environment: "node",
 		globals: true,
 		passWithNoTests: true,
+		// `tsc` emits the specs to `dist/` too, and vitest was running both copies.
+		// A stale compiled spec outlives its source, so it can fail — or pass — for
+		// a version of the code that no longer exists. Source only.
+		exclude: ["**/node_modules/**", "**/dist/**"],
 		coverage: {
 			provider: "v8",
 			reporter: ["text", "json", "json-summary", "html"],

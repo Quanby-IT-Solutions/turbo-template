@@ -6,6 +6,10 @@ export default defineConfig({
 		environment: "node",
 		globals: true,
 		passWithNoTests: true,
+		// `tsc` emits the `.test.ts` files to `dist/` alongside the sources, and
+		// vitest was collecting those too: every spec ran twice, and the compiled
+		// copies showed up as their own rows in the coverage table. Source only.
+		exclude: ["**/node_modules/**", "**/dist/**"],
 		coverage: {
 			provider: "v8",
 			reporter: ["text", "json", "json-summary", "html"],
@@ -16,6 +20,7 @@ export default defineConfig({
 				statements: 90,
 			},
 			exclude: [
+				"**/dist/**",
 				"**/*.config.*",
 				"**/*.setup.*",
 				"**/*.spec.*",

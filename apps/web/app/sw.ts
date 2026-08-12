@@ -6,12 +6,18 @@
  *
  * Caching safety model:
  * - API + auth (`/api/*`)   => NetworkOnly. Never cache dynamic/auth responses.
+ * - Token-bearing URLs      => NetworkOnly. Single-use credentials must not be
+ *                              written to any cache (WC-2 / F-20).
+ * - Authenticated routes    => excluded from the offline fallback, so the app
+ *                              never fakes a signed-in page (WC-2 / F-48).
  * - Static assets           => defaultCache (CacheFirst / StaleWhileRevalidate).
  * - Navigations (documents) => NetworkFirst behaviour via `fallbacks` to `/~offline`.
  */
 
 import { defaultCache } from "@serwist/turbopack/worker"
 import { NetworkOnly, Serwist, type PrecacheEntry, type SerwistGlobalConfig } from "serwist"
+
+import { carriesToken, mayServeOfflineFallback } from "@/features/pwa/lib/sw-exclusions"
 
 declare global {
 	interface WorkerGlobalScope extends SerwistGlobalConfig {
@@ -35,6 +41,14 @@ const serwist = new Serwist({
 			matcher: ({ url }) => url.pathname.startsWith("/api"),
 			handler: new NetworkOnly(),
 		},
+		// WC-2 / F-20: reset and verification links travel as `?token=…` URLs.
+		// Anything that caches them turns a single-use credential into a stored
+		// one, readable from the Cache Storage viewer long after the flow ended.
+		// Must precede defaultCache, which would otherwise handle the navigation.
+		{
+			matcher: ({ url }) => carriesToken(url),
+			handler: new NetworkOnly(),
+		},
 		...defaultCache,
 	],
 	fallbacks: {
@@ -42,7 +56,13 @@ const serwist = new Serwist({
 			{
 				url: "/~offline",
 				matcher({ request }) {
-					return request.destination === "document"
+					if (request.destination !== "document") return false
+
+					const url = new URL(request.url)
+
+					// WC-2 / F-48: never fake an authenticated page, and never
+					// stand in for a token-bearing one.
+					return mayServeOfflineFallback(url)
 				},
 			},
 		],

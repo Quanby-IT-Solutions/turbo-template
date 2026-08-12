@@ -23,9 +23,16 @@ function setupVersioning(app: INestApplication, logger: Logger): void {
 }
 
 /**
- * Create and configure the NestJS application
+ * Create and configure the NestJS application.
+ *
+ * Exported so the e2e suite boots the app exactly as production does. It used
+ * to re-derive the setup itself and silently drifted: it missed the Better Auth
+ * middleware entirely and declared a `defaultVersion` this function does not,
+ * so every route 404'd and every authenticated call 401'd (HY-1 / F-54).
+ *
+ * Returns the app without listening — the caller decides.
  */
-async function createApplication(): Promise<INestApplication> {
+export async function createApplication(): Promise<INestApplication> {
 	// bufferLogs defers early logs until the pino logger is installed below.
 	const app = await NestFactory.create(AppModule, { bodyParser: false, bufferLogs: true })
 

@@ -16,7 +16,7 @@
 		"test:watch": "jest --watch",
 		"test:cov": "jest --coverage",
 		"test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-		"test:e2e": "jest --config ./test/jest-e2e.json",
+		"test:e2e": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --config ./test/jest-e2e.json",
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
@@ -59,6 +59,7 @@
 		"zod": "catalog:"
 	},
 	"devDependencies": {
+		"@jest/globals": "^30.4.1",
 		"@nestjs/cli": "^11.0.14",
 		"@nestjs/schematics": "^11.0.9",
 		"@nestjs/testing": "^11.1.11",
@@ -72,6 +73,7 @@
 		"@types/node": "catalog:",
 		"@types/pg": "catalog:",
 		"@types/supertest": "^6.0.3",
+		"cross-env": "^10.1.0",
 		"eslint": "catalog:",
 		"jest": "^30.2.0",
 		"pino-pretty": "^13.1.3",

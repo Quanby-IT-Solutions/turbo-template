@@ -5,10 +5,11 @@ import { type App } from "supertest/types"
 
 import { AppModule } from "@/app.module"
 import { db } from "@/common/database/database.client"
+import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals"
 
 const API_PREFIX = "api"
 const API_VERSION = "1"
-const HEALTH_ENDPOINT = `/api/health`
+const HEALTH_ENDPOINT = `/api/v1/health`
 
 describe("Health (e2e)", () => {
 	let app: INestApplication<App>
@@ -25,10 +26,7 @@ describe("Health (e2e)", () => {
 
 		const nestApp = moduleFixture.createNestApplication()
 		nestApp.setGlobalPrefix(API_PREFIX)
-		nestApp.enableVersioning({
-			type: VersioningType.URI,
-			defaultVersion: API_VERSION,
-		})
+		nestApp.enableVersioning({ type: VersioningType.URI })
 		nestApp.useGlobalPipes(
 			new ValidationPipe({
 				whitelist: true,
@@ -55,15 +53,21 @@ describe("Health (e2e)", () => {
 
 		expect(response.body).toMatchObject({
 			status: "ok",
-			checks: {
-				database: { status: "up" },
-				cache: { status: "not_configured" },
-			},
+			checks: { database: { status: "up" } },
 		})
-		expect(response.body.uptime).toBeDefined()
-		expect(typeof response.body.uptime).toBe("number")
 		expect(response.body.timestamp).toBeDefined()
-		expect(response.body.version).toBeDefined()
+	})
+
+	it("leaks no build or runtime metadata to an anonymous prober", async () => {
+		// LG-2 / F-36 deliberately removed uptime, version and environment: they
+		// tell an unauthenticated caller when the app last deployed and which
+		// published vulnerabilities apply to this build. This asserts their
+		// ABSENCE, so re-adding them fails the suite rather than passing quietly.
+		const response = await getHealth().expect(200)
+
+		expect(response.body.uptime).toBeUndefined()
+		expect(response.body.version).toBeUndefined()
+		expect(response.body.environment).toBeUndefined()
 	})
 
 	it("database check is up", async () => {
@@ -71,8 +75,10 @@ describe("Health (e2e)", () => {
 		expect(response.body.checks.database.status).toBe("up")
 	})
 
-	it("cache check is not configured", async () => {
+	it("reports only the checks the contract declares", async () => {
+		// There is no cache check; the suite used to assert one, which is part of
+		// why it had drifted so far from the app it was meant to guard.
 		const response = await getHealth().expect(200)
-		expect(response.body.checks.cache.status).toBe("not_configured")
+		expect(Object.keys(response.body.checks)).toEqual(["database"])
 	})
 })

@@ -3,6 +3,14 @@ import request from "supertest"
 
 import { MAX_REQUEST_BODY_SIZE } from "@/config/app.config"
 
+// `app.config` pulls in `@repo/auth`, which pulls the `better-auth` ESM chain
+// this jest config does not transform. Stubbed as the other config specs do —
+// the limit constant under test is app.config's own and is unaffected.
+jest.mock("@repo/auth", () => ({
+	createAuth: jest.fn(),
+	auth: {},
+}))
+
 /**
  * AB-4 / F-14 — request bodies are bounded.
  *

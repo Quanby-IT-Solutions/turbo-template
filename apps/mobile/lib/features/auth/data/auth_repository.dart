@@ -1,6 +1,7 @@
 import 'dart:developer' as developer;
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:mobile/core/constants/api_constants.dart';
 import 'package:mobile/features/auth/data/models/session_model.dart';
 import 'package:mobile/services/api/api_client.dart';
@@ -20,6 +21,22 @@ class AuthRepository {
   final Dio _dio;
   final SecureStorageService _storage;
 
+  /// Logs an auth diagnostic, debug builds only (LG-1 / F-05).
+  ///
+  /// Two problems are closed here. `dart:developer`'s `log()` is not stripped
+  /// from release builds, so anything passed to it ships to end-user devices
+  /// and can be read with `adb logcat`. And the calls used to interpolate
+  /// `response.data`, which for every auth endpoint contains the session token.
+  ///
+  /// Callers pass status and shape only — never a response body. The
+  /// `kDebugMode` guard is a compile-time constant, so the whole call is tree
+  /// shaken out of release builds.
+  void _logDebug(String message) {
+    if (kDebugMode) {
+      developer.log(message, name: 'AuthRepository');
+    }
+  }
+
   /// Safely extracts a JSON map from a Dio response.
   /// Returns null if the data cannot be parsed as `Map<String, dynamic>`.
   Map<String, dynamic>? _parseJsonBody(Response<dynamic> response) {
@@ -27,9 +44,9 @@ class AuthRepository {
     if (data is Map<String, dynamic>) return data;
     if (data is String && data.isNotEmpty) {
       // Dio didn't auto-decode — shouldn't happen with default settings
-      // but guard against it.
-      developer.log('Auth response was a String, not decoded JSON: $data',
-          name: 'AuthRepository');
+      // but guard against it. The body is a token carrier, so only its size
+      // is reported; that is enough to tell "empty" from "unexpected shape".
+      _logDebug('Auth response was an undecoded String (${data.length} chars)');
     }
     return null;
   }
@@ -49,12 +66,8 @@ class AuthRepository {
       data: {'email': email, 'password': password},
     );
 
-    developer.log(
-      'signIn status=${response.statusCode} '
-      'type=${response.data.runtimeType} '
-      'data=${response.data}',
-      name: 'AuthRepository',
-    );
+    _logDebug('signIn status=${response.statusCode} '
+        'type=${response.data.runtimeType}');
 
     final body = _parseJsonBody(response);
     if (response.statusCode == 200 && body != null) {
@@ -78,12 +91,8 @@ class AuthRepository {
       data: {'email': email, 'password': password, 'name': name},
     );
 
-    developer.log(
-      'signUp status=${response.statusCode} '
-      'type=${response.data.runtimeType} '
-      'data=${response.data}',
-      name: 'AuthRepository',
-    );
+    _logDebug('signUp status=${response.statusCode} '
+        'type=${response.data.runtimeType}');
 
     final body = _parseJsonBody(response);
     if (response.statusCode == 200 && body != null) {
@@ -112,12 +121,8 @@ class AuthRepository {
     try {
       final response = await _dio.get(ApiConstants.getSession);
 
-      developer.log(
-        'getSession status=${response.statusCode} '
-        'type=${response.data.runtimeType} '
-        'data=${response.data}',
-        name: 'AuthRepository',
-      );
+      _logDebug('getSession status=${response.statusCode} '
+          'type=${response.data.runtimeType}');
 
       final body = _parseJsonBody(response);
       if (response.statusCode == 200 && body != null) {

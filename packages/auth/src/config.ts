@@ -76,12 +76,15 @@ export const AUTH_BASE_PATH = "/auth"
 export function createAuth(): ReturnType<typeof betterAuth> {
 	const db = createDBClient()
 
+	// LG-1 / RF3: throws in production when SMTP_HOST is unset, rather than
+	// falling back to a transport that prints reset links and delivers nothing.
 	const transporter = createTransport({
 		smtpHost: authEnv.SMTP_HOST,
 		smtpPort: authEnv.SMTP_PORT,
 		smtpUser: authEnv.SMTP_USER,
 		smtpPass: authEnv.SMTP_PASS,
 		smtpSecure: authEnv.SMTP_SECURE,
+		nodeEnv: process.env.NODE_ENV,
 	})
 	const mailFrom = authEnv.MAIL_FROM
 	const appWebUrl = authEnv.APP_WEB_URL

@@ -3,6 +3,7 @@ import type { IncomingMessage, ServerResponse } from "http"
 import type { Options } from "pino-http"
 
 import { env } from "@/config/env.config"
+import { sanitizeLogQuery, sanitizeLogUrl } from "@/utils/log-redaction"
 
 /**
  * Build the shared pino-http options used by BOTH:
@@ -32,6 +33,9 @@ export function buildPinoHttpOptions(overrides?: { autoLogging?: boolean }): Opt
 					},
 				}
 			: undefined,
+		// LG-1 / F-05: logs must be shippable and retainable without becoming a
+		// credential store. Everything here is removed outright rather than
+		// masked, so no value survives in any sink.
 		redact: {
 			paths: [
 				"req.headers.authorization",
@@ -39,8 +43,32 @@ export function buildPinoHttpOptions(overrides?: { autoLogging?: boolean }): Opt
 				"res.headers['set-cookie']",
 				"req.body.password",
 				"req.body.*.password",
+				// Single-use credentials from the verification and reset flows.
+				"req.body.token",
+				"req.body.*.token",
+				"req.body.newPassword",
+				"req.body.*.newPassword",
+				"req.body.currentPassword",
+				"req.body.*.currentPassword",
+				// PII: an address is enough to correlate a person across log lines.
+				"req.body.email",
+				"req.body.*.email",
 			],
 			remove: true,
+		},
+		// `redact` cannot reach the query string, and reset/verification links are
+		// `?token=…` URLs. Strip them everywhere the query is emitted: `req.url`,
+		// the separately-serialized `req.query` object, and each custom message
+		// line below. Sanitizing only the URL leaves the token sitting in
+		// `req.query` right beside it.
+		serializers: {
+			req(req: { url?: string; query?: unknown; [key: string]: unknown }) {
+				return {
+					...req,
+					url: sanitizeLogUrl(req.url),
+					query: sanitizeLogQuery(req.query),
+				}
+			},
 		},
 		// Request-id resolution order:
 		//  1. Reuse an id already attached to `req` by an earlier pino-http instance
@@ -61,8 +89,10 @@ export function buildPinoHttpOptions(overrides?: { autoLogging?: boolean }): Opt
 			res.setHeader("X-Request-Id", id)
 			return id
 		},
-		customReceivedMessage: req => `--> ${req.method} ${req.url}`,
-		customSuccessMessage: (req, res) => `<-- ${req.method} ${req.url} ${res.statusCode}`,
-		customErrorMessage: (req, res) => `<-- ${req.method} ${req.url} ${res.statusCode}`,
+		customReceivedMessage: req => `--> ${req.method} ${sanitizeLogUrl(req.url)}`,
+		customSuccessMessage: (req, res) =>
+			`<-- ${req.method} ${sanitizeLogUrl(req.url)} ${res.statusCode}`,
+		customErrorMessage: (req, res) =>
+			`<-- ${req.method} ${sanitizeLogUrl(req.url)} ${res.statusCode}`,
 	}
 }

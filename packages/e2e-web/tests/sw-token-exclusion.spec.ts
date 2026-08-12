@@ -17,11 +17,31 @@ async function serviceWorkerReady(page: Page): Promise<boolean> {
 	// `serviceWorker.ready` never rejects — it simply never settles when no
 	// worker takes control, which hangs the whole test instead of reporting a
 	// skip. Race it against a deadline so the answer is always "yes" or "no".
+	//
+	// `ready` alone is NOT enough. It resolves once a worker is *activated*,
+	// which on a first visit happens before `clientsClaim` has actually claimed
+	// this page: `navigator.serviceWorker.controller` is still null. Navigating
+	// in that window races the claim, and Chrome aborts the in-flight navigation
+	// (`net::ERR_ABORTED`) when the worker takes over mid-request. CI hits this
+	// every run, since each run installs the worker for the first time.
+	//
+	// Waiting for `controller` is also what makes the assertions mean anything:
+	// an uncontrolled page never reaches the service worker, so its caches would
+	// be empty for reasons that have nothing to do with WC-2.
 	return page.evaluate(async () => {
 		if (!("serviceWorker" in navigator)) return false
-		const ready = navigator.serviceWorker.ready.then(() => true)
+
+		const controlled = navigator.serviceWorker.ready.then(async () => {
+			if (navigator.serviceWorker.controller) return true
+			await new Promise<void>(resolve =>
+				navigator.serviceWorker.addEventListener("controllerchange", () => resolve(), {
+					once: true,
+				})
+			)
+			return true
+		})
 		const timeout = new Promise<boolean>(resolve => setTimeout(() => resolve(false), 10_000))
-		return Promise.race([ready, timeout])
+		return Promise.race([controlled, timeout])
 	})
 }
 

@@ -1,8 +1,8 @@
 import "dotenv/config"
 
 import type { NextConfig } from "next"
-import path from "node:path"
 import { PHASE_PRODUCTION_BUILD } from "next/constants"
+import path from "node:path"
 import { withSentryConfig } from "@sentry/nextjs"
 import { withSerwist } from "@serwist/turbopack"
 

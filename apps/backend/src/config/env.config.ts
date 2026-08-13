@@ -51,6 +51,29 @@ export const env = createEnv({
 		// serve, and max-age cannot be withdrawn quickly.
 		ENABLE_HSTS: booleanFromEnv.optional().default(false),
 
+		// Error monitoring (Sentry).
+		//
+		// Declared here so the rest of the app sees the same typed, defaulted,
+		// validated values as every other setting. `src/instrument.ts` deliberately
+		// does NOT import this module — it runs before AppModule to install the SDK
+		// ahead of the libraries it instruments, and pulling fail-fast validation
+		// onto that path would let one unrelated bad variable kill the crash
+		// reporter right when it is most needed. It reads these same keys off
+		// `process.env` instead; the exemption is documented at the top of that file
+		// and is bounded to exactly the keys below.
+		//
+		// Reporting stays OFF unless BOTH the flag and a DSN are supplied: a flag
+		// with no DSN is an unfinished deployment, a DSN with no flag is a value
+		// parked for later, and neither is consent to start shipping events.
+		SENTRY_ENABLED: booleanFromEnv.optional().default(false),
+		SENTRY_DSN: z.string().optional(),
+		/** Falls back to NODE_ENV when unset, so environments are never merged by accident. */
+		SENTRY_ENVIRONMENT: z.string().optional(),
+		/** 0 = errors only. Tracing costs quota, so it is opt-in per environment. */
+		SENTRY_TRACES_SAMPLE_RATE: z.coerce.number().min(0).max(1).optional().default(0),
+		/** Deploy image tag, injected by the compose/ECS task definition; reported as the Sentry release. */
+		IMAGE_TAG: z.string().optional(),
+
 		// Database
 		DATABASE_URL: z.string(),
 

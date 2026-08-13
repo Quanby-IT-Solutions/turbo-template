@@ -38,7 +38,9 @@
 		"@repo/auth": "workspace:*",
 		"@repo/contracts": "workspace:*",
 		"@repo/db": "workspace:*",
+		"@repo/observability": "workspace:*",
 		"@scalar/nestjs-api-reference": "^1.0.13",
+		"@sentry/nestjs": "catalog:",
 		"@t3-oss/env-core": "catalog:",
 		"@thallesp/nestjs-better-auth": "^2.2.0",
 		"better-auth": "catalog:",
@@ -127,6 +129,7 @@
 			"^@repo/db/(.*)$": "<rootDir>/../../../packages/db/src/$1",
 			"^@repo/auth/(.*)$": "<rootDir>/../../../packages/auth/src/$1",
 			"^@repo/contracts$": "<rootDir>/../../../packages/contracts/src",
+			"^@repo/observability$": "<rootDir>/../../../packages/observability/src/index.ts",
 			"^@/(.*)$": "<rootDir>/$1",
 			"^(\\.{1,2}/.*)\\.js$": "$1"
 		},

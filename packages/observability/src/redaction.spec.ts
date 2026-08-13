@@ -1,4 +1,13 @@
-import { REDACTED_VALUE, sanitizeLogQuery, sanitizeLogUrl } from "@/utils/log-redaction"
+import { describe, expect, it } from "vitest"
+
+import manifest from "./redaction-manifest.json"
+import {
+	PINO_REDACT_PATHS,
+	REDACTED_FIELD_NAMES,
+	REDACTED_VALUE,
+	sanitizeLogQuery,
+	sanitizeLogUrl,
+} from "./redaction.js"
 
 // LG-1 / F-05: verification and password-reset links are `?token=…` URLs, and
 // every request log line carries `req.url`. Pino's `redact` cannot reach the
@@ -126,5 +135,70 @@ describe("sanitizeLogQuery", () => {
 
 	it.each([[{}], [undefined], [null]])("passes %p through unchanged", value => {
 		expect(sanitizeLogQuery(value)).toEqual(value)
+	})
+})
+
+describe("REDACTED_FIELD_NAMES", () => {
+	// The manifest is what non-TypeScript clients read. A TS-side edit that does
+	// not land in the JSON leaves those clients logging a credential, so the two
+	// are pinned to each other here rather than by convention.
+	it("matches the committed JSON manifest exactly, in order", () => {
+		expect([...REDACTED_FIELD_NAMES]).toEqual(manifest.fieldNames)
+	})
+})
+
+describe("PINO_REDACT_PATHS", () => {
+	// The backend logger and the client-side scrubbers must never cover different
+	// field sets: one of them silently keeping a credential is the whole failure
+	// this package exists to prevent. The paths are derived from the same
+	// canonical deny-list as `REDACTED_FIELD_NAMES`, and this suite pins the
+	// expansion so a wrong placement fails here instead of leaking.
+	it("expands the deny-list into exactly the paths pino must scrub", () => {
+		expect([...PINO_REDACT_PATHS]).toEqual([
+			"req.headers.authorization",
+			"req.headers.cookie",
+			"res.headers['set-cookie']",
+			"req.body.password",
+			"req.body.*.password",
+			"req.body.token",
+			"req.body.*.token",
+			"req.body.newPassword",
+			"req.body.*.newPassword",
+			"req.body.currentPassword",
+			"req.body.*.currentPassword",
+			"req.body.email",
+			"req.body.*.email",
+		])
+	})
+
+	it("covers every semantic name on the deny-list", () => {
+		for (const name of REDACTED_FIELD_NAMES) {
+			const covered = PINO_REDACT_PATHS.some(
+				path => path.endsWith(`.${name}`) || path.endsWith(`['${name}']`)
+			)
+			expect(covered, `${name} has no pino path`).toBe(true)
+		}
+	})
+
+	it("scrubs no name that is absent from the deny-list", () => {
+		const names = new Set<string>(REDACTED_FIELD_NAMES)
+		for (const path of PINO_REDACT_PATHS) {
+			const leaf = path.replace(/^.*[.[]'?/, "").replace(/'?\]$/, "")
+			expect(names.has(leaf), `${path} scrubs a name outside the deny-list`).toBe(true)
+		}
+	})
+
+	it("scrubs every body field at the top level and one level of nesting", () => {
+		const bodyPaths = PINO_REDACT_PATHS.filter(path => path.startsWith("req.body."))
+		for (const path of bodyPaths) {
+			if (path.startsWith("req.body.*.")) continue
+			expect(PINO_REDACT_PATHS).toContain(path.replace("req.body.", "req.body.*."))
+		}
+	})
+
+	it("bracket-quotes a name a dotted path cannot express", () => {
+		// `res.headers.set-cookie` is not a path pino can parse.
+		expect(PINO_REDACT_PATHS).toContain("res.headers['set-cookie']")
+		expect(PINO_REDACT_PATHS).not.toContain("res.headers.set-cookie")
 	})
 })

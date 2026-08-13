@@ -1,0 +1,40 @@
+{
+	"name": "@repo/observability",
+	"version": "0.0.1",
+	"description": "Framework-agnostic observability package with the canonical log-redaction policy shared across clients.",
+	"author": "",
+	"private": true,
+	"license": "UNLICENSED",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.js"
+		}
+	},
+	"scripts": {
+		"build": "tsc",
+		"dev": "tsc --watch",
+		"format": "prettier --check \"src/**/*.ts\"",
+		"format:fix": "prettier --write \"src/**/*.ts\"",
+		"lint": "eslint --flag unstable_native_nodejs_ts_config \"src/**/*.ts\" --fix",
+		"typecheck": "tsc --noEmit",
+		"test": "vitest run",
+		"test:cov": "vitest run --coverage",
+		"test:watch": "vitest"
+	},
+	"devDependencies": {
+		"@repo/eslint-config": "workspace:*",
+		"@repo/prettier-config": "workspace:*",
+		"@repo/tsconfig": "workspace:*",
+		"@types/node": "catalog:",
+		"@vitest/coverage-v8": "^4.1.2",
+		"eslint": "catalog:",
+		"prettier": "catalog:",
+		"typescript": "catalog:",
+		"vitest": "^4.1.2"
+	},
+	"prettier": "@repo/prettier-config"
+}

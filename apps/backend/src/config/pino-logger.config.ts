@@ -2,8 +2,10 @@ import { randomUUID } from "crypto"
 import type { IncomingMessage, ServerResponse } from "http"
 import type { Options } from "pino-http"
 
+import { PINO_REDACT_PATHS, sanitizeLogQuery, sanitizeLogUrl } from "@repo/observability"
+
 import { env } from "@/config/env.config"
-import { sanitizeLogQuery, sanitizeLogUrl, sanitizeRequestId } from "@/utils/log-redaction"
+import { sanitizeRequestId } from "@/utils/log-redaction"
 
 /**
  * Build the shared pino-http options used by BOTH:
@@ -37,23 +39,9 @@ export function buildPinoHttpOptions(overrides?: { autoLogging?: boolean }): Opt
 		// credential store. Everything here is removed outright rather than
 		// masked, so no value survives in any sink.
 		redact: {
-			paths: [
-				"req.headers.authorization",
-				"req.headers.cookie",
-				"res.headers['set-cookie']",
-				"req.body.password",
-				"req.body.*.password",
-				// Single-use credentials from the verification and reset flows.
-				"req.body.token",
-				"req.body.*.token",
-				"req.body.newPassword",
-				"req.body.*.newPassword",
-				"req.body.currentPassword",
-				"req.body.*.currentPassword",
-				// PII: an address is enough to correlate a person across log lines.
-				"req.body.email",
-				"req.body.*.email",
-			],
+			// Spread: pino types `paths` as a mutable string[], the shared constant
+			// is readonly.
+			paths: [...PINO_REDACT_PATHS],
 			remove: true,
 		},
 		// `redact` cannot reach the query string, and reset/verification links are

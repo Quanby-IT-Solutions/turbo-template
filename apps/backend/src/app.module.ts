@@ -3,6 +3,7 @@ import { ConfigModule } from "@nestjs/config"
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR, APP_PIPE } from "@nestjs/core"
 import { ThrottlerModule } from "@nestjs/throttler"
 import { ThrottlerStorageRedisService } from "@nest-lab/throttler-storage-redis"
+import { SentryModule } from "@sentry/nestjs/setup"
 import { AuthModule } from "@thallesp/nestjs-better-auth"
 import { LoggerModule } from "nestjs-pino"
 import { ZodSerializerInterceptor, ZodValidationPipe } from "nestjs-zod"
@@ -10,6 +11,7 @@ import { ZodSerializerInterceptor, ZodValidationPipe } from "nestjs-zod"
 import { getAuth } from "@repo/auth"
 
 import { HttpExceptionFilter } from "@/common/filters/http-exception.filter"
+import { SentryExceptionFilter } from "@/common/filters/sentry-exception.filter"
 import { buildPinoHttpOptions } from "@/config/pino-logger.config"
 import { V1Module } from "@/modules/v1/v1.module"
 import { skipStrictThrottle } from "@/shared/decorators/strict-throttle.decorator"
@@ -27,6 +29,11 @@ import { env } from "./config/env.config"
 
 @Module({
 	imports: [
+		// Sentry request/span instrumentation for Nest (controllers, guards,
+		// interceptors, pipes). The SDK itself is initialised much earlier, in
+		// `src/instrument.ts` — this only wires the Nest-specific tracing. It is a
+		// no-op when `Sentry.init` never ran.
+		SentryModule.forRoot(),
 		// Core configuration
 		ConfigModule.forRoot({
 			isGlobal: true,
@@ -101,6 +108,18 @@ import { env } from "./config/env.config"
 		{
 			provide: APP_INTERCEPTOR,
 			useClass: ZodSerializerInterceptor,
+		},
+		// Two filters, one contract. Nest routes an exception to the most specific
+		// matching filter, so the split is by exception type, not by ordering luck:
+		//   - HttpException (deliberate, typed)  -> HttpExceptionFilter, which
+		//     renders the real status/message and captures only 5xx.
+		//   - anything else (bugs, driver faults) -> SentryExceptionFilter, which
+		//     captures unconditionally and renders a generic 500 in the same shape.
+		// Neither can see the other's exceptions, so nothing is reported twice.
+		// The catch-all is registered first, per Sentry's Nest setup guidance.
+		{
+			provide: APP_FILTER,
+			useClass: SentryExceptionFilter,
 		},
 		{
 			provide: APP_FILTER,

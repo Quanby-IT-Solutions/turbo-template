@@ -42,6 +42,10 @@ export default defineConfig({
 	resolve: {
 		alias: {
 			"@repo/contracts": fromRoot("../../packages/contracts/src/index.ts"),
+			// `@repo/observability` publishes only compiled `dist` artifacts, which
+			// are not checked in. Resolve it from source so the suite runs in a
+			// clean checkout without a prior manual package build.
+			"@repo/observability": fromRoot("../../packages/observability/src/index.ts"),
 			"@repo/auth": fromRoot("../../packages/auth/src/index.ts"),
 			"@repo/db/schema": fromRoot("../../packages/db/src/schema.ts"),
 			"@repo/db/client": fromRoot("../../packages/db/src/client.ts"),

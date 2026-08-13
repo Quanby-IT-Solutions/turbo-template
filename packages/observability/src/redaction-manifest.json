@@ -1,0 +1,12 @@
+{
+	"fieldNames": [
+		"authorization",
+		"cookie",
+		"set-cookie",
+		"password",
+		"token",
+		"newPassword",
+		"currentPassword",
+		"email"
+	]
+}

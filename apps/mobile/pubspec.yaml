@@ -34,6 +34,11 @@ dependencies:
   # Environment
   flutter_dotenv: ^6.0.0
 
+  # Error monitoring
+  # Configured entirely from --dart-define values (see SentryConstants); the
+  # DSN is never bundled as an asset and never logged.
+  sentry_flutter: ^9.26.0
+
   # Secure storage
   flutter_secure_storage: ^10.0.0
 

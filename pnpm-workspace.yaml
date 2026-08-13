@@ -10,6 +10,8 @@ catalog:
   "@nestjs/core": ^11.1.11
   "@orpc/contract": ^1.13.4
   "@orpc/nest": ^1.13.4
+  "@sentry/nestjs": ^10.70.0
+  "@sentry/nextjs": ^10.70.0
   "@tailwindcss/postcss": ^4.1.18
   "@tanstack/eslint-plugin-query": ^5.91.2
   "@tanstack/react-form": ^1.27.7

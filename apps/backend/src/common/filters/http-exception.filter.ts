@@ -1,4 +1,5 @@
 import { ArgumentsHost, Catch, ExceptionFilter, HttpException } from "@nestjs/common"
+import * as Sentry from "@sentry/nestjs"
 import { Logger } from "nestjs-pino"
 import { ZodSerializationException } from "nestjs-zod"
 import { ZodError } from "zod"
@@ -14,6 +15,17 @@ export class HttpExceptionFilter implements ExceptionFilter {
 		const response = ctx.getResponse()
 		const status = exception.getStatus()
 		const exceptionResponse = exception.getResponse()
+
+		// Capture 5xx only. 4xx (RBAC denials, throttler 429s, validation errors)
+		// are expected outcomes of a working system, not incidents — reporting them
+		// buries the real failures. This filter is the only place that sees
+		// deliberate 5xx `HttpException`s, so it captures them directly rather than
+		// relying on SentryExceptionFilter, which — per Nest's `@Catch(HttpException)`
+		// precedence — only ever sees non-HttpException failures. That split is what
+		// keeps a single error from being reported twice.
+		if (status >= 500) {
+			Sentry.captureException(exception)
+		}
 
 		// pino-http is the authoritative request/response logger, so we only emit
 		// EXTRA server-side diagnostics here (not a line per HttpException).

@@ -45,9 +45,57 @@ ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
 ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
 ENV NEXT_PUBLIC_API_VERSION=$NEXT_PUBLIC_API_VERSION
 
+# Sentry browser configuration. Public by nature (the DSN is a write-only
+# ingest key) and inlined into the client bundle, so it belongs with the other
+# NEXT_PUBLIC_* args. Unset by default: the image builds and runs with crash
+# reporting off. Server-side SENTRY_* values are runtime config, not build
+# args, and SENTRY_AUTH_TOKEN in particular must never be baked into a layer.
+# SENTRY_ENVIRONMENT is a build arg only for the browser half: it is inlined
+# into the client bundle (via the projection in next.config.ts) because a client
+# bundle cannot read runtime env. The server and edge runtimes still take it as
+# ordinary runtime config, so passing it here does not bake in their value.
+#
+# An unset ARG becomes an empty ENV rather than an absent one, so a build with
+# no Sentry configuration hands `apps/web/env.ts` `NEXT_PUBLIC_SENTRY_ENABLED=""`.
+# That is normalized back to "unset" there — do not tighten it into a value the
+# flag parser has to accept, or the unconfigured build starts failing.
+ARG NEXT_PUBLIC_SENTRY_ENABLED
+ARG NEXT_PUBLIC_SENTRY_DSN
+ARG NEXT_PUBLIC_SENTRY_ENVIRONMENT
+ARG SENTRY_ENVIRONMENT
+ARG NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE
+ENV NEXT_PUBLIC_SENTRY_ENABLED=$NEXT_PUBLIC_SENTRY_ENABLED
+ENV NEXT_PUBLIC_SENTRY_DSN=$NEXT_PUBLIC_SENTRY_DSN
+ENV NEXT_PUBLIC_SENTRY_ENVIRONMENT=$NEXT_PUBLIC_SENTRY_ENVIRONMENT
+ENV SENTRY_ENVIRONMENT=$SENTRY_ENVIRONMENT
+ENV NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE=$NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE
+
+# Source-map upload target. Org and project slugs are plain identifiers, not
+# credentials, so they travel as ordinary build args like everything else the
+# bundler plugin needs. Unset by default: no org, no upload.
+ARG SENTRY_ORG
+ARG SENTRY_PROJECT
+ENV SENTRY_ORG=$SENTRY_ORG
+ENV SENTRY_PROJECT=$SENTRY_PROJECT
+
 # Build the project
 COPY --from=prepare /app/out/full/ .
-RUN pnpm --filter @repo/web build
+# SENTRY_AUTH_TOKEN is a BuildKit secret, deliberately NOT an ARG/ENV. Build
+# args and env vars are recorded as image metadata that `docker history` prints
+# back to anyone who can pull the image, and this token is a write credential
+# for the whole Sentry org. A secret mount is a tmpfs file scoped to this single
+# RUN: it never becomes a layer and never appears in the image's history.
+# Exporting it inside the same RUN keeps it in that one shell only.
+#
+# `required=false` keeps the token optional — contributor and CI builds without
+# Sentry configured pass no secret, the variable stays unset, and next.config.ts
+# prints its skip notice instead of failing the build.
+RUN --mount=type=secret,id=sentry_auth_token,required=false \
+  if [ -f /run/secrets/sentry_auth_token ]; then \
+  export SENTRY_AUTH_TOKEN="$(cat /run/secrets/sentry_auth_token)"; \
+  fi; \
+  pnpm --filter @repo/observability build && \
+  pnpm --filter @repo/web build
 
 # ========================================
 # Runner Stage - Minimal production image

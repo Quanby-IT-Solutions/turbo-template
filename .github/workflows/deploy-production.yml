@@ -63,6 +63,62 @@ jobs:
       GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
       GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
 
+      # ==========================================================
+      # Sentry (entirely optional)
+      # ==========================================================
+      # Nothing here is validated below: leave every one of them unset and the
+      # deploy behaves exactly as it did before Sentry existed — no upload, no
+      # DSN, crash reporting off in all three runtimes.
+      #
+      # `vars` vs `secrets` follows what the value actually is. Org and project
+      # slugs are identifiers. A DSN is a write-only ingest key that is inlined
+      # into the browser bundle and shipped to every visitor, so masking it in
+      # CI logs would protect nothing. SENTRY_AUTH_TOKEN is the one real
+      # credential — it can write releases and read source for the whole org —
+      # so it is a secret, and it reaches the build as a BuildKit secret mount
+      # rather than a build arg (see apps/web/Dockerfile).
+      SENTRY_ORG: ${{ vars.SENTRY_ORG }}
+      SENTRY_PROJECT: ${{ vars.SENTRY_PROJECT }}
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+
+      # Browser runtime, plus tracing for every web runtime. These are
+      # build-time values: they are baked into the image at build, so they are
+      # passed as --build-arg and NOT written to SSM.
+      NEXT_PUBLIC_SENTRY_ENABLED: ${{ vars.NEXT_PUBLIC_SENTRY_ENABLED }}
+      NEXT_PUBLIC_SENTRY_DSN: ${{ vars.NEXT_PUBLIC_SENTRY_DSN }}
+      NEXT_PUBLIC_SENTRY_ENVIRONMENT: ${{ vars.NEXT_PUBLIC_SENTRY_ENVIRONMENT }}
+      NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE: ${{ vars.NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE }}
+
+      # Server, edge and backend runtimes — read from the environment at
+      # container start, so these go into the SSM env payload.
+      #
+      # The DSN is split per app: WEB_SENTRY_DSN feeds the web container and
+      # BACKEND_SENTRY_DSN the backend one, each mapped onto the container-local
+      # SENTRY_DSN name the app already reads (see docker-compose.production.yml).
+      # That is what lets the recommended one-project-per-runtime layout work —
+      # a DSN is what selects the Sentry project, so one shared value would merge
+      # web and backend events. Adopters who want a single project just set both
+      # variables to the same DSN.
+      #
+      # The flag and environment stay shared. One SENTRY_ENVIRONMENT covers all
+      # three runtimes: web and backend are the same deployment, and tagging
+      # their events differently would split one incident across two
+      # environments. It is also passed as a build arg to the web image, where
+      # next.config.ts projects it onto the browser's NEXT_PUBLIC_ twin when that
+      # one is not set explicitly.
+      #
+      # Trace sampling is NOT shared. SENTRY_TRACES_SAMPLE_RATE below reaches the
+      # backend container only (docker-compose.production.yml injects it there
+      # and nowhere else). Every web runtime — browser, Node server and edge —
+      # reads the build-time NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE above, so
+      # changing the runtime value re-samples the backend alone; web tracing
+      # only changes on a rebuild.
+      SENTRY_ENABLED: ${{ vars.SENTRY_ENABLED }}
+      WEB_SENTRY_DSN: ${{ vars.WEB_SENTRY_DSN }}
+      BACKEND_SENTRY_DSN: ${{ vars.BACKEND_SENTRY_DSN }}
+      SENTRY_ENVIRONMENT: ${{ vars.SENTRY_ENVIRONMENT }}
+      SENTRY_TRACES_SAMPLE_RATE: ${{ vars.SENTRY_TRACES_SAMPLE_RATE }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -144,11 +200,29 @@ jobs:
           echo "Building Web Docker Image (production)"
           echo "=========================================="
 
+          # The auth token is the one value passed as --secret, not --build-arg:
+          # a build arg is baked into the image's history, a secret mount is not.
+          # Everything else here is a public identifier or a NEXT_PUBLIC_* value
+          # that has to be inlined into the client bundle at build time anyway.
+          #
+          # Every Sentry build arg below is passed unconditionally, so an unset
+          # repository variable reaches the build as an empty string rather than
+          # as an absent one. That is deliberate and safe: apps/web/env.ts treats
+          # an empty flag as unset, so a deploy with no Sentry configuration
+          # builds and ships exactly as it did before Sentry existed.
           docker buildx build \
             --file apps/web/Dockerfile \
+            --secret id=sentry_auth_token,env=SENTRY_AUTH_TOKEN \
             --build-arg NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL \
             --build-arg NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL \
             --build-arg NEXT_PUBLIC_API_VERSION=$NEXT_PUBLIC_API_VERSION \
+            --build-arg SENTRY_ORG=$SENTRY_ORG \
+            --build-arg SENTRY_PROJECT=$SENTRY_PROJECT \
+            --build-arg NEXT_PUBLIC_SENTRY_ENABLED=$NEXT_PUBLIC_SENTRY_ENABLED \
+            --build-arg NEXT_PUBLIC_SENTRY_DSN=$NEXT_PUBLIC_SENTRY_DSN \
+            --build-arg NEXT_PUBLIC_SENTRY_ENVIRONMENT=$NEXT_PUBLIC_SENTRY_ENVIRONMENT \
+            --build-arg SENTRY_ENVIRONMENT=$SENTRY_ENVIRONMENT \
+            --build-arg NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE=$NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE \
             --cache-from type=local,src=/tmp/.buildx-cache \
             --cache-to type=local,dest=/tmp/.buildx-cache-new,mode=max \
             --push \
@@ -237,6 +311,23 @@ jobs:
               printf 'BETTER_AUTH_COOKIE_DOMAIN=%s\n' "$BETTER_AUTH_COOKIE_DOMAIN"
               printf 'GOOGLE_CLIENT_ID=%s\n' "$GOOGLE_CLIENT_ID"
               printf 'GOOGLE_CLIENT_SECRET=%s\n' "$GOOGLE_CLIENT_SECRET"
+              # Sentry runtime config for the web (server + edge) and backend
+              # containers. Empty when unconfigured, which both runtimes read as
+              # "off". No release variable is needed: IMAGE_TAG above is the
+              # commit SHA and instrument.ts already reports it as the release.
+              #
+              # The two DSNs are per app; compose maps each onto the SENTRY_DSN
+              # name its container reads. Set both to the same value to collapse
+              # web and backend into one Sentry project.
+              #
+              # SENTRY_TRACES_SAMPLE_RATE is consumed by the backend container
+              # only. Web tracing (browser, server and edge) comes from the
+              # NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE build arg instead.
+              printf 'SENTRY_ENABLED=%s\n' "$SENTRY_ENABLED"
+              printf 'WEB_SENTRY_DSN=%s\n' "$WEB_SENTRY_DSN"
+              printf 'BACKEND_SENTRY_DSN=%s\n' "$BACKEND_SENTRY_DSN"
+              printf 'SENTRY_ENVIRONMENT=%s\n' "$SENTRY_ENVIRONMENT"
+              printf 'SENTRY_TRACES_SAMPLE_RATE=%s\n' "$SENTRY_TRACES_SAMPLE_RATE"
             } | base64 -w0
           )
 

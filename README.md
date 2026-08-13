@@ -142,6 +142,17 @@ changes are needed; if it splits web/api across different domains, update
 | `NEXT_PUBLIC_API_VERSION`     | ✅       | Web         | API version (default: v1)                                 |
 | `INTERNAL_API_BASE_URL`       | ❌       | Web         | SSR-only API URL (Docker net)                             |
 | `COMPOSE_PROFILES`            | ❌       | Root/Docker | `docker-proxy` runs bundled Nginx; empty = external proxy |
+| `SENTRY_ENABLED`              | ❌       | Backend, Web, Mobile | Crash reporting master switch (off unless `true` **and** a DSN is set). Mobile reads it as a `--dart-define`, not an env var |
+| `SENTRY_DSN`                  | ❌       | Backend, Web, Mobile | Ingest DSN (backend + web server/edge; mobile takes it as a `--dart-define`) |
+| `SENTRY_ENVIRONMENT`          | ❌       | Backend, Web, Mobile | Environment tag. Backend/web default to `NODE_ENV`; mobile is a `--dart-define` defaulting to `development` |
+| `SENTRY_TRACES_SAMPLE_RATE`   | ❌       | Backend     | Trace sampling 0–1 (default: 0, errors only)              |
+| `NEXT_PUBLIC_SENTRY_ENABLED`  | ❌       | Web         | Browser crash reporting switch                            |
+| `NEXT_PUBLIC_SENTRY_DSN`      | ❌       | Web         | Browser ingest DSN                                        |
+| `NEXT_PUBLIC_SENTRY_ENVIRONMENT` | ❌    | Web         | Browser environment tag (falls back to `SENTRY_ENVIRONMENT`) |
+| `NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE` | ❌ | Web      | Trace sampling 0–1 for all web runtimes (default: 0)      |
+| `SENTRY_ORG`                  | ❌       | Web (build) | Sentry org slug, source-map upload only                   |
+| `SENTRY_PROJECT`              | ❌       | Web (build) | Sentry project slug, source-map upload only               |
+| `SENTRY_AUTH_TOKEN`           | ❌       | Web (build) | Source-map upload credential. Never `NEXT_PUBLIC_*`       |
 
 Copy from `.env.example` in each app: `apps/backend/.env`, `apps/web/.env`, `packages/db/.env`.
 
@@ -188,6 +199,32 @@ ways on purpose:
 **Single port (Docker proxy):** `NEXT_PUBLIC_APP_URL=http://localhost`,
 `NEXT_PUBLIC_API_BASE_URL=http://localhost/api` (set in the root `.env`; baked
 into the web image at build time).
+
+## Error Monitoring (Sentry)
+
+All three apps can report crashes to Sentry, and all three ship with it **off**.
+Every surface needs *both* an enable flag *and* a DSN, but the checks differ:
+
+- **Backend and web** require a *parseable* DSN, warn once when the flag is set
+  without one instead of silently dropping events, and tag events with
+  `SENTRY_ENVIRONMENT` falling back to `NODE_ENV`. Both expose a
+  development-only diagnostics endpoint/page.
+- **Mobile** enables on `SENTRY_ENABLED=true` plus a *non-empty* `SENTRY_DSN`.
+  The current implementation emits **no startup warning** and has **no
+  diagnostics screen** — verification means checking the Sentry dashboard. It
+  also defaults `SENTRY_ENVIRONMENT` to `development` unless a `--dart-define`
+  overrides it, since a Flutter build has no `NODE_ENV`.
+
+A clone with no Sentry account builds and runs exactly as it did before Sentry
+was added.
+
+Production wiring exists in `.github/workflows/deploy-production.yml` (inert
+until the GitHub Environment values below are set); staging is deliberately
+untouched. Mobile is configured with `--dart-define` at build time, not `.env`.
+
+See **[docs/sentry.md](docs/sentry.md)** for the full variable reference,
+per-app verification steps, the PII scrubbing contract, and the accepted
+trade-offs.
 
 ## Scripts
 
@@ -445,6 +482,23 @@ Before your first deploy, go to **Settings → Environments** and create `stagin
 | `NEXT_PUBLIC_APP_URL`       | Public web URL            | `https://stg-turbo.quanbyit.com`    | `https://turbo.quanbyit.com`        |
 | `NEXT_PUBLIC_API_BASE_URL`  | Public API URL            | `https://stg-turbo-be.quanbyit.com` | `https://turbo-be.quanbyit.com`     |
 | `BETTER_AUTH_COOKIE_DOMAIN` | Cookie domain for auth    |                                     | `.quanbyit.com`                     |
+| `SENTRY_ORG`                | Sentry org slug (source-map upload) |                           | `<org-slug>`                        |
+| `SENTRY_PROJECT`            | Sentry project slug (source-map upload) |                       | `<project-slug>`                    |
+| `SENTRY_ENABLED`            | Backend + web server/edge switch |                              | `true`                              |
+| `WEB_SENTRY_DSN`            | Web server/edge DSN (mapped to `SENTRY_DSN` in the web container) |         | `https://<publicKey>@<org>.ingest.sentry.io/<webProjectId>` |
+| `BACKEND_SENTRY_DSN`        | Backend DSN (mapped to `SENTRY_DSN` in the backend container) |             | `https://<publicKey>@<org>.ingest.sentry.io/<apiProjectId>` |
+| `SENTRY_ENVIRONMENT`        | Environment tag for all runtimes |                              | `production`                        |
+| `SENTRY_TRACES_SAMPLE_RATE` | Backend trace sampling 0–1 |                                    | `0`                                 |
+| `NEXT_PUBLIC_SENTRY_ENABLED` | Browser switch           |                                     | `true`                              |
+| `NEXT_PUBLIC_SENTRY_DSN`    | Browser DSN (public by design) |                                | `https://<publicKey>@<org>.ingest.sentry.io/<projectId>` |
+| `NEXT_PUBLIC_SENTRY_ENVIRONMENT` | Browser environment tag (optional; defaults to `SENTRY_ENVIRONMENT`) |    | `production`                        |
+| `NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE` | Web trace sampling 0–1 |                            | `0`                                 |
+
+Every Sentry row is optional — leave them all unset and the deploy behaves
+exactly as it did before Sentry existed. The two DSN rows are separate so web
+and backend events land in their own Sentry projects; set both to the same value
+to collapse them into one. Staging is intentionally blank: it has no Sentry
+wiring. See [docs/sentry.md](docs/sentry.md).
 
 #### Secrets
 
@@ -459,6 +513,7 @@ Before your first deploy, go to **Settings → Environments** and create `stagin
 | `CORS_ORIGINS`                | Allowed CORS origins     | `https://stg-turbo.quanbyit.com`      | `https://turbo.quanbyit.com`          |
 | `GOOGLE_CLIENT_ID`            | Google OAuth client ID   | `123...apps.googleusercontent.com`    | `456...apps.googleusercontent.com`    |
 | `GOOGLE_CLIENT_SECRET`        | Google OAuth secret      | `<google-oauth-client-secret>`                          | `<google-oauth-client-secret>`                          |
+| `SENTRY_AUTH_TOKEN`           | Sentry source-map upload token (org write credential; passed as a BuildKit secret, never a build arg) |                                       | `<sentry-auth-token>`                 |
 
 > Get values from `terraform output` in the [turbo-infrastructure](https://github.com/Quanby-IT-Solutions/turbo-infrastructure) repo.
 

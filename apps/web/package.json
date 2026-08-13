@@ -27,6 +27,8 @@
 		"@orpc/tanstack-query": "^1.13.4",
 		"@repo/auth": "workspace:*",
 		"@repo/contracts": "workspace:*",
+		"@repo/observability": "workspace:*",
+		"@sentry/nextjs": "catalog:",
 		"@serwist/turbopack": "^9.5.11",
 		"@t3-oss/env-nextjs": "catalog:",
 		"@tanstack/query-async-storage-persister": "^5.90.16",

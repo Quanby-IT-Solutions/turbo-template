@@ -9,7 +9,7 @@ languages:
   - tsx
   - css
 category: frontend
-updated: 2026-03-06
+updated: 2026-08-15
 ---
 
 # Tailwind CSS v4 + shadcn/ui Skill
@@ -21,6 +21,8 @@ updated: 2026-03-06
 **Scope**: Only applies to `apps/web/` — backend and mobile do not use Tailwind
 
 **Versions**: Tailwind CSS 4.1 (PostCSS plugin), shadcn/ui with `components.json`
+
+**Style**: `components.json` sets `"style": "base-nova"` — components are built on **`@base-ui/react`**, not Radix. Do not assume Radix primitives/props. `globals.css` imports both `tailwindcss` and `tw-animate-css` (`@import "tw-animate-css";`) for animation utilities.
 
 ## Setup
 
@@ -202,13 +204,24 @@ const buttonVariants = cva(
 
 ## Icon Library
 
-This project uses `@hugeicons/react` for icons:
+Icons come from two packages: the **data** icons from `@hugeicons/core-free-icons`, rendered through the **`HugeiconsIcon`** component from `@hugeicons/react`. There is no direct `<Home01Icon/>` component export — importing an icon component from `@hugeicons/react` does not work here.
 
 ```tsx
-import { Home01Icon, SettingsIcon } from "@hugeicons/react"
+// ✅ GOOD — icon data + renderer component
+import { Task01Icon } from "@hugeicons/core-free-icons"
+import { HugeiconsIcon } from "@hugeicons/react"
 
+<HugeiconsIcon icon={Task01Icon} className="size-4" />
+<HugeiconsIcon icon={Task01Icon} strokeWidth={2} />
+
+// ❌ BAD — this API does not exist in this repo
+import { Home01Icon } from "@hugeicons/react"
 <Home01Icon className="size-4" />
 ```
+
+Some components (e.g. `PageHeader`) take the icon **data** as a prop and render `HugeiconsIcon` internally: `<PageHeader icon={Task01Icon} … />`.
+
+Dependencies: `@hugeicons/core-free-icons` (icon data) + `@hugeicons/react` (`HugeiconsIcon`). `components.json` sets `"iconLibrary": "hugeicons"`.
 
 ## Key Rules
 

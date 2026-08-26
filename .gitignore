@@ -140,6 +140,7 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
 
 # START Ruler Generated Files
+/.agents/skills
 /.aider.conf.yml
 /.aider.conf.yml.bak
 /.claude/skills
@@ -147,9 +148,10 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 /.clinerules.bak
 /.codex/config.toml
 /.codex/config.toml.bak
-/.codex/skills
 /.cursor/skills
 /.gemini/skills
+/.mcp.json
+/.mcp.json.bak
 /.windsurf/skills
 /AGENTS.md
 /AGENTS.md.bak

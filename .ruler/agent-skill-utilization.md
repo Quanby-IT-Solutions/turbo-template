@@ -24,12 +24,16 @@ When a task matches a skill's trigger description, **load that skill first** for
 | `tailwind-shadcn` | Styling, UI components, themes |
 | `tanstack-query-orpc` | Data fetching hooks, cache, prefetching |
 | `turborepo-monorepo` | Workspace config, package management |
-| `docker-deployment` | Dockerfiles, docker-compose, images |
+| `docker-deployment` | Dockerfiles, docker-compose, images, BuildKit cache/secret mounts |
 | `ci-cd-pipelines` | GitHub Actions, deployment pipelines |
-| `aws-infrastructure` | Terraform, ECS, ALB, CloudWatch |
-| `testing-strategies` | Unit tests, E2E tests, mocking |
+| `aws-infrastructure` | EC2, ALB, ASG, SSM Parameter Store, ECR deploys |
+| `nginx-proxy` | Reverse proxy, single-port routing, TLS, upstreams |
+| `testing-strategies` | Unit tests, E2E tests, mocking, coverage floors |
 | `error-handling-logging` | Exception filters, logging, observability |
+| `observability-sentry` | Sentry, crash reporting, monitoring, DSN/scrubbing |
+| `redis-caching` | Redis, throttle counters, RBAC permission cache |
 | `security-hardening` | Auth, CORS, input validation, secrets |
+| `ticket-to-pr-flow` | Tickets, Linear/GitHub Issues, auto-draft PRs |
 | `vercel-react-best-practices` | React/Next.js performance patterns |
 | `web-design-guidelines` | UI review, accessibility, UX audit |
 

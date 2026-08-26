@@ -22,6 +22,8 @@ The monorepo uses two directories for shared code:
 | `@repo/auth` | `import { auth } from "@repo/auth"` | Better Auth configuration |
 | `@repo/db` | `import { db } from "@repo/db"` | Drizzle client and schema |
 | `@repo/contracts` | `import { CreateTodoDto } from "@repo/contracts"` | API contracts, Zod schemas, DTOs |
+| `@repo/observability` | `import { sanitizeLogUrl } from "@repo/observability"` | Shared log-redaction deny-list + Sentry-scrubbing policy (backend pino, web + mobile Sentry all derive from it) |
+| `@repo/e2e-web` | — (test package, not imported) | Playwright end-to-end suite for the web app (`pnpm test:e2e:web`) |
 
 ### Package Structure
 
@@ -33,9 +35,11 @@ packages/[name]/
 │   ├── index.ts          # Package entrypoint (exports public API)
 │   └── [modules]/        # Internal modules
 ├── package.json          # Package manifest
-├── tsconfig.json         # TypeScript config (extends tooling/typescript/pkg.json)
+├── tsconfig.json         # TypeScript config (extends @repo/tsconfig/pkg)
 └── turbo.json            # Turbo build config
 ```
+
+Note: `@repo/observability` and `@repo/e2e-web` do not follow the full shape below — `@repo/observability` exports a single redaction module and builds to `dist/`, and `@repo/e2e-web` is a Playwright test package with no `src/index.ts`.
 
 ### `@repo/auth` - Authentication
 
@@ -144,10 +148,10 @@ import nestConfig from "@repo/eslint-config/nest.mjs"
 export default [...nestConfig]
 ```
 
-**TypeScript** (in app's `tsconfig.json`):
+**TypeScript** (in app's `tsconfig.json`) — the package is `@repo/tsconfig`, with exports `./next.json`, `./nest.json`, `./pkg`, `./tool`:
 ```json
 {
-  "extends": "@repo/typescript-config/next.json"
+  "extends": "@repo/tsconfig/next.json"
 }
 ```
 
@@ -187,10 +191,10 @@ export default [...nestConfig]
    }
    ```
 
-3. Extend TypeScript config:
+3. Extend TypeScript config (`@repo/tsconfig`, package export `./pkg`):
    ```json
    {
-     "extends": "@repo/typescript-config/pkg.json",
+     "extends": "@repo/tsconfig/pkg",
      "include": ["src"],
      "exclude": ["node_modules"]
    }

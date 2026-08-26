@@ -28,13 +28,12 @@ const TEST_ENTITY = {
   'ENTITY_NAME': 'PRODUCT'                    // SCREAMING_SNAKE_CASE
 };
 
-// Template files to test
+// Template files to test (this repo's real stack: oRPC + Drizzle + Better Auth)
 const TEMPLATES = [
   'controller.template.ts',
   'service.template.ts',
-  'repository.template.ts',
-  'dto.template.ts',
-  'entity.template.ts',
+  'contract.template.ts',
+  'table.template.ts',
   'module.template.ts',
   'service.spec.template.ts'
 ];
@@ -43,47 +42,39 @@ const TEMPLATES = [
 const EXPECTED_IMPORTS = {
   'controller.template.ts': [
     '@nestjs/common',
-    '@nestjs/swagger',
-    'class-validator',
-    'class-transformer'
+    '@orpc/nest',
+    '@orpc/server',
+    '@thallesp/nestjs-better-auth'
   ],
   'service.template.ts': [
     '@nestjs/common',
-    '@nestjs/cache-manager',
-    '@nestjs/event-emitter'
+    '@orpc/server',
+    'drizzle-orm',
+    '@repo/db/schema'
   ],
-  'repository.template.ts': [
-    '@nestjs/common',
-    '@nestjs/typeorm',
-    'typeorm'
+  'contract.template.ts': [
+    'zod',
+    '@orpc/contract'
   ],
-  'dto.template.ts': [
-    '@nestjs/swagger',
-    'class-validator',
-    'class-transformer'
-  ],
-  'entity.template.ts': [
-    'typeorm',
-    'class-transformer'
+  'table.template.ts': [
+    'drizzle-orm/pg-core'
   ],
   'module.template.ts': [
-    '@nestjs/common',
-    '@nestjs/typeorm'
+    '@nestjs/common'
   ],
   'service.spec.template.ts': [
     '@nestjs/testing'
   ]
 };
 
-// Expected decorators for each template
+// Expected decorators / markers for each template
 const EXPECTED_DECORATORS = {
-  'controller.template.ts': ['@Controller', '@ApiTags', '@UseGuards', '@Get', '@Post', '@Patch', '@Delete'],
-  'service.template.ts': ['@Injectable'],
-  'repository.template.ts': ['@Injectable', '@InjectRepository'],
-  'dto.template.ts': ['@ApiProperty', '@IsString', '@IsOptional', '@Expose', '@Exclude'],
-  'entity.template.ts': ['@Entity', '@PrimaryGeneratedColumn', '@Column', '@CreateDateColumn'],
+  'controller.template.ts': ['@Controller', '@Implement', '@AllowAnonymous', '@Session', '@RequirePermissions', '@StrictThrottle'],
+  'service.template.ts': ['@Injectable', 'ORPCError', 'db.select', '.insert(', '.returning('],
+  'contract.template.ts': ['.route(', 'z.object', '.input(', '.output('],
+  'table.template.ts': ['createTable', '.$type<'],
   'module.template.ts': ['@Module'],
-  'service.spec.template.ts': ['describe', 'it', 'beforeEach', 'expect']
+  'service.spec.template.ts': ['describe', 'it', 'beforeEach', 'expect', 'jest.mock']
 };
 
 // Test results

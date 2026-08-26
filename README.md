@@ -25,6 +25,10 @@ cp apps/web/.env.example apps/web/.env
 cp packages/db/.env.example packages/db/.env
 cp apps/mobile/.env.example apps/mobile/.env
 
+# Generate BETTER_AUTH_SECRET and paste it into apps/backend/.env — the backend
+# refuses to boot while this is the template placeholder (see below).
+openssl rand -base64 32
+
 # Push database schema
 pnpm db:push
 
@@ -128,7 +132,7 @@ changes are needed; if it splits web/api across different domains, update
 | Variable                      | Required | App         | Description                                               |
 | ----------------------------- | -------- | ----------- | --------------------------------------------------------- |
 | `DATABASE_URL`                | ✅       | Backend, DB | PostgreSQL connection string                              |
-| `BETTER_AUTH_SECRET`          | ✅       | Backend     | Auth secret (openssl rand -base64 32)                     |
+| `BETTER_AUTH_SECRET`          | ✅       | Backend     | Session signing secret. Must be >= 32 chars and NOT a placeholder — backend fails to boot otherwise. Generate: `openssl rand -base64 32` (see [Generating BETTER_AUTH_SECRET](#generating-better_auth_secret)) |
 | `BETTER_AUTH_TRUSTED_ORIGINS` | ✅       | Backend     | Comma-separated trusted origins                           |
 | `CORS_ORIGINS`                | ✅       | Backend     | Comma-separated CORS origins                              |
 | `PORT`                        | ❌       | Backend     | Server port (default: 3000)                               |
@@ -170,6 +174,49 @@ nothing skips validation by accident.
 ```bash
 SKIP_ENV_VALIDATION=true pnpm build   # e.g. a container image build
 ```
+
+### Generating BETTER_AUTH_SECRET
+
+On a fresh clone `apps/backend/.env.example` ships a **non-functional
+placeholder**:
+
+```
+BETTER_AUTH_SECRET=<replace-me-run-openssl-rand-base64-32>
+```
+
+The backend **refuses to boot** with this value. Its shared validator
+(`packages/auth/src/secret-schema.ts`) rejects a secret that is shorter than
+**32 characters** or that starts with a known template prefix (`replace-me`,
+`change-me`, `your-secret`, `default-secret`, `<`, …). This is deliberate
+fail-closed behaviour: a published/guessable secret means every session — Admin
+included — is forgeable. Startup aborts with:
+
+```
+BETTER_AUTH_SECRET is still the template placeholder — sessions signed with a published secret are forgeable. Generate one with: openssl rand -base64 32
+```
+
+Generate a real value and paste it into `apps/backend/.env`:
+
+```bash
+# openssl (Git Bash, macOS, Linux) — produces 44 base64 chars, clears the floor
+openssl rand -base64 32
+
+# No openssl? Node works everywhere pnpm does:
+node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+```
+
+```powershell
+# PowerShell (Windows), cryptographically secure:
+$b = [byte[]]::new(32); [Security.Cryptography.RandomNumberGenerator]::Fill($b); [Convert]::ToBase64String($b)
+```
+
+Notes:
+
+- Only the **backend** needs it. The web app has no `BETTER_AUTH_SECRET` — it
+  calls the backend, which owns session signing.
+- Rotating it invalidates every existing session (everyone is signed out).
+- In deployments this comes from the GitHub Environment secret, not `.env` — see
+  [Deployment → Secrets](#secrets).
 
 ### Redis — when you need it
 
@@ -238,7 +285,9 @@ trade-offs.
 | `pnpm db:push`    | Push schema to database    |
 | `pnpm db:studio`  | Open Drizzle Studio        |
 
-## From tickets to pull requests
+## From tickets to pull requests (GitHub Issues)
+
+> Using Linear instead? See **[From tickets to pull requests (Linear)](#from-tickets-to-pull-requests-linear)** below.
 
 This repository can turn the Markdown tickets in `docs/TICKETS.md` into GitHub
 issues and project items. Work on each issue in an issue-linked branch; the
@@ -408,6 +457,138 @@ this template expects `dev` to be the default branch.
   begins with `<ISSUE_NUMBER>-`, has a commit that differs from `dev`, and has
   no existing open pull request. Then inspect
   **GitHub -> Actions -> Auto Draft PR**.
+
+## From tickets to pull requests (Linear)
+
+> Prefer GitHub Issues? See **[From tickets to pull requests (GitHub Issues)](#from-tickets-to-pull-requests-github-issues)** above.
+
+Same `docs/TICKETS.md` file, routed to **Linear** instead of GitHub Issues.
+`scripts/tickets-to-linear.mjs` creates Linear issues; you branch with the name
+Linear gives you, and the first push opens a draft pull request to `dev`
+automatically.
+
+```text
+docs/TICKETS.md -> Linear issues -> Linear branch names -> draft PRs to dev
+```
+
+### One-time setup
+
+1. Create a Linear **Personal API key**: Linear → Settings → Security & access →
+   Personal API keys → New API key. Then export it:
+
+   ```bash
+   export LINEAR_API_KEY=lin_api_xxxxx
+   ```
+
+2. Note the target **team key** (the uppercase prefix Linear puts on issue IDs,
+   e.g. `BID` in `BID-4`). You pass it with `--team`.
+
+3. Reuse the same draft-PR GitHub App as the GitHub flow, configured under
+   **Settings -> Secrets and variables -> Actions**:
+
+   | Type     | Name                     | Value                        |
+   | -------- | ------------------------ | ---------------------------- |
+   | Variable | `PR_BOT_APP_ID`          | The GitHub App ID            |
+   | Secret   | `PR_BOT_APP_PRIVATE_KEY` | The complete private-key PEM |
+
+   The Linear workflow's App needs only these repository permissions — **Issues
+   is not required**, since issues live in Linear:
+
+   | Permission    | Access     |
+   | ------------- | ---------- |
+   | Contents      | Read/write |
+   | Pull requests | Read/write |
+
+   The repository must have a `dev` branch and Actions enabled.
+
+### 1. Write the tickets
+
+Use the exact same format as the GitHub flow — `**Title:** [KEY] Name` with
+optional `**Epic:**` and `**Also touches:**`. See
+[1. Write the tickets](#1-write-the-tickets) above and the sample
+[docs/TICKETS.md](docs/TICKETS.md). The parser is identical.
+
+### 2. Preview the issues
+
+Run the script from the repository root with `--dry-run`:
+
+```bash
+LINEAR_API_KEY=lin_api_xxx node scripts/tickets-to-linear.mjs docs/TICKETS.md --team BID --dry-run
+```
+
+The preview lists the labels and issues it would create. It queries Linear for
+existing issue titles (for duplicate detection) but creates or changes nothing.
+
+### 3. Create the issues
+
+After checking the preview, rerun without `--dry-run`:
+
+```bash
+LINEAR_API_KEY=lin_api_xxx node scripts/tickets-to-linear.mjs docs/TICKETS.md --team BID
+```
+
+Optionally set the initial workflow state with `--state <name>` (default
+`Triage`; if that name is missing it falls back to the team's triage-type then
+backlog-type state):
+
+```bash
+LINEAR_API_KEY=lin_api_xxx node scripts/tickets-to-linear.mjs docs/TICKETS.md --team BID --state Backlog
+```
+
+For every new ticket, the script:
+
+- ensures the `ticket`, epic, and `Also touches` labels exist, color blue
+  (`#0075ca`);
+- creates a Linear issue whose title is `[KEY] Title` and whose description is the
+  ticket block, in the target state with those labels;
+- is **idempotent** — it skips any ticket whose `[KEY] Title` already exists in
+  the team; and
+- prints each new issue's URL plus the `git checkout -b <branchName>` and
+  `git push` commands to start work.
+
+### 4. Work on one issue
+
+Use the branch name the script printed (Linear's own branch name, e.g.
+`bid-4-add-vendor-parsing`):
+
+```bash
+git checkout -b bid-4-add-vendor-parsing
+
+# Make and verify the changes, then commit them.
+git add <files>
+git commit -m "Implement BID-4"
+git push -u origin HEAD
+```
+
+### 5. Review the draft pull request
+
+The first push triggers
+[`.github/workflows/auto-draft-pr-linear.yml`](.github/workflows/auto-draft-pr-linear.yml).
+The workflow:
+
+1. matches branches containing a Linear ID (`bid-4-...`, and prefixed forms like
+   `feat/bid-4-...`);
+2. derives the Linear ID (`BID-4`) and a title (`BID-4: Add vendor parsing`) from
+   the branch name;
+3. skips creation when that branch already has an open pull request; and
+4. opens a draft pull request targeting `dev` with the body `Part of BID-4`.
+
+Linear links the pull request automatically from the branch name. Merging moves
+the issue to **In QA**, where QA verifies the acceptance criteria before Done.
+
+### Troubleshooting
+
+- **`Missing LINEAR_API_KEY`:** Export the key (`export LINEAR_API_KEY=lin_api_xxx`).
+- **`Missing required --team flag`:** Supply `--team <TEAM_KEY>`, including during
+  a dry run.
+- **`Team … not found` / `State … not found`:** The script prints the available
+  team keys / state names — check your value against that list.
+- **`No tickets parsed`:** Fix the title format; each block needs
+  `**Title:** [KEY] Name` and blocks are separated by a line that is exactly `---`.
+- **No draft pull request appears:** Confirm the branch is in this repository,
+  contains `<prefix>-<number>-`, has a commit that differs from `dev`, and has no
+  existing open pull request. Then inspect
+  **GitHub -> Actions -> Auto Draft PR (Linear)** and the App-token step.
 
 ## Backend: Production-like Local Run
 

@@ -1,237 +1,213 @@
 ---
 name: tanstack-query-orpc
-description: TanStack Query integration with oRPC for this monorepo. Use when creating query hooks, mutations, prefetching data, managing cache, or working with services/tanstack-query/ or services/orpc/. Triggers on tasks involving data fetching, cache invalidation, SSR prefetching, hydration, or stale time configuration.
+description: TanStack Query data-fetching patterns for this monorepo — raw fetch + query-key factories, offline persistence, and paused-mutation replay. Use when creating query hooks, mutations, invalidating cache, or working under services/tanstack-query/. Triggers on data fetching, cache invalidation, offline/PWA persistence, optimistic updates, or query-key design.
 frameworks:
   - tanstack-query
-  - orpc
   - nextjs
 languages:
   - typescript
   - tsx
 category: data-fetching
-updated: 2026-03-06
+updated: 2026-08-15
 ---
 
-# TanStack Query + oRPC Integration Skill
+# TanStack Query Data-Fetching Skill
 
 ## Quick Reference
 
-**When to Use**: Creating query/mutation hooks, prefetching on server, managing cache, or configuring data fetching
+**When to Use**: Creating query/mutation hooks, invalidating cache, wiring optimistic updates, or touching the offline persistence layer.
 
-**Key Integration**: `@orpc/tanstack-query` bridges oRPC client with TanStack Query via `createTanstackQueryUtils()`
+**Cardinal rule**: Data fetching is **raw `apiFetch()` + query-key factories**. There is NO oRPC client wired into the web app. Do not `import { orpc }` — that module does not exist.
 
-**Versions**: TanStack Query 5.90+, oRPC 1.13+, React 19
+**Versions**: TanStack Query 5.90.16, React 19. Of the installed oRPC packages (1.13.4), only `@orpc/client` is imported anywhere in `apps/web` — its `StandardRPCJsonSerializer` (from `@orpc/client/standard`) powers the JSON serializer in `query-client.ts`. `@orpc/tanstack-query` is installed but unused (0 imports); there is no `createORPCClient` / `OpenAPILink` / `createTanstackQueryUtils` anywhere in `apps/web`.
 
 ## Architecture
 
 ```
 apps/web/services/
   ├── orpc/
-  │   ├── client.ts              # OpenAPILink + createTanstackQueryUtils → orpc
-  │   ├── orpc-server.ts         # Server-side client with cookie forwarding
-  │   └── contract-types.ts      # V1Inputs / V1Outputs type helpers
+  │   └── orpc-server.ts               # `export {}` placeholder — initializes NOTHING
   └── tanstack-query/
-      ├── query-client.ts        # QueryClient factory with oRPC serializer
-      └── provider.tsx           # QueryProvider + HydrateClient components
+      ├── query-client.ts              # QueryClient factory: offlineFirst, 24h gcTime,
+      │                                #   serializer helpers, shouldPersistQuery,
+      │                                #   NON_PERSISTED_QUERY_ROOTS
+      ├── provider.tsx                 # PersistQueryClientProvider (IndexedDB via idb-keyval)
+      ├── cache-persistence.ts         # identity-scoped keys, buster, maxAge, purge
+      ├── cache-identity.tsx           # server: resolve session → CacheIdentityStamp
+      └── paused-mutation-identity.ts  # stamp/replay-guard offline mutations by identity
 
-apps/web/features/[feature]/
-  └── api/
-      └── [feature].hooks.ts     # Feature-specific hooks using orpc.*
+apps/web/features/[feature]/api/[feature].hooks.ts   # apiFetch + <feature>Keys factories
 ```
 
-## QueryClient Setup
+## Data Fetching: raw `apiFetch`
 
-### oRPC-Compatible Serializer
+`apiFetch` hits the versioned REST base and always sends credentials. There is no generated client — call the backend paths directly.
 
 ```typescript
-// apps/web/services/tanstack-query/query-client.ts
-import { StandardRPCJsonSerializer } from "@orpc/client/standard"
-import { defaultShouldDehydrateQuery, isServer, QueryClient } from "@tanstack/react-query"
+// features/todos/api/todos.hooks.ts
+import { env } from "@/env"
+import { ApiError } from "@/core/lib/api-error"
 
-const serializer = new StandardRPCJsonSerializer({ customJsonSerializers: [] })
+const API_BASE = `${env.NEXT_PUBLIC_API_BASE_URL}/${env.NEXT_PUBLIC_API_VERSION}`
 
+async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(`${API_BASE}${path}`, {
+    ...init,
+    credentials: "include",
+    headers: { "Content-Type": "application/json", ...init?.headers },
+  })
+  if (!response.ok) {
+    // parse { message } / { error: { message } }, read retry-after, throw ApiError(status, msg, retryAfter)
+    throw new ApiError(response.status, /* … */ "Request failed")
+  }
+  if (response.status === 204) return undefined as T
+  return (await response.json()) as T
+}
+```
+
+- `ApiError` retains the HTTP `status` and optional `retryAfter` — classify errors by status, never by message text (`apiFetch` overwrites the message with the backend JSON body).
+- 429 handling (live countdown toast, disabling the control) is driven by consuming components via `useRateLimitToast`, reading each mutation's own error.
+
+## Query-Key Factories
+
+Keys are plain arrays from a small factory object — no serializer-encoded key builders.
+
+```typescript
+export const todosKeys = {
+  all: ["todos"] as const,
+}
+
+export function useTodosQuery() {
+  return useQuery({
+    queryKey: todosKeys.all,
+    queryFn: () => apiFetch<TodoUi[]>("/example/todos"),
+  })
+}
+```
+
+Invalidate by key: `queryClient.invalidateQueries({ queryKey: todosKeys.all })`.
+
+## Mutations: rehydratable defaults + optimistic cache
+
+Mutations are split in two so they survive an offline reload:
+
+1. **`registerTodosMutationDefaults(queryClient)`** registers `mutationFn` / `onMutate` / `onError` / `onSettled` / `retry` under stable mutation keys (`["todos","create"]`, `["todos","update"]`, `["todos","delete"]`). Only mutation **variables** are persisted — functions are not — so defaults must be re-registered before `resumePausedMutations()`. It is synchronous and idempotent; `provider.tsx` calls it on every render and again in `onSuccess`.
+2. **Hook wrappers** (`useCreateTodoMutation`, etc.) call `useMutation({ mutationKey })` with no inline `mutationFn` and stamp identity + idempotency onto vars at enqueue time.
+
+```typescript
+queryClient.setMutationDefaults(["todos", "create"], {
+  mutationFn: ({ title, completed, idempotencyKey }: CreateTodoVars) =>
+    apiFetch<Todo>("/example/todos", {
+      method: "POST",
+      body: JSON.stringify({ title, completed }),
+      headers: { "Idempotency-Key": idempotencyKey },
+    }),
+  onMutate: async vars => {
+    await queryClient.cancelQueries({ queryKey: todosKeys.all })
+    const snapshot = queryClient.getQueryData<TodoUi[]>(todosKeys.all)
+    queryClient.setQueryData<TodoUi[]>(todosKeys.all, prev => [...(prev ?? []), optimisticRow])
+    return { hadSnapshot: snapshot !== undefined, snapshot }   // hadSnapshot distinguishes "no list" from "[]"
+  },
+  onError: (_e, _v, ctx) => rollbackTodos(queryClient, ctx),
+  onSettled: () => queryClient.invalidateQueries({ queryKey: todosKeys.all }),
+  retry: retryUnlessAuth,                                       // never retry 401/403
+})
+```
+
+Hook wrapper stamps identity so a device handover cannot replay one user's writes as another (WC-3):
+
+```typescript
+export function useCreateTodoMutation() {
+  const mutation = useMutation<Todo, Error, CreateTodoVars>({ mutationKey: ["todos", "create"] })
+  return {
+    ...mutation,
+    mutate: (payload: { title: string; completed: boolean }, options?) =>
+      mutation.mutate(stampIdentity({ ...payload, idempotencyKey: crypto.randomUUID() }), options),
+  }
+}
+```
+
+- **Optimistic ids**: creates use `id: "optimistic-<uuid>"`; update/delete wrappers early-return on non-`number` ids (an optimistic row has no server id yet).
+- **Auth-aware retry**: `isAuthError` = `ApiError` with status 401/403; `retryUnlessAuth` refuses those and caps the rest at 3.
+- **Replay surface**: `useTodoReplayErrors()` reads `useMutationState` filtered on the `["todos"]` key prefix so errors from resumed/paused mutations (which have no per-hook observer) still surface.
+
+## QueryClient Configuration
+
+```typescript
+// services/tanstack-query/query-client.ts
 export const createQueryClient = () =>
   new QueryClient({
     defaultOptions: {
       queries: {
-        // oRPC-specific: serialize complex types in query keys
-        queryKeyHashFn(queryKey) {
+        queryKeyHashFn(queryKey) {                 // oRPC serializer used ONLY for stable hashing
           const [json, meta] = serializer.serialize(queryKey)
           return JSON.stringify({ json, meta })
         },
-        staleTime: 30 * 1000,  // 30 seconds default
+        networkMode: "offlineFirst",               // paint cache first, then network
+        staleTime: 30 * 1000,
+        gcTime: 1000 * 60 * 60 * 24,               // 24h so the persister has data to restore
       },
-      dehydrate: {
-        // Include pending queries in SSR dehydration
-        shouldDehydrateQuery: query =>
-          defaultShouldDehydrateQuery(query) || query.state.status === "pending",
-        serializeData(data) {
-          const [json, meta] = serializer.serialize(data)
-          return { json, meta }
-        },
-      },
-      hydrate: {
-        deserializeData(data: { json: unknown; meta: unknown }) {
-          return serializer.deserialize(data.json, data.meta)
-        },
-      },
+      mutations: { networkMode: "online" },        // pause while offline, resume on reconnect
+      dehydrate: { shouldDehydrateQuery, shouldDehydrateMutation, serializeData: serializeQueryData },
+      hydrate: { deserializeData: deserializeQueryData },
     },
   })
 ```
 
-### Server vs Client Singleton
+- `serializeQueryData` / `deserializeQueryData` wrap `StandardRPCJsonSerializer` and are **exported** because `PersistQueryClientProvider` does NOT inherit the QueryClient's dehydrate/hydrate options — the persister reuses these directly.
+- `shouldDehydrateMutation` = `mutation.state.isPaused` (persist offline-queued writes).
+- Server vs client: `getServerQueryClient = cache(createQueryClient)` (per request), client is a module singleton.
 
-```typescript
-const getServerQueryClient = cache(createQueryClient)  // Per-request on server
-let clientQueryClientSingleton: QueryClient | undefined
+## Offline / PWA Persistence (security-critical)
 
-export const getQueryClient = () => {
-  if (isServer) return getServerQueryClient()
-  clientQueryClientSingleton ??= createQueryClient()
-  return clientQueryClientSingleton
-}
-```
-
-### Provider Components
+`provider.tsx` uses `PersistQueryClientProvider` backed by IndexedDB (`idb-keyval`), falling back to plain `QueryClientProvider` on the server / before the persister exists.
 
 ```tsx
-// apps/web/services/tanstack-query/provider.tsx
-"use client"
-import { QueryClientProvider } from "@tanstack/react-query"
-import { ReactQueryDevtools } from "@tanstack/react-query-devtools"
-
-export function QueryProvider({ children }: { children: React.ReactNode }) {
-  const queryClient = getQueryClient()
-  return (
-    <QueryClientProvider client={queryClient}>
-      {children}
-      <ReactQueryDevtools />
-    </QueryClientProvider>
-  )
-}
-
-// For SSR prefetching
-export function HydrateClient({ children, client }: { children: React.ReactNode; client: QueryClient }) {
-  return <HydrationBoundary state={dehydrate(client)}>{children}</HydrationBoundary>
-}
+<PersistQueryClientProvider
+  client={queryClient}
+  persistOptions={{
+    persister,                                  // identity-scoped idb adapter
+    maxAge: PERSISTED_CACHE_MAX_AGE,            // 2h — well under the 24h in-memory gcTime
+    buster: PERSISTED_CACHE_BUSTER,             // bump to discard all snapshots on shape change
+    dehydrateOptions: {
+      shouldDehydrateQuery: shouldPersistQuery, // NOT shouldDehydrateQuery — excludes sensitive roots
+      shouldDehydrateMutation,
+      serializeData: serializeQueryData,
+    },
+    hydrateOptions: { defaultOptions: { deserializeData: deserializeQueryData } },
+  }}
+  onSuccess={() => {
+    registerTodosMutationDefaults(queryClient)          // restore fns before replay
+    discardForeignPausedMutations(queryClient)          // WC-3: drop other identities' queued writes…
+    void queryClient.resumePausedMutations()            // …THEN resume — order is the guarantee
+  }}
+>
 ```
 
-## oRPC Client with TanStack Query Utilities
+**Security exclusion — `NON_PERSISTED_QUERY_ROOTS = ["session", "rbac"]`** (query-client.ts). These roots carry the signed-in identity and the full user/email directory; persisting them would hand the next person on a shared browser profile a readable copy from DevTools. `shouldPersistQuery` denies any key whose first-segment labels intersect that set, then falls through to the SSR predicate. It is an **exclusion list, not an allowlist** — add new sensitive roots here.
+
+**Identity scoping** (`cache-persistence.ts`): every IndexedDB bucket key is suffixed with an FNV-1a hash of the user id (`readCacheIdentity()` / `writeCacheIdentity()`); anonymous bucket is `"anon"`. `purgePersistedCache()` deletes every owned bucket (including the legacy `REACT_QUERY_OFFLINE_CACHE` key) on sign-out, retried up to 3x (RF1). `cache-identity.tsx` resolves the session server-side and renders `<CacheIdentityStamp userId>` — mount it per authenticated subtree, never in the root layout (a cookie read there makes every route dynamic, including `/login` and `/~offline`).
+
+**Paused-mutation identity** (`paused-mutation-identity.ts`): `stampIdentity()` writes the hashed identity onto mutation vars under `__identity`; `discardForeignPausedMutations()` removes paused mutations whose stamp differs from the current identity before resume. Unstamped (pre-upgrade) mutations are treated as belonging to the current identity.
+
+## SSR Prefetch / Hydrate
+
+`HydrateClient` wraps children in `HydrationBoundary` with `dehydrate(client)`. Prefetch in a server component with the same query key + fetcher, then render the client component inside `HydrateClient`.
+
+## `orpc-server.ts` — placeholder only
 
 ```typescript
-// apps/web/services/orpc/client.ts
-import { createORPCClient } from "@orpc/client"
-import { OpenAPILink } from "@orpc/openapi-client/fetch"
-import { createTanstackQueryUtils } from "@orpc/tanstack-query"
-import { v1Contract } from "@repo/contracts"
-
-const link = new OpenAPILink(v1Contract, {
-  url: env.NEXT_PUBLIC_API_BASE_URL,
-  fetch: (url, init) => fetch(url, { ...init, credentials: "include" }),
-})
-
-const baseOrpc = createORPCClient(link)
-
-// This is the main export — all hooks use this
-export const orpc = createTanstackQueryUtils(baseOrpc, { path: ["orpc"] })
+// services/orpc/orpc-server.ts
+export {}
 ```
 
-**`path: ["orpc"]`** prevents key collisions with non-oRPC queries (e.g., auth session queries).
-
-## Feature Hook Patterns
-
-### Query Hook
-
-```typescript
-"use client"
-import { useQuery } from "@tanstack/react-query"
-import { orpc } from "@/services/orpc/client"
-
-export function useTodosQuery() {
-  return useQuery(
-    orpc.example.todo.list.queryOptions({
-      staleTime: 60 * 1000,  // Override default stale time
-    })
-  )
-}
-```
-
-### Mutation Hook with Cache Invalidation
-
-```typescript
-export function useCreateTodoMutation() {
-  const queryClient = useQueryClient()
-  return useMutation(
-    orpc.example.todo.create.mutationOptions({
-      onSuccess: () => {
-        queryClient.invalidateQueries({
-          queryKey: orpc.example.todo.key(),  // Invalidates all todo queries
-        })
-      },
-    })
-  )
-}
-```
-
-### Mutation Hook with Input
-
-```typescript
-// In a component:
-const createTodo = useCreateTodoMutation()
-createTodo.mutate({ title: "New todo", completed: false })
-```
-
-## oRPC TanStack Query API
-
-| Method | Purpose | Use With |
-|--------|---------|----------|
-| `.queryOptions(opts?)` | Returns query options | `useQuery()` |
-| `.mutationOptions(opts?)` | Returns mutation options | `useMutation()` |
-| `.key()` | Returns cache key for namespace | `invalidateQueries()` |
-
-**Namespace keys**: `orpc.example.todo.key()` invalidates ALL todo queries (list, get, etc.)
-
-## Type Helpers for Serialized Responses
-
-```typescript
-// apps/web/services/orpc/contract-types.ts
-import type { InferContractRouterInputs, InferContractRouterOutputs } from "@orpc/contract"
-import { type v1Contract } from "@repo/contracts"
-
-export type V1Inputs = InferContractRouterInputs<typeof v1Contract>
-export type V1Outputs = InferContractRouterOutputs<typeof v1Contract>
-
-// Transform Date → string for serialized API responses
-export type SerializeDates<T, K extends keyof T> = Omit<T, K> & { [P in K]: string }
-export type ArrayItem<T> = T extends readonly (infer E)[] ? E : never
-export type SerializedArrayItem<T, K extends keyof ArrayItem<T>> = SerializeDates<ArrayItem<T>, K>
-```
-
-## SSR Prefetching Pattern
-
-```tsx
-// Server component
-import { getQueryClient } from "@/services/tanstack-query/query-client"
-import { HydrateClient } from "@/services/tanstack-query/provider"
-import { orpc } from "@/services/orpc/client"
-
-export default async function TodosPage() {
-  const queryClient = getQueryClient()
-  await queryClient.prefetchQuery(orpc.example.todo.list.queryOptions())
-
-  return (
-    <HydrateClient client={queryClient}>
-      <TodosList />  {/* Client component with useTodosQuery() */}
-    </HydrateClient>
-  )
-}
-```
+It is imported for its (nonexistent) side effect in `app/layout.tsx` but **initializes nothing**. All oRPC routes are served by the NestJS backend; the web app talks to them over REST via `apiFetch`. Kept so future server actions can register handlers without touching every import site.
 
 ## Key Rules
 
-1. Always use `orpc.*` for API calls — never raw `fetch` for contract endpoints
-2. One hook file per feature: `features/[feature]/api/[feature].hooks.ts`
-3. Mark hook files with `"use client"` (TanStack Query hooks are client-only)
-4. Use `.key()` for namespace-level cache invalidation
-5. The `StandardRPCJsonSerializer` is required for oRPC compatibility in query keys
-6. Server vs client singleton prevents stale data sharing across requests
+1. **Raw `apiFetch` + query-key factories** — never an `orpc.*` client; it does not exist here.
+2. One hook file per feature: `features/[feature]/api/[feature].hooks.ts`, marked `"use client"`.
+3. Mutations that must survive offline reload use `setMutationDefaults` under a stable key + a thin `useMutation({ mutationKey })` wrapper. Re-register defaults before `resumePausedMutations()`.
+4. Classify errors by `ApiError.status`, not message text. Never retry 401/403.
+5. Persistence uses `shouldPersistQuery` (excludes `NON_PERSISTED_QUERY_ROOTS`), not `shouldDehydrateQuery`. Add new sensitive roots to the exclusion list.
+6. The persister does not inherit QueryClient dehydrate/hydrate options — reuse the exported serializer helpers.

@@ -8,7 +8,7 @@ frameworks:
 languages:
   - typescript
 category: auth
-updated: 2026-03-06
+updated: 2026-08-15
 ---
 
 # Better Auth Skill
@@ -25,9 +25,18 @@ updated: 2026-03-06
 
 ```
 packages/auth/src/
-  ├── index.ts          # Package entrypoint (re-exports)
-  ├── config.ts         # betterAuth() initialization, lazy singleton
-  └── types.ts          # Type re-exports (Session, User, Account)
+  ├── index.ts               # Package entrypoint (re-exports)
+  ├── config.ts              # authEnv + betterAuth() init + lazy singleton
+  ├── secret-schema.ts       # authSecretSchema (fail-closed BETTER_AUTH_SECRET)
+  ├── cookie-domain-schema.ts# BETTER_AUTH_COOKIE_DOMAIN validation
+  ├── origin-list.ts         # parseOriginList (trim + drop empties)
+  └── mailer/
+      ├── send-mail.ts       # nodemailer send wrapper
+      ├── transport-factory.ts # createTransport (throws in prod w/o SMTP_HOST)
+      ├── bool-schema.ts     # booleanFromEnv coercion
+      └── templates/         # verification-email.ts, reset-password-email.ts
+  # NOTE: there is NO types.ts. Session/User/Account types are re-exported
+  # from better-auth/types in index.ts; AuthSession comes from config.ts.
 
 apps/backend/src/config/
   └── auth.config.ts    # Express middleware: URL rewriting + versioned routes
@@ -36,9 +45,13 @@ apps/web/services/better-auth/
   ├── auth-client.ts    # createAuthClient() for browser
   ├── auth-server.ts    # getSession() for server components
   ├── context/
-  │   └── auth-provider.tsx  # AuthProvider + useAuth() hook
+  │   └── auth-provider.tsx  # AuthProvider (pass-through wrapper)
   └── lib/
       └── utils.ts      # getAuthUrl() helper
+
+apps/web/core/lib/
+  └── server-utils.ts   # getServerApiUrl()/getServerAuthUrl() — prefer
+                        #   INTERNAL_API_BASE_URL (Docker network) for server fetches
 ```
 
 ## Shared Auth Config (`@repo/auth`)
@@ -52,35 +65,108 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle"
 import { openAPI } from "better-auth/plugins"
 import { createDBClient } from "@repo/db/client"
 import { users, sessions, accounts, verifications } from "@repo/db/schema"
+import { parseOriginList } from "./origin-list.js"
 
 export const AUTH_BASE_PATH = "/auth"
 
-export function createAuth() {
+export function createAuth(): ReturnType<typeof betterAuth> {
   const db = createDBClient()
+  const verificationRequired = authEnv.EMAIL_VERIFICATION_REQUIRED // defaults TRUE
+  // If verification is required, sending is forced on so accounts can actually verify.
+  const verificationEnabled = authEnv.EMAIL_VERIFICATION_ENABLED || verificationRequired
+
   return betterAuth({
     database: drizzleAdapter(db, {
       provider: "pg",
       schema: { users, sessions, accounts, verifications },
-      usePlural: true,  // Tables are plural: "users" not "user"
+      usePlural: true, // Tables are plural: "users" not "user"
     }),
     basePath: AUTH_BASE_PATH,
-    secret: authEnv.BETTER_AUTH_SECRET,
+    secret: authEnv.BETTER_AUTH_SECRET, // validated by authSecretSchema (fail-closed)
+    rateLimit: {
+      enabled: true,
+      window: authEnv.AUTH_RATE_LIMIT_WINDOW,
+      max: authEnv.AUTH_RATE_LIMIT_MAX,
+      // /get-session is what the app calls to resolve the viewer — it must NOT
+      // share the credential budget, or normal browsing renders users logged out.
+      customRules: { "/get-session": { window: authEnv.AUTH_RATE_LIMIT_WINDOW, max: 500 } },
+    },
+    emailVerification: {
+      sendOnSignUp: verificationEnabled,
+      sendVerificationEmail: async ({ user, token }) => { /* mailer, honors flags */ },
+    },
     emailAndPassword: {
       enabled: true,
-      requireEmailVerification: false,
+      requireEmailVerification: verificationRequired, // TRUE by default (PRD decision)
+      sendResetPassword: async ({ user, token }) => { /* swallows errors: no enum oracle */ },
     },
+    // Google registered ONLY when BOTH creds present — no `as string` casting undefined.
     socialProviders: {
-      google: {
-        prompt: "select_account",
-        clientId: authEnv.GOOGLE_CLIENT_ID as string,
-        clientSecret: authEnv.GOOGLE_CLIENT_SECRET as string,
-      },
+      ...(authEnv.GOOGLE_CLIENT_ID && authEnv.GOOGLE_CLIENT_SECRET
+        ? {
+            google: {
+              prompt: "select_account" as const,
+              clientId: authEnv.GOOGLE_CLIENT_ID,
+              clientSecret: authEnv.GOOGLE_CLIENT_SECRET,
+            },
+          }
+        : {}),
     },
-    trustedOrigins: authEnv.BETTER_AUTH_TRUSTED_ORIGINS?.split(",") ?? [],
-    plugins: [openAPI({ path: "/reference" })],
+    // Trimmed + empties dropped, so a trailing comma can't produce an "any" origin.
+    trustedOrigins: parseOriginList(authEnv.BETTER_AUTH_TRUSTED_ORIGINS),
+    // Pinned session lifetime — not inherited from library defaults.
+    session: {
+      expiresIn: 60 * 60 * 24 * 7, // 7 days absolute
+      updateAge: 60 * 60 * 24, // sliding renewal, once/day
+      cookieCache: { enabled: false }, // OFF: a signed-cookie cache outlives revocation
+    },
+    // Trusted, address-verifying providers only — auto-linking an unverified email is takeover.
+    account: {
+      accountLinking: { enabled: true, trustedProviders: ["google"], allowDifferentEmails: false },
+    },
+    advanced: {
+      defaultCookieAttributes: {
+        httpOnly: true,
+        sameSite: "lax", // strict breaks OAuth return leg; none is CSRF surface
+        secure: process.env.NODE_ENV === "production", // dropped over http://localhost otherwise
+        path: "/",
+      },
+      // Cross-subdomain cookies only when explicitly configured (narrowest default = host-only).
+      ...(authEnv.BETTER_AUTH_COOKIE_DOMAIN && {
+        crossSubDomainCookies: { enabled: true, domain: authEnv.BETTER_AUTH_COOKIE_DOMAIN },
+      }),
+    },
+    // openAPI /reference is a debug surface — gated on ENABLE_API_DOCS (matches backend).
+    plugins: [...(authEnv.ENABLE_API_DOCS ? [openAPI({ path: "/reference" })] : [])],
   })
 }
 ```
+
+### Fail-Closed Secret (`authSecretSchema`)
+
+`BETTER_AUTH_SECRET` is validated by a shared Zod schema
+(`packages/auth/src/secret-schema.ts`), imported by BOTH `@repo/auth` and the
+backend's `env.config.ts` so the two processes never disagree on what signs a
+session. It rejects (fail-closed, at module load):
+
+- anything shorter than `AUTH_SECRET_MIN_LENGTH` (32); `openssl rand -base64 32` clears it
+- template placeholders via `isPlaceholderSecret()` — prefixes like `default-secret`,
+  `change-me`, `your-secret`, `<`, matched case-insensitively
+
+A missing/weak/placeholder secret stops boot rather than silently enabling
+session forgery for every account.
+
+### Mailer, Email Verification & Password Reset
+
+- `createTransport()` (`mailer/transport-factory.ts`) throws in production when
+  `SMTP_HOST` is unset rather than falling back to a link-printing transport.
+- Verification: `EMAIL_VERIFICATION_ENABLED` and `EMAIL_VERIFICATION_REQUIRED`
+  both default **true**. Requiring verification forces sending on.
+- Password reset (`sendResetPassword`) swallows transport errors on purpose:
+  Better Auth returns the same response whether or not the account exists, so a
+  leaked send-failure would become an account-enumeration oracle. Errors are
+  logged (Pino redaction applies), never returned.
+- Verification/reset URLs are built from `APP_WEB_URL`.
 
 ### Lazy Singleton Pattern
 
@@ -97,12 +183,24 @@ export function clearAuthCache() { _auth = null }
 
 ### Environment Variables (Auth)
 
-```
-BETTER_AUTH_SECRET=          # Required: Auth secret key
-BETTER_AUTH_TRUSTED_ORIGINS= # Required: Comma-separated origins (e.g., http://localhost:3001)
-GOOGLE_CLIENT_ID=            # Optional: Google OAuth client ID
-GOOGLE_CLIENT_SECRET=        # Optional: Google OAuth client secret
-```
+| Var | Required | Default | Notes |
+|-----|----------|---------|-------|
+| `BETTER_AUTH_SECRET` | yes | — | `authSecretSchema`: ≥32 chars, no placeholders (fail-closed) |
+| `BETTER_AUTH_TRUSTED_ORIGINS` | yes | — | comma-separated; parsed by `parseOriginList` |
+| `BETTER_AUTH_COOKIE_DOMAIN` | no | unset (host-only) | enables cross-subdomain cookies when set |
+| `GOOGLE_CLIENT_ID` | no | — | Google registered only if BOTH id+secret set |
+| `GOOGLE_CLIENT_SECRET` | no | — | |
+| `SMTP_HOST` | prod: yes | — | `createTransport` throws in prod when unset |
+| `SMTP_PORT` | no | — | |
+| `SMTP_USER` / `SMTP_PASS` | no | — | |
+| `SMTP_SECURE` | no | `false` | `booleanFromEnv` |
+| `MAIL_FROM` | no | `"Dev Mailer" <no-reply@localhost>` | |
+| `APP_WEB_URL` | no | `http://localhost:3001` | base for verification/reset links |
+| `EMAIL_VERIFICATION_ENABLED` | no | `true` | |
+| `EMAIL_VERIFICATION_REQUIRED` | no | `true` | forces sending on |
+| `ENABLE_API_DOCS` | no | `false` | gates openAPI `/reference` |
+| `AUTH_RATE_LIMIT_WINDOW` | no | `60` | seconds |
+| `AUTH_RATE_LIMIT_MAX` | no | `10` | credential routes; `/get-session` overridden to 500 |
 
 ## Backend Auth Middleware
 
@@ -212,29 +310,23 @@ export const authClient = createAuthClient({
 })
 ```
 
-### AuthProvider Context
+### AuthProvider
+
+Better Auth's React client reads session state via `authClient.useSession()`
+directly — it needs no context provider. `AuthProvider` is a pass-through
+wrapper kept as a seam for future session logic (there is no `useAuth()` hook):
 
 ```tsx
 // apps/web/services/better-auth/context/auth-provider.tsx
 "use client"
-import { createContext, useContext } from "react"
-import { authClient } from "@/services/better-auth/auth-client"
+import { type PropsWithChildren } from "react"
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { data: session, isPending: isLoading } = authClient.useSession()
-  return (
-    <AuthContext.Provider value={{ session, isLoading }}>
-      {children}
-    </AuthContext.Provider>
-  )
-}
-
-export function useAuth() {
-  const context = useContext(AuthContext)
-  if (!context) throw new Error("useAuth must be used within an AuthProvider")
-  return context
+export function AuthProvider({ children }: PropsWithChildren) {
+  return children
 }
 ```
+
+Consume the session directly where you need it: `const { data: session } = useSession()`.
 
 ### Auth Actions (Sign In, Sign Up, Sign Out)
 
@@ -261,18 +353,28 @@ await authClient.signOut()
 ```typescript
 // apps/web/services/better-auth/auth-server.ts
 import { cache } from "react"
+import { type AuthSession } from "@repo/auth"
 import { getCookieHeader } from "@/core/lib/cookie-utils"
+import { getServerAuthUrl } from "@/core/lib/server-utils"
 
-export const getSession = cache(async () => {
-  const cookieHeader = await getCookieHeader()
-  const response = await fetch(`${getAuthUrl()}/get-session`, {
-    headers: { "Content-Type": "application/json", cookie: cookieHeader },
-    cache: "no-store",
-  })
-  if (!response.ok) return null
-  return response.json()
+export const getSession = cache(async (): Promise<AuthSession | null> => {
+  try {
+    const cookieHeader = await getCookieHeader()
+    const response = await fetch(`${getServerAuthUrl()}/get-session`, {
+      headers: { "Content-Type": "application/json", cookie: cookieHeader },
+      cache: "no-store",
+    })
+    if (!response.ok) return null
+    return response.json()
+  } catch {
+    return null
+  }
 })
 ```
+
+`getServerAuthUrl()` (from `core/lib/server-utils.ts`) prefers the internal
+Docker-network base (`INTERNAL_API_BASE_URL`) for server-side fetches, falling
+back to the public API URL in local development.
 
 ### Cookie Forwarding
 

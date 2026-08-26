@@ -5,10 +5,12 @@ frameworks:
   - jest
   - nestjs
   - supertest
+  - vitest
+  - playwright
 languages:
   - typescript
 category: testing
-updated: 2025-07-12
+updated: 2026-08-15
 ---
 
 # Testing Strategies
@@ -18,10 +20,15 @@ updated: 2025-07-12
 | Layer | Framework | Config | Command |
 |-------|-----------|--------|---------|
 | Backend unit | Jest + ts-jest | `apps/backend/package.json` (jest key) | `pnpm --filter @repo/backend test` |
-| Backend E2E | Jest + supertest | `apps/backend/test/jest-e2e.json` | `pnpm --filter @repo/backend test:e2e` |
+| Backend E2E | Jest (ESM) + supertest | `apps/backend/test/jest-e2e.json` | `pnpm --filter @repo/backend test:e2e` |
 | Backend coverage | Jest | — | `pnpm --filter @repo/backend test:cov` |
-| Web (future) | Vitest or Jest | — | — |
+| Web / contracts / auth unit | Vitest | root `vitest.config.ts` (projects) | `pnpm test` / `pnpm test:cov` |
+| Web E2E | Playwright (`@repo/e2e-web`) | `packages/e2e-web/playwright.config.ts` | `pnpm test:e2e:web` |
 | Mobile | flutter_test | `apps/mobile/test/` | `flutter test` |
+
+Web, contracts, and auth testing is **live**, not future. The root `vitest.config.ts` orchestrates three projects — `apps/web`, `packages/contracts`, `packages/auth` — and `pnpm test` / `pnpm test:cov` fan out through Turbo. `packages/db` and `packages/observability` each have their **own standalone `vitest.config.ts`** (not registered in the root projects) that Turbo runs via their per-package `test`/`test:cov` scripts. `@repo/e2e-web` holds the Playwright suite (`pnpm test:e2e:web`, report via `pnpm show-report:e2e:web`).
+
+The CI quality gate enforces `test:cov` (unit) plus Playwright e2e — see the `ci-cd-pipelines` skill. Coverage floors below are enforced there.
 
 ## Backend Unit Testing
 
@@ -48,13 +55,28 @@ modules/v1/examples/todos/
     },
     "collectCoverageFrom": ["**/*.(t|j)s"],
     "coverageDirectory": "../coverage",
+    "coverageThreshold": {
+      "global": { "lines": 25, "functions": 20, "branches": 20, "statements": 25 }
+    },
+    "coveragePathIgnorePatterns": ["<rootDir>/modules/v1/examples/"],
     "testEnvironment": "node",
-    "moduleNameMapper": { "^@/(.*)$": "<rootDir>/$1" }
+    "moduleNameMapper": {
+      "^@repo/db/(.*)$": "<rootDir>/../../../packages/db/src/$1",
+      "^@repo/auth/(.*)$": "<rootDir>/../../../packages/auth/src/$1",
+      "^@repo/contracts$": "<rootDir>/../../../packages/contracts/src",
+      "^@repo/observability$": "<rootDir>/../../../packages/observability/src/index.ts",
+      "^@/(.*)$": "<rootDir>/$1",
+      "^(\\.{1,2}/.*)\\.js$": "$1"
+    },
+    "setupFiles": ["<rootDir>/../jest.setup.ts"]
   }
 }
 ```
 
-Key: `moduleNameMapper` maps `@/` to `src/` for path aliases.
+Key points:
+- `moduleNameMapper` maps `@/` to `src/`, resolves the `@repo/*` workspace packages (including `@repo/observability`) to their `src`, and strips the `.js` extension ESM specifiers carry.
+- `coveragePathIgnorePatterns` excludes the disposable `modules/v1/examples/` scaffold from coverage.
+- `setupFiles` loads `../jest.setup.ts`.
 
 ### Test Data Factory Pattern
 
@@ -202,9 +224,24 @@ jest.mock("@/shared/guards/auth.guard", () => ({
 }))
 ```
 
+### Mocking the Redis-backed Throttler
+
+`AppModule` wires `ThrottlerModule` to `@nest-lab/throttler-storage-redis` (backed by `ioredis`) and injects `REDIS_CLIENT`. Booting `AppModule` in a test without a Redis connection will try to connect, so either override the Redis provider / storage or mock the modules:
+
+```typescript
+jest.mock("@nest-lab/throttler-storage-redis", () => ({
+  ThrottlerStorageRedisService: jest.fn().mockImplementation(() => ({})),
+}))
+jest.mock("ioredis", () => jest.fn().mockImplementation(() => ({ on: jest.fn(), quit: jest.fn() })))
+```
+
+The throttler degrades fail-open (no Redis → in-memory), so unit tests of a single service usually just provide the service under test and skip the module entirely.
+
 ## Backend E2E Testing
 
-### Configuration (`test/jest-e2e.json`)
+### Configuration (`test/jest-e2e.json`) — ESM
+
+E2E runs under Node's ESM VM loader. The runner is `cross-env NODE_OPTIONS=--experimental-vm-modules jest --config ./test/jest-e2e.json`.
 
 ```json
 {
@@ -212,9 +249,24 @@ jest.mock("@/shared/guards/auth.guard", () => ({
   "rootDir": ".",
   "testEnvironment": "node",
   "testRegex": ".e2e-spec.ts$",
-  "transform": { "^.+\\.(t|j)s$": "ts-jest" }
+  "transform": {
+    "^.+\\.(t|j)s$": ["ts-jest", { "tsconfig": "<rootDir>/../tsconfig.spec.json", "useESM": true }]
+  },
+  "extensionsToTreatAsEsm": [".ts"],
+  "moduleNameMapper": {
+    "^@repo/db$": "<rootDir>/../../../packages/db/src",
+    "^@repo/db/(.*)$": "<rootDir>/../../../packages/db/src/$1",
+    "^@repo/auth/(.*)$": "<rootDir>/../../../packages/auth/src/$1",
+    "^@repo/contracts$": "<rootDir>/../../../packages/contracts/src",
+    "^@repo/observability$": "<rootDir>/../../../packages/observability/src/index.ts",
+    "^@/(.*)$": "<rootDir>/../src/$1",
+    "^(\\.{1,2}/.*)\\.js$": "$1"
+  },
+  "setupFiles": ["<rootDir>/setup-env.ts"]
 }
 ```
+
+`useESM: true` + `extensionsToTreatAsEsm: [".ts"]` + the `--experimental-vm-modules` node flag are what make the ESM workspace packages import correctly; `setup-env.ts` seeds the test environment.
 
 ### E2E Test Pattern (Full CRUD Cycle)
 
@@ -326,14 +378,20 @@ pnpm --filter @repo/backend test -- --testPathPattern=todos.service.spec
 4. **Mock helpers** — defined at the top of the spec file (per-file scope)
 5. **No test barrel files** — import directly from test utilities
 
-## Coverage Targets
+## Coverage Floors (enforced, per package)
 
-| Metric | Minimum | Target |
-|--------|---------|--------|
-| Statements | 70% | 85% |
-| Branches | 60% | 80% |
-| Functions | 70% | 85% |
-| Lines | 70% | 85% |
+These are the scaffold's minimums — a floor to raise as you add tested features, never lower (see `docs/QA-SETUP-CHANGES.md`). Example/demo modules are coverage-excluded because you replace them.
+
+| Package | Lines | Functions | Branches | Statements |
+|---|---|---|---|---|
+| `apps/backend` | 25 | 20 | 20 | 25 |
+| `apps/web` | 60 | 60 | 50 | 60 |
+| `packages/contracts` | 90 | 90 | 85 | 90 |
+| `packages/auth` | 80 | 80 | 30 | 80 |
+| `packages/db` | has `src/seed-guard.spec.ts` + a standalone `vitest.config.ts` (coverage covers `src/seed-guard.ts`, `src/utils/**`); real `test`/`test:cov` scripts |
+| `packages/observability` | has `src/redaction.spec.ts` + a standalone `vitest.config.ts`; real `test`/`test:cov` scripts |
+
+Coverage exclusions: backend `modules/v1/examples/` (jest `coveragePathIgnorePatterns`); contracts `**/modules/v1/examples/**` and web `**/features/todos/**` (vitest `coverage.exclude`).
 
 ## Writing Good Tests
 

@@ -7,6 +7,12 @@ description: React and Next.js performance optimization guidelines from Vercel E
 
 Comprehensive performance optimization guide for React and Next.js applications, maintained by Vercel. Contains 45 rules across 8 categories, prioritized by impact to guide automated refactoring and code generation.
 
+## Repo context (apps/web)
+
+- **Data fetching is TanStack Query, not SWR.** No `swr` dependency exists in this repo — **ignore the SWR rules** (`client-swr-dedup`). Apply the equivalent intent with TanStack Query.
+- **React Compiler is ENABLED** (`next.config.ts` `reactCompiler: true`, `babel-plugin-react-compiler`). The compiler auto-memoizes, so the manual-memoization rules — notably `rerender-memo` and `rendering-hoist-jsx` — are **largely redundant here**. Prefer clear code over hand-rolled `useMemo`/`useCallback`/hoisted-JSX unless profiling shows a real need.
+- Everything else (waterfall elimination, bundle size, server-side performance, JS micro-optimizations) still applies.
+
 ## When to Apply
 
 Reference these guidelines when:

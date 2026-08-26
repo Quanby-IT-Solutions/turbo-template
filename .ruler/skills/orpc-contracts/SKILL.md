@@ -8,7 +8,7 @@ frameworks:
 languages:
   - typescript
 category: api
-updated: 2026-03-06
+updated: 2026-08-15
 ---
 
 # oRPC Contract-First API Design Skill
@@ -45,8 +45,7 @@ apps/backend/src/modules/v1/[feature]/
   └── [feature].service.ts     ← 10. Typed service with V1Inputs
 
 apps/web/
-  ├── services/orpc/client.ts  ← 11. OpenAPILink + createTanstackQueryUtils
-  └── features/[feature]/api/  ← 12. useQuery/useMutation hooks
+  └── features/[feature]/api/  ← 11. raw apiFetch + useQuery/useMutation hooks
 ```
 
 ## Layer 1: Schema Definition (`.schema.ts`)
@@ -129,7 +128,8 @@ export const todoContract = {
 - Routes do NOT include `/v1/` prefix (added by version router)
 - `{id}` path params are parsed from the input schema
 - Include `summary` and `tags` for OpenAPI/Scalar docs
-- Use `spec: spec => ({ ...spec, security: [] })` to mark public endpoints
+- Public endpoints are marked at the CONTROLLER layer with `@AllowAnonymous()`
+  (see Layer 9), NOT in the contract `spec`. The contract stays transport-agnostic.
 
 ## Layer 3: Feature Router
 
@@ -150,9 +150,18 @@ export const v1Example = oc.prefix("/example").router(
 import { oc } from "@orpc/contract"
 import { v1Example } from "./examples/v1.example.js"
 import { healthContract } from "./health/health.contract.js"
+import { meContract } from "./me/me.contract.js"
+import { rbacContract } from "./rbac/rbac.contract.js"
+import { ticketContract } from "./tickets/tickets.contract.js"
 
 export const v1Contract = oc.prefix("/v1").router(
-  oc.router({ health: healthContract, example: v1Example })
+  oc.router({
+    health: healthContract,
+    example: v1Example,
+    me: meContract,
+    rbac: rbacContract,
+    ticket: ticketContract,
+  })
 )
 export type V1Contract = typeof v1Contract
 ```
@@ -186,18 +195,22 @@ export type V1Outputs = InferContractRouterOutputs<typeof v1Contract>
 
 ```typescript
 // apps/backend/src/modules/v1/examples/todos/todos.controller.ts
-import { Controller } from "@nestjs/common"
+import { Controller, UseInterceptors } from "@nestjs/common"
 import { Implement } from "@orpc/nest"
 import { implement } from "@orpc/server"
-import { Session, type UserSession } from "@thallesp/nestjs-better-auth"
+import { AllowAnonymous, Session, type UserSession } from "@thallesp/nestjs-better-auth"
 
 import { v1 } from "@/config/api-versions.config"
+import { RequirePermissions } from "@/shared/decorators/require-permissions.decorator"
+import { StrictThrottle } from "@/shared/decorators/strict-throttle.decorator"
+import { IdempotencyInterceptor } from "@/shared/interceptors/idempotency.interceptor"
 import { TodosService } from "./todos.service"
 
 @Controller()
 export class TodosController {
   constructor(private readonly todosService: TodosService) {}
 
+  @AllowAnonymous() // public read: no session required
   @Implement(v1.example.todo.list)
   async listTodos() {
     return implement(v1.example.todo.list).handler(async () => {
@@ -205,6 +218,9 @@ export class TodosController {
     })
   }
 
+  @StrictThrottle() // opt this mutation into the strict rate limiter
+  @RequirePermissions("posts:create") // RbacGuard: AND semantics
+  @UseInterceptors(IdempotencyInterceptor) // replay cache keyed on (authorId, key)
   @Implement(v1.example.todo.create)
   async createTodo(@Session() session: UserSession) {
     return implement(v1.example.todo.create).handler(async ({ input }) => {
@@ -217,8 +233,18 @@ export class TodosController {
 **Pattern:**
 - `@Implement(v1.path.to.procedure)` — registers route with oRPC
 - `implement(v1.path.to.procedure).handler(async ({ input }) => {})` — typed handler
-- `@Session()` decorator for authenticated endpoints
 - Controller does NOT validate — oRPC validates against contract schemas automatically
+
+**Controller-layer decorators (all real, all in the todos module):**
+- `@AllowAnonymous()` (`@thallesp/nestjs-better-auth`) — the real public-endpoint
+  mechanism. Without it, the library's global `AuthGuard` requires a session.
+  `health.controller.ts` uses it; every other v1 controller omits it.
+- `@Session()` / `type UserSession` — authenticated user; read `session.user.id`.
+- `@RequirePermissions(...names)` (`shared/decorators/require-permissions.decorator.ts`)
+  — enforced by the global `RbacGuard` with AND semantics.
+- `@StrictThrottle()` (`shared/decorators/strict-throttle.decorator.ts`) — opts a
+  mutation into the `strict` named limiter; reads stay on `default`.
+- `@UseInterceptors(IdempotencyInterceptor)` — replay-cache mutations.
 
 ## Layer 10: Backend Service
 
@@ -287,51 +313,74 @@ Common codes → status: `BAD_REQUEST` 400, `UNAUTHORIZED` 401, `FORBIDDEN` 403,
 > Guards (`@RequirePermissions`, auth) run OUTSIDE the handler, so exceptions they
 > throw map to status codes normally — only handler/service code needs `ORPCError`.
 
-## Layer 11: Frontend oRPC Client
+## Layer 11: Frontend Hooks (raw `apiFetch`, NOT an oRPC client)
 
-```typescript
-// apps/web/services/orpc/client.ts
-import { createORPCClient } from "@orpc/client"
-import { OpenAPILink } from "@orpc/openapi-client/fetch"
-import { createTanstackQueryUtils } from "@orpc/tanstack-query"
-import { v1Contract } from "@repo/contracts"
-import { env } from "@/env"
-
-const link = new OpenAPILink(v1Contract, {
-  url: env.NEXT_PUBLIC_API_BASE_URL,
-  fetch: (url, init) => fetch(url, { ...init, credentials: "include" }),
-})
-
-const baseOrpc = createORPCClient(link)
-export const orpc = createTanstackQueryUtils(baseOrpc, { path: ["orpc"] })
-```
-
-## Layer 12: Frontend Hooks
+There is **no oRPC client wired into the web app**. `services/orpc/orpc-server.ts` is
+an empty `export {}` placeholder; `createORPCClient` / `OpenAPILink` /
+`createTanstackQueryUtils` are not used anywhere in `apps/web`. The oRPC packages are
+installed only for the JSON serializer in `services/tanstack-query/query-client.ts`.
+The frontend reaches the contract routes over plain REST with a hand-rolled
+`apiFetch()` + query-key factories. See the `tanstack-query-orpc` skill for the full
+offline/persistence pattern.
 
 ```typescript
 // apps/web/features/todos/api/todos.hooks.ts
 "use client"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { orpc } from "@/services/orpc/client"
+
+import { ApiError } from "@/core/lib/api-error"
+import { env } from "@/env"
+
+// apiFetch is defined inline in this feature hooks file — there is no
+// `@/services/api/api-fetch` module.
+const API_BASE = `${env.NEXT_PUBLIC_API_BASE_URL}/${env.NEXT_PUBLIC_API_VERSION}`
+
+async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(`${API_BASE}${path}`, {
+    ...init,
+    credentials: "include",
+    headers: { "Content-Type": "application/json", ...init?.headers },
+  })
+  if (!response.ok) {
+    // backend returns { code, status, message } (Layer 10) → read body.message
+    let message = `Request failed (${response.status})`
+    try {
+      const body = (await response.json()) as { message?: string }
+      message = body?.message ?? message
+    } catch {
+      /* ignore non-JSON error bodies */
+    }
+    throw new ApiError(response.status, message)
+  }
+  if (response.status === 204) return undefined as T
+  return (await response.json()) as T
+}
+
+export const todosKeys = {
+  all: ["todos"] as const,
+}
 
 export function useTodosQuery() {
-  return useQuery(orpc.example.todo.list.queryOptions({ staleTime: 60 * 1000 }))
+  return useQuery({
+    queryKey: todosKeys.all,
+    queryFn: () => apiFetch("/example/todos"),
+    staleTime: 60 * 1000,
+  })
 }
 
 export function useCreateTodoMutation() {
   const queryClient = useQueryClient()
-  return useMutation(
-    orpc.example.todo.create.mutationOptions({
-      onSuccess: () => queryClient.invalidateQueries({ queryKey: orpc.example.todo.key() }),
-    })
-  )
+  return useMutation({
+    mutationKey: ["todos", "create"],
+    mutationFn: (input) => apiFetch("/example/todos", { method: "POST", body: JSON.stringify(input) }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: todosKeys.all }),
+  })
 }
 ```
 
-**API:**
-- `.queryOptions()` — for `useQuery()`, accepts TanStack Query options
-- `.mutationOptions()` — for `useMutation()`, accepts TanStack Query options
-- `.key()` — cache key for invalidation with `queryClient.invalidateQueries()`
+Error handling: `apiFetch` throws `ApiError(status, message)` from `@/core/lib/api-error`;
+classify on `ApiError.status` (401/403 = auth, 429 = rate limit), never on message text.
+Invalidate with the `todosKeys` factory, not any `orpc.*.key()`.
 
 ## Adding a New Feature Checklist
 

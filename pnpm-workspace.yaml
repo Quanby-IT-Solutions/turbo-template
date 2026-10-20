@@ -65,6 +65,7 @@ overrides:
   "@types/minimatch": 5.1.2
   "@types/react": 19.2.7
   "@types/react-dom": 19.2.3
+  "handlebars@<4.7.10": ">=4.7.10 <5"
 
 publicHoistPattern:
   - "@ianvs/prettier-plugin-sort-imports"

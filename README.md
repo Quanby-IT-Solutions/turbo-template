@@ -29,8 +29,18 @@ cp apps/mobile/.env.example apps/mobile/.env
 # refuses to boot while this is the template placeholder (see below).
 openssl rand -base64 32
 
-# Push database schema
+# In packages/db/.env, set SEED_ADMIN_PASSWORD (see that file). Backend e2e
+# reads the same variable from the same file — do not copy it into
+# apps/backend/.env. Put the same DATABASE_URL in both env files so seed and
+# the API use one local database. The examples ship <user>:<password>
+# placeholders, not a working credential.
+
+# Push the schema, then seed the admin, roles, and sample data
 pnpm db:push
+pnpm db:seed
+
+# Backend e2e (14 tests) against that seeded database
+pnpm -F @repo/backend test:e2e
 
 # Build packages (required for first run)
 pnpm build
@@ -131,7 +141,8 @@ changes are needed; if it splits web/api across different domains, update
 
 | Variable                      | Required | App         | Description                                               |
 | ----------------------------- | -------- | ----------- | --------------------------------------------------------- |
-| `DATABASE_URL`                | ✅       | Backend, DB | PostgreSQL connection string                              |
+| `DATABASE_URL`                | ✅       | Backend, DB | PostgreSQL connection string. Use the same value in `apps/backend/.env` and `packages/db/.env` |
+| `SEED_ADMIN_PASSWORD`         | ✅ seed / e2e | DB   | Admin password for `pnpm db:seed`, set only in `packages/db/.env`. Backend e2e reads it from that file. Optional test override: `E2E_ADMIN_PASSWORD`. No default |
 | `BETTER_AUTH_SECRET`          | ✅       | Backend     | Session signing secret. Must be >= 32 chars and NOT a placeholder — backend fails to boot otherwise. Generate: `openssl rand -base64 32` (see [Generating BETTER_AUTH_SECRET](#generating-better_auth_secret)) |
 | `BETTER_AUTH_TRUSTED_ORIGINS` | ✅       | Backend     | Comma-separated trusted origins                           |
 | `CORS_ORIGINS`                | ✅       | Backend     | Comma-separated CORS origins                              |
@@ -273,17 +284,36 @@ See **[docs/sentry.md](docs/sentry.md)** for the full variable reference,
 per-app verification steps, the PII scrubbing contract, and the accepted
 trade-offs.
 
+## Seeding and backend e2e
+
+`pnpm db:seed` hashes `SEED_ADMIN_PASSWORD` from `packages/db/.env` into the
+seeded admin (`admin@turbo-template.local`). `pnpm -F @repo/backend test:e2e`
+loads that same file and signs in with that same value. Set the password in
+`packages/db/.env` only. `E2E_ADMIN_PASSWORD` is an optional override of the
+test process; the suite has no built-in password and exits at startup when
+neither variable is set.
+
+`packages/db/.env` and `apps/backend/.env` must use the same `DATABASE_URL`.
+The example files ship a `<user>:<password>` placeholder — substitute your
+local Postgres user and password in both.
+
+Re-running `pnpm db:seed` does not change an admin password that is already
+stored. If the database was seeded with a different or random password, set
+`SEED_ADMIN_PASSWORD` and run `pnpm db:seed -- --force-password`.
+
 ## Scripts
 
-| Command           | Description                |
-| ----------------- | -------------------------- |
-| `pnpm dev`        | Start all apps in dev mode |
-| `pnpm build`      | Build all apps             |
-| `pnpm lint`       | Run ESLint                 |
-| `pnpm typecheck`  | Run TypeScript checks      |
-| `pnpm format:fix` | Format code with Prettier  |
-| `pnpm db:push`    | Push schema to database    |
-| `pnpm db:studio`  | Open Drizzle Studio        |
+| Command                            | Description                                                                 |
+| ---------------------------------- | --------------------------------------------------------------------------- |
+| `pnpm dev`                         | Start all apps in dev mode                                                  |
+| `pnpm build`                       | Build all apps                                                              |
+| `pnpm lint`                        | Run ESLint                                                                  |
+| `pnpm typecheck`                   | Run TypeScript checks                                                       |
+| `pnpm format:fix`                  | Format code with Prettier                                                   |
+| `pnpm db:push`                     | Push schema to database                                                     |
+| `pnpm db:seed`                     | Seed local roles, users, and sample data (`SEED_ADMIN_PASSWORD` in `packages/db/.env`) |
+| `pnpm -F @repo/backend test:e2e`   | Run backend e2e against the seeded database                                 |
+| `pnpm db:studio`                   | Open Drizzle Studio                                                         |
 
 ## From tickets to pull requests (GitHub Issues)
 

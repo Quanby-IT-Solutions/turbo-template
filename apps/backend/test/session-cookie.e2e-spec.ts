@@ -1,9 +1,10 @@
 import { type INestApplication } from "@nestjs/common"
+import { afterAll, beforeAll, describe, expect, it } from "@jest/globals"
 import request from "supertest"
 import { type App } from "supertest/types"
 
 import { createApplication } from "../src/bootstrap"
-import { afterAll, beforeAll, describe, expect, it } from "@jest/globals"
+import { resolveE2eAdminEmail, resolveE2eAdminPassword } from "./e2e-admin-password"
 
 /**
  * AC-3 / F-56 + F-58 + F-59 — the session cookie's attributes, as actually sent.
@@ -30,12 +31,10 @@ describe("session cookie attributes (AC-3)", () => {
 		// The seeded admin, matching app.e2e-spec.ts. A verified account is the
 		// one identity that can sign in regardless of whether the environment
 		// requires email verification, so the cookie is always issued.
-		const signIn = await request(app.getHttpServer())
-			.post("/api/v1/auth/sign-in/email")
-			.send({
-				email: process.env.E2E_ADMIN_EMAIL ?? "admin@turbo-template.local",
-				password: process.env.E2E_ADMIN_PASSWORD ?? "Password123",
-			})
+		const signIn = await request(app.getHttpServer()).post("/api/v1/auth/sign-in/email").send({
+			email: resolveE2eAdminEmail(),
+			password: resolveE2eAdminPassword(),
+		})
 
 		expect(signIn.status).toBe(200)
 

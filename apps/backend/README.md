@@ -188,13 +188,25 @@ See `.env.example` for reference.
 - **Docs**: `GET /api/v1/docs` — Interactive API documentation (Scalar)
 - **OpenAPI Spec**: `GET /api/v1/spec.json` — Raw OpenAPI JSON
 
+## E2E tests
+
+`pnpm test:e2e` boots the real API and signs in as the seeded admin
+(`admin@turbo-template.local`). From the repo root, before the first run:
+
+1. `apps/backend/.env` and `packages/db/.env` exist (copied from the examples) and their `DATABASE_URL` values are the same local database.
+2. `BETTER_AUTH_SECRET` in `apps/backend/.env` is a generated secret, not the example placeholder.
+3. `SEED_ADMIN_PASSWORD` is set in `packages/db/.env` only. The suite loads that file. Do not copy the password into `apps/backend/.env`. `E2E_ADMIN_PASSWORD` is an optional explicit override; there is no default password.
+4. `pnpm db:seed` has been run. A later seed does not rotate a password already stored. When the stored password was random or differs from `SEED_ADMIN_PASSWORD`, run `pnpm db:seed -- --force-password`.
+
+From the repo root: `pnpm -F @repo/backend test:e2e`.
+
 ## Scripts
 
-| Command         | Description             |
-| --------------- | ----------------------- |
-| `pnpm dev`      | Start in watch mode     |
-| `pnpm build`    | Build for production    |
-| `pnpm start`    | Start production build  |
-| `pnpm test`     | Run unit tests          |
-| `pnpm test:e2e` | Run E2E tests           |
-| `pnpm test:cov` | Run tests with coverage |
+| Command         | Description                                                                 |
+| --------------- | --------------------------------------------------------------------------- |
+| `pnpm dev`      | Start in watch mode                                                         |
+| `pnpm build`    | Build for production                                                        |
+| `pnpm start`    | Start production build                                                      |
+| `pnpm test`     | Run unit tests                                                              |
+| `pnpm test:e2e` | Run e2e tests (needs `pnpm db:seed` and `SEED_ADMIN_PASSWORD`; see above)  |
+| `pnpm test:cov` | Run tests with coverage                                                     |

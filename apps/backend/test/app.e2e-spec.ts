@@ -1,9 +1,10 @@
 import { type INestApplication } from "@nestjs/common"
+import { afterEach, beforeEach, describe, expect, it } from "@jest/globals"
 import request from "supertest"
 import { type App } from "supertest/types"
 
 import { createApplication } from "../src/bootstrap"
-import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals"
+import { resolveE2eAdminEmail, resolveE2eAdminPassword } from "./e2e-admin-password"
 
 describe("Examples API (e2e)", () => {
 	let app: INestApplication<App>
@@ -13,6 +14,10 @@ describe("Examples API (e2e)", () => {
 		// parsers, versioning — rather than a hand-rolled approximation of it.
 		app = (await createApplication()) as INestApplication<App>
 		await app.init()
+	})
+
+	afterEach(async () => {
+		await app.close()
 	})
 
 	it("/api/v1/example/todos (GET)", async () => {
@@ -44,14 +49,14 @@ describe("Examples API (e2e)", () => {
 		// as the seeded admin so the suite exercises the real guards rather than
 		// bypassing them.
 		//
-		// Requires `pnpm seed` to have run with a known SEED_ADMIN_PASSWORD; the
-		// seeder randomises it otherwise (AC-2).
-		const signIn = await request(server)
-			.post("/api/v1/auth/sign-in/email")
-			.send({
-				email: process.env.E2E_ADMIN_EMAIL ?? "admin@turbo-template.local",
-				password: process.env.E2E_ADMIN_PASSWORD ?? "Password123",
-			})
+		// Password is SEED_ADMIN_PASSWORD from packages/db/.env (loaded in
+		// setup-env.ts) — the same value `pnpm db:seed` wrote. E2E_ADMIN_PASSWORD
+		// is an explicit override. The seeder randomises the password when that
+		// variable is unset (AC-2); the suite fails at startup instead of guessing.
+		const signIn = await request(server).post("/api/v1/auth/sign-in/email").send({
+			email: resolveE2eAdminEmail(),
+			password: resolveE2eAdminPassword(),
+		})
 		expect(signIn.status).toBe(200)
 		const cookie = ((signIn.headers["set-cookie"] ?? []) as string[]).join("; ")
 
@@ -85,7 +90,6 @@ describe("Examples API (e2e)", () => {
 			.expect(404)
 
 		// Delete
-		await request(server).delete(`/api/v1/example/todos/${id}`)
-			.set("Cookie", cookie).expect(200)
+		await request(server).delete(`/api/v1/example/todos/${id}`).set("Cookie", cookie).expect(200)
 	})
 })

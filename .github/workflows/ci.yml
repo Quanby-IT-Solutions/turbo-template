@@ -50,3 +50,85 @@ jobs:
     # of the external repo has nothing to exfiltrate.
     secrets:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  # E2E-001 / QUA-7. Backend Jest e2e should run on PRs to dev.
+  #
+  # The reusable quality gate's e2e job runs Playwright (`pnpm test:e2e:web`),
+  # only when web paths changed or `inputs.run-e2e` is true (default false),
+  # and that workflow has no Postgres service. It never runs
+  # `pnpm -F @repo/backend test:e2e`. Turning on `run-e2e` for dependency-only
+  # PRs was considered and is not done here: the gate still has no database,
+  # so the flag would not execute this suite, and
+  # Quanby-IT-Solutions/.github is out of scope. Playwright stays on its
+  # existing path filter; this job is the backend regression signal.
+  #
+  # BETTER_AUTH_SECRET and SEED_ADMIN_PASSWORD are generated in the job,
+  # masked, and exported through $GITHUB_ENV. They are not repository secrets
+  # and are not echoed. The database password is omitted: the service uses
+  # trust auth and lives only for this job.
+  backend-e2e:
+    name: Backend e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: turbo-template
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d turbo-template"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgres://postgres@localhost:5432/turbo-template
+      CORS_ORIGINS: http://localhost:3000
+      BETTER_AUTH_TRUSTED_ORIGINS: http://localhost:3000
+    steps:
+      - name: Checkout
+        # Same pin as deploy-production.yml.
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Setup pnpm
+        # Commit the quality gate's `pnpm/action-setup@v4` tag resolves to.
+        # v4.4.0 of this action requires Node 24; this commit does not.
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          # package.json "packageManager" and the quality gate's pnpm-version.
+          version: 10.27.0
+
+      - name: Setup Node
+        # Commit the quality gate's `actions/setup-node@v4` tag resolves to
+        # (v4.4.0). Node version matches the gate's node-version default and
+        # engines.node.
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22.20.0
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate ephemeral auth secret and seed password
+        run: |
+          set -euo pipefail
+          auth_secret="$(openssl rand -base64 32 | tr -d '\n')"
+          seed_password="$(openssl rand -base64 24 | tr -d '\n')"
+          echo "::add-mask::${auth_secret}"
+          echo "::add-mask::${seed_password}"
+          {
+            printf 'BETTER_AUTH_SECRET=%s\n' "$auth_secret"
+            printf 'SEED_ADMIN_PASSWORD=%s\n' "$seed_password"
+          } >> "$GITHUB_ENV"
+
+      - name: Seed the local database
+        run: pnpm db:seed
+
+      - name: Backend e2e
+        run: pnpm -F @repo/backend test:e2e

@@ -17,7 +17,7 @@ updated: 2026-08-15
 
 **Package Manager**: pnpm 10.27.0 (NEVER use npm or yarn)
 
-**Runtime**: Node.js ≥22.20.0
+**Runtime**: Node.js ≥22.22.1
 
 ## Workspace Structure
 

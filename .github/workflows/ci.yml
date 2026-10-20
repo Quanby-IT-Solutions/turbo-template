@@ -44,6 +44,9 @@ jobs:
     # To move the pin: re-review the workflow at the new SHA, then update both
     # the ref and this comment together.
     uses: Quanby-IT-Solutions/.github/.github/workflows/quality-gate.yml@db900a082cd9f7d1315d1192748324cf49647410 # 2026-07-05
+    # The gate's own default is 22.20.0, which is below engines.node.
+    with:
+      node-version: 22.22.1
     # `secrets: inherit` handed every repository secret — AWS keys, the auth
     # signing secret, the database URL — to an external workflow that declares
     # exactly one optional secret. Only that one is passed now, so a compromise
@@ -105,11 +108,11 @@ jobs:
 
       - name: Setup Node
         # Commit the quality gate's `actions/setup-node@v4` tag resolves to
-        # (v4.4.0). Node version matches the gate's node-version default and
-        # engines.node.
+        # (v4.4.0). Node version matches engines.node. @thallesp/nestjs-better-auth
+        # 2.5.4 requires Node >=22.22.1.
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 22.20.0
+          node-version: 22.22.1
           cache: pnpm
 
       - name: Install

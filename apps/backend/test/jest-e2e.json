@@ -19,6 +19,7 @@
 	"moduleNameMapper": {
 		"^@repo/db/(.*)$": "<rootDir>/../../../packages/db/src/$1",
 		"^@repo/db$": "<rootDir>/../../../packages/db/src",
+		"^@repo/auth$": "<rootDir>/../../../packages/auth/src/index.ts",
 		"^@repo/auth/(.*)$": "<rootDir>/../../../packages/auth/src/$1",
 		"^@repo/contracts$": "<rootDir>/../../../packages/contracts/src",
 		"^@repo/observability$": "<rootDir>/../../../packages/observability/src/index.ts",

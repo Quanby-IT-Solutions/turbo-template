@@ -1,9 +1,14 @@
 import { cache } from "react"
-
-import { type AuthSession } from "@repo/auth"
+import { type betterAuth } from "better-auth"
 
 import { getCookieHeader } from "@/core/lib/cookie-utils"
 import { getServerAuthUrl } from "@/core/lib/server-utils"
+
+// `@repo/auth` re-exports this as `ReturnType<typeof getAuth>["$Infer"]["Session"]`.
+// Importing it from that package loads `config.js`, which validates env at
+// import time. Next 16.3 evaluates the page module while collecting page data,
+// so the web app cannot import `@repo/auth` from a route.
+type AuthSession = ReturnType<typeof betterAuth>["$Infer"]["Session"]
 
 /**
  * Get current user session from backend.

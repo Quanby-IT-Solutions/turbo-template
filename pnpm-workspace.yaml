@@ -4,7 +4,7 @@ packages:
   - tooling/*
 
 catalog:
-  "@better-auth/cli": 1.4.12
+  auth: 1.6.22
   "@eslint/js": ^9.39.2
   "@nestjs/common": ^11.1.11
   "@nestjs/core": ^11.1.11
@@ -23,12 +23,12 @@ catalog:
   "@types/pg": ^8.16.0
   "@types/react": 19.2.7
   "@types/react-dom": 19.2.3
-  better-auth: 1.4.12
+  better-auth: 1.6.22
   dotenv: ^16.6.1
-  drizzle-orm: 1.0.0-beta.9-e89174b
+  drizzle-orm: 1.0.0-beta.20
   eslint: ^9.39.2
   nestjs-zod: ^5.1.1
-  next: 16.1.1
+  next: 16.3.8
   pg: ^8.16.3
   prettier: ^3.7.4
   react: 19.2.3
@@ -63,9 +63,13 @@ onlyBuiltDependencies:
 
 overrides:
   "@types/minimatch": 5.1.2
+  "@types/mssql": "-"
   "@types/react": 19.2.7
   "@types/react-dom": 19.2.3
+  "argparse@>=1 <2>sprintf-js": "-"
+  "gel": "-"
   "handlebars@<4.7.10": ">=4.7.10 <5"
+  "mssql": "-"
   "proxy-addr@<2.0.8": ">=2.0.8 <3"
 
 publicHoistPattern:

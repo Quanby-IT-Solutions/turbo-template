@@ -49,7 +49,13 @@ function resolveOfflineRevision(): string {
 		const hash = createHash("sha256")
 
 		for (const relative of sources) {
-			hash.update(readFileSync(path.join(cwd, relative)))
+			// The two source paths are a fixed list, but Turbopack still treats
+			// `path.join(cwd, relative)` as a dynamic read and would trace the
+			// whole repo into the server output. The ignore comments keep that
+			// fallback hash local to this route.
+			hash.update(
+				readFileSync(/*turbopackIgnore: true*/ path.join(/*turbopackIgnore: true*/ cwd, relative))
+			)
 		}
 
 		return hash.digest("hex")

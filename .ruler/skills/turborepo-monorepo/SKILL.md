@@ -17,7 +17,7 @@ updated: 2026-08-15
 
 **Package Manager**: pnpm 10.27.0 (NEVER use npm or yarn)
 
-**Runtime**: Node.js ≥22.20.0
+**Runtime**: Node.js ≥22.22.1
 
 ## Workspace Structure
 
@@ -60,9 +60,9 @@ catalog:
   "@sentry/nestjs": ^10.70.0
   "@sentry/nextjs": ^10.70.0
   "@tanstack/react-query": ^5.90.16
-  better-auth: 1.4.12
-  drizzle-orm: 1.0.0-beta.9-e89174b   # note the -e89174b build suffix
-  next: 16.1.1
+  better-auth: 1.6.22
+  drizzle-orm: 1.0.0-beta.20
+  next: 16.3.8
   react: 19.2.3
   tailwindcss: ^4.1.18
   typescript: ^5.9.3

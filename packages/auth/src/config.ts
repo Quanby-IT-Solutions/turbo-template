@@ -83,6 +83,43 @@ export const authEnv = createEnv({
 export const AUTH_BASE_PATH = "/auth"
 
 /**
+ * Base URL for Better Auth (1.6 warns at init when this and `BETTER_AUTH_URL`
+ * are both unset, then derives the origin from the request).
+ *
+ * `BETTER_AUTH_URL` is optional and is not added as a required setting: this
+ * repo never required it, and CI builds run without auth configuration.
+ * When it is set, it is passed through. When it is not, the origin stays
+ * request-derived for hosts already listed in `BETTER_AUTH_TRUSTED_ORIGINS`,
+ * which is the previous behaviour. Any other host falls back to the first
+ * trusted origin instead of failing closed.
+ */
+function resolveAuthBaseURL(): string | { allowedHosts: string[]; fallback?: string } {
+	const configured = process.env.BETTER_AUTH_URL
+	if (configured) return configured
+
+	const origins = parseOriginList(authEnv.BETTER_AUTH_TRUSTED_ORIGINS)
+	const allowedHosts = new Set<string>()
+	for (const origin of origins) {
+		try {
+			allowedHosts.add(new URL(origin).host)
+		} catch {
+			// Non-URL entries are ignored here; trustedOrigins still receives them.
+		}
+	}
+	const hosts = [...allowedHosts]
+	if (hosts.length === 0) hosts.push("localhost")
+
+	const fallback = origins.find(origin => {
+		try {
+			return Boolean(new URL(origin).origin)
+		} catch {
+			return false
+		}
+	})
+	return { allowedHosts: hosts, ...(fallback ? { fallback } : {}) }
+}
+
+/**
  * Creates a Better Auth instance configured with Drizzle adapter.
  *
  * The auth instance uses database connection from @repo/db and is
@@ -93,7 +130,7 @@ export const AUTH_BASE_PATH = "/auth"
  *
  * @returns Better Auth instance
  */
-export function createAuth(): ReturnType<typeof betterAuth> {
+export function createAuth() {
 	const db = createDBClient()
 
 	// LG-1 / RF3: throws in production when SMTP_HOST is unset, rather than
@@ -127,6 +164,7 @@ export function createAuth(): ReturnType<typeof betterAuth> {
 			usePlural: true,
 		}),
 		basePath: AUTH_BASE_PATH,
+		baseURL: resolveAuthBaseURL(),
 		secret: authEnv.BETTER_AUTH_SECRET,
 		rateLimit: {
 			enabled: true,
@@ -151,10 +189,29 @@ export function createAuth(): ReturnType<typeof betterAuth> {
 				 * than disabled (`false`), keeping a ceiling on a flood while
 				 * leaving normal browsing, and shared egress IPs, well clear of it.
 				 *
-				 * Sign-in, sign-up and reset keep the strict default: those take
-				 * credentials, and throttling them is the point of the feature.
+				 * Sign-in, sign-up, change-password and change-email are not
+				 * overridden. better-auth special-cases those paths at 3 requests
+				 * / 10s, and a custom rule replaces that special case. Reset and
+				 * verification sends are special-cased at 3 / 60s; the rules below
+				 * keep this config's credential budget on those paths only.
 				 */
 				"/get-session": { window: authEnv.AUTH_RATE_LIMIT_WINDOW, max: 500 },
+				"/request-password-reset": {
+					window: authEnv.AUTH_RATE_LIMIT_WINDOW,
+					max: authEnv.AUTH_RATE_LIMIT_MAX,
+				},
+				"/send-verification-email": {
+					window: authEnv.AUTH_RATE_LIMIT_WINDOW,
+					max: authEnv.AUTH_RATE_LIMIT_MAX,
+				},
+				"/forget-password": {
+					window: authEnv.AUTH_RATE_LIMIT_WINDOW,
+					max: authEnv.AUTH_RATE_LIMIT_MAX,
+				},
+				"/forget-password/*": {
+					window: authEnv.AUTH_RATE_LIMIT_WINDOW,
+					max: authEnv.AUTH_RATE_LIMIT_MAX,
+				},
 			},
 		},
 		emailVerification: {
@@ -319,6 +376,10 @@ export function createAuth(): ReturnType<typeof betterAuth> {
 			 * from both directions: the page cannot be framed, and even if it
 			 * were, the cookie would not ride a cross-site subrequest.
 			 */
+			// Leave forwarded-host selection off. The node adapter already builds
+			// the request URL from the Host header; trusting x-forwarded-host on
+			// top of the dynamic base URL would accept a client-supplied host.
+			trustedProxyHeaders: false,
 			defaultCookieAttributes: {
 				httpOnly: true,
 				sameSite: "lax",
@@ -353,7 +414,9 @@ export function createAuth(): ReturnType<typeof betterAuth> {
  *
  * Lazy initialization to ensure environment variables are loaded before creating the instance.
  */
-let _auth: ReturnType<typeof betterAuth> | null = null
+type AuthInstance = ReturnType<typeof createAuth>
+
+let _auth: AuthInstance | null = null
 
 /**
  * Clear the cached auth instance. Call this when configuration changes.
@@ -362,7 +425,7 @@ export function clearAuthCache(): void {
 	_auth = null
 }
 
-export function getAuth(): ReturnType<typeof betterAuth> {
+export function getAuth(): AuthInstance {
 	if (!_auth) {
 		_auth = createAuth()
 	}

@@ -1,4 +1,4 @@
-import type nodemailer from "nodemailer"
+import type { Transporter } from "nodemailer"
 
 /**
  * A fully-rendered email message ready to send.
@@ -23,7 +23,7 @@ export type MailMessage = {
  * caller, which sanitizes them before they reach a client.
  */
 export async function sendMail(
-	transporter: nodemailer.Transporter,
+	transporter: Transporter,
 	from: string,
 	message: MailMessage
 ): Promise<void> {

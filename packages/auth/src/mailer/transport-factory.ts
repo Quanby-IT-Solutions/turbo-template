@@ -1,4 +1,4 @@
-import nodemailer from "nodemailer"
+import nodemailer, { type Transporter } from "nodemailer"
 
 /**
  * SMTP configuration fields used to build a mail transport.
@@ -43,7 +43,7 @@ export class MissingSmtpConfigError extends Error {
  * - Otherwise a dev transport (`jsonTransport`) is returned. It serialises the
  *   message to JSON without any network call, so it never throws.
  */
-export function createTransport(opts: MailTransportOptions): nodemailer.Transporter {
+export function createTransport(opts: MailTransportOptions): Transporter {
 	if (opts.smtpHost) {
 		return nodemailer.createTransport({
 			host: opts.smtpHost,

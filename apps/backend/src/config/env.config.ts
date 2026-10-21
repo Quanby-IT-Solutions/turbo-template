@@ -69,7 +69,7 @@ export const env = createEnv({
 		SENTRY_ENVIRONMENT: z.string().optional(),
 		/** 0 = errors only. Tracing costs quota, so it is opt-in per environment. */
 		SENTRY_TRACES_SAMPLE_RATE: z.coerce.number().min(0).max(1).optional().default(0),
-		/** Deploy image tag, injected by the compose/ECS task definition; reported as the Sentry release. */
+		/** Deploy image tag, injected by the deploy compose file / env; reported as the Sentry release. */
 		IMAGE_TAG: z.string().optional(),
 
 		// Database

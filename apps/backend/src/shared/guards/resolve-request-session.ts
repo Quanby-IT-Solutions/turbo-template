@@ -33,10 +33,12 @@ export interface RequestWithSession {
 /**
  * Resolve the verified session for this request, at most once.
  *
- * A previous guard may already have stored the answer. When `sessionResolved`
- * is set, that stored session is returned — including a null session — and
- * `getSession` is not called again. A thrown lookup is not recorded, so a
- * later guard can try again.
+ * A session object already on the request is not trusted unless this helper
+ * resolved it. The only stored answer is `sessionResolved`, which this helper
+ * sets after `getSession` (including a null answer). When that flag is set,
+ * the stored session is returned and `getSession` is not called again.
+ * Otherwise this function calls `getSession` and stores that result. A thrown
+ * lookup is not recorded, so a later guard can try again.
  */
 export async function resolveRequestSession(
 	request: RequestWithSession
@@ -46,12 +48,6 @@ export async function resolveRequestSession(
 		request.session = session
 		request.user = session?.user ?? null
 		return session
-	}
-
-	if (request.session?.user?.id) {
-		request.sessionResolved = true
-		request.user = request.session.user
-		return request.session
 	}
 
 	const session = (await getAuth().api.getSession({

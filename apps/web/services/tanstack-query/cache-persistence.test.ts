@@ -44,8 +44,12 @@ const {
 } = await import("./cache-persistence")
 
 const { getQueryClient } = await import("./query-client")
-const { markPersistedCacheRestored, markPersistedCacheRestoring } =
-	await import("./persisted-cache-restore")
+const {
+	PERSISTED_CACHE_RESTORE_WARN_MS,
+	isPersistedCacheRestoring,
+	markPersistedCacheRestored,
+	markPersistedCacheRestoring,
+} = await import("./persisted-cache-restore")
 
 const { del, get, set } = await import("idb-keyval")
 
@@ -282,6 +286,29 @@ describe("flushPersistedQueryCache", () => {
 		expect(written).not.toBe(stored)
 		expect(written).toContain("empty client")
 		expect(written).not.toContain("offline edit")
+	})
+
+	it("does not write when an indexedDB read never resolves", async () => {
+		vi.useFakeTimers()
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {})
+		const read = vi.mocked(get)
+		const originalRead = read.getMockImplementation()
+		read.mockImplementation(() => new Promise(() => {}))
+		try {
+			markPersistedCacheRestoring()
+			await vi.advanceTimersByTimeAsync(PERSISTED_CACHE_RESTORE_WARN_MS)
+
+			await flushPersistedQueryCache()
+
+			expect(set).not.toHaveBeenCalled()
+			expect(isPersistedCacheRestoring()).toBe(true)
+			expect(warn).toHaveBeenCalledTimes(1)
+		} finally {
+			if (originalRead) read.mockImplementation(originalRead)
+			markPersistedCacheRestored()
+			warn.mockRestore()
+			vi.useRealTimers()
+		}
 	})
 
 	it("swallows a storage failure without logging", async () => {

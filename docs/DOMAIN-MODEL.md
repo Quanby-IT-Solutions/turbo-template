@@ -28,13 +28,36 @@ Enforcement chain: `@thallesp/nestjs-better-auth` global `AuthGuard` (session re
 
 ## Trust chains (the two spines most tickets touch)
 
-**Client-IP chain (AB-1, AB-2 — Risky Flow 2):**
+**Client-IP chain (AB-1, AB-2):**
+
+Local / dev — nginx sets the header, `TRUST_PROXY=1`:
 ```
-client → Nginx (proxy_set_header X-Forwarded-For $remote_addr;  ← overwrite, not append)
+client → nginx (proxy_set_header X-Forwarded-For $remote_addr;  ← set, not append)
        → Express (trust proxy configured for exactly one hop)
        → ThrottlerProxyGuard (rightmost-untrusted entry of req.ips)
-       → Redis throttle store (shared across ASG instances, AB-2)
+       → Redis throttle store (shared across instances, AB-2)
 ```
+
+Production — the load balancer appends, `TRUST_PROXY=1`:
+```
+client → load balancer (appends the address it saw onto X-Forwarded-For)
+       → Express (one trusted hop, so the rightmost entry is the one the load balancer added)
+       → ThrottlerProxyGuard (same rightmost-untrusted entry)
+       → Redis throttle store (shared across instances, AB-2)
+```
+
+Staging in this repo is EC2 plus an Elastic IP. The workflow probes the host
+on ports 3000 and 3001. Any load balancer is managed outside this repo.
+`BACKEND_BIND_ADDRESS` must stay unset while that probe hits the host address.
+
+The deployed backend port is `${BACKEND_BIND_ADDRESS:-0.0.0.0}:3000:3000`.
+On production, the variable is the instance private IPv4, set outside this
+repo. On EC2 the Elastic IP is translated 1:1 to the private IPv4, so binding
+to the private address only limits the host-side publish to that one
+interface. Direct access must be blocked by a security group that allows port 3000
+only from the load balancer's security group, and that group is managed
+outside this repo. The default `0.0.0.0` keeps the port published when the
+variable is unset. The in-repo health check is `GET /api/v1/health`.
 
 **Identity/cache chain (WC-1, WC-3, MB-1 — Risky Flow 1):**
 ```

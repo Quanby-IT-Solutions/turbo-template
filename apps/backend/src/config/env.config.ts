@@ -32,17 +32,15 @@ export const env = createEnv({
 
 		// Proxy trust: the number of trusted reverse-proxy hops in front of the app.
 		//
-		// Risky Flow RF2 (client-IP trust chain). This value MUST match the real
-		// topology and stay in lockstep with nginx.conf:
-		//   1 = the shipped single-Nginx setup, where Nginx *overwrites*
-		//       X-Forwarded-For with $remote_addr, so Express keeps exactly the
-		//       proxy-authored entry and ThrottlerProxyGuard keys on a value no
-		//       client can influence.
-		//   0 = backend directly internet-exposed — X-Forwarded-For is ignored
-		//       entirely and the socket peer is used.
-		// Setting this HIGHER than the real hop count re-opens F-02: Express would
-		// retain client-written entries and a caller could mint a fresh rate-limit
-		// bucket per request.
+		// This value MUST equal the real hop count (see DOMAIN-MODEL.md):
+		//   1 = one hop. Local / dev: nginx sets X-Forwarded-For to $remote_addr
+		//       (overwrite, not append). Production: the load balancer appends the
+		//       address it saw, and Express keeps that rightmost entry.
+		//       ThrottlerProxyGuard keys on that rightmost entry. Raising this
+		//       value alone does not move the guard's key; an extra hop needs
+		//       TRUST_PROXY and getTracker updated together. Staging in this repo
+		//       is EC2 plus an Elastic IP; any load balancer there is outside it.
+		//   0 = no trusted hop. X-Forwarded-For is ignored and the socket peer is used.
 		TRUST_PROXY: z.coerce.number().int().min(0).default(1),
 
 		// Security headers (ED-1). HSTS is a promise the browser remembers, so it

@@ -1,16 +1,30 @@
 # ==========================================================
-# STAGING DEPLOYMENT - EC2 behind ALB
+# STAGING DEPLOYMENT - EC2 + Elastic IP
 # ==========================================================
 # Runs web (port 3001) and backend (port 3000) containers.
-# ALB handles subdomain routing + SSL termination.
-# Containers bind to 0.0.0.0 so ALB health checks can reach them.
+# deploy-staging.yml is EC2 plus an Elastic IP. It copies this file to
+# the instance and probes $STG_EC2_HOST:3000 and :3001 from the runner.
+# This repo does not describe a staging load balancer. Any load balancer
+# is managed outside this repo. Nginx is the local / dev proxy only and
+# is not part of this file. TRUST_PROXY=1 stays the one-hop setting.
 #
-# Each app gets its own subdomain via ALB host-header rules:
+# Backend publish address: ${BACKEND_BIND_ADDRESS:-0.0.0.0}:3000:3000.
+# BACKEND_BIND_ADDRESS must stay unset on staging while that probe hits
+# the host address. Unset, the default stays 0.0.0.0. The private-address
+# bind and the security-group rule that keeps port 3000 load-balancer-only
+# are production guidance (see docker-compose.production.yml); staging's
+# reachability is not defined in this repo.
+# Do not bind this port to 127.0.0.1 and do not drop the host mapping.
+# Web stays on 0.0.0.0:3001. The web container reaches the backend over
+# the compose network (INTERNAL_API_BASE_URL=http://backend:3000/api).
+#
+# Recorded host names for this environment:
 #   - stg-turbo.quanbyit.com      → web:3001
 #   - stg-turbo-be.quanbyit.com   → backend:3000
 #
-# This file is stored in SSM Parameter Store (base64) and
-# pulled by EC2 instances on boot via the deploy script.
+# The staging deploy workflow copies this file to the instance
+# (/opt/staging/docker-compose.yml) and writes /opt/staging/.env.
+# That env payload does not set BACKEND_BIND_ADDRESS.
 # ==========================================================
 
 services:
@@ -41,7 +55,7 @@ services:
     image: ${ECR_REGISTRY}/${ECR_REPOSITORY_BACKEND}:${IMAGE_TAG:-latest}
     container_name: staging-backend
     ports:
-      - "0.0.0.0:3000:3000"
+      - "${BACKEND_BIND_ADDRESS:-0.0.0.0}:3000:3000"
     environment:
       - NODE_ENV=production
       - PORT=3000

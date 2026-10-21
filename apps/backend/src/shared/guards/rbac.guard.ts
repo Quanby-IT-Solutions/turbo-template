@@ -7,14 +7,14 @@ import {
 	type ExecutionContext,
 } from "@nestjs/common"
 import { Reflector } from "@nestjs/core"
-import type { IncomingHttpHeaders } from "http"
-import { fromNodeHeaders } from "better-auth/node"
-
-import { getAuth } from "@repo/auth"
 
 import { RbacService } from "@/common/rbac/rbac.service"
 import { env } from "@/config/env.config"
 import { REQUIRED_PERMISSIONS_KEY } from "@/shared/decorators/require-permissions.decorator"
+import {
+	resolveRequestSession,
+	type RequestWithSession,
+} from "@/shared/guards/resolve-request-session"
 
 @Injectable()
 export class RbacGuard implements CanActivate {
@@ -80,27 +80,16 @@ export class RbacGuard implements CanActivate {
 		// Fallback path: request.user?.id — documented direct user reference, tried
 		// only if the session object is absent. Defensive hardening against request
 		// shape variation across library versions.
-		const request = context.switchToHttp().getRequest<{
-			headers: IncomingHttpHeaders
-			session?: { user?: { id?: string } }
-			user?: { id?: string }
-		}>()
+		const request = context.switchToHttp().getRequest<RequestWithSession>()
 		let userId: string | undefined = request.session?.user?.id ?? request.user?.id
 
-		// The library's AuthGuard (@thallesp/nestjs-better-auth) attaches
-		// request.session in its own canActivate. Global guard execution order is
-		// not guaranteed, so RbacGuard may run BEFORE it and see no session. When
-		// that happens, resolve the session directly from the request headers (the
-		// same mechanism the library uses) and attach it for downstream consumers.
-		if (!userId) {
-			const session = await getAuth().api.getSession({
-				headers: fromNodeHeaders(request.headers),
-			})
-			if (session) {
-				request.session = session
-				request.user = session.user
-				userId = session.user?.id
-			}
+		// ThrottlerProxyGuard runs first and records a definitive answer on
+		// `sessionResolved`, including "no session". A user id already present
+		// on the request is trusted the same way as before. Otherwise this guard
+		// performs the single shared lookup.
+		if (!userId && !request.sessionResolved) {
+			const session = await resolveRequestSession(request)
+			userId = session?.user?.id
 		}
 
 		// Fail closed: a protected route without a resolvable session is rejected.

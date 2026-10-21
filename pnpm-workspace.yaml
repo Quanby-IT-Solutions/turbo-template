@@ -68,6 +68,7 @@ overrides:
   "@types/react-dom": 19.2.3
   "argparse@>=1 <2>sprintf-js": "-"
   "gel": "-"
+  "@graphql-tools/utils@<12.0.1": ">=12.0.1 <13"
   "handlebars@<4.7.10": ">=4.7.10 <5"
   "mssql": "-"
   "proxy-addr@<2.0.8": ">=2.0.8 <3"

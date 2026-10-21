@@ -31,12 +31,12 @@ export class RbacGuard implements CanActivate {
 
 	/**
 	 * Record a permission denial so every rejected privileged read/write is
-	 * attributable (AZ-1 acceptance: "the denial is auditable").
+	 * attributable (acceptance: "the denial is auditable").
 	 *
-	 * Deliberately generic — actor / action / target / outcome — so AZ-4's
+	 * Deliberately generic — actor / action / target / outcome — so the
 	 * append-only `audit_log` helper can adopt this call site without changing
 	 * the shape. Logs the handler identity rather than `req.url`: the URL can
-	 * carry token-bearing query parameters (see LG-1).
+	 * carry token-bearing query parameters.
 	 */
 	private auditDenial(
 		context: ExecutionContext,
@@ -66,31 +66,12 @@ export class RbacGuard implements CanActivate {
 			return true
 		}
 
-		// Resolve the authenticated user id from the request.
-		//
-		// Per the @thallesp/nestjs-better-auth v2.2.0 README ("Request Object
-		// Access"), the library's authentication middleware attaches TWO things
-		// to the raw request after a session is resolved:
-		//   - request.session → the full UserSession ({ user: { id, ... }, session: { ... } })
-		//   - request.user    → a direct reference to request.session.user
-		//
-		// Primary path: request.session?.user?.id — this is the verified shape the
-		// @Session() decorator reads in controllers (e.g. todos.controller.ts), so it
-		// is the source of truth.
-		// Fallback path: request.user?.id — documented direct user reference, tried
-		// only if the session object is absent. Defensive hardening against request
-		// shape variation across library versions.
+		// The user id comes only from the shared verified lookup. When the
+		// throttler already resolved this request, that lookup is reused. The
+		// helper sets request.session and request.user for later readers.
 		const request = context.switchToHttp().getRequest<RequestWithSession>()
-		let userId: string | undefined = request.session?.user?.id ?? request.user?.id
-
-		// ThrottlerProxyGuard runs first and records a definitive answer on
-		// `sessionResolved`, including "no session". A user id already present
-		// on the request is trusted the same way as before. Otherwise this guard
-		// performs the single shared lookup.
-		if (!userId && !request.sessionResolved) {
-			const session = await resolveRequestSession(request)
-			userId = session?.user?.id
-		}
+		const session = await resolveRequestSession(request)
+		const userId = session?.user?.id
 
 		// Fail closed: a protected route without a resolvable session is rejected.
 		if (!userId) {

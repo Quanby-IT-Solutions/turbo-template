@@ -28,11 +28,11 @@ import { resolveRequestSession, type RequestWithSession } from "./resolve-reques
  * app calls this process directly for server-rendered pages, so those calls
  * share one address. An address key would put every signed-in user in the same
  * bucket. The id comes from Better Auth `getSession`, the same check
- * `RbacGuard` uses — never from a raw cookie or header. The result is stored
- * on `request.session` (and `request.sessionResolved`) so `RbacGuard` and
- * `SessionAuthGuard` reuse it. The lookup happens once per request even when
- * more than one named throttler asks for a tracker. If that lookup throws,
- * the address key is used and this guard does not fail the request.
+ * `RbacGuard` uses — never from a raw cookie or header. The helper records
+ * the answer for this request so later guards reuse it. The lookup happens
+ * once per request even when more than one named throttler asks for a tracker.
+ * If that lookup throws, the address key is used and this guard does not fail
+ * the request.
  *
  * ## Trust chain (see DOMAIN-MODEL.md)
  *

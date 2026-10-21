@@ -36,6 +36,7 @@ openssl rand -base64 32
 # placeholders, not a working credential.
 
 # Push the schema, then seed the admin, roles, and sample data
+# Non-interactive db:push applies only changes that need no confirmation; run it in a terminal to answer prompts.
 pnpm db:push
 pnpm db:seed
 

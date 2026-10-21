@@ -314,7 +314,7 @@ stored. If the database was seeded with a different or random password, set
 | `pnpm lint`                        | Run ESLint                                                                  |
 | `pnpm typecheck`                   | Run TypeScript checks                                                       |
 | `pnpm format:fix`                  | Format code with Prettier                                                   |
-| `pnpm db:push`                     | Push schema to database                                                     |
+| `pnpm db:push`                     | Push schema to database (may prompt; needs an interactive terminal to answer prompts, non-interactive runs apply only changes that need no confirmation) |
 | `pnpm db:seed`                     | Seed local roles, users, and sample data (`SEED_ADMIN_PASSWORD` in `packages/db/.env`) |
 | `pnpm -F @repo/backend test:e2e`   | Run backend e2e against the seeded database                                 |
 | `pnpm db:studio`                   | Open Drizzle Studio                                                         |

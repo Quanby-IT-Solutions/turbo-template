@@ -35,7 +35,7 @@ const user = await db.query.users.findFirst({ where: eq(users.id, "123") })
 
 | Command            | Description             |
 | ------------------ | ----------------------- |
-| `pnpm db:push`     | Push schema to database |
+| `pnpm db:push`     | Push schema to database (may prompt; needs an interactive terminal to answer prompts, non-interactive runs apply only changes that need no confirmation) |
 | `pnpm db:studio`   | Open Drizzle Studio     |
 | `pnpm db:generate` | Generate migrations     |
 | `pnpm db:migrate`  | Run migrations          |

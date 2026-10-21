@@ -44,7 +44,7 @@ pnpm -F @repo/backend dev        # watch
 pnpm -F @repo/backend test       # jest
 pnpm -F @repo/backend lint
 pnpm -F @repo/backend typecheck
-pnpm -F @repo/db db:push         # push schema in dev
+pnpm db:push                     # push schema in dev
 ```
 
 ## Related

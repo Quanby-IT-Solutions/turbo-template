@@ -27,4 +27,4 @@ export const {{table-name}} = createTable(
 
 // 1. Add `{{table-name}}` to defineRelations(...) with an `author` r.one.users(...).
 // 2. Add `{{table-name}}` to the exported `schema` object.
-// 3. pnpm -F @repo/db db:push (dev) or db:generate + db:migrate (prod).
+// 3. pnpm db:push (dev) or pnpm db:generate + pnpm db:migrate (prod).

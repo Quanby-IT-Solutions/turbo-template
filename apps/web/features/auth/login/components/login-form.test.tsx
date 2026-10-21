@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { render, screen, waitFor } from "@testing-library/react"
+import { render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -51,21 +51,27 @@ describe("LoginForm sign-in errors", () => {
 		signInEmail.mockResolvedValue({
 			error: { message: "Invalid email or password", status: 401 },
 		})
+		// jsdom does not dispatch PromiseRejectionEvent on window. Node emits
+		// process "unhandledRejection" for the same failure, which is what a
+		// missing try/catch in onSubmit actually produces.
 		const rejections: unknown[] = []
-		const onRejection = (event: PromiseRejectionEvent) => {
-			rejections.push(event.reason)
-			event.preventDefault()
+		const onRejection = (reason: unknown) => {
+			rejections.push(reason)
 		}
-		window.addEventListener("unhandledrejection", onRejection)
+		process.on("unhandledRejection", onRejection)
 
-		renderForm()
-		await submitCredentials()
+		try {
+			renderForm()
+			await submitCredentials()
 
-		const banner = await screen.findByTestId("login-error")
-		expect(banner).toHaveAttribute("role", "alert")
-		expect(banner).toHaveTextContent("Invalid email or password")
-		await waitFor(() => expect(rejections).toEqual([]))
-		window.removeEventListener("unhandledrejection", onRejection)
+			const banner = await screen.findByTestId("login-error")
+			expect(banner).toHaveAttribute("role", "alert")
+			expect(banner).toHaveTextContent("Invalid email or password")
+			await new Promise(resolve => setTimeout(resolve, 0))
+			expect(rejections).toEqual([])
+		} finally {
+			process.off("unhandledRejection", onRejection)
+		}
 	})
 
 	it("shows the unverified banner with resend, not the generic error", async () => {

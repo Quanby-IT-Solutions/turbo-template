@@ -40,7 +40,7 @@
 		"@repo/contracts": "workspace:*",
 		"@repo/db": "workspace:*",
 		"@repo/observability": "workspace:*",
-		"@scalar/nestjs-api-reference": "^1.0.13",
+		"@scalar/nestjs-api-reference": "1.0.17",
 		"@sentry/nestjs": "catalog:",
 		"@t3-oss/env-core": "catalog:",
 		"@thallesp/nestjs-better-auth": "2.5.4",

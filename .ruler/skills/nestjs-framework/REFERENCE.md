@@ -118,9 +118,10 @@ Two named limiters: `default` (all routes) and `strict` (opt-in via
 when `REDIS_URL` set, wrapped in `ResilientThrottlerStorage` (fail-OPEN).
 
 `ThrottlerProxyGuard` overrides `getTracker` to key on the **rightmost-untrusted**
-IP (`req.ips[req.ips.length - 1] ?? req.ip`) — the peer the trusted proxy accepted,
-which a client cannot forge. Sound only while `nginx.conf` SETS `X-Forwarded-For`
-and `TRUST_PROXY` equals the real hop count (RF2). See security-hardening.
+IP (`req.ips[req.ips.length - 1] ?? req.ip`) — the peer the trusted proxy accepted.
+Sound only while `nginx.conf` SETS `X-Forwarded-For` from the connection address
+and `TRUST_PROXY` equals the real hop count. Change the tracker and the hop count
+together. See security-hardening.
 
 ## IdempotencyInterceptor (`shared/interceptors/idempotency.interceptor.ts`)
 
@@ -172,4 +173,4 @@ sessions — each has an `expires_at` index so the sweep is not a seq-scan.
 - ❌ `throw new NotFoundException()` inside a handler — ✅ `throw new ORPCError("NOT_FOUND", ...)`
 - ❌ `console.*` — ✅ injected pino `Logger`
 - ❌ `nest g` — ✅ hand-write from templates; `pnpm -F @repo/backend ...`
-- ❌ ownership by fetch-then-compare — ✅ scope in the `where` clause (TOCTOU/existence leak)
+- ❌ ownership by fetch-then-compare — ✅ scope in the `where` clause (a check-then-write race and an existence leak)

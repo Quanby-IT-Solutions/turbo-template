@@ -138,7 +138,7 @@ logger; `LoggerModule` runs with `autoLogging: false` to avoid double lines).
   via `sanitizeLogUrl` / `sanitizeLogQuery`.
 - **Request-id correlation:** `genReqId` reuses an existing `req.id`, else honours
   a sanitized inbound `X-Request-Id` (`sanitizeRequestId`: allowlist charset, max
-  64 chars — a newline/control char would forge log lines), else a fresh UUID.
+  64 chars; a newline or control character is rejected), else a fresh UUID.
   The id is echoed back on the `X-Request-Id` response header.
 
 ## Frontend Error Handling

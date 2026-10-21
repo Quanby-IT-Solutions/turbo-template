@@ -11,9 +11,9 @@ import { resolveRequestSession, type RequestWithSession } from "./resolve-reques
  *
  * Express orders `req.ips` **upstream-most → downstream-most**, i.e. exactly as
  * the `X-Forwarded-For` header reads left-to-right. The leftmost entry is the
- * one furthest from us and therefore the one a client can write itself — keying
- * the throttler on it lets any caller mint a fresh rate-limit bucket per request
- * simply by varying a header.
+ * one furthest from us. This guard does not key on it. Set the header from the
+ * connection address, keep `TRUST_PROXY` equal to the hop count, and change the
+ * tracker and the hop count together so keys stay per client.
  *
  * ## What this guard keys on
  *

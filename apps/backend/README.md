@@ -128,7 +128,7 @@ Why this flow: it ensures dependent workspace packages are built before backend 
 
 | Variable          | Required | Default            | Description                                            |
 | ----------------- | -------- | ------------------ | ----------------------------------------------------- |
-| `ENABLE_API_DOCS` | No       | on in dev, off prod | Force docs on/off; overrides the env-aware default    |
+| `ENABLE_API_DOCS` | No       | on in development (unset NODE_ENV counts as development); off otherwise | Shared with `@repo/auth`. Explicit true/false or 1/0 wins |
 
 ### Email / SMTP
 
@@ -177,10 +177,10 @@ See `.env.example` for reference.
 
 ### API Docs (Scalar)
 
-- Interactive Scalar UI at `/api/v1/docs`, raw OpenAPI spec at `/api/v1/spec.json`, Better Auth schema at `/api/v1/auth/open-api`.
-- **Default behaviour:** docs are **on** in `NODE_ENV=development`, **off** in production.
-- Override with `ENABLE_API_DOCS=true` (enable in prod) or `ENABLE_API_DOCS=false` (disable in dev).
-- When disabled, all three endpoints return 404 / are not registered — no spec exposure in production unless explicitly opted in.
+- Interactive Scalar UI at `/api/v1/docs`, raw OpenAPI spec at `/api/v1/spec.json`, Better Auth schema at `/api/v1/auth/open-api`, and the Better Auth reference at `/api/v1/auth/reference`.
+- **Default behaviour:** docs and the auth reference follow one rule, shared with `@repo/auth`: **on** when `NODE_ENV` is `development` or unset, **off** in test and production. Whenever docs are on, the spec includes the `/v1/auth/*` paths.
+- Override with `ENABLE_API_DOCS=true` (enable in any environment) or `ENABLE_API_DOCS=false` (disable in any environment).
+- When disabled, `/api/v1/docs`, `/api/v1/spec.json`, `/api/v1/auth/open-api`, and `/api/v1/auth/reference` are not served.
 
 ## API Endpoints
 

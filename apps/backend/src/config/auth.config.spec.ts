@@ -9,7 +9,9 @@ const authHandler = jest.fn((_req: unknown, res: { end: (body: string) => void }
 	res.end("better-auth")
 })
 
-const generateBetterAuthSchema = jest.fn(async () => ({ openapi: "3.0.0" }))
+const generateBetterAuthSchema = jest.fn(
+	async (): Promise<{ openapi: string } | null> => ({ openapi: "3.0.0" })
+)
 
 jest.mock("better-auth/node", () => ({
 	toNodeHandler: () => authHandler,
@@ -52,7 +54,12 @@ function makeServer() {
 
 async function dispatch(server: ReturnType<typeof makeServer>, method: string, url: string) {
 	let body: unknown
+	let statusCode: number | undefined
 	const res = {
+		status(code: number) {
+			statusCode = code
+			return this
+		},
 		json: (b: Record<string, unknown>) => {
 			body = b
 		},
@@ -64,7 +71,7 @@ async function dispatch(server: ReturnType<typeof makeServer>, method: string, u
 	for (const layer of server.stack) {
 		if (layer.type === "get" && method === "GET" && url === layer.path) {
 			await layer.handler({ url }, res)
-			return { handledBy: "route" as const, body }
+			return { handledBy: "route" as const, body, statusCode }
 		}
 
 		if (layer.type === "use") {
@@ -73,12 +80,12 @@ async function dispatch(server: ReturnType<typeof makeServer>, method: string, u
 				calledNext = true
 			})
 			if (!calledNext) {
-				return { handledBy: "middleware" as const, body }
+				return { handledBy: "middleware" as const, body, statusCode }
 			}
 		}
 	}
 
-	return { handledBy: "none" as const, body }
+	return { handledBy: "none" as const, body, statusCode }
 }
 
 function appWith(server: ReturnType<typeof makeServer>): INestApplication {
@@ -115,6 +122,19 @@ describe("setupBetterAuth open-api gating", () => {
 		expect(getIndex).toBeGreaterThanOrEqual(0)
 		expect(useIndex).toBeGreaterThanOrEqual(0)
 		expect(getIndex).toBeLessThan(useIndex)
+	})
+
+	it("returns 404 when generateBetterAuthSchema is null", async () => {
+		generateBetterAuthSchema.mockResolvedValueOnce(null)
+		const server = makeServer()
+		setupBetterAuth(appWith(server), true)
+
+		const result = await dispatch(server, "GET", "/api/v1/auth/open-api")
+
+		expect(result.handledBy).toBe("route")
+		expect(result.statusCode).toBe(404)
+		expect(result.body).toEqual({ statusCode: 404, message: "Not Found" })
+		expect(authHandler).not.toHaveBeenCalled()
 	})
 
 	it("does not serve /api/v1/auth/open-api when enableApiDocs is false", async () => {

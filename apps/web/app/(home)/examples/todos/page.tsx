@@ -8,7 +8,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/core/components/ui/card"
-import { getSession } from "@/services/better-auth/auth-server"
+import { getSession, SessionUnavailableError } from "@/services/better-auth/auth-server"
 
 const instructions = [
 	{
@@ -26,9 +26,16 @@ const instructions = [
 ]
 
 export default async function TodosExamplePage() {
-	const session = await getSession()
+	let session = null
+	let unavailable = false
+	try {
+		session = await getSession()
+	} catch (error) {
+		if (!(error instanceof SessionUnavailableError)) throw error
+		unavailable = true
+	}
 
-	if (!session) {
+	if (!session && !unavailable) {
 		redirect("/login")
 	}
 

@@ -1,4 +1,5 @@
 import { cache } from "react"
+import { unstable_rethrow } from "next/navigation"
 import { type betterAuth } from "better-auth"
 
 import { getCookieHeader } from "@/core/lib/cookie-utils"
@@ -11,12 +12,27 @@ import { getServerAuthUrl } from "@/core/lib/server-utils"
 type AuthSession = ReturnType<typeof betterAuth>["$Infer"]["Session"]
 
 /**
- * Get current user session from backend.
+ * The server-side session read did not succeed and did not prove signed-out.
+ * Callers must not treat this as "no session".
+ */
+export class SessionUnavailableError extends Error {
+	readonly status: number | null
+	readonly retryAfter: string | null
+
+	constructor(status: number | null, retryAfter: string | null) {
+		super("Session read unavailable")
+		this.name = "SessionUnavailableError"
+		this.status = status
+		this.retryAfter = retryAfter
+	}
+}
+
+/**
+ * Read the current session from the backend.
  *
- * Proxies request to backend's /get-session endpoint with cookie forwarding.
- * Returns session data if authenticated, null otherwise.
- *
- * @returns Promise<AuthSession | null> - The session data or null
+ * A 2xx with a user is the session. A 2xx null body or a 401 is signed out.
+ * Anything else, including a network failure, throws {@link SessionUnavailableError}.
+ * There is no retry here.
  */
 export const getSession = cache(async (): Promise<AuthSession | null> => {
 	try {
@@ -30,12 +46,20 @@ export const getSession = cache(async (): Promise<AuthSession | null> => {
 			cache: "no-store",
 		})
 
-		if (!response.ok) {
+		if (response.status === 401) {
 			return null
 		}
 
-		return response.json()
-	} catch {
-		return null
+		if (!response.ok) {
+			throw new SessionUnavailableError(response.status, response.headers.get("x-retry-after"))
+		}
+
+		const body = (await response.json()) as AuthSession | null
+		return body ?? null
+	} catch (error) {
+		// A static render bails out by throwing. That is not a failed session read.
+		unstable_rethrow(error)
+		if (error instanceof SessionUnavailableError) throw error
+		throw new SessionUnavailableError(null, null)
 	}
 })

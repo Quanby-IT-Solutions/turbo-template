@@ -9,6 +9,7 @@ import {
 	resolveE2eAdminPassword,
 	resolveE2eUserPassword,
 } from "./e2e-env"
+import { pageShowsFailedSessionRead } from "./session-read-recovery"
 
 /**
  * Shared multi-user session fixtures for the security suite (HY-1 / F-54).
@@ -350,11 +351,13 @@ export function installSessionReadRecovery(page: Page): void {
 		}
 		// Protected routes redirect to /login when the session read fails.
 		// The login screen has a Login link; a real signed-in page has Logout.
+		// The error screen is the same failure once the app stops redirecting.
 		if (requestedPath !== "/login" && landed === "/login") return true
 
 		const logout = page.getByRole("button", { name: /logout/i })
 		const login = page.getByRole("link", { name: /^login$/i })
-		const which = await Promise.race([
+		const unavailable = page.getByTestId("session-unavailable")
+		const signal = await Promise.race([
 			logout
 				.waitFor({ state: "visible", timeout: 2_000 })
 				.then(() => "in" as const)
@@ -363,14 +366,23 @@ export function installSessionReadRecovery(page: Page): void {
 				.waitFor({ state: "visible", timeout: 2_000 })
 				.then(() => "out" as const)
 				.catch(() => "unknown" as const),
+			unavailable
+				.waitFor({ state: "visible", timeout: 2_000 })
+				.then(() => "limited" as const)
+				.catch(() => "unknown" as const),
 		])
-		return which === "out"
+		return pageShowsFailedSessionRead({
+			requestedPath,
+			landedPath: landed,
+			signal,
+		})
 	}
 
 	async function maybeRepeat<T>(
 		requestedPath: string,
 		response: T,
-		repeat: () => Promise<T>
+		repeat: () => Promise<T>,
+		requestedUrl: string
 	): Promise<T> {
 		if (tagged.__e2eSkipSessionRecovery) {
 			tagged.__e2eSkipSessionRecovery = false
@@ -384,9 +396,7 @@ export function installSessionReadRecovery(page: Page): void {
 		if (waitMs > 0) {
 			pushSessionReadCooldown(waitMs)
 			ensureHarnessTimeout(180_000)
-			console.log(
-				`[e2e] get-session 429; waiting ${waitMs}ms (before repeating ${requestedPath || page.url()})`
-			)
+			console.log(`[e2e] get-session 429; waiting ${waitMs}ms (before repeating ${requestedUrl})`)
 			await waitOutSessionReadCooldown()
 		}
 		return repeat()
@@ -401,19 +411,23 @@ export function installSessionReadRecovery(page: Page): void {
 			requestedPath = ""
 		}
 		const response = await goto(url, options)
-		return maybeRepeat(requestedPath, response, () => goto(url, options))
+		return maybeRepeat(requestedPath, response, () => goto(url, options), url)
 	}) as Page["goto"]
 
 	page.reload = (async (options?: Parameters<Page["reload"]>[0]) => {
 		await waitOutSessionReadCooldown()
 		let requestedPath = ""
+		let requestedUrl = ""
 		try {
-			requestedPath = new URL(page.url()).pathname
+			const current = new URL(page.url())
+			requestedPath = current.pathname
+			requestedUrl = current.pathname + current.search
 		} catch {
 			requestedPath = ""
+			requestedUrl = page.url()
 		}
 		const response = await reload(options)
-		return maybeRepeat(requestedPath, response, () => reload(options))
+		return maybeRepeat(requestedPath, response, () => reload(options), requestedUrl)
 	}) as Page["reload"]
 }
 

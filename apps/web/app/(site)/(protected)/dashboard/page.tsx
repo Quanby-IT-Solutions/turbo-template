@@ -10,6 +10,7 @@ export const metadata: Metadata = {
 }
 
 export default async function DashboardPage() {
+	// A failed read throws. The parent segment renders an error, not /login.
 	const session = await getSession()
 
 	if (!session) {

@@ -154,6 +154,9 @@ importers:
       '@nestjs/core':
         specifier: 'catalog:'
         version: 11.2.7(@nestjs/common@11.2.7(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/microservices@11.2.7)(@nestjs/platform-express@11.2.7)(@nestjs/websockets@11.1.11)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/graphql':
+        specifier: ^13.4.5
+        version: 13.4.5(@nestjs/common@11.2.7(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.2.7)(class-transformer@0.5.1)(class-validator@0.14.3)(graphql@16.12.0)(reflect-metadata@0.2.2)
       '@nestjs/microservices':
         specifier: ^11.2.7
         version: 11.2.7(@nestjs/common@11.2.7(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.2.7)(@nestjs/websockets@11.1.11)(ioredis@6.0.0)(reflect-metadata@0.2.2)(rxjs@7.8.2)
@@ -177,16 +180,16 @@ importers:
         version: 1.15.7(@opentelemetry/api@1.9.1)
       '@orpc/nest':
         specifier: 'catalog:'
-        version: 1.15.7(@nestjs/common@11.2.7(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.2.7)(@opentelemetry/api@1.9.1)(express@5.2.1)(rxjs@7.8.2)(ws@8.18.3)
+        version: 1.15.7(@nestjs/common@11.2.7(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.2.7)(@opentelemetry/api@1.9.1)(express@5.2.1)(rxjs@7.8.2)(ws@8.21.3)
       '@orpc/openapi':
         specifier: ^1.15.7
-        version: 1.15.7(@opentelemetry/api@1.9.1)(ws@8.18.3)
+        version: 1.15.7(@opentelemetry/api@1.9.1)(ws@8.21.3)
       '@orpc/server':
         specifier: ^1.15.7
-        version: 1.15.7(@opentelemetry/api@1.9.1)(ws@8.18.3)
+        version: 1.15.7(@opentelemetry/api@1.9.1)(ws@8.21.3)
       '@orpc/zod':
         specifier: ^1.15.7
-        version: 1.15.7(@opentelemetry/api@1.9.1)(@orpc/contract@1.15.7(@opentelemetry/api@1.9.1))(@orpc/server@1.15.7(@opentelemetry/api@1.9.1)(ws@8.18.3))(ws@8.18.3)(zod@4.3.5)
+        version: 1.15.7(@opentelemetry/api@1.9.1)(@orpc/contract@1.15.7(@opentelemetry/api@1.9.1))(@orpc/server@1.15.7(@opentelemetry/api@1.9.1)(ws@8.21.3))(ws@8.21.3)(zod@4.3.5)
       '@repo/auth':
         specifier: workspace:*
         version: link:../../packages/auth
@@ -210,7 +213,7 @@ importers:
         version: 0.13.10(typescript@5.9.3)(zod@4.3.5)
       '@thallesp/nestjs-better-auth':
         specifier: 2.5.4
-        version: 2.5.4(@nestjs/common@11.2.7(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.2.7)(@nestjs/graphql@13.2.3(@nestjs/common@11.2.7(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.2.7)(class-transformer@0.5.1)(class-validator@0.14.3)(graphql@16.12.0)(reflect-metadata@0.2.2))(@nestjs/websockets@11.1.11)(better-auth@1.6.22(@opentelemetry/api@1.9.1)(better-sqlite3@12.5.0)(drizzle-orm@1.0.0-beta.20(@opentelemetry/api@1.9.1)(@sinclair/typebox@0.34.41)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(pg@8.16.3)(zod@4.3.5))(next@16.3.8(@babel/core@7.28.4)(@opentelemetry/api@1.9.1)(@playwright/test@1.58.2)(@types/node@22.19.3)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(pg@8.16.3)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(vitest@4.1.2))(express@5.2.1)(graphql@16.12.0)(qs@6.14.1)(typescript@5.9.3)
+        version: 2.5.4(@nestjs/common@11.2.7(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.2.7)(@nestjs/graphql@13.4.5(@nestjs/common@11.2.7(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.2.7)(class-transformer@0.5.1)(class-validator@0.14.3)(graphql@16.12.0)(reflect-metadata@0.2.2))(@nestjs/websockets@11.1.11)(better-auth@1.6.22(@opentelemetry/api@1.9.1)(better-sqlite3@12.5.0)(drizzle-orm@1.0.0-beta.20(@opentelemetry/api@1.9.1)(@sinclair/typebox@0.34.41)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(pg@8.16.3)(zod@4.3.5))(next@16.3.8(@babel/core@7.28.4)(@opentelemetry/api@1.9.1)(@playwright/test@1.58.2)(@types/node@22.19.3)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(pg@8.16.3)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(vitest@4.1.2))(express@5.2.1)(graphql@16.12.0)(qs@6.14.1)(typescript@5.9.3)
       better-auth:
         specifier: 'catalog:'
         version: 1.6.22(@opentelemetry/api@1.9.1)(better-sqlite3@12.5.0)(drizzle-orm@1.0.0-beta.20(@opentelemetry/api@1.9.1)(@sinclair/typebox@0.34.41)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(pg@8.16.3)(zod@4.3.5))(next@16.3.8(@babel/core@7.28.4)(@opentelemetry/api@1.9.1)(@playwright/test@1.58.2)(@types/node@22.19.3)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(pg@8.16.3)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(vitest@4.1.2)
@@ -599,7 +602,7 @@ importers:
         version: 1.15.7(@opentelemetry/api@1.9.1)
       '@orpc/nest':
         specifier: 'catalog:'
-        version: 1.15.7(@nestjs/common@11.2.7(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.2.7)(@opentelemetry/api@1.9.1)(express@5.2.1)(rxjs@7.8.2)(ws@8.18.3)
+        version: 1.15.7(@nestjs/common@11.2.7(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.2.7)(@opentelemetry/api@1.9.1)(express@5.2.1)(rxjs@7.8.2)(ws@8.21.3)
       nestjs-zod:
         specifier: 'catalog:'
         version: 5.1.1(@nestjs/common@11.2.7(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/swagger@11.4.7(@nestjs/common@11.2.7(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.2.7)(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2))(rxjs@7.8.2)(zod@4.3.5)
@@ -1768,20 +1771,20 @@ packages:
   '@floating-ui/utils@0.2.10':
     resolution: {integrity: sha512-aGTxbpbg8/b5JfU1HXSrbH3wXZuLPJcNEcZQFMxLs3oSzgtVu6nFPkbbGGUvBcUjKV2YyB9Wxxabo+HEH9tcRQ==}
 
-  '@graphql-tools/merge@9.1.6':
-    resolution: {integrity: sha512-bTnP+4oom4nDjmkS3Ykbe+ljAp/RIiWP3R35COMmuucS24iQxGLa9Hn8VMkLIoaoPxgz6xk+dbC43jtkNsFoBw==}
+  '@graphql-tools/merge@9.2.3':
+    resolution: {integrity: sha512-cKRoXqJGy2zSRBLvotQpkACbXlHAb0yuHLN0l0ypKGCuL3NnF0zofYalkBJqiBxxxpK0lr3s9uowKFHCKi1/ZQ==}
     engines: {node: '>=16.0.0'}
     peerDependencies:
       graphql: ^14.0.0 || ^15.0.0 || ^16.0.0 || ^17.0.0
 
-  '@graphql-tools/schema@10.0.30':
-    resolution: {integrity: sha512-yPXU17uM/LR90t92yYQqn9mAJNOVZJc0nQtYeZyZeQZeQjwIGlTubvvoDL0fFVk+wZzs4YQOgds2NwSA4npodA==}
+  '@graphql-tools/schema@10.1.0':
+    resolution: {integrity: sha512-wao48XQnfY631s3jXoNrhEHvCI8mlKXmIuWrR7F6zAdv92VuSOfHoq9P9KL2EnUMgBUnaStnByOx9Mn6RieWDg==}
     engines: {node: '>=16.0.0'}
     peerDependencies:
       graphql: ^14.0.0 || ^15.0.0 || ^16.0.0 || ^17.0.0
 
-  '@graphql-tools/utils@10.11.0':
-    resolution: {integrity: sha512-iBFR9GXIs0gCD+yc3hoNswViL1O5josI33dUqiNStFI/MHLCEPduasceAcazRH77YONKNiviHBV8f7OgcT4o2Q==}
+  '@graphql-tools/utils@12.0.0':
+    resolution: {integrity: sha512-aMdIo/l+8j4lhamWAf+MWHr+lOW8zArSBKXspqtKHgt5I2JF9LS55KDLUe/L9AiJOV/O6qJJ60hgYydbnJHbxg==}
     engines: {node: '>=16.0.0'}
     peerDependencies:
       graphql: ^14.0.0 || ^15.0.0 || ^16.0.0 || ^17.0.0
@@ -2746,17 +2749,17 @@ packages:
       '@nestjs/websockets':
         optional: true
 
-  '@nestjs/graphql@13.2.3':
-    resolution: {integrity: sha512-hTsQtNB2v2NoMhWUlcnpLfWlhEgSmuBETf3B1GybULhxQ84uVQxJ9CjvDWl3gf+1UmRehkS4W9NkksP07v4BxA==}
+  '@nestjs/graphql@13.4.5':
+    resolution: {integrity: sha512-yfgH1ccLP6+PlnlJc+lq04VcAl7uHcocBOJCVrn95jARigxcWWYdyiGZckgt9jMqrFj3FQFnUMyzV7AvydmQtA==}
     peerDependencies:
       '@apollo/subgraph': ^2.9.3
       '@nestjs/common': ^11.0.1
       '@nestjs/core': ^11.0.1
       class-transformer: '*'
       class-validator: '*'
-      graphql: ^16.11.0
+      graphql: ^16.11.0 || ^17.0.0
       reflect-metadata: ^0.1.13 || ^0.2.0
-      ts-morph: ^20.0.0 || ^21.0.0 || ^24.0.0 || ^25.0.0 || ^26.0.0 || ^27.0.0
+      ts-morph: ^20.0.0 || ^21.0.0 || ^24.0.0 || ^25.0.0 || ^26.0.0 || ^27.0.0 || ^28.0.0
     peerDependenciesMeta:
       '@apollo/subgraph':
         optional: true
@@ -2765,19 +2768,6 @@ packages:
       class-validator:
         optional: true
       ts-morph:
-        optional: true
-
-  '@nestjs/mapped-types@2.1.0':
-    resolution: {integrity: sha512-W+n+rM69XsFdwORF11UqJahn4J3xi4g/ZEOlJNL6KoW5ygWSmBB2p0S2BZ4FQeS/NDH72e6xIcu35SfJnE8bXw==}
-    peerDependencies:
-      '@nestjs/common': ^10.0.0 || ^11.0.0
-      class-transformer: ^0.4.0 || ^0.5.0
-      class-validator: ^0.13.0 || ^0.14.0
-      reflect-metadata: ^0.1.12 || ^0.2.0
-    peerDependenciesMeta:
-      class-transformer:
-        optional: true
-      class-validator:
         optional: true
 
   '@nestjs/mapped-types@2.1.1':
@@ -6069,10 +6059,6 @@ packages:
     resolution: {integrity: sha512-kNFPyjhh5cKjrUltxs+wFx+ZkbRaxxmZ+X0ZU31SOsxCEtP9VPgtq2teZw1DebupL5GmDaNQ6yKMMVcM41iqDg==}
     engines: {node: '>=8.6.0'}
 
-  fast-glob@3.3.3:
-    resolution: {integrity: sha512-7MptL8U0cqcFdzIzwOTHoilX9x5BrNqye7Z/LuC7kCMRio1EMSyqRK3BEAUD7sXRq4iT4AzTVuZdhgQ2TCvYLg==}
-    engines: {node: '>=8.6.0'}
-
   fast-json-stable-stringify@2.1.0:
     resolution: {integrity: sha512-lhd/wF+Lk98HZoTCtlVraHtfh5XYijIjalXck7saUtuanSDyLMxnHhSXEDJqHxD7msR8D0uCmqlkwjCV8xvwHw==}
 
@@ -6331,21 +6317,18 @@ packages:
     peerDependencies:
       graphql: ^0.9.0 || ^0.10.0 || ^0.11.0 || ^0.12.0 || ^0.13.0 || ^14.0.0 || ^15.0.0 || ^16.0.0
 
-  graphql-ws@6.0.6:
-    resolution: {integrity: sha512-zgfER9s+ftkGKUZgc0xbx8T7/HMO4AV5/YuYiFc+AtgcO5T0v8AxYYNQ+ltzuzDZgNkYJaFspm5MMYLjQzrkmw==}
+  graphql-ws@6.2.1:
+    resolution: {integrity: sha512-NMbPNeTwXpUOxmczdMtzEnynLNbbR267E9hRcJ81SSbQeIvZup3cMjbD1ZT3jpS2xkpxooisitvO7LZNOyz17Q==}
     engines: {node: '>=20'}
     peerDependencies:
       '@fastify/websocket': ^10 || ^11
       crossws: ~0.3
-      graphql: ^15.10.1 || ^16
-      uWebSockets.js: ^20
+      graphql: ^15.10.1 || ^16 || ^17
       ws: ^8
     peerDependenciesMeta:
       '@fastify/websocket':
         optional: true
       crossws:
-        optional: true
-      uWebSockets.js:
         optional: true
       ws:
         optional: true
@@ -8651,6 +8634,10 @@ packages:
     resolution: {integrity: sha512-j2Zq4NyQYG5XMST4cbs02Ak8iJUdxRM0XI5QyxXuZOzKOINmWurp3smXu3y5wDcJrptwpSjgXHzIQxR0omXljQ==}
     engines: {node: '>=12.0.0'}
 
+  tinyglobby@0.2.17:
+    resolution: {integrity: sha512-wXR/dYpcqKmfWpEdZjiKJOwCNFndD0DMnrW/cYjVGttEkBfVgcLFHoNrlj47mjOVic9yyNu65alsgF4NQyTa2g==}
+    engines: {node: '>=12.0.0'}
+
   tinyrainbow@3.1.0:
     resolution: {integrity: sha512-Bf+ILmBgretUrdJxzXM0SgXLZ3XfiaUuOj/IKQHuTXip+05Xn+uyEYdVg0kYDipTBcLrCVyUzAPz7QmArb0mmw==}
     engines: {node: '>=14.0.0'}
@@ -9144,8 +9131,8 @@ packages:
     resolution: {integrity: sha512-+QU2zd6OTD8XWIJCbffaiQeH9U73qIqafo1x6V1snCWYGJf6cVE0cDR4D8xRzcEnfI21IFrUPzPGtcPf8AC+Rw==}
     engines: {node: ^14.17.0 || ^16.13.0 || >=18.0.0}
 
-  ws@7.5.10:
-    resolution: {integrity: sha512-+dbF1tHwZpXcbOJdVOkzLDxZP1ailvSxM6ZweXTegylPny803bFhA+vqBYw4s31NSAk4S2Qz+AKXK9a4wkdjcQ==}
+  ws@7.5.13:
+    resolution: {integrity: sha512-rsKI6xDBFVf4r/x8XyChGK04QR/XHroxs/jUcoWvtEZM8TPU/X/uIY9B1CsSzYws9ZJb/6bbBu7dPhFW00CAoA==}
     engines: {node: '>=8.3.0'}
     peerDependencies:
       bufferutil: ^4.0.1
@@ -9156,8 +9143,8 @@ packages:
       utf-8-validate:
         optional: true
 
-  ws@8.18.3:
-    resolution: {integrity: sha512-PEIGCY5tSlUt50cqyMXfCzX+oOPqN0vuGqWzbcJ2xvnkzkq46oOpz7dQaTDBdfICb4N14+GARUDw2XV2N4tvzg==}
+  ws@8.21.3:
+    resolution: {integrity: sha512-201TZ/kPWxoPr/OKWjquZR1SWKXcvxdH+e1xrx89b3YbmzLMFCLfnaG1HFIgWzJOEWZ7MvpK++odZufgYR50Rw==}
     engines: {node: '>=10.0.0'}
     peerDependencies:
       bufferutil: ^4.0.1
@@ -10010,34 +9997,30 @@ snapshots:
 
   '@floating-ui/utils@0.2.10': {}
 
-  '@graphql-tools/merge@9.1.6(graphql@16.12.0)':
+  '@graphql-tools/merge@9.2.3(graphql@16.12.0)':
     dependencies:
-      '@graphql-tools/utils': 10.11.0(graphql@16.12.0)
+      '@graphql-tools/utils': 12.0.0(graphql@16.12.0)
       graphql: 16.12.0
       tslib: 2.8.1
-    optional: true
 
-  '@graphql-tools/schema@10.0.30(graphql@16.12.0)':
+  '@graphql-tools/schema@10.1.0(graphql@16.12.0)':
     dependencies:
-      '@graphql-tools/merge': 9.1.6(graphql@16.12.0)
-      '@graphql-tools/utils': 10.11.0(graphql@16.12.0)
+      '@graphql-tools/merge': 9.2.3(graphql@16.12.0)
+      '@graphql-tools/utils': 12.0.0(graphql@16.12.0)
       graphql: 16.12.0
       tslib: 2.8.1
-    optional: true
 
-  '@graphql-tools/utils@10.11.0(graphql@16.12.0)':
+  '@graphql-tools/utils@12.0.0(graphql@16.12.0)':
     dependencies:
       '@graphql-typed-document-node/core': 3.2.0(graphql@16.12.0)
       '@whatwg-node/promise-helpers': 1.3.2
       cross-inspect: 1.0.1
       graphql: 16.12.0
       tslib: 2.8.1
-    optional: true
 
   '@graphql-typed-document-node/core@3.2.0(graphql@16.12.0)':
     dependencies:
       graphql: 16.12.0
-    optional: true
 
   '@hugeicons/core-free-icons@3.1.1': {}
 
@@ -11023,25 +11006,25 @@ snapshots:
       '@nestjs/platform-express': 11.2.7(@nestjs/common@11.2.7(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.2.7)
       '@nestjs/websockets': 11.1.11(@nestjs/common@11.2.7(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.2.7)(reflect-metadata@0.2.2)(rxjs@7.8.2)
 
-  '@nestjs/graphql@13.2.3(@nestjs/common@11.2.7(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.2.7)(class-transformer@0.5.1)(class-validator@0.14.3)(graphql@16.12.0)(reflect-metadata@0.2.2)':
+  '@nestjs/graphql@13.4.5(@nestjs/common@11.2.7(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.2.7)(class-transformer@0.5.1)(class-validator@0.14.3)(graphql@16.12.0)(reflect-metadata@0.2.2)':
     dependencies:
-      '@graphql-tools/merge': 9.1.6(graphql@16.12.0)
-      '@graphql-tools/schema': 10.0.30(graphql@16.12.0)
-      '@graphql-tools/utils': 10.11.0(graphql@16.12.0)
+      '@graphql-tools/merge': 9.2.3(graphql@16.12.0)
+      '@graphql-tools/schema': 10.1.0(graphql@16.12.0)
+      '@graphql-tools/utils': 12.0.0(graphql@16.12.0)
       '@nestjs/common': 11.2.7(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2)
       '@nestjs/core': 11.2.7(@nestjs/common@11.2.7(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/microservices@11.2.7)(@nestjs/platform-express@11.2.7)(@nestjs/websockets@11.1.11)(reflect-metadata@0.2.2)(rxjs@7.8.2)
-      '@nestjs/mapped-types': 2.1.0(@nestjs/common@11.2.7(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)
+      '@nestjs/mapped-types': 2.1.1(@nestjs/common@11.2.7(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)
       chokidar: 4.0.3
-      fast-glob: 3.3.3
       graphql: 16.12.0
       graphql-tag: 2.12.6(graphql@16.12.0)
-      graphql-ws: 6.0.6(graphql@16.12.0)(ws@8.18.3)
-      lodash: 4.17.21
+      graphql-ws: 6.2.1(graphql@16.12.0)(ws@8.21.3)
+      lodash: 4.18.1
       normalize-path: 3.0.0
       reflect-metadata: 0.2.2
       subscriptions-transport-ws: 0.11.0(graphql@16.12.0)
+      tinyglobby: 0.2.17
       tslib: 2.8.1
-      ws: 8.18.3
+      ws: 8.21.3
     optionalDependencies:
       class-transformer: 0.5.1
       class-validator: 0.14.3
@@ -11049,18 +11032,7 @@ snapshots:
       - '@fastify/websocket'
       - bufferutil
       - crossws
-      - uWebSockets.js
       - utf-8-validate
-    optional: true
-
-  '@nestjs/mapped-types@2.1.0(@nestjs/common@11.2.7(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)':
-    dependencies:
-      '@nestjs/common': 11.2.7(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2)
-      reflect-metadata: 0.2.2
-    optionalDependencies:
-      class-transformer: 0.5.1
-      class-validator: 0.14.3
-    optional: true
 
   '@nestjs/mapped-types@2.1.1(@nestjs/common@11.2.7(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)':
     dependencies:
@@ -11288,12 +11260,12 @@ snapshots:
 
   '@orpc/interop@1.15.7': {}
 
-  '@orpc/json-schema@1.15.7(@opentelemetry/api@1.9.1)(ws@8.18.3)':
+  '@orpc/json-schema@1.15.7(@opentelemetry/api@1.9.1)(ws@8.21.3)':
     dependencies:
       '@orpc/contract': 1.15.7(@opentelemetry/api@1.9.1)
       '@orpc/interop': 1.15.7
-      '@orpc/openapi': 1.15.7(@opentelemetry/api@1.9.1)(ws@8.18.3)
-      '@orpc/server': 1.15.7(@opentelemetry/api@1.9.1)(ws@8.18.3)
+      '@orpc/openapi': 1.15.7(@opentelemetry/api@1.9.1)(ws@8.21.3)
+      '@orpc/server': 1.15.7(@opentelemetry/api@1.9.1)(ws@8.21.3)
       '@orpc/shared': 1.15.7(@opentelemetry/api@1.9.1)
       json-schema-typed: 8.0.2
     transitivePeerDependencies:
@@ -11302,15 +11274,15 @@ snapshots:
       - fastify
       - ws
 
-  '@orpc/nest@1.15.7(@nestjs/common@11.2.7(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.2.7)(@opentelemetry/api@1.9.1)(express@5.2.1)(rxjs@7.8.2)(ws@8.18.3)':
+  '@orpc/nest@1.15.7(@nestjs/common@11.2.7(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.2.7)(@opentelemetry/api@1.9.1)(express@5.2.1)(rxjs@7.8.2)(ws@8.21.3)':
     dependencies:
       '@nestjs/common': 11.2.7(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2)
       '@nestjs/core': 11.2.7(@nestjs/common@11.2.7(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/microservices@11.2.7)(@nestjs/platform-express@11.2.7)(@nestjs/websockets@11.1.11)(reflect-metadata@0.2.2)(rxjs@7.8.2)
       '@orpc/client': 1.15.7(@opentelemetry/api@1.9.1)
       '@orpc/contract': 1.15.7(@opentelemetry/api@1.9.1)
-      '@orpc/openapi': 1.15.7(@opentelemetry/api@1.9.1)(ws@8.18.3)
+      '@orpc/openapi': 1.15.7(@opentelemetry/api@1.9.1)(ws@8.21.3)
       '@orpc/openapi-client': 1.15.7(@opentelemetry/api@1.9.1)
-      '@orpc/server': 1.15.7(@opentelemetry/api@1.9.1)(ws@8.18.3)
+      '@orpc/server': 1.15.7(@opentelemetry/api@1.9.1)(ws@8.21.3)
       '@orpc/shared': 1.15.7(@opentelemetry/api@1.9.1)
       '@orpc/standard-server': 1.15.7(@opentelemetry/api@1.9.1)
       '@orpc/standard-server-fastify': 1.15.7(@opentelemetry/api@1.9.1)
@@ -11333,13 +11305,13 @@ snapshots:
     transitivePeerDependencies:
       - '@opentelemetry/api'
 
-  '@orpc/openapi@1.15.7(@opentelemetry/api@1.9.1)(ws@8.18.3)':
+  '@orpc/openapi@1.15.7(@opentelemetry/api@1.9.1)(ws@8.21.3)':
     dependencies:
       '@orpc/client': 1.15.7(@opentelemetry/api@1.9.1)
       '@orpc/contract': 1.15.7(@opentelemetry/api@1.9.1)
       '@orpc/interop': 1.15.7
       '@orpc/openapi-client': 1.15.7(@opentelemetry/api@1.9.1)
-      '@orpc/server': 1.15.7(@opentelemetry/api@1.9.1)(ws@8.18.3)
+      '@orpc/server': 1.15.7(@opentelemetry/api@1.9.1)(ws@8.21.3)
       '@orpc/shared': 1.15.7(@opentelemetry/api@1.9.1)
       '@orpc/standard-server': 1.15.7(@opentelemetry/api@1.9.1)
       json-schema-typed: 8.0.2
@@ -11350,7 +11322,7 @@ snapshots:
       - fastify
       - ws
 
-  '@orpc/server@1.15.7(@opentelemetry/api@1.9.1)(ws@8.18.3)':
+  '@orpc/server@1.15.7(@opentelemetry/api@1.9.1)(ws@8.21.3)':
     dependencies:
       '@orpc/client': 1.15.7(@opentelemetry/api@1.9.1)
       '@orpc/contract': 1.15.7(@opentelemetry/api@1.9.1)
@@ -11364,7 +11336,7 @@ snapshots:
       '@orpc/standard-server-peer': 1.15.7(@opentelemetry/api@1.9.1)
       cookie: 1.1.1
     optionalDependencies:
-      ws: 8.18.3
+      ws: 8.21.3
     transitivePeerDependencies:
       - '@opentelemetry/api'
       - fastify
@@ -11429,12 +11401,12 @@ snapshots:
     transitivePeerDependencies:
       - '@opentelemetry/api'
 
-  '@orpc/zod@1.15.7(@opentelemetry/api@1.9.1)(@orpc/contract@1.15.7(@opentelemetry/api@1.9.1))(@orpc/server@1.15.7(@opentelemetry/api@1.9.1)(ws@8.18.3))(ws@8.18.3)(zod@4.3.5)':
+  '@orpc/zod@1.15.7(@opentelemetry/api@1.9.1)(@orpc/contract@1.15.7(@opentelemetry/api@1.9.1))(@orpc/server@1.15.7(@opentelemetry/api@1.9.1)(ws@8.21.3))(ws@8.21.3)(zod@4.3.5)':
     dependencies:
       '@orpc/contract': 1.15.7(@opentelemetry/api@1.9.1)
-      '@orpc/json-schema': 1.15.7(@opentelemetry/api@1.9.1)(ws@8.18.3)
-      '@orpc/openapi': 1.15.7(@opentelemetry/api@1.9.1)(ws@8.18.3)
-      '@orpc/server': 1.15.7(@opentelemetry/api@1.9.1)(ws@8.18.3)
+      '@orpc/json-schema': 1.15.7(@opentelemetry/api@1.9.1)(ws@8.21.3)
+      '@orpc/openapi': 1.15.7(@opentelemetry/api@1.9.1)(ws@8.21.3)
+      '@orpc/server': 1.15.7(@opentelemetry/api@1.9.1)(ws@8.21.3)
       '@orpc/shared': 1.15.7(@opentelemetry/api@1.9.1)
       escape-string-regexp: 5.0.0
       wildcard-match: 5.1.4
@@ -12395,14 +12367,14 @@ snapshots:
     dependencies:
       '@testing-library/dom': 10.4.1
 
-  '@thallesp/nestjs-better-auth@2.5.4(@nestjs/common@11.2.7(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.2.7)(@nestjs/graphql@13.2.3(@nestjs/common@11.2.7(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.2.7)(class-transformer@0.5.1)(class-validator@0.14.3)(graphql@16.12.0)(reflect-metadata@0.2.2))(@nestjs/websockets@11.1.11)(better-auth@1.6.22(@opentelemetry/api@1.9.1)(better-sqlite3@12.5.0)(drizzle-orm@1.0.0-beta.20(@opentelemetry/api@1.9.1)(@sinclair/typebox@0.34.41)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(pg@8.16.3)(zod@4.3.5))(next@16.3.8(@babel/core@7.28.4)(@opentelemetry/api@1.9.1)(@playwright/test@1.58.2)(@types/node@22.19.3)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(pg@8.16.3)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(vitest@4.1.2))(express@5.2.1)(graphql@16.12.0)(qs@6.14.1)(typescript@5.9.3)':
+  '@thallesp/nestjs-better-auth@2.5.4(@nestjs/common@11.2.7(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.2.7)(@nestjs/graphql@13.4.5(@nestjs/common@11.2.7(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.2.7)(class-transformer@0.5.1)(class-validator@0.14.3)(graphql@16.12.0)(reflect-metadata@0.2.2))(@nestjs/websockets@11.1.11)(better-auth@1.6.22(@opentelemetry/api@1.9.1)(better-sqlite3@12.5.0)(drizzle-orm@1.0.0-beta.20(@opentelemetry/api@1.9.1)(@sinclair/typebox@0.34.41)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(pg@8.16.3)(zod@4.3.5))(next@16.3.8(@babel/core@7.28.4)(@opentelemetry/api@1.9.1)(@playwright/test@1.58.2)(@types/node@22.19.3)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(pg@8.16.3)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(vitest@4.1.2))(express@5.2.1)(graphql@16.12.0)(qs@6.14.1)(typescript@5.9.3)':
     dependencies:
       '@nestjs/common': 11.2.7(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2)
       '@nestjs/core': 11.2.7(@nestjs/common@11.2.7(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/microservices@11.2.7)(@nestjs/platform-express@11.2.7)(@nestjs/websockets@11.1.11)(reflect-metadata@0.2.2)(rxjs@7.8.2)
       better-auth: 1.6.22(@opentelemetry/api@1.9.1)(better-sqlite3@12.5.0)(drizzle-orm@1.0.0-beta.20(@opentelemetry/api@1.9.1)(@sinclair/typebox@0.34.41)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(pg@8.16.3)(zod@4.3.5))(next@16.3.8(@babel/core@7.28.4)(@opentelemetry/api@1.9.1)(@playwright/test@1.58.2)(@types/node@22.19.3)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(pg@8.16.3)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(vitest@4.1.2)
       typescript: 5.9.3
     optionalDependencies:
-      '@nestjs/graphql': 13.2.3(@nestjs/common@11.2.7(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.2.7)(class-transformer@0.5.1)(class-validator@0.14.3)(graphql@16.12.0)(reflect-metadata@0.2.2)
+      '@nestjs/graphql': 13.4.5(@nestjs/common@11.2.7(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.2.7)(class-transformer@0.5.1)(class-validator@0.14.3)(graphql@16.12.0)(reflect-metadata@0.2.2)
       '@nestjs/websockets': 11.1.11(@nestjs/common@11.2.7(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.2.7)(reflect-metadata@0.2.2)(rxjs@7.8.2)
       express: 5.2.1
       graphql: 16.12.0
@@ -12943,7 +12915,6 @@ snapshots:
   '@whatwg-node/promise-helpers@1.3.2':
     dependencies:
       tslib: 2.8.1
-    optional: true
 
   '@xhmikosr/archive-type@8.1.0':
     dependencies:
@@ -13297,8 +13268,7 @@ snapshots:
       babel-plugin-jest-hoist: 30.2.0
       babel-preset-current-node-syntax: 1.2.0(@babel/core@7.28.4)
 
-  backo2@1.0.2:
-    optional: true
+  backo2@1.0.2: {}
 
   balanced-match@1.0.2: {}
 
@@ -13718,7 +13688,6 @@ snapshots:
   cross-inspect@1.0.1:
     dependencies:
       tslib: 2.8.1
-    optional: true
 
   cross-spawn@7.0.6:
     dependencies:
@@ -14299,8 +14268,7 @@ snapshots:
 
   etag@1.8.1: {}
 
-  eventemitter3@3.1.2:
-    optional: true
+  eventemitter3@3.1.2: {}
 
   eventemitter3@4.0.7: {}
 
@@ -14418,15 +14386,6 @@ snapshots:
       glob-parent: 5.1.2
       merge2: 1.4.1
       micromatch: 4.0.8
-
-  fast-glob@3.3.3:
-    dependencies:
-      '@nodelib/fs.stat': 2.0.5
-      '@nodelib/fs.walk': 1.2.8
-      glob-parent: 5.1.2
-      merge2: 1.4.1
-      micromatch: 4.0.8
-    optional: true
 
   fast-json-stable-stringify@2.1.0: {}
 
@@ -14717,17 +14676,14 @@ snapshots:
     dependencies:
       graphql: 16.12.0
       tslib: 2.8.1
-    optional: true
 
-  graphql-ws@6.0.6(graphql@16.12.0)(ws@8.18.3):
+  graphql-ws@6.2.1(graphql@16.12.0)(ws@8.21.3):
     dependencies:
       graphql: 16.12.0
     optionalDependencies:
-      ws: 8.18.3
-    optional: true
+      ws: 8.21.3
 
-  graphql@16.12.0:
-    optional: true
+  graphql@16.12.0: {}
 
   handlebars@4.7.10:
     dependencies:
@@ -15051,8 +15007,7 @@ snapshots:
       html-escaper: 2.0.2
       istanbul-lib-report: 3.0.1
 
-  iterall@1.3.0:
-    optional: true
+  iterall@1.3.0: {}
 
   iterare@1.2.1: {}
 
@@ -17082,11 +17037,10 @@ snapshots:
       graphql: 16.12.0
       iterall: 1.3.0
       symbol-observable: 1.2.0
-      ws: 7.5.10
+      ws: 7.5.13
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
-    optional: true
 
   super-regex@1.1.0:
     dependencies:
@@ -17130,8 +17084,7 @@ snapshots:
     dependencies:
       '@scarf/scarf': 1.4.0
 
-  symbol-observable@1.2.0:
-    optional: true
+  symbol-observable@1.2.0: {}
 
   symbol-observable@4.0.0: {}
 
@@ -17240,6 +17193,11 @@ snapshots:
   tinyexec@1.3.1: {}
 
   tinyglobby@0.2.15:
+    dependencies:
+      fdir: 6.5.0(picomatch@4.0.4)
+      picomatch: 4.0.4
+
+  tinyglobby@0.2.17:
     dependencies:
       fdir: 6.5.0(picomatch@4.0.4)
       picomatch: 4.0.4
@@ -17892,11 +17850,9 @@ snapshots:
       imurmurhash: 0.1.4
       signal-exit: 4.1.0
 
-  ws@7.5.10:
-    optional: true
+  ws@7.5.13: {}
 
-  ws@8.18.3:
-    optional: true
+  ws@8.21.3: {}
 
   xml-name-validator@5.0.0: {}
 

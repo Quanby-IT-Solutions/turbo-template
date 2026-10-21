@@ -24,6 +24,7 @@
 		"@nestjs/common": "catalog:",
 		"@nestjs/config": "^4.0.2",
 		"@nestjs/core": "catalog:",
+		"@nestjs/graphql": "^13.4.5",
 		"@nestjs/microservices": "^11.2.7",
 		"@nestjs/platform-express": "^11.2.7",
 		"@nestjs/schedule": "^6.1.3",

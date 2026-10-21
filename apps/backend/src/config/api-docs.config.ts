@@ -1,5 +1,9 @@
 import { z } from "zod"
 
+import { isApiDocsEnabled } from "@repo/auth/api-docs"
+
+export { isApiDocsEnabled }
+
 /**
  * Strict boolean-from-env parser.
  *
@@ -12,24 +16,13 @@ import { z } from "zod"
  *
  * Kept in this pure helper (no `createEnv()` at import time) so it can be
  * unit-tested without booting the app's env validation.
+ *
+ * The docs rule itself lives in `@repo/auth/api-docs` and is re-exported
+ * above. The auth openAPI plugin and this process both call it, so an
+ * explicit `ENABLE_API_DOCS` wins and an unset `NODE_ENV` counts as
+ * development on both sides.
  */
 export const booleanFromEnv = z.union([
 	z.boolean(),
 	z.enum(["true", "false", "1", "0"]).transform(v => v === "true" || v === "1"),
 ])
-
-/**
- * Resolve the API docs flag with an environment-aware default.
- *
- * `@t3-oss/env-core` cannot express a default that depends on another var,
- * so `ENABLE_API_DOCS` is declared optional and resolved here:
- * - explicit `true`/`false` wins
- * - otherwise docs are on only in development
- */
-export function isApiDocsEnabled(nodeEnv: string, rawFlag: boolean | undefined): boolean {
-	if (rawFlag !== undefined) {
-		return rawFlag
-	}
-
-	return nodeEnv === "development"
-}

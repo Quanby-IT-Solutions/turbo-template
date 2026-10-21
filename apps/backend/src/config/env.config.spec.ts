@@ -1,3 +1,5 @@
+import { isApiDocsEnabled as sharedIsApiDocsEnabled } from "@repo/auth/api-docs"
+
 import { booleanFromEnv, isApiDocsEnabled } from "@/config/api-docs.config"
 
 describe("isApiDocsEnabled", () => {
@@ -19,6 +21,34 @@ describe("isApiDocsEnabled", () => {
 
 	it("defaults to false in the test environment when no flag is set", () => {
 		expect(isApiDocsEnabled("test", undefined)).toBe(false)
+	})
+
+	it("re-exports the shared @repo/auth rule", () => {
+		expect(isApiDocsEnabled).toBe(sharedIsApiDocsEnabled)
+	})
+
+	it("treats an unset NODE_ENV as development", () => {
+		expect(isApiDocsEnabled(undefined, undefined)).toBe(true)
+		expect(isApiDocsEnabled(undefined, false)).toBe(false)
+		expect(isApiDocsEnabled(undefined, true)).toBe(true)
+	})
+})
+
+describe("isApiDocsEnabled NODE_ENV x flag matrix", () => {
+	const nodeEnvs = ["development", undefined, "test", "production"] as const
+	const flags = [undefined, true, false, "1", "0"] as const
+
+	function expected(nodeEnv: (typeof nodeEnvs)[number], flag: (typeof flags)[number]): boolean {
+		if (flag === true || flag === "1") return true
+		if (flag === false || flag === "0") return false
+		return (nodeEnv ?? "development") === "development"
+	}
+
+	const cases = nodeEnvs.flatMap(nodeEnv => flags.map(flag => [nodeEnv, flag] as const))
+
+	it.each(cases)("NODE_ENV=%s ENABLE_API_DOCS=%s", (nodeEnv, flag) => {
+		const rawFlag = flag === undefined ? undefined : booleanFromEnv.parse(flag)
+		expect(isApiDocsEnabled(nodeEnv, rawFlag)).toBe(expected(nodeEnv, flag))
 	})
 })
 

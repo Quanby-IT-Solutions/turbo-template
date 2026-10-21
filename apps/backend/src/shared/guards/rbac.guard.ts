@@ -84,6 +84,7 @@ export class RbacGuard implements CanActivate {
 			headers: IncomingHttpHeaders
 			session?: { user?: { id?: string } }
 			user?: { id?: string }
+			sessionResolved?: boolean
 		}>()
 		let userId: string | undefined = request.session?.user?.id ?? request.user?.id
 
@@ -92,10 +93,14 @@ export class RbacGuard implements CanActivate {
 		// not guaranteed, so RbacGuard may run BEFORE it and see no session. When
 		// that happens, resolve the session directly from the request headers (the
 		// same mechanism the library uses) and attach it for downstream consumers.
-		if (!userId) {
+		// ThrottlerProxyGuard runs first and may already have done that lookup.
+		// `sessionResolved` means this request already has a definitive answer,
+		// including "no session", so it is not looked up again.
+		if (!userId && !request.sessionResolved) {
 			const session = await getAuth().api.getSession({
 				headers: fromNodeHeaders(request.headers),
 			})
+			request.sessionResolved = true
 			if (session) {
 				request.session = session
 				request.user = session.user

@@ -1,5 +1,12 @@
-import { Controller, Get, HttpException, Post, type INestApplication } from "@nestjs/common"
-import { APP_FILTER, APP_GUARD } from "@nestjs/core"
+import {
+	Controller,
+	Get,
+	HttpException,
+	Post,
+	type ExecutionContext,
+	type INestApplication,
+} from "@nestjs/common"
+import { APP_FILTER, APP_GUARD, Reflector } from "@nestjs/core"
 import { Test, type TestingModule } from "@nestjs/testing"
 import { ThrottlerException, ThrottlerModule } from "@nestjs/throttler"
 import { readFileSync } from "fs"
@@ -10,8 +17,10 @@ import request from "supertest"
 import { type App } from "supertest/types"
 
 import { HttpExceptionFilter } from "@/common/filters/http-exception.filter"
+import { RbacService } from "@/common/rbac/rbac.service"
 import { buildPinoHttpOptions } from "@/config/pino-logger.config"
 import { skipStrictThrottle, StrictThrottle } from "@/shared/decorators/strict-throttle.decorator"
+import { RbacGuard } from "@/shared/guards/rbac.guard"
 import { ThrottlerProxyGuard } from "@/shared/guards/throttler-proxy.guard"
 
 // buildPinoHttpOptions -> env.config validates required vars at load; Jest's env
@@ -19,6 +28,25 @@ import { ThrottlerProxyGuard } from "@/shared/guards/throttler-proxy.guard"
 jest.mock("@/config/env.config", () => ({
 	env: { NODE_ENV: "test", LOG_LEVEL: "info" },
 	isApiDocsEnabled: () => false,
+}))
+
+// Session checks go through Better Auth. Default to "no session" so the address
+// key stays what these tests already assert, and override per case.
+const mockGetSession = jest.fn().mockResolvedValue(null)
+jest.mock("better-auth/node", () => ({
+	fromNodeHeaders: jest.fn((headers: unknown) => headers),
+}))
+jest.mock("@repo/auth", () => ({
+	getAuth: jest.fn(() => ({
+		api: { getSession: (...args: unknown[]) => mockGetSession(...args) },
+	})),
+}))
+
+jest.mock("@/common/rbac/rbac.service", () => ({
+	RbacService: jest.fn().mockImplementation(() => ({
+		hasAllPermissions: jest.fn(),
+		getMissingPermissions: jest.fn(),
+	})),
 }))
 
 // Small limits so tests can exhaust each window in a handful of requests.
@@ -49,6 +77,8 @@ describe("ThrottlerProxyGuard (unit)", () => {
 		// Base ThrottlerGuard's real constructor needs (options, storage, reflector);
 		// getTracker is pure so it can run on a bare instance.
 		guard = Object.create(ThrottlerProxyGuard.prototype) as ThrottlerProxyGuard
+		mockGetSession.mockReset()
+		mockGetSession.mockResolvedValue(null)
 	})
 
 	describe("getTracker", () => {
@@ -74,6 +104,113 @@ describe("ThrottlerProxyGuard (unit)", () => {
 		it("falls back to req.ip when req.ips is undefined", async () => {
 			await expect(guard["getTracker"]({ ips: undefined, ip: "9.9.9.9" })).resolves.toBe("9.9.9.9")
 		})
+
+		it("keys a verified session by user id", async () => {
+			mockGetSession.mockResolvedValue({ user: { id: "user-a" } })
+
+			await expect(
+				guard["getTracker"]({ ips: ["10.0.0.8"], ip: "10.0.0.8", headers: {} })
+			).resolves.toBe("user:user-a")
+		})
+
+		it("gives two users from the same address two keys", async () => {
+			const sameAddress = { ips: ["10.0.0.8"], ip: "10.0.0.8", headers: {} }
+
+			mockGetSession.mockResolvedValueOnce({ user: { id: "user-a" } })
+			await expect(guard["getTracker"]({ ...sameAddress })).resolves.toBe("user:user-a")
+
+			mockGetSession.mockResolvedValueOnce({ user: { id: "user-b" } })
+			await expect(guard["getTracker"]({ ...sameAddress })).resolves.toBe("user:user-b")
+		})
+
+		it("uses the address key when there is no session", async () => {
+			mockGetSession.mockResolvedValue(null)
+
+			await expect(
+				guard["getTracker"]({ ips: ["1.2.3.4", "203.0.113.9"], ip: "203.0.113.9", headers: {} })
+			).resolves.toBe("203.0.113.9")
+		})
+
+		it("uses the address key when a cookie does not verify", async () => {
+			mockGetSession.mockResolvedValue(null)
+
+			await expect(
+				guard["getTracker"]({
+					ips: ["1.2.3.4", "203.0.113.9"],
+					ip: "203.0.113.9",
+					headers: { cookie: "better-auth.session_token=not-a-session" },
+				})
+			).resolves.toBe("203.0.113.9")
+		})
+
+		it("uses the address key when the session lookup throws", async () => {
+			mockGetSession.mockRejectedValue(new Error("database unavailable"))
+
+			await expect(
+				guard["getTracker"]({ ips: ["203.0.113.9"], ip: "203.0.113.9", headers: {} })
+			).resolves.toBe("203.0.113.9")
+		})
+
+		it("still ignores a client-supplied leftmost X-Forwarded-For entry", async () => {
+			mockGetSession.mockResolvedValue(null)
+
+			await expect(
+				guard["getTracker"]({
+					ips: ["1.2.3.4", "5.6.7.8", "203.0.113.9"],
+					ip: "203.0.113.9",
+					headers: { "x-forwarded-for": "1.2.3.4, 5.6.7.8, 203.0.113.9" },
+				})
+			).resolves.toBe("203.0.113.9")
+		})
+
+		it("does not use a client-supplied address once the session verifies", async () => {
+			mockGetSession.mockResolvedValue({ user: { id: "user-a" } })
+
+			await expect(
+				guard["getTracker"]({
+					ips: ["1.2.3.4", "203.0.113.9"],
+					ip: "203.0.113.9",
+					headers: { "x-forwarded-for": "1.2.3.4, 203.0.113.9" },
+				})
+			).resolves.toBe("user:user-a")
+		})
+
+		it("looks the session up at most once per request", async () => {
+			mockGetSession.mockResolvedValue({ user: { id: "user-a" }, session: { id: "sess-a" } })
+			const req: {
+				ips: string[]
+				ip: string
+				headers: Record<string, string>
+				session?: { user?: { id?: string } }
+				user?: { id?: string }
+				sessionResolved?: boolean
+			} = {
+				ips: ["10.0.0.8"],
+				ip: "10.0.0.8",
+				headers: { cookie: "better-auth.session_token=present" },
+			}
+
+			// default + strict both ask for a tracker on one request.
+			await expect(guard["getTracker"](req)).resolves.toBe("user:user-a")
+			await expect(guard["getTracker"](req)).resolves.toBe("user:user-a")
+
+			const rbac = new RbacGuard(
+				{ getAllAndOverride: () => ["posts:read"] } as unknown as Reflector,
+				{
+					hasAllPermissions: jest.fn().mockResolvedValue(true),
+					getMissingPermissions: jest.fn(),
+				} as unknown as RbacService
+			)
+			const context = {
+				getHandler: () => () => undefined,
+				getClass: () => class {},
+				switchToHttp: () => ({ getRequest: () => req }),
+			} as unknown as ExecutionContext
+
+			await expect(rbac.canActivate(context)).resolves.toBe(true)
+			expect(mockGetSession).toHaveBeenCalledTimes(1)
+			expect(req.session?.user?.id).toBe("user-a")
+		})
 	})
 
 	describe("429 response shape", () => {
@@ -87,6 +224,8 @@ describe("ThrottlerProxyGuard (integration)", () => {
 	let app: INestApplication<App>
 
 	beforeEach(async () => {
+		mockGetSession.mockReset()
+		mockGetSession.mockResolvedValue(null)
 		const moduleRef: TestingModule = await Test.createTestingModule({
 			imports: [
 				LoggerModule.forRoot({ pinoHttp: buildPinoHttpOptions({ autoLogging: false }) }),
@@ -217,6 +356,11 @@ const buildProxiedApp = async (options: {
 
 describe("ThrottlerProxyGuard forged X-Forwarded-For (AB-1)", () => {
 	let app: INestApplication<App>
+
+	beforeEach(() => {
+		mockGetSession.mockReset()
+		mockGetSession.mockResolvedValue(null)
+	})
 
 	afterEach(async () => {
 		await app.close()

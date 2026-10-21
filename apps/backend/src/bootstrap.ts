@@ -10,7 +10,10 @@ import { configureApp, configureCors } from "@/config/app.config"
 import { setupBetterAuth } from "@/config/auth.config"
 import { env, isApiDocsEnabled } from "@/config/env.config"
 import { buildPinoHttpOptions } from "@/config/pino-logger.config"
-import { buildHelmetOptions } from "@/config/security-headers.config"
+import {
+	buildHelmetOptions,
+	createDocsSecurityHeadersMiddleware,
+} from "@/config/security-headers.config"
 import { setupSwagger } from "@/config/swagger.config"
 
 /**
@@ -32,7 +35,9 @@ function setupVersioning(app: INestApplication, logger: Logger): void {
  *
  * Returns the app without listening — the caller decides.
  */
-export async function createApplication(): Promise<INestApplication> {
+export async function createApplication(options?: {
+	apiDocsEnabled?: boolean
+}): Promise<INestApplication> {
 	// bufferLogs defers early logs until the pino logger is installed below.
 	const app = await NestFactory.create(AppModule, { bodyParser: false, bufferLogs: true })
 
@@ -48,10 +53,22 @@ export async function createApplication(): Promise<INestApplication> {
 	const expressApp = httpAdapter.getInstance() as Application
 	expressApp.set("trust proxy", env.TRUST_PROXY)
 
+	// Resolved before helmet so the docs page can take its own policy. The
+	// default is the shared docs rule. Callers (the e2e suite) may pass the
+	// flag when they need a specific branch after env has already been read.
+	const apiDocsEnabled =
+		options?.apiDocsEnabled ?? isApiDocsEnabled(env.NODE_ENV, env.ENABLE_API_DOCS)
+
 	// ED-1: security headers first, so they cover EVERY response — including
 	// the auth routes Better Auth short-circuits before Nest sees them, and
 	// error responses produced by later middleware.
-	expressApp.use(helmet(buildHelmetOptions()))
+	// When docs are off this is the same `helmet(buildHelmetOptions())` registration
+	// as before. When docs are on, only GET /api/<version>/docs uses the docs policy.
+	if (apiDocsEnabled) {
+		expressApp.use(createDocsSecurityHeadersMiddleware())
+	} else {
+		expressApp.use(helmet(buildHelmetOptions()))
+	}
 
 	// IMPORTANT: CORS must be registered BEFORE the Better Auth middleware.
 	// The auth middleware short-circuits /api/v1/auth/* requests, so if CORS
@@ -72,8 +89,6 @@ export async function createApplication(): Promise<INestApplication> {
 	// Better Auth's toNodeHandler reads the raw request stream for body parsing.
 	// If express.json() runs first, it consumes the stream and Better Auth sees
 	// an empty body → sign-in/sign-up return null.
-	const apiDocsEnabled = isApiDocsEnabled(env.NODE_ENV, env.ENABLE_API_DOCS)
-
 	setupBetterAuth(app, apiDocsEnabled)
 	configureApp(app)
 	setupVersioning(app, logger)

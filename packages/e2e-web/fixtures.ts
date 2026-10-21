@@ -49,7 +49,8 @@ export const ACCOUNTS: Record<TestRole, Pick<TestAccount, "email" | "name">> = {
 	// `signInAs` fails with where to set them; `trySignInAs("admin")` returns
 	// false and names the missing variable. userA and userB use
 	// `E2E_TEST_PASSWORD` and `E2E_TEST_PASSWORD_B`, also with no default, and
-	// fail before any sign-up when the variable is missing.
+	// fail before any sign-up when the variable is missing. A 403
+	// EMAIL_NOT_VERIFIED does not sign up; run `pnpm db:seed:e2e`.
 	admin: {
 		email: process.env.E2E_ADMIN_EMAIL ?? "admin@turbo-template.local",
 		name: "Admin User",
@@ -81,13 +82,30 @@ interface SignInResult {
 	account: TestAccount
 }
 
+const UNVERIFIED_SIGN_IN_MESSAGE =
+	"Run `pnpm db:seed:e2e`; E2E_TEST_EMAIL must be a pre-verified test user."
+
+/**
+ * Milliseconds to wait after a 429. Honours `x-retry-after` (seconds) plus one,
+ * capped at 15s. Missing or unusable header keeps the previous 11s fallback.
+ */
+export function signInRetryDelayMs(retryAfterHeader: string | undefined): number {
+	const seconds = Number(retryAfterHeader)
+	if (!Number.isFinite(seconds) || seconds < 0) return 11_000
+	return Math.min(seconds + 1, 15) * 1_000
+}
+
+function isUnverifiedSignIn(status: number, body: string): boolean {
+	return status === 403 && /EMAIL_NOT_VERIFIED|email not verified/i.test(body)
+}
+
 /**
  * Authenticate against the API and move the cookies into the browser context.
  *
- * Registers the account when sign-in reports unknown credentials, so a fresh
- * database needs no manual setup. Retries a 429 because Better Auth rate-limits
- * `sign-in/email` per path, and a suite that signs in several times trips a
- * limit that has nothing to do with what is under test.
+ * An unknown account is registered once, then signed in. A 403
+ * EMAIL_NOT_VERIFIED is not that case: sign-up would spend another request
+ * and still could not log in. That fails immediately and names `pnpm db:seed:e2e`.
+ * A 429 waits for `x-retry-after` and is tried at most twice more.
  */
 async function authenticate(page: Page, account: TestAccount): Promise<SignInResult> {
 	let detail = ""
@@ -102,31 +120,65 @@ async function authenticate(page: Page, account: TestAccount): Promise<SignInRes
 			data: { email: account.email, password: account.password },
 		})
 
+		if (res.ok()) {
+			const { cookies } = await api.storageState()
+			await page.context().addCookies(cookies)
+			await api.dispose()
+			console.log(`[e2e] sign-in/email 200 for ${account.email}`)
+			return { ok: true, detail: "", account }
+		}
+
+		let status = res.status()
+		let body = await res.text()
+		if (isUnverifiedSignIn(status, body)) {
+			await api.dispose()
+			return {
+				ok: false,
+				detail: `403 EMAIL_NOT_VERIFIED for ${account.email}. ${UNVERIFIED_SIGN_IN_MESSAGE}`,
+				account,
+			}
+		}
+
 		// Unknown account: create it, then sign in. Never for the admin, which
 		// the seeder owns — silently registering it would produce a second,
 		// unprivileged "admin" and make later permission assertions nonsense.
-		if (!res.ok() && res.status() !== 429 && account.email !== ACCOUNTS.admin.email) {
+		// Never after EMAIL_NOT_VERIFIED (handled above).
+		if (status !== 429 && account.email !== ACCOUNTS.admin.email) {
 			await api.post("sign-up/email", {
 				data: { email: account.email, password: account.password, name: account.name },
 			})
 			res = await api.post("sign-in/email", {
 				data: { email: account.email, password: account.password },
 			})
+			if (res.ok()) {
+				const { cookies } = await api.storageState()
+				await page.context().addCookies(cookies)
+				await api.dispose()
+				console.log(`[e2e] sign-in/email 200 for ${account.email}`)
+				return { ok: true, detail: "", account }
+			}
+			status = res.status()
+			body = await res.text()
+			if (isUnverifiedSignIn(status, body)) {
+				await api.dispose()
+				return {
+					ok: false,
+					detail: `403 EMAIL_NOT_VERIFIED for ${account.email}. ${UNVERIFIED_SIGN_IN_MESSAGE}`,
+					account,
+				}
+			}
 		}
 
-		if (res.ok()) {
-			const { cookies } = await api.storageState()
-			await page.context().addCookies(cookies)
-			await api.dispose()
-			return { ok: true, detail: "", account }
-		}
-
-		const status = res.status()
-		detail = `${status} ${await res.text()}`
+		detail = `${status} ${body}`
+		const retryAfter = res.headers()["x-retry-after"]
 		await api.dispose()
 
-		if (status !== 429) break
-		await page.waitForTimeout(11_000)
+		if (status !== 429 || attempt === 3) break
+		const waitMs = signInRetryDelayMs(retryAfter)
+		console.log(
+			`[e2e] sign-in/email 429 for ${account.email}; waiting ${waitMs}ms (x-retry-after=${retryAfter ?? "absent"}) before retry ${attempt}`
+		)
+		await page.waitForTimeout(waitMs)
 	}
 
 	return { ok: false, detail, account }

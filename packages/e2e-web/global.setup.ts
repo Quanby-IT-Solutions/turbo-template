@@ -1,17 +1,19 @@
 import { expect, test as setup } from "@playwright/test"
 
-import { ADMIN_AUTH_FILE, AUTH_FILE } from "./constants"
+import { ADMIN_AUTH_FILE, AUTH_FILE, USER_B_AUTH_FILE } from "./constants"
 import { signInAs, trySignInAs } from "./fixtures"
+
+// A 429 retry waits up to 15s, twice. The default 30s test timeout cannot
+// hold that plus the two sign-ins in this file.
+setup.setTimeout(90_000)
 
 /**
  * Establishes the shared authenticated session the `chromium-authenticated`
  * project reuses.
  *
- * HY-1: sign-in goes through the shared fixture, which registers the account
- * when it does not exist and retries Better Auth's per-path 429. Doing it
- * inline here used to fail the whole authenticated project whenever a serial
- * run made enough sign-ins to trip that limit — one rate-limited request and
- * every authenticated test was reported as broken.
+ * userA and userB come from `pnpm db:seed:e2e` (pre-verified, no role).
+ * Sign-in goes through the shared fixture, which retries a 429 from
+ * `x-retry-after` and fails immediately on 403 EMAIL_NOT_VERIFIED.
  */
 setup("authenticate", async ({ page }) => {
 	await signInAs(page, "userA")
@@ -58,4 +60,14 @@ setup("authenticate as admin", async ({ page }) => {
 	}
 
 	await page.context().storageState({ path: ADMIN_AUTH_FILE })
+})
+
+/**
+ * userB, once. Ownership and sign-out specs need a second ordinary user.
+ * Saving the session here keeps those specs off the sign-in endpoint unless
+ * they themselves revoke a session.
+ */
+setup("authenticate as userB", async ({ page }) => {
+	await signInAs(page, "userB")
+	await page.context().storageState({ path: USER_B_AUTH_FILE })
 })

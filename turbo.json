@@ -46,7 +46,14 @@
 		"test:e2e": {
 			"cache": false,
 			"persistent": false,
-			"passThroughEnv": ["PLAYWRIGHT_*", "BASE_URL", "BACKEND_URL", "E2E_AUTH_API_URL", "E2E_ADMIN_PASSWORD", "E2E_TEST_EMAIL", "E2E_TEST_PASSWORD", "E2E_TEST_PASSWORD_B", "E2E_TEST_NAME", "SEED_ADMIN_PASSWORD"]
+			"passThroughEnv": [
+				"PLAYWRIGHT_*",
+				"BASE_URL",
+				"BACKEND_URL",
+				"E2E_*",
+				"NEXT_PUBLIC_*",
+				"SEED_ADMIN_PASSWORD"
+			]
 		},
 		"clean": {
 			"cache": false

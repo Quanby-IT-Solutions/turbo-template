@@ -145,8 +145,12 @@ changes are needed; if it splits web/api across different domains, update
 | `DATABASE_URL`                | ✅       | Backend, DB | PostgreSQL connection string. Use the same value in `apps/backend/.env` and `packages/db/.env` |
 | `SEED_ADMIN_PASSWORD`         | ✅ seed / e2e | DB   | Admin password for `pnpm db:seed`, set only in `packages/db/.env`. Backend e2e reads it from that file. Web e2e reads the same variable from the process environment. No default |
 | `E2E_ADMIN_PASSWORD`          | ❌       | Web e2e, backend e2e | Optional override of `SEED_ADMIN_PASSWORD` when a test signs in as the seeded admin. No default |
-| `E2E_TEST_PASSWORD`           | ❌       | Web e2e     | Password for the userA web e2e account. Required when that account signs in. No default |
-| `E2E_TEST_PASSWORD_B`         | ❌       | Web e2e     | Password for the userB web e2e account. Required when that account signs in. No default |
+| `E2E_AUTH_API_URL`            | ❌       | Web e2e     | Auth API base, including the trailing slash. When set, Playwright runs setup, authenticated, and auth-negative projects. Local: `http://localhost:3000/api/v1/auth/` |
+| `E2E_TEST_EMAIL`              | ❌       | Web e2e     | userA address for `pnpm db:seed:e2e` and sign-in. Default `test@gmail.com` |
+| `E2E_TEST_NAME`               | ❌       | Web e2e     | userA display name. Default `E2E Test User` |
+| `E2E_TEST_EMAIL_B`            | ❌       | Web e2e     | userB address. Default `e2e-user-b@turbo-template.local` |
+| `E2E_TEST_PASSWORD`           | ❌       | Web e2e     | Password for userA. Required by `pnpm db:seed:e2e` and by sign-in. No default |
+| `E2E_TEST_PASSWORD_B`         | ❌       | Web e2e     | Password for userB. Required by `pnpm db:seed:e2e` and by sign-in. No default |
 | `BETTER_AUTH_SECRET`          | ✅       | Backend     | Session signing secret. Must be >= 32 chars and NOT a placeholder — backend fails to boot otherwise. Generate: `openssl rand -base64 32` (see [Generating BETTER_AUTH_SECRET](#generating-better_auth_secret)) |
 | `BETTER_AUTH_TRUSTED_ORIGINS` | ✅       | Backend     | Comma-separated trusted origins                           |
 | `CORS_ORIGINS`                | ✅       | Backend     | Comma-separated CORS origins                              |
@@ -305,6 +309,37 @@ Re-running `pnpm db:seed` does not change an admin password that is already
 stored. If the database was seeded with a different or random password, set
 `SEED_ADMIN_PASSWORD` and run `pnpm db:seed -- --force-password`.
 
+## Web e2e (Playwright)
+
+Authenticated projects stay off until `E2E_AUTH_API_URL` is set. Email
+verification stays required. `pnpm db:seed:e2e` creates userA and userB as
+pre-verified ordinary users (no role) so sign-in works without turning that
+requirement off.
+
+From the repo root, with Postgres and the backend up:
+
+```bash
+export E2E_AUTH_API_URL=http://localhost:3000/api/v1/auth/
+export E2E_ADMIN_PASSWORD="$SEED_ADMIN_PASSWORD"
+export E2E_TEST_PASSWORD
+export E2E_TEST_PASSWORD_B
+pnpm db:seed
+pnpm db:seed:e2e
+pnpm test:e2e:web
+```
+
+`E2E_ADMIN_PASSWORD` is your `SEED_ADMIN_PASSWORD` (the admin from `pnpm db:seed`).
+`E2E_TEST_PASSWORD` and `E2E_TEST_PASSWORD_B` have no defaults; export them in
+the shell. Do not commit them. Optional `E2E_TEST_EMAIL`, `E2E_TEST_NAME`, and
+`E2E_TEST_EMAIL_B` override the fixture addresses.
+
+`apps/web/.env` (from `apps/web/.env.example`) must set
+`NEXT_PUBLIC_API_BASE_URL` before the web build. Playwright starts that build.
+When the variable is unset, the page CSP stays `connect-src 'self'` only.
+
+Re-running `pnpm db:seed:e2e` does not rewrite an existing password. To rotate
+one, pass `--force-password`.
+
 ## Scripts
 
 | Command                            | Description                                                                 |
@@ -316,6 +351,7 @@ stored. If the database was seeded with a different or random password, set
 | `pnpm format:fix`                  | Format code with Prettier                                                   |
 | `pnpm db:push`                     | Push schema to database (may prompt; needs an interactive terminal to answer prompts, non-interactive runs apply only changes that need no confirmation) |
 | `pnpm db:seed`                     | Seed local roles, users, and sample data (`SEED_ADMIN_PASSWORD` in `packages/db/.env`) |
+| `pnpm db:seed:e2e`                 | Upsert pre-verified userA and userB for web e2e (`E2E_TEST_PASSWORD` and `E2E_TEST_PASSWORD_B`, no defaults) |
 | `pnpm -F @repo/backend test:e2e`   | Run backend e2e against the seeded database                                 |
 | `pnpm db:studio`                   | Open Drizzle Studio                                                         |
 

@@ -16,6 +16,7 @@
 		"db:generate": "turbo -F @repo/db generate",
 		"db:migrate": "turbo -F @repo/db migrate",
 		"db:seed": "pnpm -F @repo/db seed",
+		"db:seed:e2e": "pnpm -F @repo/db seed:e2e",
 		"dev": "turbo watch dev --continue",
 		"dev:web": "turbo watch dev -F @repo/web...",
 		"dev:mobile": "turbo watch dev -F @repo/mobile...",

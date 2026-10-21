@@ -1,7 +1,7 @@
 import fs from "fs"
 import path from "path"
 
-import { ADMIN_AUTH_FILE, AUTH_FILE } from "./constants"
+import { ADMIN_AUTH_FILE, AUTH_FILE, USER_B_AUTH_FILE } from "./constants"
 
 /**
  * Runs once before Playwright starts any project.
@@ -10,7 +10,7 @@ import { ADMIN_AUTH_FILE, AUTH_FILE } from "./constants"
  * "setup" project (global.setup.ts).
  */
 export default function globalSetup() {
-	for (const file of [AUTH_FILE, ADMIN_AUTH_FILE]) {
+	for (const file of [AUTH_FILE, ADMIN_AUTH_FILE, USER_B_AUTH_FILE]) {
 		fs.mkdirSync(path.dirname(file), { recursive: true })
 		if (!fs.existsSync(file)) {
 			fs.writeFileSync(file, JSON.stringify({ cookies: [], origins: [] }))

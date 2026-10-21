@@ -32,47 +32,6 @@ test.describe("login page", () => {
 		await expect(page).toHaveURL(/\/register/)
 	})
 
-	test("shows an error and stays on /login with invalid credentials", async ({ page }) => {
-		test.skip(!process.env.E2E_AUTH_API_URL, "Requires backend")
-
-		const pageErrors: Error[] = []
-		const unhandledConsole: string[] = []
-		const failedRequests: string[] = []
-		const signInStatuses: number[] = []
-		page.on("pageerror", error => {
-			pageErrors.push(error)
-		})
-		page.on("response", response => {
-			if (response.url().includes("sign-in/email")) signInStatuses.push(response.status())
-		})
-		page.on("console", message => {
-			if (message.type() === "error" && /unhandled|uncaught/i.test(message.text())) {
-				unhandledConsole.push(message.text())
-			}
-		})
-		page.on("requestfailed", request => {
-			failedRequests.push(
-				`${request.method()} ${request.url()} ${request.failure()?.errorText ?? ""}`
-			)
-		})
-
-		await page.getByLabel(/email/i).fill("test@gmail.com")
-		await page.getByLabel("Password", { exact: true }).fill("WrongPassword123")
-		await page.getByRole("button", { name: /^login$/i }).click()
-
-		await expect(page).toHaveURL(/\/login/)
-		const banner = page.getByTestId("login-error")
-		await expect(banner).toBeVisible()
-		await expect(banner).toHaveAttribute("role", "alert")
-		await expect(banner).toHaveText(/invalid|incorrect|failed to sign in/i)
-		await expect(page.getByText("Unhandled Runtime Error")).toHaveCount(0)
-		expect(pageErrors).toEqual([])
-		expect(unhandledConsole).toEqual([])
-		expect(failedRequests.filter(entry => entry.includes("sign-in"))).toEqual([])
-		expect(signInStatuses.some(status => status >= 400 && status < 500)).toBe(true)
-		expect(signInStatuses.some(status => status >= 500)).toBe(false)
-	})
-
 	test("blocks submit with invalid email / missing password (native validation)", async ({
 		page,
 	}) => {

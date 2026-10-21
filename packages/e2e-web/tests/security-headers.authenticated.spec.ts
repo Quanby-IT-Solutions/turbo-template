@@ -1,6 +1,8 @@
-import { expect, test } from "@playwright/test"
+import fs from "fs"
+import { expect, test, type Cookie } from "@playwright/test"
 
-import { ACCOUNTS, signInAs, trySignInAs } from "../fixtures"
+import { ADMIN_AUTH_FILE, AUTH_FILE } from "../constants"
+import { ACCOUNTS } from "../fixtures"
 
 /**
  * ED-1 / F-12 + F-21 — browser-level defences, and the clickjacking path.
@@ -14,20 +16,26 @@ import { ACCOUNTS, signInAs, trySignInAs } from "../fixtures"
 const WEB = process.env.BASE_URL ?? "http://localhost:3001"
 const ADMIN_EMAIL = ACCOUNTS.admin.email
 
-test.use({ storageState: { cookies: [], origins: [] } })
+test.use({ storageState: ADMIN_AUTH_FILE })
 
 test("security headers are present and the RBAC UI cannot be framed", async ({ page }) => {
 	const consoleMsgs: string[] = []
 	const pageErrors: string[] = []
 	page.on("console", m => {
-		if (m.type() === "error" || m.type() === "warning") consoleMsgs.push(`[${m.type()}] ${m.text()}`)
+		if (m.type() === "error" || m.type() === "warning")
+			consoleMsgs.push(`[${m.type()}] ${m.text()}`)
 	})
 	page.on("pageerror", e => pageErrors.push(String(e)))
 
 	// Admin renders the directory this test wants to see under the CSP; any
-	// signed-in user still proves the headers themselves.
-	const isAdmin = await trySignInAs(page, "admin")
-	if (!isAdmin) await signInAs(page, "userA")
+	// signed-in user still proves the headers themselves. Both sessions come
+	// from setup, so this test does not call sign-in.
+	let isAdmin = (await page.context().cookies()).some(c => c.name === "better-auth.session_token")
+	if (!isAdmin) {
+		const stored = JSON.parse(fs.readFileSync(AUTH_FILE, "utf8")) as { cookies?: Cookie[] }
+		if (stored.cookies?.length) await page.context().addCookies(stored.cookies)
+		isAdmin = false
+	}
 
 	const response = await page.goto("/user-management")
 	const h = response!.headers()

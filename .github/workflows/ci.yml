@@ -180,3 +180,120 @@ jobs:
 
       - name: Backend e2e
         run: pnpm -F @repo/backend test:e2e
+
+  # Authenticated Playwright. The pinned quality gate has no Postgres and
+  # starts no backend, and that repository is out of scope, so the gate's e2e
+  # job stays the unauthenticated suite. This job brings up Postgres and the
+  # API, seeds pre-verified ordinary users, and runs the authenticated projects.
+  # Passwords are generated here, masked, and never printed. No repository
+  # secrets. Mail stays on the dev json transport (no SMTP_HOST). No Redis.
+  web-e2e-auth:
+    name: Web e2e auth
+    needs: changes
+    if: ${{ needs.changes.outputs.web == 'true' || needs.changes.outputs.deps == 'true' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    services:
+      postgres:
+        image: postgres:16.15@sha256:ca0bd484cb98bf4b24eb1010e73fb3fcbd6714d240fbc1a10eea5b7dbecb641d # 16.15 2026-10-21
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: turbo-template
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d turbo-template"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgres://postgres@localhost:5432/turbo-template
+      E2E_AUTH_API_URL: http://localhost:3000/api/v1/auth/
+      BASE_URL: http://localhost:3001
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:3000/api
+      NEXT_PUBLIC_APP_URL: http://localhost:3001
+      NEXT_PUBLIC_API_VERSION: v1
+      CORS_ORIGINS: http://localhost:3001
+      BETTER_AUTH_TRUSTED_ORIGINS: http://localhost:3001
+      APP_WEB_URL: http://localhost:3001
+      E2E_TEST_EMAIL: e2e-user-a@turbo-template.local
+      E2E_TEST_EMAIL_B: e2e-user-b@turbo-template.local
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 10.27.0
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22.22.1
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate ephemeral auth secret and e2e passwords
+        run: |
+          set -euo pipefail
+          auth_secret="$(openssl rand -base64 32 | tr -d '\n')"
+          seed_password="$(openssl rand -base64 24 | tr -d '\n')"
+          user_a_password="$(openssl rand -base64 24 | tr -d '\n')"
+          user_b_password="$(openssl rand -base64 24 | tr -d '\n')"
+          echo "::add-mask::${auth_secret}"
+          echo "::add-mask::${seed_password}"
+          echo "::add-mask::${user_a_password}"
+          echo "::add-mask::${user_b_password}"
+          {
+            printf 'BETTER_AUTH_SECRET=%s\n' "$auth_secret"
+            printf 'SEED_ADMIN_PASSWORD=%s\n' "$seed_password"
+            printf 'E2E_ADMIN_PASSWORD=%s\n' "$seed_password"
+            printf 'E2E_TEST_PASSWORD=%s\n' "$user_a_password"
+            printf 'E2E_TEST_PASSWORD_B=%s\n' "$user_b_password"
+          } >> "$GITHUB_ENV"
+
+      - name: Seed the local database
+        run: pnpm db:seed
+
+      - name: Seed pre-verified e2e users
+        run: pnpm db:seed:e2e
+
+      - name: Build backend
+        # `node dist/main.js` loads workspace packages from their dist.
+        # Turbo builds those dependencies, then the backend.
+        run: pnpm turbo run build --filter=@repo/backend
+
+      - name: Start backend
+        run: |
+          set -euo pipefail
+          nohup pnpm -F @repo/backend start > "$RUNNER_TEMP/backend.log" 2>&1 &
+          for _ in $(seq 1 60); do
+            if curl -sf http://localhost:3000/api/v1/health >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "backend did not become healthy"
+          tail -n 80 "$RUNNER_TEMP/backend.log" || true
+          exit 1
+
+      - name: Install Playwright chromium
+        run: pnpm --filter @repo/e2e-web exec playwright install --with-deps chromium
+
+      - name: Web e2e
+        run: pnpm test:e2e:web
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: playwright-report-web-e2e-auth
+          path: packages/e2e-web/playwright-report/
+          if-no-files-found: ignore
+          retention-days: 7

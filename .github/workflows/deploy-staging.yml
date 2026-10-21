@@ -79,6 +79,28 @@ jobs:
           require_var CORS_ORIGINS
           require_var BETTER_AUTH_SECRET
           require_var BETTER_AUTH_TRUSTED_ORIGINS
+
+          # Reject a mistyped region or registry before credentials, build, or
+          # push. The messages name the variable and the expected shape only.
+          validate_registry() {
+            local region_re='^[a-z]{2}(-gov)?-[a-z]+-[0-9]+$'
+            local registry_re='^[0-9]{12}\.dkr\.ecr\.[a-z0-9-]+\.amazonaws\.com(\.cn)?$'
+            if [[ ! "$AWS_REGION" =~ $region_re ]]; then
+              echo 'AWS_REGION must match ^[a-z]{2}(-gov)?-[a-z]+-[0-9]+$'
+              exit 1
+            fi
+            if [[ ! "$ECR_REGISTRY" =~ $registry_re ]]; then
+              echo 'ECR_REGISTRY must match ^[0-9]{12}\.dkr\.ecr\.[a-z0-9-]+\.amazonaws\.com(\.cn)?$'
+              exit 1
+            fi
+            local registry_region=${ECR_REGISTRY#*.dkr.ecr.}
+            registry_region=${registry_region%%.amazonaws.com*}
+            if [[ "$registry_region" != "$AWS_REGION" ]]; then
+              echo 'ECR_REGISTRY region must equal AWS_REGION'
+              exit 1
+            fi
+          }
+          validate_registry
           echo "✅ All required variables present"
 
       # ── Build & push Docker images to ECR ──────────────────────
@@ -186,6 +208,11 @@ jobs:
             esac
           }
 
+          # The format check already refuses a newline. Repeat it here so a
+          # deploy step never forwards one, same as put.
+          reject_newline AWS_REGION "$AWS_REGION"
+          reject_newline ECR_REGISTRY "$ECR_REGISTRY"
+
           put() {
             reject_newline "$1" "$2"
             printf '%s=%s\n' "$1" "$2"
@@ -227,17 +254,18 @@ jobs:
           # Own SSH call, separate from the deploy script. umask and chmod
           # leave the final file mode 600.
           ssh "${ssh_opts[@]}" "ec2-user@$STG_EC2_HOST" \
-            'umask 077; cat > /opt/staging/.env.tmp && chmod 600 /opt/staging/.env.tmp && mv /opt/staging/.env.tmp /opt/staging/.env' \
+            'umask 077; trap '\''rm -f /opt/staging/.env.tmp'\'' EXIT; cat > /opt/staging/.env.tmp && chmod 600 /opt/staging/.env.tmp && mv /opt/staging/.env.tmp /opt/staging/.env' \
             < "$env_file"
 
           ssh "${ssh_opts[@]}" "ec2-user@$STG_EC2_HOST" \
             'cat > /opt/staging/docker-compose.yml' \
             < docker-compose.staging.yml
 
-          # Quoted on purpose: the host must not expand this script. The two
-          # coordinates it needs are passed as arguments, already quoted.
-          ssh "${ssh_opts[@]}" "ec2-user@$STG_EC2_HOST" \
-            env "AWS_REGION=$AWS_REGION" "ECR_REGISTRY=$ECR_REGISTRY" bash -s << 'DEPLOY'
+          # The coordinates are validated on the runner and sent as quoted
+          # assignments on stdin. The remote command line carries no values.
+          {
+            printf 'AWS_REGION=%q\nECR_REGISTRY=%q\n' "$AWS_REGION" "$ECR_REGISTRY"
+            cat << 'DEPLOY'
             set -euo pipefail
 
             # ECR login on the instance
@@ -288,6 +316,7 @@ jobs:
 
             echo "✅ Deploy complete"
           DEPLOY
+          } | ssh "${ssh_opts[@]}" "ec2-user@$STG_EC2_HOST" bash -s
 
       - name: Deployment summary
         run: |

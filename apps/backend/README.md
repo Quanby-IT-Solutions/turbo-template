@@ -109,7 +109,7 @@ Why this flow: it ensures dependent workspace packages are built before backend 
 | `THROTTLE_LIMIT`        | No       | `100`   | Max requests per window (default limiter)          |
 | `THROTTLE_STRICT_TTL`   | No       | `60000` | Window (ms) for the strict limiter                 |
 | `THROTTLE_STRICT_LIMIT` | No       | `10`    | Max requests per window (strict limiter)           |
-| `TRUST_PROXY`           | No       | `1`     | Number of trusted proxy hops (1 = single Nginx)    |
+| `TRUST_PROXY`           | No       | `1`     | Trusted proxy hops. `1` is one hop: nginx locally (it sets `X-Forwarded-For`); production's load balancer appends `X-Forwarded-For`. Staging in this repo is EC2 plus an Elastic IP; any load balancer there is outside this repo |
 
 ### Auth Rate Limiting (Better Auth)
 
@@ -157,7 +157,7 @@ See `.env.example` for reference.
 
 - Two named throttlers: `default` (all routes, `THROTTLE_TTL`/`THROTTLE_LIMIT`) and `strict` (mutating routes decorated with `@StrictThrottle()`, `THROTTLE_STRICT_TTL`/`THROTTLE_STRICT_LIMIT`).
 - Throttler storage is **in-memory** (`ThrottlerStorageService`). Counters reset on restart. Multi-instance deployments (horizontal scaling) require a shared store such as Redis (`ThrottlerStorageRedis`) — a documented future step.
-- `TRUST_PROXY` (default `1`) configures Express to derive the real client IP from `X-Forwarded-For` set by the single Nginx hop. **Production warning:** the backend must not be directly internet-exposed when `TRUST_PROXY > 0`; if clients can reach the backend directly they can spoof forwarding headers and bypass IP-based throttling.
+- `TRUST_PROXY` (default `1`) is the hop count Express uses to read the client address from `X-Forwarded-For`. Local / dev is nginx, which sets the header to `$remote_addr`. Production is the load balancer, which appends the address it saw. Staging in this repo is EC2 plus an Elastic IP; any load balancer there is managed outside this repo. `1` matches one hop. The deployed compose files publish backend port 3000 as `${BACKEND_BIND_ADDRESS:-0.0.0.0}`. On EC2 the Elastic IP is translated 1:1 to the private IPv4, so binding to the private address only limits the host-side publish to that one interface. On production, direct access must be blocked by a security group that allows port 3000 only from the load balancer's security group, and that group is managed outside this repo. Set that variable on production only. It must stay unset on staging while the staging workflow probes the host address.
 - Auth routes (`/api/v*/auth/*`) are throttled by Better Auth's built-in `rateLimit` (`AUTH_RATE_LIMIT_WINDOW`/`AUTH_RATE_LIMIT_MAX`, default `10` per `60` seconds), not the NestJS throttler.
 
 ### Transactional Email

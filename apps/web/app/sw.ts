@@ -5,7 +5,13 @@
  * Service worker source (Serwist / Turbopack).
  *
  * Caching safety model:
- * - API + auth (`/api/*`)   => NetworkOnly. Never cache dynamic/auth responses.
+ * - API, auth, and any cross-origin request bypass the worker entirely
+ *   (`bypassesServiceWorker`). The browser handles them natively, so a failed
+ *   re-fetch inside the worker cannot mark the app offline or pause mutations.
+ * - `/api` and `/api/...`   => NetworkOnly backstop, only if a request still
+ *                              reaches Serwist. Never cache dynamic/auth
+ *                              responses. Lookalike paths such as `/apiary`
+ *                              are not included.
  * - Token-bearing URLs      => NetworkOnly. Single-use credentials must not be
  *                              written to any cache (WC-2 / F-20).
  * - Authenticated routes    => excluded from the offline fallback, so the app
@@ -17,7 +23,12 @@
 import { defaultCache } from "@serwist/turbopack/worker"
 import { NetworkOnly, Serwist, type PrecacheEntry, type SerwistGlobalConfig } from "serwist"
 
-import { carriesToken, mayServeOfflineFallback } from "@/features/pwa/lib/sw-exclusions"
+import {
+	bypassesServiceWorker,
+	carriesToken,
+	isApiPath,
+	mayServeOfflineFallback,
+} from "@/features/pwa/lib/sw-exclusions"
 
 declare global {
 	interface WorkerGlobalScope extends SerwistGlobalConfig {
@@ -45,11 +56,13 @@ const serwist = new Serwist({
 	navigationPreload: true,
 	runtimeCaching: [
 		// Order matters: this MUST come before defaultCache.
-		// Covers same-origin prod (Nginx `/api`) and cross-origin dev (`:3000/api`)
-		// without reading env at SW build time. Auth/dynamic responses must never
-		// be cached, so force NetworkOnly for anything under `/api`.
+		// Backstop only. The fetch listener below normally stops these requests
+		// before Serwist sees them, for both same-origin `/api` (Nginx) and
+		// cross-origin dev (`:3000/api`), without reading env at SW build time.
+		// If one still reaches Serwist, NetworkOnly keeps the response out of
+		// every cache. Matched only for `/api` and `/api/...`.
 		{
-			matcher: ({ url }) => url.pathname.startsWith("/api"),
+			matcher: ({ url }) => isApiPath(url),
 			handler: new NetworkOnly(),
 		},
 		// WC-2 / F-20: reset and verification links travel as `?token=…` URLs.
@@ -86,6 +99,16 @@ self.addEventListener("message", event => {
 	if ((event.data as { type?: string } | undefined)?.type === "SKIP_WAITING") {
 		void self.skipWaiting()
 	}
+})
+
+// Registered before Serwist's fetch listener. `stopImmediatePropagation`
+// without `respondWith` lets the browser perform the request itself, for every
+// method. Serwist only routes GETs, but an API or cross-origin request must
+// not be intercepted either way.
+self.addEventListener("fetch", event => {
+	const url = new URL(event.request.url)
+	if (!bypassesServiceWorker(url, self.location.origin)) return
+	event.stopImmediatePropagation()
 })
 
 serwist.addEventListeners()

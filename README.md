@@ -316,7 +316,15 @@ verification stays required. `pnpm db:seed:e2e` creates userA and userB as
 pre-verified ordinary users (no role) so sign-in works without turning that
 requirement off.
 
-From the repo root, with Postgres and the backend up:
+From the repo root, with Postgres up. Start the backend with the e2e limiter
+and leave that process running across repeated suite runs. Production defaults
+stay 100 requests per 60000 ms.
+
+```bash
+THROTTLE_LIMIT=5000 THROTTLE_TTL=60000 pnpm --filter @repo/backend start
+```
+
+Then:
 
 ```bash
 export E2E_AUTH_API_URL=http://localhost:3000/api/v1/auth/

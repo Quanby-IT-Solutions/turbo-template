@@ -37,6 +37,14 @@ export const sessionOptions = queryOptions({
 	retry: false,
 })
 
+/** The sign-out request itself failed. The session and the on-device cache are unchanged. */
+class SignOutRequestError extends Error {
+	constructor() {
+		super("Sign-out did not complete")
+		this.name = "SignOutRequestError"
+	}
+}
+
 /**
  * Mutation hook for signing out the current user.
  *
@@ -56,7 +64,7 @@ export function useSignOutMutation() {
 		mutationFn: async () => {
 			const result = await authClient.signOut()
 			if (result.error) {
-				throw new Error(result.error.message || "Failed to sign out")
+				throw new SignOutRequestError()
 			}
 			// The purge lives in `mutationFn`, not `onSuccess`: a throw here is
 			// unambiguously a failed mutation, so the error state and the toast
@@ -72,12 +80,16 @@ export function useSignOutMutation() {
 			router.push("/")
 			router.refresh()
 		},
-		// A purge that throws leaves a readable snapshot on disk. Say so out
-		// loud rather than navigating away as though sign-out were complete.
-		onError: () => {
-			toast.error("Sign-out could not clear this device's cached data. Please try again.", {
-				id: "sign-out-error",
-			})
+		// A failed sign-out request leaves the session in place. A purge that
+		// throws leaves a readable snapshot on disk. Say which one happened
+		// rather than navigating away as though sign-out were complete.
+		onError: error => {
+			toast.error(
+				error instanceof SignOutRequestError
+					? "Sign-out did not complete. You are still signed in."
+					: "Sign-out could not clear this device's cached data. Please try again.",
+				{ id: "sign-out-error" }
+			)
 		},
 	})
 }

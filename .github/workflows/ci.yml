@@ -229,6 +229,10 @@ jobs:
       APP_WEB_URL: http://localhost:3001
       E2E_TEST_EMAIL: e2e-user-a@turbo-template.local
       E2E_TEST_EMAIL_B: e2e-user-b@turbo-template.local
+      # This job only. Code defaults stay 100 requests / 60000 ms.
+      # Same numbers as packages/e2e-web/backend-throttle.ts and the README.
+      THROTTLE_LIMIT: 5000
+      THROTTLE_TTL: 60000
     steps:
       - name: Checkout
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6

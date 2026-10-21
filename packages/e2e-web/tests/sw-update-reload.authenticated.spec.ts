@@ -1,6 +1,11 @@
 import { expect, test, type Page } from "@playwright/test"
 
 import { ADMIN_AUTH_FILE } from "../constants"
+import { installSessionReadRecovery } from "../fixtures"
+
+test.beforeEach(async ({ page }) => {
+	installSessionReadRecovery(page)
+})
 
 /**
  * BUG-006: a first visit must not reload when the worker claims.

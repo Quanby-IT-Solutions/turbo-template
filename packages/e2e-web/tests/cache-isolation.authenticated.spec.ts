@@ -2,8 +2,12 @@ import fs from "fs"
 import { expect, test, type Cookie, type Page } from "@playwright/test"
 
 import { ADMIN_AUTH_FILE, USER_B_AUTH_FILE } from "../constants"
-import { ACCOUNTS, signInAs } from "../fixtures"
+import { ACCOUNTS, installSessionReadRecovery, signInAs, signOutToLogin } from "../fixtures"
 import { gotoAndSettle, settleServiceWorker } from "../service-worker"
+
+test.beforeEach(async ({ page }) => {
+	installSessionReadRecovery(page)
+})
 
 /**
  * WC-1 / F-04 — cache isolation on a shared browser profile.
@@ -181,6 +185,9 @@ test.describe("persisted cache isolation", () => {
 	})
 
 	test("gives a second user a different cache bucket than the first", async ({ page }) => {
+		// Sign-out shares one address. A 429 waits for `x-retry-after` (at most 61s, twice).
+		// The default 30s test timeout kills that wait. Assertion timeouts are unchanged.
+		test.setTimeout(180_000)
 		await signInAs(page, "userB")
 		await visitCachePopulatingPages(page, false)
 		const firstUserKeys = await waitForPersistedSnapshot(page)
@@ -188,8 +195,7 @@ test.describe("persisted cache isolation", () => {
 		// Sign out so the first user's bucket is purged, then hand the browser to
 		// the next person — the scenario the audit describes.
 		await gotoAndSettle(page, "/")
-		await page.getByRole("button", { name: /logout/i }).click()
-		await expect(page.getByRole("link", { name: /^login$/i })).toBeVisible()
+		await signOutToLogin(page)
 
 		const isAdmin = hasSessionCookie(ADMIN_AUTH_FILE)
 		test.skip(!isAdmin, "second account unavailable in this environment")
@@ -245,13 +251,15 @@ test.describe("persisted cache isolation", () => {
 	})
 
 	test("sign-out purges every persisted cache entry from IndexedDB", async ({ page }) => {
+		// Sign-out shares one address. A 429 waits for `x-retry-after` (at most 61s, twice).
+		// The default 30s test timeout kills that wait. Assertion timeouts are unchanged.
+		test.setTimeout(180_000)
 		await signInAs(page, "userB")
 		await visitCachePopulatingPages(page, false)
 		const signedInKeys = await waitForPersistedSnapshot(page)
 
 		await gotoAndSettle(page, "/")
-		await page.getByRole("button", { name: /logout/i }).click()
-		await expect(page.getByRole("link", { name: /^login$/i })).toBeVisible()
+		await signOutToLogin(page)
 
 		// The signed-in user's bucket must be gone. Browsing on as an anonymous
 		// visitor legitimately creates a fresh anonymous bucket, so assert on the

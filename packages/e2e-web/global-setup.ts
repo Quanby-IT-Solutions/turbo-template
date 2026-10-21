@@ -1,6 +1,7 @@
 import fs from "fs"
 import path from "path"
 
+import { assertE2eBackendThrottle } from "./backend-throttle"
 import { ADMIN_AUTH_FILE, AUTH_FILE, USER_B_AUTH_FILE } from "./constants"
 
 /**
@@ -9,7 +10,9 @@ import { ADMIN_AUTH_FILE, AUTH_FILE, USER_B_AUTH_FILE } from "./constants"
  * doesn't throw ENOENT on the first run. The real sessions are written by the
  * "setup" project (global.setup.ts).
  */
-export default function globalSetup() {
+export default async function globalSetup() {
+	await assertE2eBackendThrottle()
+
 	for (const file of [AUTH_FILE, ADMIN_AUTH_FILE, USER_B_AUTH_FILE]) {
 		fs.mkdirSync(path.dirname(file), { recursive: true })
 		if (!fs.existsSync(file)) {

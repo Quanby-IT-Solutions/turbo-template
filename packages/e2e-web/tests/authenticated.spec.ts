@@ -1,10 +1,14 @@
 import { expect, test, type Page } from "@playwright/test"
 
 import { ADMIN_AUTH_FILE } from "../constants"
-import { signInAs } from "../fixtures"
+import { installSessionReadRecovery, signInAs, signOutToLogin } from "../fixtures"
 import { gotoAndSettle, settleServiceWorker } from "../service-worker"
 
-// All tests in this file run with stored auth session (chromium-authenticated project)
+// All tests in this file run with stored auth session (chromium-authenticated project).
+
+test.beforeEach(async ({ page }) => {
+	installSessionReadRecovery(page)
+})
 
 test.describe("authenticated home page", () => {
 	test.beforeEach(async ({ page }) => {
@@ -249,6 +253,9 @@ test.describe("sign-out", () => {
 	test.use({ storageState: { cookies: [], origins: [] } })
 
 	test("returns to the logged-out state and re-guards protected routes", async ({ page }) => {
+		// Sign-out shares one address. A 429 waits for `x-retry-after` (at most 61s, twice).
+		// The default 30s test timeout kills that wait. Assertion timeouts are unchanged.
+		test.setTimeout(180_000)
 		// HY-1: the shared fixture, so this sign-in gets the same 429 retry as
 		// every other. Better Auth rate-limits `sign-in/email` per path, and a
 		// full serial run makes enough sign-ins to trip it — which used to fail
@@ -258,8 +265,7 @@ test.describe("sign-out", () => {
 		// Settle before the click. A click that lands before hydration leaves this
 		// button on screen and the session intact. The first claim does not reload.
 		await gotoAndSettle(page, "/")
-		await page.getByRole("button", { name: /logout/i }).click()
-		await expect(page.getByRole("link", { name: /^login$/i })).toBeVisible()
+		await signOutToLogin(page)
 
 		// A protected route must send the now-signed-out visitor to login.
 		await page.goto("/dashboard")

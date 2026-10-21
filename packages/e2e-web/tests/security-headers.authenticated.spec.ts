@@ -2,7 +2,11 @@ import fs from "fs"
 import { expect, test, type Cookie } from "@playwright/test"
 
 import { ADMIN_AUTH_FILE, AUTH_FILE } from "../constants"
-import { ACCOUNTS } from "../fixtures"
+import { ACCOUNTS, installSessionReadRecovery } from "../fixtures"
+
+test.beforeEach(async ({ page }) => {
+	installSessionReadRecovery(page)
+})
 
 /**
  * ED-1 / F-12 + F-21 — browser-level defences, and the clickjacking path.

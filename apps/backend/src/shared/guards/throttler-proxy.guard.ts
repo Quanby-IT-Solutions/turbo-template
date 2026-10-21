@@ -13,8 +13,7 @@ import { resolveRequestSession, type RequestWithSession } from "./resolve-reques
  * the `X-Forwarded-For` header reads left-to-right. The leftmost entry is the
  * one furthest from us and therefore the one a client can write itself — keying
  * the throttler on it lets any caller mint a fresh rate-limit bucket per request
- * simply by varying a header, defeating the only abuse control on the mutation
- * endpoints.
+ * simply by varying a header.
  *
  * ## What this guard keys on
  *
@@ -35,18 +34,20 @@ import { resolveRequestSession, type RequestWithSession } from "./resolve-reques
  * more than one named throttler asks for a tracker. If that lookup throws,
  * the address key is used and this guard does not fail the request.
  *
- * ## Trust chain (Risky Flow RF2 — see DOMAIN-MODEL.md)
+ * ## Trust chain (see DOMAIN-MODEL.md)
  *
- * The address key is only sound while both halves agree:
- *   1. `nginx.conf` **sets** (never appends) `X-Forwarded-For $remote_addr`, so
- *      the header carries exactly one, proxy-authored entry, and
- *   2. `TRUST_PROXY` equals the real number of hops in front of the app (1 for
- *      the shipped single-Nginx topology).
+ * `TRUST_PROXY` must equal the real hop count. The value stays `1` for one hop:
+ *   1. Local / dev: nginx **sets** (never appends) `X-Forwarded-For $remote_addr`,
+ *      so the header carries exactly one nginx-authored entry.
+ *   2. Production: the load balancer **appends** the address it saw onto
+ *      `X-Forwarded-For`. With one trusted hop, Express keeps that rightmost,
+ *      load-balancer-authored entry. Staging in this repo is EC2 plus an
+ *      Elastic IP; any load balancer there is managed outside this repo.
  *
- * Raising `TRUST_PROXY` above the real hop count re-opens the forgery: Express
- * would then keep client-supplied entries in `req.ips`. Any deployment that
- * fronts the backend with an extra proxy/LB must update both places together.
- * The user key does not read that header.
+ * Raising `TRUST_PROXY` alone does not move this guard's address key, because
+ * `getTracker` reads the rightmost `X-Forwarded-For` entry. An extra hop
+ * needs `TRUST_PROXY` and `getTracker` updated together. The user key does
+ * not read that header.
  */
 interface ThrottleRequest extends RequestWithSession {
 	ip?: string

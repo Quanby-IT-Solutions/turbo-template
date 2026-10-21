@@ -651,14 +651,61 @@ import { todos, users } from "@repo/db/schema"
 
 ### How It Works
 
-| Branch       | Environment | Strategy                            |
-| ------------ | ----------- | ----------------------------------- |
-| `staging`    | Staging     | Single EC2 + Docker Compose + Nginx |
-| `production` | Production  | ECS Fargate + ALB (auto-scaling)    |
+| Branch       | Environment | Strategy                                              |
+| ------------ | ----------- | ----------------------------------------------------- |
+| `staging`    | Staging     | Single EC2 + Docker Compose + Elastic IP              |
+| `production` | Production  | EC2 + load balancer + ASG (auto-scaling)              |
 
 Merge to the branch → CI runs → Docker images build → deploy automatically.
 
 Infrastructure is managed separately via [turbo-infrastructure](https://github.com/Quanby-IT-Solutions/turbo-infrastructure) (Terraform).
+
+### Proxy hop and backend bind
+
+Local / dev and production are different hops. `TRUST_PROXY` stays `1` for
+one hop:
+
+- **Local / dev** uses nginx. `nginx/nginx.conf` and `nginx/nginx.dev.conf`
+  set `X-Forwarded-For` to `$remote_addr` (they do not append). The local
+  compose file publishes web and backend on `127.0.0.1` so a host nginx can
+  reach them.
+- **Production** uses the load balancer. It terminates TLS, routes by host
+  header to `web:3001` and `backend:3000`, and appends the address it saw
+  onto `X-Forwarded-For`. There is no nginx service in
+  `docker-compose.production.yml`.
+- **Staging** in this repo is a single EC2 instance with an Elastic IP
+  (`deploy-staging.yml`). The workflow probes `$STG_EC2_HOST` on ports 3000
+  and 3001 from the runner. Any load balancer in front of staging is managed
+  outside this repo. There is no nginx service in `docker-compose.staging.yml`.
+
+The web container still calls the backend on the compose network
+(`INTERNAL_API_BASE_URL=http://backend:3000/api`). That path does not use the
+published host port.
+
+The backend's published port in both deploy compose files is
+`${BACKEND_BIND_ADDRESS:-0.0.0.0}:3000:3000`.
+
+On production, set `BACKEND_BIND_ADDRESS` to the instance's private IPv4
+where compose is launched. On EC2 the Elastic IP is translated 1:1 to the
+private IPv4, so binding to the private address only limits the host-side
+publish to that one interface. Direct access must be blocked by a security group
+that allows port 3000 only from the load balancer's security group, and that
+group is managed outside this repo. The default `0.0.0.0` keeps a deploy
+working when the variable is unset. Do not bind the port to `127.0.0.1` and
+do not remove the host mapping: the load balancer's health checks must reach
+port 3000. Web stays on `0.0.0.0:3001`. Redis stays unpublished.
+
+`BACKEND_BIND_ADDRESS` must stay unset on staging while that probe hits the
+host address.
+
+This repo does not set `BACKEND_BIND_ADDRESS`. Production publishes the compose
+file and a shared env payload to SSM; that payload has no per-instance private
+address, and the instance boot script lives in turbo-infrastructure. Staging's
+workflow writes `/opt/staging/.env` and does not include the variable. The
+production target groups are provisioned outside this repo; the workflow
+checks both the web group and the backend group. The in-repo container
+healthcheck calls `GET /api/v1/health` on `localhost:3000` inside the backend
+container, which does not depend on the publish address.
 
 ### Deploy
 
@@ -784,17 +831,13 @@ HTTPS, and the ACME challenge path stays on HTTP so renewal keeps working.
 Once this is live, enable `ENABLE_HSTS=true` (ED-1 keeps it off until TLS
 actually terminates, because `max-age` cannot be withdrawn quickly).
 
-### First-Time Staging SSL
+### TLS on the deployed hosts
 
-After the first staging deployment, SSH into EC2 to set up HTTPS:
-
-```bash
-ssh -i your-key.pem ubuntu@EC2_HOST
-sudo certbot --nginx -d stg-turbo.quanbyit.com -d stg-turbo-be.quanbyit.com
-sudo certbot renew --dry-run
-```
-
-Production uses AWS ACM certificates via the ALB — no manual SSL needed.
+Production terminates TLS on the load balancer (AWS ACM). Staging in this
+repo is EC2 plus an Elastic IP; any load balancer, and its certificates, are
+managed outside this repo. Neither deploy compose file runs nginx, and
+neither workflow installs certificates on the host. Host nginx and certbot
+are the local / self-hosted path in the section above.
 
 ### Docker (Local) — single-port reverse proxy
 
@@ -836,7 +879,6 @@ ssh -i your-key.pem ubuntu@EC2_HOST
 cd /opt/staging && docker compose -f docker-compose.staging.yml ps
 docker compose -f docker-compose.staging.yml logs web
 docker compose -f docker-compose.staging.yml logs backend
-sudo nginx -t && sudo systemctl status nginx
 ```
 
 </details>

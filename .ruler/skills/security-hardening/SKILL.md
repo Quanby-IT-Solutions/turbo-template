@@ -362,25 +362,27 @@ env config. See the error-handling-logging skill.
 
 ### Security Group Rules
 
+Guidance only. The rules live in the infrastructure repo, not in this one.
+
+Production is EC2 instances behind a load balancer, in an Auto Scaling Group.
+The load balancer security group is open to 80 and 443. Instance ports 3000
+and 3001 are open only from the load balancer security group.
+
 ```
-ALB SG:
-  Inbound: 80 (HTTP), 443 (HTTPS) from 0.0.0.0/0
+Load balancer SG:
+  Inbound: 80 (HTTP), 443 (HTTPS) from the internet
   Outbound: All
 
-Web ECS SG:
-  Inbound: 3001 from ALB SG only
-  Outbound: All
-
-Backend ECS SG:
-  Inbound: 3000 from ALB SG only
+Instance SG:
+  Inbound: 3000 and 3001 from the load balancer SG only
   Outbound: All
 ```
 
-**Rules:**
+Staging in this repo is one EC2 instance with an Elastic IP and no load
+balancer. Host Nginx on the instance is the single front hop.
 
-- ECS tasks are in private subnets (no public IP)
-- Only ALB can reach ECS services (SG-to-SG reference)
-- Outbound allowed for external API calls and database connections
+`BACKEND_BIND_ADDRESS` is not this control. It is production-only defense in
+depth and stays unset on staging.
 
 ## Secret Management
 
@@ -391,7 +393,7 @@ Backend ECS SG:
 | Public     | GitHub Variables     | `NEXT_PUBLIC_APP_URL`, `AWS_REGION`, `PROJECT_NAME`           |
 | Secret     | GitHub Secrets       | `DATABASE_URL`, `BETTER_AUTH_SECRET`, `REDIS_PASSWORD`        |
 | Build-time | Docker ARG           | `NEXT_PUBLIC_API_BASE_URL` (baked into JS bundle)             |
-| Runtime    | ECS env / Docker env | `DATABASE_URL`, `CORS_ORIGINS`, `REDIS_URL`                   |
+| Runtime    | compose env (SSM / .env) | `DATABASE_URL`, `CORS_ORIGINS`, `REDIS_URL`               |
 
 ### Security-Relevant Env Reference
 

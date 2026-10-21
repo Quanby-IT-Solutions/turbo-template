@@ -626,7 +626,7 @@ the issue to **In QA**, where QA verifies the acceptance criteria before Done.
 
 ## Backend: Production-like Local Run
 
-To mirror Docker/ECS behavior for backend startup, build workspace dependencies first, then run backend start:
+To mirror the container entrypoint for backend startup, build workspace dependencies first, then run backend start:
 
 ```bash
 pnpm build
@@ -729,20 +729,16 @@ Before your first deploy, go to **Settings → Environments** and create `stagin
 | --------------------------- | ------------------------- | ----------------------------------- | ----------------------------------- |
 | `AWS_REGION`                | AWS region                | `ap-southeast-1`                    | `ap-southeast-1`                    |
 | `PROJECT_NAME`              | Project identifier        | `turbo-template`                    | `turbo-template`                    |
-| `ECR_REGISTRY`              | ECR registry host         | `123...dkr.ecr.ap-southeast-1.amazonaws.com` | `123...dkr.ecr.ap-southeast-1.amazonaws.com` |
-| `STG_EC2_HOST`              | Staging EC2 IP / hostname | `54.123.45.67`                      |                                     |
-| `STG_EC2_HOST_KEY`          | Pinned SSH host key (see below) | `54.123.45.67 ssh-ed25519 AAAAC3...` |                                |
+| `ECR_REGISTRY`              | ECR registry host (staging only; production uses the ECR login output) | `123...dkr.ecr.ap-southeast-1.amazonaws.com` |                                     |
+| `STG_EC2_HOST`              | Staging EC2 IP / hostname | `203.0.113.10`                      |                                     |
+| `STG_EC2_HOST_KEY`          | Pinned SSH host key (see below) | `203.0.113.10 ssh-ed25519 AAAAC3...` |                                |
 | `ECR_REPOSITORY_WEB`        | ECR repo name for web     | `turbo-template-web-staging`        | `turbo-template-web-production`     |
 | `ECR_REPOSITORY_BACKEND`    | ECR repo name for backend | `turbo-template-backend-staging`    | `turbo-template-backend-production` |
-| `DOMAIN_WEB`                | Web domain                | `stg-turbo.quanbyit.com`            | `turbo.quanbyit.com`                |
-| `DOMAIN_API`                | API domain                | `stg-turbo-be.quanbyit.com`         | `turbo-be.quanbyit.com`             |
-| `ECS_CLUSTER`               | ECS cluster name          |                                     | `turbo-template-production`         |
-| `ECS_SERVICE_WEB`           | ECS web service name      |                                     | `turbo-template-web-production`     |
-| `ECS_SERVICE_BACKEND`       | ECS backend service name  |                                     | `turbo-template-backend-production` |
-| `ECS_EXECUTION_ROLE_ARN`    | ECS execution role ARN    |                                     | `arn:aws:iam::123...:role/...`      |
-| `ECS_TASK_ROLE_ARN`         | ECS task role ARN         |                                     | `arn:aws:iam::123...:role/...`      |
+| `ASG_NAME`                  | Auto Scaling Group name   |                                     | `<asg-name>`                        |
+| `LAUNCH_TEMPLATE_ID`        | Launch template id        |                                     | `<launch-template-id>`              |
 | `NEXT_PUBLIC_APP_URL`       | Public web URL            | `https://stg-turbo.quanbyit.com`    | `https://turbo.quanbyit.com`        |
 | `NEXT_PUBLIC_API_BASE_URL`  | Public API URL            | `https://stg-turbo-be.quanbyit.com` | `https://turbo-be.quanbyit.com`     |
+| `NEXT_PUBLIC_API_VERSION`   | API version path segment (production deploy requires it; staging defaults to `v1`) | `v1` | `v1` |
 | `BETTER_AUTH_COOKIE_DOMAIN` | Cookie domain for auth    |                                     | `.quanbyit.com`                     |
 | `SENTRY_ORG`                | Sentry org slug (source-map upload) |                           | `<org-slug>`                        |
 | `SENTRY_PROJECT`            | Sentry project slug (source-map upload) |                       | `<project-slug>`                    |
@@ -792,7 +788,7 @@ rebuilt, since a new instance gets a new key):
 ssh-keyscan -t ed25519 <STG_EC2_HOST>
 ```
 
-Copy the output line — it looks like `54.123.45.67 ssh-ed25519 AAAAC3Nza...` —
+Copy the output line — it looks like `203.0.113.10 ssh-ed25519 AAAAC3Nza...` —
 into the `STG_EC2_HOST_KEY` **variable** (not a secret: it is public key
 material, and keeping it readable means a change shows up in review).
 
@@ -887,9 +883,17 @@ docker compose -f docker-compose.staging.yml logs backend
 <summary>Production</summary>
 
 ```bash
-aws ecs describe-services --cluster CLUSTER --services SERVICE --query 'services[0].events[:5]'
-aws logs tail /ecs/PROJECT_NAME-web-production --follow
-aws logs tail /ecs/PROJECT_NAME-backend-production --follow
+aws autoscaling describe-auto-scaling-groups --auto-scaling-group-names <ASG_NAME>
+aws autoscaling describe-instance-refreshes --auto-scaling-group-name <ASG_NAME>
+aws elbv2 describe-target-groups --names <TARGET_GROUP_NAME>
+aws elbv2 describe-target-health --target-group-arn <TARGET_GROUP_ARN>
+
+# The launch template writes the compose file from SSM to /opt/app.
+# This repo defines no log group.
+cd /opt/app
+docker compose ps
+docker compose logs web
+docker compose logs backend
 ```
 
 </details>

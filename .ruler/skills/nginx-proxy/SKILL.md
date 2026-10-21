@@ -19,7 +19,7 @@ One entrypoint serves both apps by path, so the whole stack is same-origin — *
 
 Files (`nginx/`):
 - **`nginx.dev.conf`** — local development, **HTTP only on :80**. The default (a fresh clone works with no certificates).
-- **`nginx.conf`** — production. HTTP :80 does the ACME challenge + redirects to HTTPS; TLS terminates on :443. Both configs ship live and working, not commented out (ED-2).
+- **`nginx.conf`** — production. HTTP :80 does the ACME challenge + redirects to HTTPS; TLS terminates on :443. Both configs ship live and working, not commented out.
 
 ## Compose wiring (`docker-compose.yml`)
 
@@ -54,10 +54,10 @@ Docker's embedded resolver (`resolver 127.0.0.11 valid=10s`) plus `set $upstream
 ## Hardening (shared by both configs)
 
 - **Security headers** are minimal and use `always` (so they apply to Nginx's own error responses, where no app header exists to inherit): `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`. Deliberately does NOT set CSP — Next.js owns the page CSP and NestJS the API headers; browsers **intersect** multiple CSPs, so duplicating would break the app. Nginx does **not** emit HSTS (`Strict-Transport-Security` appears nowhere in `nginx/`) — HSTS is app-layer in the NestJS backend, gated by `ENABLE_HSTS` (off by default; turn on once TLS terminates in front of the app — see `apps/backend/.env.example`).
-- **Request limits** (AB-4): `client_max_body_size 1m` (above the app's own 100kb parser so junk dies at the edge and borderline bodies get a coherent app 413), `client_body_timeout`/`client_header_timeout 15s` (slowloris), `proxy_connect_timeout 5s`, `proxy_send/read_timeout 60s`.
-- **X-Forwarded-For is SET, never appended** (AB-1 / RF2): `proxy_set_header X-Forwarded-For $remote_addr` — using `$proxy_add_x_forwarded_for` would let any caller forge a rate-limit bucket by varying the header. The header carries exactly one entry (the peer Nginx accepted), which `ThrottlerProxyGuard` keys on. **Topology assumption**: this is the single hop in front of the app, so the backend runs `TRUST_PROXY=1`. If you add another proxy/LB in front, switch to `$proxy_add_x_forwarded_for` AND raise `TRUST_PROXY` to match the hop count — the two must always agree.
+- **Request limits**: `client_max_body_size 1m` (above the app's own 100kb parser so oversized requests stop at the edge and borderline bodies get a coherent app 413), `client_body_timeout`/`client_header_timeout 15s` (drops slow or stalled clients), `proxy_connect_timeout 5s`, `proxy_send/read_timeout 60s`.
+- **X-Forwarded-For is SET, never appended**: `proxy_set_header X-Forwarded-For $remote_addr`. Nginx sets `X-Forwarded-For` to the connecting address (never appends); the backend's `TRUST_PROXY` must equal the number of proxies in front. The header carries exactly one entry (the peer Nginx accepted), which `ThrottlerProxyGuard` keys on. **Topology assumption**: this is the single hop in front of the app, so the backend runs `TRUST_PROXY=1`. If you add a proxy, switch to appending (`$proxy_add_x_forwarded_for`) and raise `TRUST_PROXY` to match. Raising `TRUST_PROXY` alone does not move the guard's key; an extra hop needs `TRUST_PROXY` and `ThrottlerProxyGuard.getTracker` updated together.
 - `/` also forwards `Upgrade`/`Connection: upgrade` for Next.js websockets.
 
 ## Production note
 
-`docker-compose.production.yml` has **no** nginx service — the AWS ALB fronts the EC2 instances and terminates TLS there. The bundled Nginx is for local single-port dev and any self-hosted (non-ALB) deployment. See `docker-deployment` and `aws-infrastructure`.
+`docker-compose.production.yml` and `docker-compose.staging.yml` have **no** nginx service. Production's load balancer fronts the production instances, terminates TLS, and **appends** the address it saw onto `X-Forwarded-For`. That is still one hop, so `TRUST_PROXY` stays `1` (do not raise it just because the load balancer appends). Raising `TRUST_PROXY` alone does not move `ThrottlerProxyGuard`'s key; an extra hop needs `TRUST_PROXY` and `getTracker` updated together. Staging is EC2 plus an Elastic IP, and host Nginx on the instance is the single trusted hop (`TRUST_PROXY=1`). Health is checked on the host over SSH. The bundled nginx is for local single-port dev and any self-hosted deployment. See `docker-deployment` and `aws-infrastructure`.

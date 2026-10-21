@@ -1,16 +1,28 @@
 # ==========================================================
-# STAGING DEPLOYMENT - EC2 behind ALB
+# STAGING DEPLOYMENT - EC2 + Elastic IP, host Nginx
 # ==========================================================
 # Runs web (port 3001) and backend (port 3000) containers.
-# ALB handles subdomain routing + SSL termination.
-# Containers bind to 0.0.0.0 so ALB health checks can reach them.
+# deploy-staging.yml checks health over SSH on the instance:
+# http://127.0.0.1:3000/api/v1/health and http://127.0.0.1:3001/.
+# Nginx is not part of this file. Host Nginx on the instance, outside
+# compose, is the single front hop. It proxies to 127.0.0.1:3000 and
+# 127.0.0.1:3001. The app ports are not opened in the security group.
+# TRUST_PROXY=1 matches that one hop.
 #
-# Each app gets its own subdomain via ALB host-header rules:
+# Backend publish address: ${BACKEND_BIND_ADDRESS:-0.0.0.0}:3000:3000.
+# BACKEND_BIND_ADDRESS stays unset on staging. The security group is what
+# keeps the app ports closed. The private-address bind is production
+# guidance (see docker-compose.production.yml).
+# Web stays on 0.0.0.0:3001. The web container reaches the backend over
+# the compose network (INTERNAL_API_BASE_URL=http://backend:3000/api).
+#
+# Recorded host names for this environment:
 #   - stg-turbo.quanbyit.com      → web:3001
 #   - stg-turbo-be.quanbyit.com   → backend:3000
 #
-# This file is stored in SSM Parameter Store (base64) and
-# pulled by EC2 instances on boot via the deploy script.
+# The staging deploy workflow copies this file to the instance
+# (/opt/staging/docker-compose.yml) and writes /opt/staging/.env.
+# That env payload does not set BACKEND_BIND_ADDRESS.
 # ==========================================================
 
 services:
@@ -41,7 +53,7 @@ services:
     image: ${ECR_REGISTRY}/${ECR_REPOSITORY_BACKEND}:${IMAGE_TAG:-latest}
     container_name: staging-backend
     ports:
-      - "0.0.0.0:3000:3000"
+      - "${BACKEND_BIND_ADDRESS:-0.0.0.0}:3000:3000"
     environment:
       - NODE_ENV=production
       - PORT=3000

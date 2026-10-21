@@ -4,10 +4,16 @@ import { toNodeHandler } from "better-auth/node"
 
 import { AUTH_BASE_PATH, getAuth } from "@repo/auth"
 
+import { enforceAuthBodyLimit } from "@/common/auth-body-limit"
 import { getVersionKeys } from "@/config/api-versions.config"
+import { MAX_REQUEST_BODY_SIZE } from "@/config/app.config"
 import { generateBetterAuthSchema } from "@/utils/openapi"
 
 const logger = new Logger("BetterAuthConfig")
+
+// No context name: the warn line is only requestId, status and type, the same
+// shape the JSON parser's 413 uses.
+const bodyLimitLogger = new Logger()
 
 interface JsonResponse {
 	status: (code: number) => JsonResponse
@@ -43,7 +49,18 @@ function createAuthMiddleware(versionedAuthPaths: string[]) {
 
 		if (matchedPath) {
 			req.url = url.replace(matchedPath, AUTH_BASE_PATH)
-			return handler(req, res)
+			// Better Auth reads the raw stream and the pinned handler accepts
+			// no body limit. Cap the body here, before that handler runs.
+			// GET, HEAD, OPTIONS and requests with no body are forwarded as they
+			// arrived. A body within the limit is placed on `req.body` as text
+			// so the handler forwards those bytes unchanged.
+			return enforceAuthBodyLimit(req, res, {
+				limit: MAX_REQUEST_BODY_SIZE,
+				log: entry => {
+					bodyLimitLogger.warn(entry)
+				},
+				forward: () => handler(req, res),
+			})
 		}
 
 		next()

@@ -28,12 +28,16 @@ jest.mock("@repo/auth", () => ({
 	getAuth: jest.fn(() => ({ api: { getSession: mockGetSession } })),
 }))
 
-const buildContext = (session?: unknown, user?: unknown): ExecutionContext =>
+const buildContext = (
+	session?: unknown,
+	user?: unknown,
+	extra?: Record<string, unknown>
+): ExecutionContext =>
 	({
 		getHandler: () => () => undefined,
 		getClass: () => class {},
 		switchToHttp: () => ({
-			getRequest: () => ({ session, user }),
+			getRequest: () => ({ session, user, ...extra }),
 		}),
 	}) as unknown as ExecutionContext
 
@@ -144,6 +148,15 @@ describe("RbacGuard", () => {
 		rbacService.hasAllPermissions.mockResolvedValue(true)
 
 		await expect(guard.canActivate(buildContext({ user: { id: "u1" } }))).resolves.toBe(true)
+	})
+
+	it("does not look the session up again when resolution was already recorded", async () => {
+		reflector.getAllAndOverride.mockReturnValue(["posts:create"])
+
+		await expect(
+			guard.canActivate(buildContext(undefined, undefined, { sessionResolved: true }))
+		).rejects.toBeInstanceOf(UnauthorizedException)
+		expect(mockGetSession).not.toHaveBeenCalled()
 	})
 
 	it("resolves the session itself when not yet attached to the request", async () => {

@@ -1,6 +1,6 @@
 ---
 name: ci-cd-pipelines
-description: CI/CD pipeline patterns for this monorepo using GitHub Actions. CI runs on `dev` via an external reusable quality gate. Staging deploys to EC2 (Elastic IP) via Docker Compose behind an ALB. Production deploys to EC2 + ALB + ASG using SSM Parameter Store + launch-template versioning + instance refresh. Extra workflows handle releases/changelog and auto-drafting PRs from GitHub or Linear tickets.
+description: CI/CD pipeline patterns for this monorepo using GitHub Actions. CI runs on `dev` via an external reusable quality gate. Staging deploys to EC2 (Elastic IP) via Docker Compose; host Nginx on the instance is the single hop and terminates TLS with certbot. Production deploys to EC2 + ALB + ASG using SSM Parameter Store + launch-template versioning + instance refresh. Extra workflows handle releases/changelog and auto-drafting PRs from GitHub or Linear tickets.
 updated: 2026-08-15
 ---
 
@@ -23,7 +23,7 @@ There is NO ECS anywhere. Both environments run Docker Compose on EC2; productio
 
 ```
 dev         → CI (external quality gate: typecheck, lint, format, test:cov, e2e)
-staging     → CI + auto-deploy to EC2 + Elastic IP (Docker Compose; ALB fronts TLS)
+staging     → CI + auto-deploy to EC2 + Elastic IP (Docker Compose; host Nginx with certbot fronts TLS)
 production  → CI + auto-deploy to EC2 + ALB + ASG (rolling instance refresh) + release tag
 ```
 
@@ -46,7 +46,7 @@ jobs:
 
 ## Staging (`deploy-staging.yml`) — EC2 + Elastic IP
 
-Single EC2 instance running Docker Compose. The ALB (provisioned separately) handles routing + TLS. There is NO inline nginx generation, NO `__DOMAIN__` heredocs, NO `systemctl`, NO auto-rollback.
+Single EC2 instance running Docker Compose. Host Nginx on the instance is the single hop. It listens on 80 and 443, proxies to `127.0.0.1:3000` and `127.0.0.1:3001`, and terminates TLS with certbot. Health is checked on the host over SSH. There is NO inline nginx generation, NO `__DOMAIN__` heredocs, NO `systemctl`, NO auto-rollback.
 
 Flow:
 1. `ci` passes.
@@ -54,7 +54,7 @@ Flow:
 3. Build + push web and backend images to ECR (`$IMAGE_TAG` = `github.sha`, plus `:latest`).
 4. Load the deploy key into `ssh-agent` (never written to disk) and pin the host key.
 5. SSH to `ec2-user@$STG_EC2_HOST` (hardcoded user), write `/opt/staging/.env` + `docker-compose.yml` (piped `cat docker-compose.staging.yml`), `docker compose pull && up -d --remove-orphans`, `docker image prune -f`.
-6. Health check: curl `http://$STG_EC2_HOST:3000/api/v1/health` and `:3001/` (both probed — the web probe is why the old ECR-var swap can't hide).
+6. Health check over SSH on the host: `http://127.0.0.1:3000/api/v1/health` and `http://127.0.0.1:3001/`.
 
 SSH hardening: `StrictHostKeyChecking=yes` + `BatchMode=yes` (fail-closed). `STG_EC2_HOST_KEY` is a **variable** (public key material, pinned to `~/.ssh/known_hosts`), the private key is the `STG_EC2_SSH_KEY` **secret**.
 
@@ -63,7 +63,7 @@ SSH hardening: `StrictHostKeyChecking=yes` + `BatchMode=yes` (fail-closed). `STG
 **Variables:** `AWS_REGION`, `PROJECT_NAME`, `ECR_REGISTRY`, `ECR_REPOSITORY_WEB`, `ECR_REPOSITORY_BACKEND`, `STG_EC2_HOST`, `STG_EC2_HOST_KEY`, `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_API_BASE_URL`, `NEXT_PUBLIC_API_VERSION`
 **Secrets:** `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `STG_EC2_SSH_KEY`, `DATABASE_URL`, `CORS_ORIGINS`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_TRUSTED_ORIGINS`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
 
-There is no `DOMAIN_WEB` / `DOMAIN_API` / `EC2_USER` — the user is hardcoded `ec2-user` and TLS/routing lives on the ALB.
+There is no `DOMAIN_WEB` / `DOMAIN_API` / `EC2_USER` — the user is hardcoded `ec2-user`. Staging TLS is host Nginx with certbot. Production TLS is on the load balancer.
 
 ## Production (`deploy-production.yml`) — EC2 + ALB + ASG
 

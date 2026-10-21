@@ -33,6 +33,11 @@ import {
 	sanitizeLogUrl,
 } from "@repo/observability"
 
+import {
+	omitUnloggedRequestHeaderAttributes,
+	omitUnloggedRequestHeaders,
+} from "@/utils/unlogged-request-headers"
+
 /** Shape returned by the development-only diagnostics endpoint (Flow 4). */
 export interface SentryDiagnostics {
 	/** True only when the flag is on, the DSN is present, and it parsed. */
@@ -128,13 +133,14 @@ function stripDeniedQuery(queryString: unknown): unknown {
 }
 
 /**
- * Scrub an outbound event.
+ * Remove the inbound request id from a Sentry request, plus the credential
+ * deny-list this sink already shares with the logger.
  *
- * Exported so the scrubbing contract is unit-testable without initialising the
- * SDK: this is the last point at which a credential or an address can be kept
- * inside the process, so it is asserted directly rather than inferred.
+ * `x-request-id` is not a credential (it stays off the shared observability
+ * list). It is dropped because the only id that may be stored is the one this
+ * server assigned, which is sent as the `request_id` tag rather than as a header.
  */
-export function scrubSentryEvent<T extends Sentry.ErrorEvent>(event: T): T {
+function scrubSentryRequest<T extends Sentry.Event>(event: T): T {
 	const request = event.request
 	if (!request) {
 		return event
@@ -146,7 +152,7 @@ export function scrubSentryEvent<T extends Sentry.ErrorEvent>(event: T): T {
 	}
 
 	if (request.headers) {
-		scrubbed.headers = stripDeniedKeys(request.headers, false)
+		scrubbed.headers = omitUnloggedRequestHeaders(stripDeniedKeys(request.headers, false))
 	}
 
 	// The `cookie` header is on the deny-list, so its parsed twin must go too —
@@ -162,6 +168,69 @@ export function scrubSentryEvent<T extends Sentry.ErrorEvent>(event: T): T {
 	}
 
 	return { ...event, request: scrubbed as typeof request }
+}
+
+/**
+ * The same header also rides on span attributes as `http.request.header.x_request_id`.
+ * `sendDefaultPii: false` does not remove it: that deny-list is PII snippets plus
+ * sensitive key snippets, and this name matches neither. Response-header
+ * attributes are kept — that value is the id the server echoed.
+ */
+function stripUnloggedHeaderAttributes<T extends Sentry.Event>(event: T): T {
+	const trace = event.contexts?.trace
+	const traceData = trace && typeof trace.data === "object" && trace.data ? trace.data : undefined
+	let next = event
+
+	if (traceData) {
+		const data = omitUnloggedRequestHeaderAttributes(traceData)
+		if (data !== traceData) {
+			next = {
+				...next,
+				contexts: {
+					...next.contexts,
+					trace: { ...trace, data },
+				},
+			}
+		}
+	}
+
+	if (next.spans) {
+		let changed = false
+		const spans = next.spans.map(span => {
+			const data = omitUnloggedRequestHeaderAttributes(span.data)
+			if (data === span.data) {
+				return span
+			}
+			changed = true
+			return { ...span, data }
+		})
+		if (changed) {
+			next = { ...next, spans }
+		}
+	}
+
+	return next
+}
+
+/**
+ * Scrub an outbound event.
+ *
+ * Exported so the scrubbing contract is unit-testable without initialising the
+ * SDK: this is the last point at which a credential or an unvalidated request
+ * id can be kept inside the process, so it is asserted directly rather than
+ * inferred.
+ */
+export function scrubSentryEvent<T extends Sentry.Event>(event: T): T {
+	return stripUnloggedHeaderAttributes(scrubSentryRequest(event))
+}
+
+/** `beforeSendSpan` sees the span on its own, before it is folded into a transaction. */
+export function scrubSentrySpan<T extends { data: object }>(span: T): T {
+	const data = omitUnloggedRequestHeaderAttributes(span.data)
+	if (data === span.data) {
+		return span
+	}
+	return { ...span, data }
 }
 
 /**
@@ -296,7 +365,7 @@ function initializeSentry(): SentryDiagnostics {
 		release,
 		tracesSampleRate,
 		// Never attach IPs, cookies or headers on the SDK's own initiative. What
-		// reaches Sentry is only what `beforeSend` below has already scrubbed.
+		// reaches Sentry is only what the hooks below have already scrubbed.
 		sendDefaultPii: false,
 		// Drop the health check before a span is even created — cheaper than
 		// sampling it in and discarding it in `beforeSendTransaction`.
@@ -305,6 +374,23 @@ function initializeSentry(): SentryDiagnostics {
 				? 0
 				: samplingContext.inheritOrSampleWith(tracesSampleRate),
 		beforeSend: event => scrubSentryEvent(event),
+		// Transaction events do carry `request.headers`. `@sentry/node` installs
+		// `requestDataIntegration` by default. Its `processEvent` is a client event
+		// processor, and `prepareEvent` runs those processors for every event,
+		// including `type: "transaction"`. The processor copies
+		// `sdkProcessingMetadata.normalizedRequest` — set on the request isolation
+		// scope by the HTTP server integration (`http.server.request.start`) — onto
+		// `event.request`, headers included. With `sendDefaultPii: false`,
+		// `httpHeaders.request` is `{ deny: PII snippets }`, which is not `false`,
+		// so the headers are copied in full; the deny-list filters span attributes,
+		// not `event.request.headers`. `beforeSend` is not called for transactions
+		// (`processBeforeSend` uses it only when `event.type` is undefined), so the
+		// same scrub runs here. A captured transaction confirmed both
+		// `request.headers["x-request-id"]` and
+		// `contexts.trace.data["http.request.header.x_request_id"]` held the inbound
+		// value, and `request.headers.authorization` was still the raw header.
+		beforeSendTransaction: event => scrubSentryEvent(event),
+		beforeSendSpan: span => scrubSentrySpan(span),
 		beforeBreadcrumb: breadcrumb => scrubSentryBreadcrumb(breadcrumb),
 	})
 

@@ -54,6 +54,7 @@ jobs:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
       GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+      REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
 
     steps:
       - name: Checkout code
@@ -78,6 +79,28 @@ jobs:
           require_var CORS_ORIGINS
           require_var BETTER_AUTH_SECRET
           require_var BETTER_AUTH_TRUSTED_ORIGINS
+
+          # Reject a mistyped region or registry before credentials, build, or
+          # push. The messages name the variable and the expected shape only.
+          validate_registry() {
+            local region_re='^[a-z]{2}(-gov)?-[a-z]+-[0-9]+$'
+            local registry_re='^[0-9]{12}\.dkr\.ecr\.[a-z0-9-]+\.amazonaws\.com(\.cn)?$'
+            if [[ ! "$AWS_REGION" =~ $region_re ]]; then
+              echo 'AWS_REGION must match ^[a-z]{2}(-gov)?-[a-z]+-[0-9]+$'
+              exit 1
+            fi
+            if [[ ! "$ECR_REGISTRY" =~ $registry_re ]]; then
+              echo 'ECR_REGISTRY must match ^[0-9]{12}\.dkr\.ecr\.[a-z0-9-]+\.amazonaws\.com(\.cn)?$'
+              exit 1
+            fi
+            local registry_region=${ECR_REGISTRY#*.dkr.ecr.}
+            registry_region=${registry_region%%.amazonaws.com*}
+            if [[ "$registry_region" != "$AWS_REGION" ]]; then
+              echo 'ECR_REGISTRY region must equal AWS_REGION'
+              exit 1
+            fi
+          }
+          validate_registry
           echo "✅ All required variables present"
 
       # ── Build & push Docker images to ECR ──────────────────────
@@ -115,14 +138,14 @@ jobs:
         run: |
           docker buildx build \
             --file apps/web/Dockerfile \
-            --build-arg NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL \
-            --build-arg NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL \
-            --build-arg NEXT_PUBLIC_API_VERSION=${NEXT_PUBLIC_API_VERSION:-v1} \
+            --build-arg "NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL" \
+            --build-arg "NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL" \
+            --build-arg "NEXT_PUBLIC_API_VERSION=${NEXT_PUBLIC_API_VERSION:-v1}" \
             --cache-from type=local,src=/tmp/.buildx-cache \
             --cache-to type=local,dest=/tmp/.buildx-cache-new,mode=max \
             --push \
-            --tag $ECR_REGISTRY/$ECR_REPOSITORY_WEB:$IMAGE_TAG \
-            --tag $ECR_REGISTRY/$ECR_REPOSITORY_WEB:latest \
+            --tag "$ECR_REGISTRY/$ECR_REPOSITORY_WEB:$IMAGE_TAG" \
+            --tag "$ECR_REGISTRY/$ECR_REPOSITORY_WEB:latest" \
             .
           rm -rf /tmp/.buildx-cache && mv /tmp/.buildx-cache-new /tmp/.buildx-cache
           echo "✅ Web image pushed: $ECR_REGISTRY/$ECR_REPOSITORY_WEB:$IMAGE_TAG"
@@ -134,8 +157,8 @@ jobs:
             --cache-from type=local,src=/tmp/.buildx-cache \
             --cache-to type=local,dest=/tmp/.buildx-cache-new,mode=max \
             --push \
-            --tag $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:$IMAGE_TAG \
-            --tag $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:latest \
+            --tag "$ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:$IMAGE_TAG" \
+            --tag "$ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:latest" \
             .
           rm -rf /tmp/.buildx-cache && mv /tmp/.buildx-cache-new /tmp/.buildx-cache
           echo "✅ Backend image pushed: $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:$IMAGE_TAG"
@@ -168,42 +191,86 @@ jobs:
         run: |
           set -euo pipefail
 
+          # The shared require_var helper says "Missing: NAME". This
+          # precondition uses its own sentence, and it runs before any SSH.
+          if [ -z "${REDIS_PASSWORD:-}" ]; then
+            echo 'REDIS_PASSWORD is not set: add it as a secret in the GitHub "staging" environment'
+            exit 1
+          fi
+
+          # Copy each value once. A newline would split a record, so refuse it.
+          reject_newline() {
+            case "$2" in
+              *$'\n'*)
+                echo "$1 contains a newline" >&2
+                exit 1
+                ;;
+            esac
+          }
+
+          # The format check already refuses a newline. Repeat it here so a
+          # deploy step never forwards one, same as put.
+          reject_newline AWS_REGION "$AWS_REGION"
+          reject_newline ECR_REGISTRY "$ECR_REGISTRY"
+
+          put() {
+            reject_newline "$1" "$2"
+            printf '%s=%s\n' "$1" "$2"
+          }
+
+          env_file=$(mktemp)
+          chmod 600 "$env_file"
+          trap 'rm -f "$env_file"' EXIT
+
+          {
+            put ECR_REGISTRY "$ECR_REGISTRY"
+            put ECR_REPOSITORY_WEB "$ECR_REPOSITORY_WEB"
+            put ECR_REPOSITORY_BACKEND "$ECR_REPOSITORY_BACKEND"
+            put IMAGE_TAG "$IMAGE_TAG"
+            put NEXT_PUBLIC_APP_URL "$NEXT_PUBLIC_APP_URL"
+            put NEXT_PUBLIC_API_BASE_URL "$NEXT_PUBLIC_API_BASE_URL"
+            put NEXT_PUBLIC_API_VERSION "${NEXT_PUBLIC_API_VERSION:-v1}"
+            put DATABASE_URL "$DATABASE_URL"
+            put CORS_ORIGINS "$CORS_ORIGINS"
+            put BETTER_AUTH_SECRET "$BETTER_AUTH_SECRET"
+            put BETTER_AUTH_TRUSTED_ORIGINS "$BETTER_AUTH_TRUSTED_ORIGINS"
+            put GOOGLE_CLIENT_ID "$GOOGLE_CLIENT_ID"
+            put GOOGLE_CLIENT_SECRET "$GOOGLE_CLIENT_SECRET"
+            put REDIS_PASSWORD "$REDIS_PASSWORD"
+            printf '%s\n' '# one proxy hop, host Nginx on the same instance; the app ports are not opened in the security group; change this only if the hop count changes.'
+            printf '%s=%s\n' TRUST_PROXY 1
+          } > "$env_file"
+
           # StrictHostKeyChecking=yes + BatchMode=yes is the fail-closed pair:
           # an unknown or changed host key aborts the connection instead of
           # being auto-accepted (the old `=no`) or learned on first sight
           # (`accept-new`), and no prompt can hang the job waiting for input.
-          ssh \
-            -o StrictHostKeyChecking=yes \
-            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
-            -o BatchMode=yes \
-            ec2-user@$STG_EC2_HOST << DEPLOY
+          ssh_opts=(
+            -o StrictHostKeyChecking=yes
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts"
+            -o BatchMode=yes
+          )
+
+          # Own SSH call, separate from the deploy script. umask and chmod
+          # leave the final file mode 600.
+          ssh "${ssh_opts[@]}" "ec2-user@$STG_EC2_HOST" \
+            'umask 077; trap '\''rm -f /opt/staging/.env.tmp'\'' EXIT; cat > /opt/staging/.env.tmp && chmod 600 /opt/staging/.env.tmp && mv /opt/staging/.env.tmp /opt/staging/.env' \
+            < "$env_file"
+
+          ssh "${ssh_opts[@]}" "ec2-user@$STG_EC2_HOST" \
+            'cat > /opt/staging/docker-compose.yml' \
+            < docker-compose.staging.yml
+
+          # The coordinates are validated on the runner and sent as quoted
+          # assignments on stdin. The remote command line carries no values.
+          {
+            printf 'AWS_REGION=%q\nECR_REGISTRY=%q\n' "$AWS_REGION" "$ECR_REGISTRY"
+            cat << 'DEPLOY'
             set -euo pipefail
 
             # ECR login on the instance
-            aws ecr get-login-password --region $AWS_REGION | \
-              docker login --username AWS --password-stdin $ECR_REGISTRY
-
-            # Write .env
-            cat > /opt/staging/.env << ENV
-          ECR_REGISTRY=$ECR_REGISTRY
-          ECR_REPOSITORY_WEB=$ECR_REPOSITORY_WEB
-          ECR_REPOSITORY_BACKEND=$ECR_REPOSITORY_BACKEND
-          IMAGE_TAG=$IMAGE_TAG
-          NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
-          NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
-          NEXT_PUBLIC_API_VERSION=${NEXT_PUBLIC_API_VERSION:-v1}
-          DATABASE_URL=$DATABASE_URL
-          CORS_ORIGINS=$CORS_ORIGINS
-          BETTER_AUTH_SECRET=$BETTER_AUTH_SECRET
-          BETTER_AUTH_TRUSTED_ORIGINS=$BETTER_AUTH_TRUSTED_ORIGINS
-          GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID
-          GOOGLE_CLIENT_SECRET=$GOOGLE_CLIENT_SECRET
-          ENV
-
-            # Write docker-compose.staging.yml
-            cat > /opt/staging/docker-compose.yml << 'COMPOSE'
-          $(cat docker-compose.staging.yml)
-          COMPOSE
+            aws ecr get-login-password --region "$AWS_REGION" | \
+              docker login --username AWS --password-stdin "$ECR_REGISTRY"
 
             # Pull new images and restart
             cd /opt/staging
@@ -211,38 +278,45 @@ jobs:
             docker compose up -d --remove-orphans
             docker image prune -f
 
+            # Both containers are checked on the host. 12 attempts, 10s apart.
+            RETRIES=12
+            DELAY=10
+
+            echo "Checking Backend health..."
+            for i in $(seq 1 $RETRIES); do
+              if curl -sf --max-time 10 http://127.0.0.1:3000/api/v1/health > /dev/null 2>&1; then
+                echo "✓ Backend is healthy"
+                break
+              fi
+              if [ "$i" -eq "$RETRIES" ]; then
+                echo "❌ Backend health check failed after $RETRIES attempts"
+                docker compose ps || true
+                docker logs --tail=100 staging-backend || true
+                exit 1
+              fi
+              echo "  Attempt $i/$RETRIES failed, retrying in ${DELAY}s..."
+              sleep $DELAY
+            done
+
+            echo "Checking Web..."
+            for i in $(seq 1 $RETRIES); do
+              if curl -sf --max-time 10 http://127.0.0.1:3001/ > /dev/null 2>&1; then
+                echo "✓ Web is healthy"
+                break
+              fi
+              if [ "$i" -eq "$RETRIES" ]; then
+                echo "❌ Web health check failed after $RETRIES attempts"
+                docker compose ps || true
+                docker logs --tail=100 staging-web || true
+                exit 1
+              fi
+              echo "  Attempt $i/$RETRIES failed, retrying in ${DELAY}s..."
+              sleep $DELAY
+            done
+
             echo "✅ Deploy complete"
           DEPLOY
-
-      # ── Health check ────────────────────────────────────────────
-      - name: Health check
-        run: |
-          set -uo pipefail
-          echo "Waiting 30s for containers to start..."
-          sleep 30
-
-          # Both services are probed. Only the backend used to be, which is
-          # exactly why the ECR_REPOSITORY_WEB variable swap survived: staging
-          # ran the backend image twice and reported itself healthy while no
-          # web container was ever started.
-          check() {
-            local name="$1" url="$2" max=10 i status
-            for i in $(seq 1 $max); do
-              status=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$url" || echo "000")
-              echo "[$i/$max] $name: HTTP $status"
-              case "$status" in
-                200|301|302|307|308) echo "✅ $name is healthy"; return 0 ;;
-              esac
-              sleep 10
-            done
-            echo "❌ $name health check failed ($url)"
-            return 1
-          }
-
-          failed=0
-          check "Backend" "http://$STG_EC2_HOST:3000/api/v1/health" || failed=1
-          check "Web" "http://$STG_EC2_HOST:3001/" || failed=1
-          exit $failed
+          } | ssh "${ssh_opts[@]}" "ec2-user@$STG_EC2_HOST" bash -s
 
       - name: Deployment summary
         run: |

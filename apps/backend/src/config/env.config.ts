@@ -38,8 +38,10 @@ export const env = createEnv({
 		//       address it saw, and Express keeps that rightmost entry.
 		//       ThrottlerProxyGuard keys on that rightmost entry. Raising this
 		//       value alone does not move the guard's key; an extra hop needs
-		//       TRUST_PROXY and getTracker updated together. Staging in this repo
-		//       is EC2 plus an Elastic IP; any load balancer there is outside it.
+		//       TRUST_PROXY and getTracker updated together. Staging is EC2 plus
+		//       an Elastic IP, and host Nginx on the instance is the single
+		//       trusted hop (TRUST_PROXY=1). Health is checked on the host
+		//       over SSH.
 		//   0 = no trusted hop. X-Forwarded-For is ignored and the socket peer is used.
 		TRUST_PROXY: z.coerce.number().int().min(0).default(1),
 

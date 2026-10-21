@@ -439,3 +439,98 @@ describe.each([["nginx.conf"], ["nginx.dev.conf"]])(
 		})
 	}
 )
+
+// Staging reaches the backend through one host Nginx hop. The header Nginx
+// sends is "<client-supplied>, <nginx-seen>". trust proxy 1 keeps the
+// rightmost entry. trust proxy 0 keeps the socket address.
+const CLIENT_SUPPLIED = "203.0.113.10"
+const NGINX_SEEN = "198.51.100.20"
+
+class RecordingThrottlerProxyGuard extends ThrottlerProxyGuard {
+	readonly seen: { key: string; socket?: string }[] = []
+
+	protected override async getTracker(req: Record<string, unknown>): Promise<string> {
+		const key = await super.getTracker(req)
+		const socket = (req as { socket?: { remoteAddress?: string } }).socket?.remoteAddress
+		this.seen.push({ key, socket })
+		return key
+	}
+}
+
+const buildTrustProxyApp = async (
+	trustProxy: number
+): Promise<{ app: INestApplication<App>; guard: RecordingThrottlerProxyGuard }> => {
+	const moduleRef: TestingModule = await Test.createTestingModule({
+		imports: [
+			LoggerModule.forRoot({ pinoHttp: buildPinoHttpOptions({ autoLogging: false }) }),
+			ThrottlerModule.forRoot([{ name: "default", ttl: TTL, limit: DEFAULT_LIMIT }]),
+		],
+		controllers: [ThrottleTestController],
+		providers: [
+			RecordingThrottlerProxyGuard,
+			{ provide: APP_GUARD, useExisting: RecordingThrottlerProxyGuard },
+			{ provide: APP_FILTER, useClass: HttpExceptionFilter },
+		],
+	}).compile()
+
+	const app: INestApplication<App> = moduleRef.createNestApplication()
+	const expressApp = app.getHttpAdapter().getInstance() as Application
+	expressApp.set("trust proxy", trustProxy)
+	await app.init()
+
+	return { app, guard: app.get(RecordingThrottlerProxyGuard) }
+}
+
+describe("ThrottlerProxyGuard trust proxy hop count", () => {
+	let app: INestApplication<App>
+
+	afterEach(async () => {
+		await app?.close()
+	})
+
+	it("with trust proxy 1, the anonymous key is the rightmost X-Forwarded-For entry", async () => {
+		const started = await buildTrustProxyApp(1)
+		app = started.app
+
+		await request(app.getHttpServer())
+			.get("/read")
+			.set("X-Forwarded-For", `${CLIENT_SUPPLIED}, ${NGINX_SEEN}`)
+			.expect(200)
+
+		expect(started.guard.seen).toHaveLength(1)
+		expect(started.guard.seen[0]?.key).toBe(NGINX_SEEN)
+		expect(started.guard.seen[0]?.key).not.toBe(CLIENT_SUPPLIED)
+	})
+
+	it("with trust proxy 0, the anonymous key is the socket address", async () => {
+		const started = await buildTrustProxyApp(0)
+		app = started.app
+
+		await request(app.getHttpServer())
+			.get("/read")
+			.set("X-Forwarded-For", `${CLIENT_SUPPLIED}, ${NGINX_SEEN}`)
+			.expect(200)
+
+		const seen = started.guard.seen[0]
+		expect(seen?.socket).toBeDefined()
+		expect(seen?.key).toBe(seen?.socket)
+		expect(seen?.key).not.toBe(CLIENT_SUPPLIED)
+		expect(seen?.key).not.toBe(NGINX_SEEN)
+	})
+})
+
+describe("staging deploy TRUST_PROXY", () => {
+	const workflow = readFileSync(
+		join(__dirname, "../../../../../.github/workflows/deploy-staging.yml"),
+		"utf8"
+	)
+	const comment =
+		"one proxy hop, host Nginx on the same instance; the app ports are not opened in the security group; change this only if the hop count changes."
+	const trustProxyLine = "printf '%s=%s\\n' TRUST_PROXY 1"
+
+	it("sets TRUST_PROXY=1 when writing the staging .env", () => {
+		expect(workflow).toContain(comment)
+		expect(workflow).toContain(trustProxyLine)
+		expect(workflow).not.toMatch(/TRUST_PROXY=0/)
+	})
+})

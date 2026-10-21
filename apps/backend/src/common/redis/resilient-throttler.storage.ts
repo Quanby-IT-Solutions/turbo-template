@@ -72,7 +72,17 @@ export class ResilientThrottlerStorage implements ThrottlerStorage {
 	}
 }
 
-/** `totalHits: 0` with `isBlocked: false` reads as "well under the limit". */
+/**
+ * Same units as the Redis and in-memory stores. `ttl` arrives in milliseconds;
+ * `timeToExpire` is seconds (`Math.ceil(ttl / 1000)`). `isBlocked` stays false
+ * and `timeToBlockExpire` stays 0: both are unit-neutral, and the guard only
+ * sends them when the request is blocked, so 0 is never sent.
+ */
 function failOpen(ttl: number): ThrottlerStorageRecord {
-	return { totalHits: 0, timeToExpire: ttl, isBlocked: false, timeToBlockExpire: 0 }
+	return {
+		totalHits: 0,
+		timeToExpire: Math.ceil(ttl / 1000),
+		isBlocked: false,
+		timeToBlockExpire: 0,
+	}
 }

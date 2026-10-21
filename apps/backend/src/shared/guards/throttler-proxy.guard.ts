@@ -1,9 +1,8 @@
 import { Injectable } from "@nestjs/common"
 import { ThrottlerGuard } from "@nestjs/throttler"
 import type { IncomingHttpHeaders } from "http"
-import { fromNodeHeaders } from "better-auth/node"
 
-import { getAuth } from "@repo/auth"
+import { resolveRequestSession, type RequestWithSession } from "./resolve-request-session"
 
 /**
  * Proxy-aware rate-limiting guard.
@@ -31,10 +30,10 @@ import { getAuth } from "@repo/auth"
  * share one address. An address key would put every signed-in user in the same
  * bucket. The id comes from Better Auth `getSession`, the same check
  * `RbacGuard` uses — never from a raw cookie or header. The result is stored
- * on `request.session` (and `request.sessionResolved`) so `RbacGuard` reuses
- * it. The lookup happens once per request even when more than one named
- * throttler asks for a tracker. If that lookup throws, the address key is
- * used and this guard does not fail the request.
+ * on `request.session` (and `request.sessionResolved`) so `RbacGuard` and
+ * `SessionAuthGuard` reuse it. The lookup happens once per request even when
+ * more than one named throttler asks for a tracker. If that lookup throws,
+ * the address key is used and this guard does not fail the request.
  *
  * ## Trust chain (Risky Flow RF2 — see DOMAIN-MODEL.md)
  *
@@ -49,13 +48,10 @@ import { getAuth } from "@repo/auth"
  * fronts the backend with an extra proxy/LB must update both places together.
  * The user key does not read that header.
  */
-interface ThrottleRequest {
+interface ThrottleRequest extends RequestWithSession {
 	ip?: string
 	ips?: string[]
 	headers?: IncomingHttpHeaders
-	session?: { user?: { id?: string } } | null
-	user?: { id?: string } | null
-	sessionResolved?: boolean
 }
 
 @Injectable()
@@ -75,31 +71,12 @@ export class ThrottlerProxyGuard extends ThrottlerGuard {
 
 	/**
 	 * Verified user id for this request, or undefined when there is no session.
-	 * Reuses a session already stored on the request. Records `sessionResolved`
-	 * after a definitive answer so a second tracker, and `RbacGuard`, do not
-	 * look it up again. A thrown lookup is not recorded: the caller falls back
-	 * to the address key, and a later guard may try again.
+	 * Uses the shared per-request lookup. A thrown lookup is not recorded: the
+	 * caller falls back to the address key, and a later guard may try again.
 	 */
 	private async resolveUserId(request: ThrottleRequest): Promise<string | undefined> {
-		const existingId = request.session?.user?.id
-		if (existingId) {
-			return existingId
-		}
-		if (request.sessionResolved) {
-			return undefined
-		}
-
-		const session = await getAuth().api.getSession({
-			headers: fromNodeHeaders(request.headers ?? {}),
-		})
-		request.sessionResolved = true
-		if (!session?.user?.id) {
-			return undefined
-		}
-
-		request.session = session
-		request.user = session.user
-		return session.user.id
+		const session = await resolveRequestSession(request)
+		return session?.user?.id
 	}
 
 	private addressTracker(request: ThrottleRequest): string {

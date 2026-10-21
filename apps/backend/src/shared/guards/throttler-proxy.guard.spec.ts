@@ -21,6 +21,7 @@ import { RbacService } from "@/common/rbac/rbac.service"
 import { buildPinoHttpOptions } from "@/config/pino-logger.config"
 import { skipStrictThrottle, StrictThrottle } from "@/shared/decorators/strict-throttle.decorator"
 import { RbacGuard } from "@/shared/guards/rbac.guard"
+import { SessionAuthGuard } from "@/shared/guards/session-auth.guard"
 import { ThrottlerProxyGuard } from "@/shared/guards/throttler-proxy.guard"
 
 // buildPinoHttpOptions -> env.config validates required vars at load; Jest's env
@@ -202,12 +203,19 @@ describe("ThrottlerProxyGuard (unit)", () => {
 				} as unknown as RbacService
 			)
 			const context = {
+				getType: () => "http",
 				getHandler: () => () => undefined,
 				getClass: () => class {},
 				switchToHttp: () => ({ getRequest: () => req }),
 			} as unknown as ExecutionContext
 
 			await expect(rbac.canActivate(context)).resolves.toBe(true)
+
+			const authGuard = new SessionAuthGuard({
+				getAllAndOverride: () => undefined,
+			} as unknown as Reflector)
+			await expect(authGuard.canActivate(context)).resolves.toBe(true)
+
 			expect(mockGetSession).toHaveBeenCalledTimes(1)
 			expect(req.session?.user?.id).toBe("user-a")
 		})

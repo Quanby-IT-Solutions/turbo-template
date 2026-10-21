@@ -1,4 +1,5 @@
 import type * as Instrument from "@/instrument"
+import { UNLOGGED_REQUEST_HEADERS } from "@/utils/unlogged-request-headers"
 
 const mockInit = jest.fn()
 const mockCaptureException = jest.fn()
@@ -15,6 +16,8 @@ type InitOptions = {
 	tracesSampleRate?: number
 	sendDefaultPii?: boolean
 	beforeSend: (event: Record<string, unknown>) => Record<string, unknown>
+	beforeSendTransaction: (event: Record<string, unknown>) => Record<string, unknown>
+	beforeSendSpan: (span: Record<string, unknown>) => Record<string, unknown>
 	beforeBreadcrumb: (breadcrumb: Record<string, unknown>) => Record<string, unknown>
 	tracesSampler: (context: {
 		name: string
@@ -305,6 +308,99 @@ describe("instrument (Sentry bootstrap)", () => {
 			const event = { message: "boom" }
 
 			expect(initOptions().beforeSend({ ...event })).toEqual(event)
+		})
+
+		// The inbound id is not a credential, so the shared deny-list does not
+		// name it. It is still dropped: the assigned id is the `request_id` tag.
+		it("drops x-request-id in any case and still strips authorization and cookie", () => {
+			expect(UNLOGGED_REQUEST_HEADERS).toEqual(["x-request-id"])
+
+			const scrubbed = initOptions().beforeSend({
+				request: {
+					headers: {
+						"X-Request-Id": "inbound-raw",
+						"x-request-id": "inbound-lower",
+						"authorization": "Bearer live-access-token",
+						"Cookie": "better-auth.session_token=live-session",
+						"x-custom": "keep-me",
+					},
+				},
+			})
+
+			expect((scrubbed as { request: Record<string, any> }).request.headers).toEqual({
+				"x-custom": "keep-me",
+			})
+		})
+
+		// `requestDataIntegration.processEvent` copies normalizedRequest onto every
+		// event, and `beforeSend` does not run when `event.type === "transaction"`.
+		// A captured transaction (see sentry-request-id.spec.ts) carries both
+		// `request.headers["x-request-id"]` and the span attribute below.
+		it("drops the inbound request id from a transaction event", () => {
+			const scrubbed = initOptions().beforeSendTransaction({
+				type: "transaction",
+				request: {
+					headers: {
+						"X-Request-Id": "inbound-raw",
+						"authorization": "Bearer live-access-token",
+						"x-custom": "keep-me",
+					},
+				},
+				contexts: {
+					trace: {
+						data: {
+							"http.request.header.x_request_id": "inbound-raw",
+							"http.request.header.x_custom": "keep-me",
+							"http.response.header.x_request_id": "assigned-id",
+						},
+					},
+				},
+				spans: [
+					{
+						span_id: "span-1",
+						trace_id: "trace-1",
+						start_timestamp: 0,
+						data: {
+							"http.request.header.x_request_id": "inbound-raw",
+							"http.method": "GET",
+						},
+					},
+				],
+			})
+
+			const event = scrubbed as {
+				request: { headers: Record<string, string> }
+				contexts: { trace: { data: Record<string, string> } }
+				spans: Array<{ data: Record<string, string> }>
+			}
+
+			expect(event.request.headers).toEqual({ "x-custom": "keep-me" })
+			expect(event.contexts.trace.data).toEqual({
+				"http.request.header.x_custom": "keep-me",
+				"http.response.header.x_request_id": "assigned-id",
+			})
+			expect(event.spans[0]?.data).toEqual({ "http.method": "GET" })
+			expect(JSON.stringify(scrubbed)).not.toContain("inbound-raw")
+			expect(JSON.stringify(scrubbed)).not.toContain("live-access-token")
+		})
+
+		it("drops the inbound request-id attribute from a span and keeps the echoed response id", () => {
+			const scrubbed = initOptions().beforeSendSpan({
+				span_id: "span-1",
+				trace_id: "trace-1",
+				start_timestamp: 0,
+				data: {
+					"http.request.header.x_request_id": "inbound-raw",
+					"HTTP.REQUEST.HEADER.X_REQUEST_ID": "inbound-raw-upper",
+					"http.response.header.x_request_id": "assigned-id",
+					"http.method": "GET",
+				},
+			})
+
+			expect((scrubbed as { data: Record<string, string> }).data).toEqual({
+				"http.response.header.x_request_id": "assigned-id",
+				"http.method": "GET",
+			})
 		})
 
 		it("scrubs breadcrumb data and URLs", () => {

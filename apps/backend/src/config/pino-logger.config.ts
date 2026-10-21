@@ -6,6 +6,7 @@ import { PINO_REDACT_PATHS, sanitizeLogQuery, sanitizeLogUrl } from "@repo/obser
 
 import { env } from "@/config/env.config"
 import { sanitizeRequestId } from "@/utils/log-redaction"
+import { omitUnloggedRequestHeaders } from "@/utils/unlogged-request-headers"
 
 /**
  * Build the shared pino-http options used by BOTH:
@@ -49,12 +50,23 @@ export function buildPinoHttpOptions(overrides?: { autoLogging?: boolean }): Opt
 		// the separately-serialized `req.query` object, and each custom message
 		// line below. Sanitizing only the URL leaves the token sitting in
 		// `req.query` right beside it.
+		// `req.id` (assigned by `genReqId` below) is the only request-id on the
+		// request line. The inbound `x-request-id` header is omitted rather than
+		// masked: when it was rejected it must not be stored, and when it was
+		// accepted it is already `req.id`. The response line still carries the
+		// echoed `X-Request-Id`, which is that assigned id.
+		//
+		// Done in the serializer, not via `redact`. The shared redact list is the
+		// credential set, and this header is not a credential. pino passes the
+		// live header map in, so the copy below is what keeps the request itself
+		// unchanged.
 		serializers: {
-			req(req: { url?: string; query?: unknown; [key: string]: unknown }) {
+			req(req: { url?: string; query?: unknown; headers?: object; [key: string]: unknown }) {
 				return {
 					...req,
 					url: sanitizeLogUrl(req.url),
 					query: sanitizeLogQuery(req.query),
+					...(req.headers ? { headers: omitUnloggedRequestHeaders(req.headers) } : {}),
 				}
 			},
 		},

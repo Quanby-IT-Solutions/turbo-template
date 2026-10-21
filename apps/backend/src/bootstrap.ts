@@ -14,6 +14,7 @@ import {
 	buildHelmetOptions,
 	createDocsSecurityHeadersMiddleware,
 } from "@/config/security-headers.config"
+import { tagAssignedRequestId } from "@/config/sentry-request-id"
 import { setupSwagger } from "@/config/swagger.config"
 
 /**
@@ -84,6 +85,11 @@ export async function createApplication(options?: {
 	// autoLogging off and reuses this req.id (see buildPinoHttpOptions.genReqId),
 	// so there is exactly one request log line and one correlation id per request.
 	expressApp.use(pinoHttp(buildPinoHttpOptions()))
+	// `req.id` now exists. Tag this request's Sentry isolation scope with it so
+	// every event captured for the request carries `request_id`. No-op when
+	// Sentry was not initialised. Kept off the exception filters: those run
+	// later and report whatever the scope already holds.
+	expressApp.use(tagAssignedRequestId)
 
 	// IMPORTANT: Better Auth must be registered BEFORE express.json() body parser.
 	// Better Auth's toNodeHandler reads the raw request stream for body parsing.

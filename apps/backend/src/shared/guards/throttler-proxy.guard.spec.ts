@@ -372,17 +372,13 @@ describe("staging deploy TRUST_PROXY", () => {
 		join(__dirname, "../../../../../.github/workflows/deploy-staging.yml"),
 		"utf8"
 	)
-	const heredocStart = workflow.indexOf("cat > /opt/staging/.env << ENV")
-	const heredocEnd = workflow.indexOf("\n          ENV", heredocStart)
-	const heredoc = workflow.slice(heredocStart, heredocEnd)
+	const comment =
+		"one proxy hop, host Nginx on the same instance; the app ports are not opened in the security group; change this only if the hop count changes."
+	const trustProxyLine = "printf '%s=%s\\n' TRUST_PROXY 1"
 
-	it("sets TRUST_PROXY=1 in the staging .env heredoc", () => {
-		expect(heredocStart).toBeGreaterThan(-1)
-		expect(heredocEnd).toBeGreaterThan(heredocStart)
-		expect(heredoc).toMatch(/^[\t ]*TRUST_PROXY=1[\t ]*$/m)
-		expect(heredoc).not.toMatch(/TRUST_PROXY=0/)
-		expect(heredoc).toContain(
-			"one proxy hop, host Nginx on the same instance; the app ports are not opened in the security group; change this only if the hop count changes."
-		)
+	it("sets TRUST_PROXY=1 when writing the staging .env", () => {
+		expect(workflow).toContain(comment)
+		expect(workflow).toContain(trustProxyLine)
+		expect(workflow).not.toMatch(/TRUST_PROXY=0/)
 	})
 })

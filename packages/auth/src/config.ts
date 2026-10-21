@@ -244,6 +244,7 @@ export function createAuth() {
 					} catch (err) {
 						// Log the raw transport failure server-side, but surface a
 						// sanitized error to clients so SMTP internals never leak.
+						// eslint-disable-next-line no-console -- transport failure is logged server-side and never returned
 						console.error("[mailer] verification email failed:", err)
 						throw new APIError("INTERNAL_SERVER_ERROR", {
 							message: "Verification email is currently unavailable. Please try again later.",
@@ -253,6 +254,7 @@ export function createAuth() {
 					try {
 						await sendMail(transporter, mailFrom, message)
 					} catch (err) {
+						// eslint-disable-next-line no-console -- transport failure is logged server-side and never returned
 						console.error("[mailer] verification email failed:", err)
 					}
 				}
@@ -291,6 +293,7 @@ export function createAuth() {
 				} catch (err) {
 					// Logged, not returned. The message is deliberately free of the
 					// address and the reset URL — both are credentials in this flow.
+					// eslint-disable-next-line no-console -- reset delivery failure is logged so the client response stays generic
 					console.error("[mailer] password reset email failed:", err)
 				}
 			},

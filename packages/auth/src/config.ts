@@ -2,12 +2,13 @@ import { createEnv } from "@t3-oss/env-core"
 import { betterAuth } from "better-auth"
 import { drizzleAdapter } from "better-auth/adapters/drizzle"
 import { APIError } from "better-auth/api"
-import { openAPI } from "better-auth/plugins"
 import { z } from "zod"
 
 import { createDBClient } from "@repo/db/client"
 import { accounts, sessions, users, verifications } from "@repo/db/schema"
 
+import { isApiDocsEnabled } from "./api-docs.js"
+import { buildAuthPlugins } from "./auth-plugins.js"
 import { cookieDomainSchema } from "./cookie-domain-schema.js"
 import { booleanFromEnv } from "./mailer/bool-schema.js"
 import { sendMail } from "./mailer/send-mail.js"
@@ -55,9 +56,11 @@ export const authEnv = createEnv({
 		// the opposite of what was agreed.
 		EMAIL_VERIFICATION_REQUIRED: booleanFromEnv.optional().default(true),
 
-		// Debug surfaces. Mirrors the backend's ENABLE_API_DOCS so one deployment
-		// cannot expose auth docs while the API hides its own.
-		ENABLE_API_DOCS: booleanFromEnv.optional().default(false),
+		// Debug surfaces. No default: "unset" must stay visible so
+		// `isApiDocsEnabled` can apply the shared rule (explicit flag wins,
+		// otherwise on only in development; an unset NODE_ENV counts as
+		// development). The backend resolves the same inputs.
+		ENABLE_API_DOCS: booleanFromEnv.optional(),
 
 		// Auth rate limiting
 		AUTH_RATE_LIMIT_WINDOW: z.coerce.number().int().positive().optional().default(60),
@@ -241,6 +244,7 @@ export function createAuth() {
 					} catch (err) {
 						// Log the raw transport failure server-side, but surface a
 						// sanitized error to clients so SMTP internals never leak.
+						// eslint-disable-next-line no-console -- transport failure is logged server-side and never returned
 						console.error("[mailer] verification email failed:", err)
 						throw new APIError("INTERNAL_SERVER_ERROR", {
 							message: "Verification email is currently unavailable. Please try again later.",
@@ -250,6 +254,7 @@ export function createAuth() {
 					try {
 						await sendMail(transporter, mailFrom, message)
 					} catch (err) {
+						// eslint-disable-next-line no-console -- transport failure is logged server-side and never returned
 						console.error("[mailer] verification email failed:", err)
 					}
 				}
@@ -288,6 +293,7 @@ export function createAuth() {
 				} catch (err) {
 					// Logged, not returned. The message is deliberately free of the
 					// address and the reset URL — both are credentials in this flow.
+					// eslint-disable-next-line no-console -- reset delivery failure is logged so the client response stays generic
 					console.error("[mailer] password reset email failed:", err)
 				}
 			},
@@ -400,11 +406,11 @@ export function createAuth() {
 		 * registered only when API docs are enabled.
 		 *
 		 * It used to mount unconditionally, so `/api/v1/auth/reference` listed
-		 * every auth route in production. Gated on the same flag the backend
-		 * uses for its own docs, so the two cannot disagree about whether this
-		 * deployment exposes documentation.
+		 * every auth route in production. `buildAuthPlugins` applies
+		 * `isApiDocsEnabled` — the same rule the backend uses for Scalar and
+		 * `spec.json` — so the two cannot disagree.
 		 */
-		plugins: [...(authEnv.ENABLE_API_DOCS ? [openAPI({ path: "/reference" })] : [])],
+		plugins: buildAuthPlugins(isApiDocsEnabled(process.env.NODE_ENV, authEnv.ENABLE_API_DOCS)),
 	})
 }
 

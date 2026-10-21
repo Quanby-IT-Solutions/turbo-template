@@ -62,9 +62,10 @@ apps/web/core/lib/
 // packages/auth/src/config.ts
 import { betterAuth } from "better-auth"
 import { drizzleAdapter } from "better-auth/adapters/drizzle"
-import { openAPI } from "better-auth/plugins"
 import { createDBClient } from "@repo/db/client"
 import { users, sessions, accounts, verifications } from "@repo/db/schema"
+import { isApiDocsEnabled } from "./api-docs.js"
+import { buildAuthPlugins } from "./auth-plugins.js"
 import { parseOriginList } from "./origin-list.js"
 
 export const AUTH_BASE_PATH = "/auth"
@@ -136,8 +137,8 @@ export function createAuth(): ReturnType<typeof betterAuth> {
         crossSubDomainCookies: { enabled: true, domain: authEnv.BETTER_AUTH_COOKIE_DOMAIN },
       }),
     },
-    // openAPI /reference is a debug surface — gated on ENABLE_API_DOCS (matches backend).
-    plugins: [...(authEnv.ENABLE_API_DOCS ? [openAPI({ path: "/reference" })] : [])],
+    // openAPI /reference follows isApiDocsEnabled (shared with the backend).
+    plugins: buildAuthPlugins(isApiDocsEnabled(process.env.NODE_ENV, authEnv.ENABLE_API_DOCS)),
   })
 }
 ```
@@ -198,7 +199,7 @@ export function clearAuthCache() { _auth = null }
 | `APP_WEB_URL` | no | `http://localhost:3001` | base for verification/reset links |
 | `EMAIL_VERIFICATION_ENABLED` | no | `true` | |
 | `EMAIL_VERIFICATION_REQUIRED` | no | `true` | forces sending on |
-| `ENABLE_API_DOCS` | no | `false` | gates openAPI `/reference` |
+| `ENABLE_API_DOCS` | no | unset (on in development; unset NODE_ENV counts as development) | shared `isApiDocsEnabled` rule; gates openAPI `/reference` |
 | `AUTH_RATE_LIMIT_WINDOW` | no | `60` | seconds |
 | `AUTH_RATE_LIMIT_MAX` | no | `10` | credential routes; `/get-session` overridden to 500 |
 

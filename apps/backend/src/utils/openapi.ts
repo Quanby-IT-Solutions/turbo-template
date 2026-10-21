@@ -1,4 +1,11 @@
+import { Logger } from "@nestjs/common"
+
 import { getAuth } from "@repo/auth"
+
+const logger = new Logger("OpenApi")
+
+/** One warning per process when the plugin is missing, not one per API version. */
+let missingPluginWarned = false
 
 /** OpenAPI document shape (compatible with both oRPC and NestJS swagger output) */
 interface OpenAPIDocument {
@@ -106,11 +113,22 @@ function transformPathOperations(
 	return transformed
 }
 
+interface OpenApiCapableApi {
+	generateOpenAPISchema?: () => Promise<OpenAPIDocument>
+}
+
 /**
- * Generate Better Auth OpenAPI schema
+ * Generate Better Auth OpenAPI schema.
+ *
+ * Returns null when the openAPI plugin is not registered. Callers must not
+ * assume `generateOpenAPISchema` exists.
  */
-export async function generateBetterAuthSchema(): Promise<OpenAPIDocument> {
-	const api = getAuth().api as unknown as { generateOpenAPISchema: () => Promise<OpenAPIDocument> }
+export async function generateBetterAuthSchema(): Promise<OpenAPIDocument | null> {
+	const api = getAuth().api as unknown as OpenApiCapableApi
+	if (typeof api.generateOpenAPISchema !== "function") {
+		return null
+	}
+
 	return api.generateOpenAPISchema()
 }
 
@@ -122,8 +140,18 @@ export async function mergeBetterAuthSchema(
 	version: string
 ): Promise<OpenAPIDocument> {
 	try {
-		const authPrefix = `/${version}/auth`
 		const betterAuthSchema = await generateBetterAuthSchema()
+		if (!betterAuthSchema) {
+			if (!missingPluginWarned) {
+				missingPluginWarned = true
+				logger.warn(
+					"Better Auth openAPI plugin is not registered; serving the API spec without auth paths"
+				)
+			}
+			return baseDoc
+		}
+
+		const authPrefix = `/${version}/auth`
 		const oldTag = "Default"
 		const newTag = "Auth"
 
@@ -157,7 +185,8 @@ export async function mergeBetterAuthSchema(
 			},
 		}
 	} catch (error) {
-		console.error("Failed to merge Better Auth OpenAPI schema", error)
+		const detail = error instanceof Error ? error.message : String(error)
+		logger.error(`Failed to merge Better Auth OpenAPI schema: ${detail}`)
 		return baseDoc
 	}
 }

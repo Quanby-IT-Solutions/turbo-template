@@ -53,3 +53,28 @@ export function isAuthenticatedRoute(url: URL): boolean {
 export function mayServeOfflineFallback(url: URL): boolean {
 	return !isAuthenticatedRoute(url) && !carriesToken(url)
 }
+
+/**
+ * Same-origin API surface the worker must not handle.
+ *
+ * Exact `/api` or `/api/...`. A bare prefix of `/api` would also match a page
+ * such as `/apiary`.
+ */
+export function isApiPath(url: URL): boolean {
+	return url.pathname === "/api" || url.pathname.startsWith("/api/")
+}
+
+/**
+ * Requests the service worker must not intercept.
+ *
+ * Cross-origin fetches (the health probe hits the API on another origin under
+ * local `next start`) and same-origin `/api` traffic go straight to the
+ * network. Re-fetching them inside the worker can fail the page's own fetch
+ * even when the API answered, which flips the app offline.
+ *
+ * `workerOrigin` is `self.location.origin` inside the worker — the web origin
+ * — rather than an env value baked in at worker build time.
+ */
+export function bypassesServiceWorker(url: URL, workerOrigin: string): boolean {
+	return url.origin !== workerOrigin || isApiPath(url)
+}

@@ -48,6 +48,12 @@ The auth instance is configured in `src/config.ts` with:
 - Session management
 - Database adapter (Drizzle)
 
+`ENABLE_API_DOCS` is optional and has no default in this package. The openAPI
+`/reference` plugin is registered by `isApiDocsEnabled()` (`src/api-docs.ts`,
+exported as `@repo/auth/api-docs`), the same rule the backend uses for Scalar
+and `spec.json`: an explicit flag wins, otherwise docs are on only when
+`NODE_ENV` is `development` (unset counts as development).
+
 ## Environment Variables
 
 Required in the **backend** `.env`:

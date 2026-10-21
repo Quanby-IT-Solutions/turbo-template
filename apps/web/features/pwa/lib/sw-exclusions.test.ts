@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import {
+	bypassesServiceWorker,
 	carriesToken,
 	isAuthenticatedRoute,
 	mayServeOfflineFallback,
@@ -73,5 +74,43 @@ describe("mayServeOfflineFallback", () => {
 		// The offline shell cannot consume a token, so serving it strands the
 		// user on a link they cannot retry.
 		expect(mayServeOfflineFallback(url("/reset-password?token=abc"))).toBe(false)
+	})
+})
+
+describe("bypassesServiceWorker", () => {
+	const workerOrigin = "http://localhost:3001"
+
+	it("bypasses a cross-origin API URL", () => {
+		expect(
+			bypassesServiceWorker(new URL("http://localhost:3000/api/v1/health"), workerOrigin)
+		).toBe(true)
+	})
+
+	it("bypasses a same-origin /api/v1 URL", () => {
+		expect(bypassesServiceWorker(new URL(`${workerOrigin}/api/v1/todos`), workerOrigin)).toBe(true)
+	})
+
+	it("bypasses bare /api", () => {
+		expect(bypassesServiceWorker(new URL(`${workerOrigin}/api`), workerOrigin)).toBe(true)
+	})
+
+	it("bypasses a cross-origin non-API URL", () => {
+		expect(bypassesServiceWorker(new URL("https://cdn.example.com/font.woff2"), workerOrigin)).toBe(
+			true
+		)
+	})
+
+	it("does not bypass a same-origin page", () => {
+		expect(bypassesServiceWorker(new URL(`${workerOrigin}/dashboard`), workerOrigin)).toBe(false)
+	})
+
+	it("does not bypass a same-origin static asset", () => {
+		expect(
+			bypassesServiceWorker(new URL(`${workerOrigin}/_next/static/chunks/app.js`), workerOrigin)
+		).toBe(false)
+	})
+
+	it("does not bypass a lookalike path such as /apiary", () => {
+		expect(bypassesServiceWorker(new URL(`${workerOrigin}/apiary`), workerOrigin)).toBe(false)
 	})
 })

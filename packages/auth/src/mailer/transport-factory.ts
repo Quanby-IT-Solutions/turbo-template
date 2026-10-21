@@ -67,6 +67,7 @@ export function createTransport(opts: MailTransportOptions): Transporter {
 	// Explicit, and deliberately loud about what it does NOT do. The message
 	// body is never printed — see `sendMail`, which logs only envelope metadata
 	// so a reset link cannot reach a log sink even in development.
+	// eslint-disable-next-line no-console -- dev transport announces itself when SMTP_HOST is unset
 	console.warn(
 		"[mailer] SMTP_HOST is unset — using the development transport. Mail is serialized, " +
 			"NOT delivered. Message bodies and links are not logged; read them from your mail " +

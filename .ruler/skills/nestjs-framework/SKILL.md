@@ -220,8 +220,8 @@ pnpm -F @repo/backend build          # nest build
 pnpm -F @repo/backend test           # jest
 pnpm -F @repo/backend lint           # eslint (skips env validation)
 pnpm -F @repo/backend typecheck      # tsc --noEmit
-pnpm -F @repo/db db:push             # push Drizzle schema (dev)
-pnpm -F @repo/db db:generate         # generate migration SQL
+pnpm db:push                         # push Drizzle schema (dev)
+pnpm db:generate                     # generate migration SQL
 ```
 
 ## Adding a Feature (checklist)
@@ -233,7 +233,7 @@ pnpm -F @repo/db db:generate         # generate migration SQL
 5. `[feature].controller.ts` — `@Implement` methods; decorate auth/permissions/throttle.
 6. `[feature].module.ts`; register in `V1Module`.
 7. `[feature].controller.spec.ts` mocking the boundaries.
-8. `pnpm -F @repo/backend lint typecheck test`; `db:push` if schema changed.
+8. `pnpm -F @repo/backend lint typecheck test`; `pnpm db:push` if schema changed.
 
 ## See Also
 

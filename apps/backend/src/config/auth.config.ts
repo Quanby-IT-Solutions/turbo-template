@@ -10,6 +10,7 @@ import { generateBetterAuthSchema } from "@/utils/openapi"
 const logger = new Logger("BetterAuthConfig")
 
 interface JsonResponse {
+	status: (code: number) => JsonResponse
 	json: (body: Record<string, unknown>) => void
 }
 
@@ -54,7 +55,13 @@ function createAuthMiddleware(versionedAuthPaths: string[]) {
  */
 function registerAuthOpenApiEndpoint(httpServer: any, authPath: string): void {
 	httpServer.get(`${authPath}/open-api`, async (_: unknown, res: JsonResponse) => {
-		res.json(await generateBetterAuthSchema())
+		const schema = await generateBetterAuthSchema()
+		if (!schema) {
+			res.status(404).json({ statusCode: 404, message: "Not Found" })
+			return
+		}
+
+		res.json(schema)
 	})
 }
 

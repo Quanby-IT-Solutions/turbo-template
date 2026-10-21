@@ -71,14 +71,18 @@ const forbidden = () =>
  * HTTP behavior matches that guard: the session and user are stored on the
  * request, then `@AllowAnonymous` / `@Public`, `@OptionalAuth`, `@Roles`,
  * `@OrgRoles`, `@UserHasPermission` and `@MemberHasPermission` are applied in
- * that order. This API has no GraphQL resolvers and no WebSocket gateways, so
- * those context types are rejected.
+ * that order. Non-HTTP contexts deliberately fail closed with the HTTP 401
+ * object. This API has no GraphQL, WebSocket or microservice entry points
+ * today; adding one needs its own context handling in this guard.
  */
 @Injectable()
 export class SessionAuthGuard implements CanActivate {
 	constructor(private readonly reflector: Reflector) {}
 
 	async canActivate(context: ExecutionContext): Promise<boolean> {
+		// Deliberately fail closed for non-HTTP contexts, using the HTTP 401
+		// object. This API has no GraphQL, WebSocket or microservice entry
+		// points today. Adding one needs its own context handling in this guard.
 		if (context.getType() !== "http") {
 			throw unauthorized()
 		}

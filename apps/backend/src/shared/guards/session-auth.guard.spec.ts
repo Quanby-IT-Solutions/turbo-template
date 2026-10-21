@@ -28,7 +28,7 @@ jest.mock("@repo/auth", () => ({
 
 const buildContext = (
 	request: RequestWithSession,
-	type: "http" | "graphql" | "ws" = "http"
+	type: "http" | "graphql" | "ws" | "rpc" = "http"
 ): ExecutionContext =>
 	({
 		getType: () => type,
@@ -91,6 +91,68 @@ describe("SessionAuthGuard", () => {
 		expect(request.sessionResolved).toBe(true)
 		expect(request.session?.user?.id).toBe("user-a")
 		expect(request.user?.id).toBe("user-a")
+	})
+
+	it("does not trust a pre-set session and rejects when the lookup finds none", async () => {
+		mockGetSession.mockResolvedValue(null)
+		const request: RequestWithSession = {
+			headers: {},
+			session: { user: { id: "forged" } },
+		}
+		const guard = new SessionAuthGuard(reflectorFor({}))
+
+		const result = await resolveRequestSession(request)
+
+		expect(mockGetSession).toHaveBeenCalledTimes(1)
+		expect(result).toBeNull()
+		expect(request.session).toBeNull()
+		expect(request.user).toBeNull()
+
+		try {
+			await guard.canActivate(buildContext(request))
+			fail("expected UnauthorizedException")
+		} catch (error) {
+			expect(error).toBeInstanceOf(UnauthorizedException)
+			expect((error as UnauthorizedException).getStatus()).toBe(401)
+			expect((error as UnauthorizedException).getResponse()).toEqual({
+				code: "UNAUTHORIZED",
+				message: "Unauthorized",
+			})
+		}
+		expect(mockGetSession).toHaveBeenCalledTimes(1)
+	})
+
+	it("replaces a pre-set session with the session from the verified lookup", async () => {
+		const verified = { user: { id: "real-user", role: "admin" }, session: { id: "sess-real" } }
+		mockGetSession.mockResolvedValue(verified)
+		const preset = { user: { id: "forged" } }
+		const request: RequestWithSession = {
+			headers: { cookie: "present" },
+			session: preset,
+		}
+
+		const result = await resolveRequestSession(request)
+
+		expect(mockGetSession).toHaveBeenCalledTimes(1)
+		expect(result).toEqual(verified)
+		expect(request.session).toEqual(verified)
+		expect(request.session).not.toBe(preset)
+		expect(request.user).toEqual({ id: "real-user", role: "admin" })
+	})
+
+	it("does not call getSession when this helper already resolved the request", async () => {
+		const stored = { user: { id: "user-a", role: "admin" } }
+		const request: RequestWithSession = {
+			headers: { cookie: "better-auth.session_token=present" },
+			session: stored,
+			sessionResolved: true,
+		}
+
+		const result = await resolveRequestSession(request)
+
+		expect(mockGetSession).not.toHaveBeenCalled()
+		expect(result).toBe(stored)
+		expect(request.user).toEqual(stored.user)
 	})
 
 	it("returns the library unauthorized shape when no session verifies", async () => {
@@ -221,12 +283,22 @@ describe("SessionAuthGuard", () => {
 		)
 	})
 
-	it("rejects a non-HTTP context", async () => {
+	it("rejects a non-HTTP context with the HTTP 401 object", async () => {
 		const guard = new SessionAuthGuard(reflectorFor({}))
 
-		await expect(guard.canActivate(buildContext({}, "graphql"))).rejects.toBeInstanceOf(
-			UnauthorizedException
-		)
+		for (const type of ["graphql", "ws", "rpc"] as const) {
+			try {
+				await guard.canActivate(buildContext({}, type))
+				fail(`expected UnauthorizedException for ${type}`)
+			} catch (error) {
+				expect(error).toBeInstanceOf(UnauthorizedException)
+				expect((error as UnauthorizedException).getStatus()).toBe(401)
+				expect((error as UnauthorizedException).getResponse()).toEqual({
+					code: "UNAUTHORIZED",
+					message: "Unauthorized",
+				})
+			}
+		}
 		expect(mockGetSession).not.toHaveBeenCalled()
 	})
 

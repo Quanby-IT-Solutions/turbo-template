@@ -20,7 +20,7 @@ const TEST_BUDGET = 2
 const CLIENT_A = "203.0.113.20"
 const CLIENT_B = "203.0.113.21"
 const SHARED_LEFT = "198.51.100.9"
-const FORGED_ADDRESS = "198.51.100.99"
+const CALLER_SUPPLIED_ADDRESS = "198.51.100.99"
 
 interface SessionRule {
 	window: number
@@ -69,7 +69,7 @@ async function hit(app: Express, rightmost: string): Promise<number> {
 	const response = await request(app)
 		.get("/api/v1/auth/get-session")
 		.set("X-Forwarded-For", `${SHARED_LEFT}, ${rightmost}`)
-		.set(AUTH_CLIENT_ADDRESS_HEADER, FORGED_ADDRESS)
+		.set(AUTH_CLIENT_ADDRESS_HEADER, CALLER_SUPPLIED_ADDRESS)
 	return response.status
 }
 

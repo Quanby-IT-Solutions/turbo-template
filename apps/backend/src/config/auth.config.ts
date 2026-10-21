@@ -22,12 +22,17 @@ interface AuthIncomingMessage extends IncomingMessage {
  * Express resolves `req.ip` from the trust chain in DOMAIN-MODEL.md
  * (`trust proxy` = TRUST_PROXY): one trusted hop, so the rightmost entry is
  * the address that hop saw. Better Auth reads only
- * `AUTH_CLIENT_ADDRESS_HEADER` and only when it is a single address, so any
- * value the caller sent under that name is removed first. A request with no
- * `req.ip` gets no header and keeps the library's own fallback.
+ * `AUTH_CLIENT_ADDRESS_HEADER` and only when it is a single address, so
+ * every own header of that name, in any letter case, is removed first. A
+ * request with no `req.ip` gets no header and keeps the library's own
+ * fallback.
  */
 function applyResolvedClientAddress(req: AuthIncomingMessage): void {
-	delete req.headers[AUTH_CLIENT_ADDRESS_HEADER]
+	for (const name of Object.keys(req.headers)) {
+		if (name.toLowerCase() === AUTH_CLIENT_ADDRESS_HEADER) {
+			delete req.headers[name]
+		}
+	}
 	const address = req.ip
 	if (!address) {
 		return

@@ -314,6 +314,45 @@ describe("setupBetterAuth open-api gating", () => {
 		expect(seen.headers[AUTH_CLIENT_ADDRESS_HEADER]).toBeUndefined()
 	})
 
+	it("keeps one lowercase client-address header equal to the address Express resolved", async () => {
+		const server = makeServer()
+		setupBetterAuth(appWith(server), false)
+
+		await dispatch(
+			server,
+			"GET",
+			"/api/v1/auth/get-session",
+			{
+				"X-Auth-Client-Address": "198.51.100.50",
+				[AUTH_CLIENT_ADDRESS_HEADER]: "198.51.100.51",
+			},
+			"203.0.113.10"
+		)
+
+		const seen = authHandler.mock.calls.at(-1)?.[0] as { headers: Record<string, unknown> }
+		const keys = Object.keys(seen.headers).filter(
+			name => name.toLowerCase() === AUTH_CLIENT_ADDRESS_HEADER
+		)
+		expect(keys).toEqual([AUTH_CLIENT_ADDRESS_HEADER])
+		expect(seen.headers[AUTH_CLIENT_ADDRESS_HEADER]).toBe("203.0.113.10")
+	})
+
+	it("removes every client-address header when Express did not resolve one", async () => {
+		const server = makeServer()
+		setupBetterAuth(appWith(server), false)
+
+		await dispatch(server, "GET", "/api/v1/auth/get-session", {
+			"X-Auth-Client-Address": "198.51.100.50",
+			[AUTH_CLIENT_ADDRESS_HEADER]: "198.51.100.51",
+		})
+
+		const seen = authHandler.mock.calls.at(-1)?.[0] as { headers: Record<string, unknown> }
+		const keys = Object.keys(seen.headers).filter(
+			name => name.toLowerCase() === AUTH_CLIENT_ADDRESS_HEADER
+		)
+		expect(keys).toEqual([])
+	})
+
 	it("forwards an empty auth body", async () => {
 		const server = makeServer()
 		setupBetterAuth(appWith(server), false)

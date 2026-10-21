@@ -2,7 +2,7 @@ import { cache } from "react"
 import { type betterAuth } from "better-auth"
 
 import { getCookieHeader } from "@/core/lib/cookie-utils"
-import { getServerAuthUrl } from "@/core/lib/server-utils"
+import { getForwardedForHeader, getServerAuthUrl } from "@/core/lib/server-utils"
 
 // `@repo/auth` re-exports this as `ReturnType<typeof getAuth>["$Infer"]["Session"]`.
 // Importing it from that package loads `config.js`, which validates env at
@@ -21,11 +21,13 @@ type AuthSession = ReturnType<typeof betterAuth>["$Infer"]["Session"]
 export const getSession = cache(async (): Promise<AuthSession | null> => {
 	try {
 		const cookieHeader = await getCookieHeader()
+		const forwardedFor = await getForwardedForHeader()
 
 		const response = await fetch(`${getServerAuthUrl()}/get-session`, {
 			headers: {
 				"Content-Type": "application/json",
 				"cookie": cookieHeader,
+				...(forwardedFor ? { "x-forwarded-for": forwardedFor } : {}),
 			},
 			cache: "no-store",
 		})

@@ -3,6 +3,8 @@ import { Logger, type INestApplication } from "@nestjs/common"
 import { MAX_REQUEST_BODY_SIZE } from "@/config/app.config"
 import { setupBetterAuth } from "@/config/auth.config"
 
+import { AUTH_CLIENT_ADDRESS_HEADER } from "../../../../packages/auth/src/client-address"
+
 // The Better Auth node handler: matched auth requests are handed off to this
 // (it never calls next()), so if it runs for /api/v1/auth/open-api the docs
 // route was NOT reachable.
@@ -18,10 +20,16 @@ jest.mock("better-auth/node", () => ({
 	toNodeHandler: () => authHandler,
 }))
 
-jest.mock("@repo/auth", () => ({
-	AUTH_BASE_PATH: "/auth",
-	getAuth: () => ({}),
-}))
+jest.mock("@repo/auth", () => {
+	const { AUTH_CLIENT_ADDRESS_HEADER } = jest.requireActual(
+		"../../../../packages/auth/src/client-address"
+	) as { AUTH_CLIENT_ADDRESS_HEADER: string }
+	return {
+		AUTH_BASE_PATH: "/auth",
+		AUTH_CLIENT_ADDRESS_HEADER,
+		getAuth: () => ({}),
+	}
+})
 
 jest.mock("@/config/api-versions.config", () => ({
 	getVersionKeys: () => ["v1"],
@@ -57,7 +65,8 @@ async function dispatch(
 	server: ReturnType<typeof makeServer>,
 	method: string,
 	url: string,
-	headers?: Record<string, string>
+	headers?: Record<string, string>,
+	ip?: string
 ) {
 	let body: unknown
 	let statusCode: number | undefined
@@ -101,6 +110,7 @@ async function dispatch(
 		url,
 		method,
 		headers: headers ?? {},
+		...(ip !== undefined ? { ip } : {}),
 		id: headers?.["x-request-id"],
 		destroyed: false,
 		on() {
@@ -274,6 +284,73 @@ describe("setupBetterAuth open-api gating", () => {
 		expect(authHandler).toHaveBeenCalledTimes(2)
 		expect(session.statusCode).not.toBe(413)
 		expect(callback.statusCode).not.toBe(413)
+	})
+
+	it("replaces a caller-supplied client address with the address Express resolved", async () => {
+		const server = makeServer()
+		setupBetterAuth(appWith(server), false)
+
+		await dispatch(
+			server,
+			"GET",
+			"/api/v1/auth/get-session",
+			{ [AUTH_CLIENT_ADDRESS_HEADER]: "198.51.100.50" },
+			"203.0.113.10"
+		)
+
+		const seen = authHandler.mock.calls.at(-1)?.[0] as { headers: Record<string, unknown> }
+		expect(seen.headers[AUTH_CLIENT_ADDRESS_HEADER]).toBe("203.0.113.10")
+	})
+
+	it("omits the client address header when Express did not resolve one", async () => {
+		const server = makeServer()
+		setupBetterAuth(appWith(server), false)
+
+		await dispatch(server, "GET", "/api/v1/auth/get-session", {
+			[AUTH_CLIENT_ADDRESS_HEADER]: "198.51.100.50",
+		})
+
+		const seen = authHandler.mock.calls.at(-1)?.[0] as { headers: Record<string, unknown> }
+		expect(seen.headers[AUTH_CLIENT_ADDRESS_HEADER]).toBeUndefined()
+	})
+
+	it("keeps one lowercase client-address header equal to the address Express resolved", async () => {
+		const server = makeServer()
+		setupBetterAuth(appWith(server), false)
+
+		await dispatch(
+			server,
+			"GET",
+			"/api/v1/auth/get-session",
+			{
+				"X-Auth-Client-Address": "198.51.100.50",
+				[AUTH_CLIENT_ADDRESS_HEADER]: "198.51.100.51",
+			},
+			"203.0.113.10"
+		)
+
+		const seen = authHandler.mock.calls.at(-1)?.[0] as { headers: Record<string, unknown> }
+		const keys = Object.keys(seen.headers).filter(
+			name => name.toLowerCase() === AUTH_CLIENT_ADDRESS_HEADER
+		)
+		expect(keys).toEqual([AUTH_CLIENT_ADDRESS_HEADER])
+		expect(seen.headers[AUTH_CLIENT_ADDRESS_HEADER]).toBe("203.0.113.10")
+	})
+
+	it("removes every client-address header when Express did not resolve one", async () => {
+		const server = makeServer()
+		setupBetterAuth(appWith(server), false)
+
+		await dispatch(server, "GET", "/api/v1/auth/get-session", {
+			"X-Auth-Client-Address": "198.51.100.50",
+			[AUTH_CLIENT_ADDRESS_HEADER]: "198.51.100.51",
+		})
+
+		const seen = authHandler.mock.calls.at(-1)?.[0] as { headers: Record<string, unknown> }
+		const keys = Object.keys(seen.headers).filter(
+			name => name.toLowerCase() === AUTH_CLIENT_ADDRESS_HEADER
+		)
+		expect(keys).toEqual([])
 	})
 
 	it("forwards an empty auth body", async () => {

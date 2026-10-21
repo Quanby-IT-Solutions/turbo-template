@@ -5,7 +5,7 @@ import { cache } from "react"
 import { MePermissionsSchema, type MePermissions } from "@repo/contracts"
 
 import { getCookieHeader } from "@/core/lib/cookie-utils"
-import { getServerApiUrl } from "@/core/lib/server-utils"
+import { getForwardedForHeader, getServerApiUrl } from "@/core/lib/server-utils"
 
 type AccessErrorReason = "request-failed" | "invalid-response"
 
@@ -30,11 +30,13 @@ function accessError(error: AccessErrorReason): AccessResult {
 export const getAccess = cache(async (): Promise<AccessResult> => {
 	try {
 		const cookieHeader = await getCookieHeader()
+		const forwardedFor = await getForwardedForHeader()
 
 		const response = await fetch(`${getServerApiUrl()}/me/permissions`, {
 			headers: {
 				"Content-Type": "application/json",
 				"cookie": cookieHeader,
+				...(forwardedFor ? { "x-forwarded-for": forwardedFor } : {}),
 			},
 			cache: "no-store",
 		})

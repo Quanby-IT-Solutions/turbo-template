@@ -12,6 +12,7 @@
  * keys the backend file or the process environment already set, then fails fast
  * when no password is available.
  */
+import { randomUUID } from "node:crypto"
 import { fileURLToPath } from "node:url"
 import { config } from "dotenv"
 
@@ -27,5 +28,32 @@ const seedEnvPath = fileURLToPath(new URL("../../../packages/db/.env", import.me
 config({ path: backendEnvPath })
 config({ path: seedEnvPath, override: false })
 
+// Throttle counters and blocks live in Redis under REDIS_KEY_PREFIX. The
+// suite boots one app per spec file, and a limit lowered in one file would
+// otherwise keep blocking the next file — and the next run — until the TTL
+// expires. Give each file its own prefix when Redis is configured. Keys are
+// left to expire; a local Redis may hold other data, so nothing is flushed
+// or deleted. Without REDIS_URL the prefix is untouched.
+//
+// This has to happen here, in setupFiles. `createEnv` reads the prefix at
+// import time, which is after this file and before the spec.
+if (process.env.REDIS_URL) {
+	const base = redisKeyPrefixBase(process.env.REDIS_KEY_PREFIX)
+	process.env.REDIS_KEY_PREFIX = `${base}:e2e:${randomUUID()}`
+}
+
 // Suite startup, before any spec can attempt sign-in.
 resolveE2eAdminPassword()
+
+/**
+ * Configured prefix, or the app default when none is set.
+ *
+ * A previous spec file in this process already rewrote the variable (Jest
+ * reuses `process.env` under `--runInBand`). Strip one trailing
+ * `:e2e:<uuid>` so prefixes don't nest, and so the base stays whatever the
+ * developer configured.
+ */
+function redisKeyPrefixBase(configured: string | undefined): string {
+	const prefix = configured?.trim() || "turbo-template"
+	return prefix.replace(/:e2e:[0-9a-f-]{36}$/i, "")
+}

@@ -59,6 +59,45 @@ describe("ResilientThrottlerStorage", () => {
 		).resolves.toBeDefined()
 	})
 
+	it("fails open without the outage log when the client was closed on purpose", async () => {
+		const errorSpy = jest.spyOn(Logger.prototype, "error")
+		errorSpy.mockClear()
+
+		const inner = {
+			redis: { status: "end" },
+			increment: jest.fn().mockRejectedValue(new Error("Connection is closed.")),
+		}
+
+		const record = await new ResilientThrottlerStorage(inner).increment("k", 60, 10, 0, "default")
+
+		expect(record).toEqual({
+			totalHits: 0,
+			timeToExpire: 60,
+			isBlocked: false,
+			timeToBlockExpire: 0,
+		})
+		expect(errorSpy).not.toHaveBeenCalled()
+	})
+
+	it("still logs a real outage once when the client is reconnecting", async () => {
+		const errorSpy = jest.spyOn(Logger.prototype, "error")
+		errorSpy.mockClear()
+
+		const inner = {
+			redis: { status: "reconnecting" },
+			increment: jest.fn().mockRejectedValue(new Error("ECONNREFUSED")),
+		}
+		const storage = new ResilientThrottlerStorage(inner)
+
+		const first = await storage.increment("k", 60, 10, 0, "default")
+		const second = await storage.increment("k", 60, 10, 0, "default")
+
+		expect(first.isBlocked).toBe(false)
+		expect(first.totalHits).toBe(0)
+		expect(second.isBlocked).toBe(false)
+		expect(errorSpy).toHaveBeenCalledTimes(1)
+	})
+
 	it("logs the outage once, not once per request", async () => {
 		const errorSpy = jest.spyOn(Logger.prototype, "error")
 		errorSpy.mockClear()

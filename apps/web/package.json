@@ -78,7 +78,7 @@
 		"dotenv": "catalog:",
 		"esbuild": "^0.28.1",
 		"eslint": "catalog:",
-		"jsdom": "^29.0.1",
+		"jsdom": "^29.1.1",
 		"prettier": "catalog:",
 		"sharp": "^0.35.2",
 		"tailwindcss": "catalog:",

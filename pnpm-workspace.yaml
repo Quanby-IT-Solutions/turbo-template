@@ -6,13 +6,13 @@ packages:
 catalog:
   auth: 1.6.22
   "@eslint/js": ^9.39.2
-  "@nestjs/common": ^11.1.11
-  "@nestjs/core": ^11.1.11
-  "@orpc/contract": ^1.13.4
-  "@orpc/nest": ^1.13.4
+  "@nestjs/common": ^11.2.7
+  "@nestjs/core": ^11.2.7
+  "@orpc/contract": ^1.15.7
+  "@orpc/nest": ^1.15.7
   "@sentry/nestjs": ^10.70.0
   "@sentry/nextjs": ^10.70.0
-  "@tailwindcss/postcss": ^4.1.18
+  "@tailwindcss/postcss": ^4.3.3
   "@tanstack/eslint-plugin-query": ^5.91.2
   "@tanstack/react-form": ^1.27.7
   "@tanstack/react-query": ^5.90.16
@@ -33,7 +33,7 @@ catalog:
   prettier: ^3.7.4
   react: 19.2.3
   react-dom: 19.2.3
-  tailwindcss: ^4.1.18
+  tailwindcss: ^4.3.3
   tsx: ^4.21.0
   turbo: ^2.11.9
   typescript: ^5.9.3
@@ -68,9 +68,14 @@ overrides:
   "@types/react-dom": 19.2.3
   "argparse@>=1 <2>sprintf-js": "-"
   "gel": "-"
+  "@graphql-tools/utils@<12.0.1": ">=12.0.1 <13"
   "handlebars@<4.7.10": ">=4.7.10 <5"
   "mssql": "-"
   "proxy-addr@<2.0.8": ">=2.0.8 <3"
+  "picomatch@>=4 <4.0.4": ">=4.0.4 <5"
+  "ajv@>=8 <8.18.0": ">=8.18.0 <9"
+  "lodash@>=4 <4.18.0": ">=4.18.0 <5"
+  "js-yaml@>=5 <5.4.1": ">=5.4.1 <5.5.0"
 
 publicHoistPattern:
   - "@ianvs/prettier-plugin-sort-imports"

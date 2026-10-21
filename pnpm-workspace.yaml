@@ -18,7 +18,7 @@ catalog:
   "@tanstack/react-query": ^5.90.16
   "@t3-oss/env-core": ^0.13.10
   "@t3-oss/env-nextjs": ^0.13.10
-  "@turbo/gen": ^2.7.3
+  "@turbo/gen": ^2.11.9
   "@types/node": ^22.19.3
   "@types/pg": ^8.16.0
   "@types/react": 19.2.7
@@ -35,7 +35,7 @@ catalog:
   react-dom: 19.2.3
   tailwindcss: ^4.1.18
   tsx: ^4.21.0
-  turbo: ^2.7.3
+  turbo: ^2.11.9
   typescript: ^5.9.3
   typescript-eslint: ^8.52.0
   zod: ^4.3.5

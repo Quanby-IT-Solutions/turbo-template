@@ -26,6 +26,7 @@ async function sendResetOrSwallow(transporter: Parameters<typeof sendMail>[0], t
 			text: email.text,
 		})
 	} catch (err) {
+		// eslint-disable-next-line no-console -- mirrors the handler log the assertions read
 		console.error("[mailer] password reset email failed:", err)
 	}
 }

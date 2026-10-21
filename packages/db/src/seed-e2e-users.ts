@@ -9,21 +9,16 @@ import { drizzle } from "drizzle-orm/node-postgres"
 import { Pool } from "pg"
 
 import { accounts, schema, userRoles, users } from "./schema.js"
-import {
-	ALLOW_REMOTE_SEED_ENV,
-	assertSeedAllowed,
-	hasForcePasswordFlag,
-	SeedRefusedError,
-	shouldWritePassword,
-} from "./seed-guard.js"
+import { ALLOW_REMOTE_SEED_ENV, assertSeedAllowed, SeedRefusedError } from "./seed-guard.js"
 
 /**
  * Local-only userA and userB for web e2e.
  *
  * Email verification stays required, so these accounts are inserted already
  * verified and with no role. Passwords come only from the environment. They
- * are hashed the same way as `seed.ts` and never printed. An existing
- * password is rewritten only with `--force-password`.
+ * are hashed the same way as `seed.ts` and never printed. Every run stores
+ * this run's password, including when the account already exists. The admin
+ * seeder still refuses to rotate a password unless `--force-password` is set.
  */
 
 const SEEDED_TEMPLATE_EMAILS = new Set([
@@ -53,7 +48,6 @@ export interface E2eSeedUserPlan {
 
 export interface E2eSeedPlan {
 	databaseUrl: string
-	forcePassword: boolean
 	userA: E2eSeedUserPlan
 	userB: E2eSeedUserPlan
 }
@@ -78,7 +72,7 @@ function optionalText(value: string | undefined, fallback: string): string {
  * @throws {SeedRefusedError} production or a non-local database
  * @throws {E2eSeedPasswordError} a required password is missing
  */
-export function prepareE2eSeed(env: NodeJS.ProcessEnv, argv: readonly string[]): E2eSeedPlan {
+export function prepareE2eSeed(env: NodeJS.ProcessEnv, _argv: readonly string[]): E2eSeedPlan {
 	const databaseUrl = env.DATABASE_URL
 	if (!databaseUrl) {
 		throw new Error("DATABASE_URL environment variable is not set")
@@ -102,7 +96,6 @@ export function prepareE2eSeed(env: NodeJS.ProcessEnv, argv: readonly string[]):
 
 	return {
 		databaseUrl,
-		forcePassword: hasForcePasswordFlag(argv),
 		userA: {
 			id: "e2e-user-a",
 			email: userAEmail,
@@ -134,9 +127,8 @@ async function hashPassword(password: string): Promise<string> {
 async function upsertE2eUser(
 	tx: Pick<ReturnType<typeof drizzle<typeof schema>>, "select" | "insert" | "update" | "delete">,
 	user: E2eSeedUserPlan,
-	forcePassword: boolean,
 	now: Date
-): Promise<boolean> {
+): Promise<void> {
 	const byEmail = await tx.select().from(users).where(eq(users.email, user.email)).limit(1)
 	const byId = await tx.select().from(users).where(eq(users.id, user.id)).limit(1)
 
@@ -167,37 +159,29 @@ async function upsertE2eUser(
 	// Ordinary users: a previous experiment must not leave a role behind.
 	await tx.delete(userRoles).where(eq(userRoles.userId, userId))
 
+	const hashed = await hashPassword(user.password)
 	const existingCredential = await tx
 		.select({ accountId: accounts.accountId })
 		.from(accounts)
 		.where(and(eq(accounts.providerId, "credential"), eq(accounts.userId, userId)))
 		.limit(1)
-	const writePassword = shouldWritePassword({
-		accountExists: existingCredential.length > 0,
-		forcePassword,
-	})
 
 	if (existingCredential.length === 0) {
 		await tx.insert(accounts).values({
 			providerId: "credential",
 			accountId: userId,
 			userId,
-			password: await hashPassword(user.password),
+			password: hashed,
 			createdAt: now,
 			updatedAt: now,
 		})
-		return true
+		return
 	}
 
-	if (writePassword) {
-		await tx
-			.update(accounts)
-			.set({ password: await hashPassword(user.password), updatedAt: now })
-			.where(and(eq(accounts.providerId, "credential"), eq(accounts.userId, userId)))
-		return true
-	}
-
-	return false
+	await tx
+		.update(accounts)
+		.set({ password: hashed, updatedAt: now })
+		.where(and(eq(accounts.providerId, "credential"), eq(accounts.userId, userId)))
 }
 
 async function seedE2eUsers() {
@@ -205,18 +189,16 @@ async function seedE2eUsers() {
 	const pool = new Pool({ connectionString: plan.databaseUrl })
 	const db = drizzle({ client: pool, schema })
 	const now = new Date()
-	let passwordsWritten = 0
 
 	try {
 		await db.transaction(async tx => {
-			if (await upsertE2eUser(tx, plan.userA, plan.forcePassword, now)) passwordsWritten += 1
-			if (await upsertE2eUser(tx, plan.userB, plan.forcePassword, now)) passwordsWritten += 1
+			await upsertE2eUser(tx, plan.userA, now)
+			await upsertE2eUser(tx, plan.userB, now)
 		})
 
-		const preserved = 2 - passwordsWritten
 		console.log(
 			`E2E users ready: userA ${plan.userA.email} and userB ${plan.userB.email} (emailVerified, no role).\n` +
-				`Passwords written: ${passwordsWritten}. Existing passwords left untouched: ${preserved}.`
+				"Passwords stored for this run: 2."
 		)
 	} finally {
 		await pool.end()

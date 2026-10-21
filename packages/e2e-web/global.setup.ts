@@ -13,7 +13,8 @@ setup.setTimeout(90_000)
  *
  * userA and userB come from `pnpm db:seed:e2e` (pre-verified, no role).
  * Sign-in goes through the shared fixture, which retries a 429 from
- * `x-retry-after` and fails immediately on 403 EMAIL_NOT_VERIFIED.
+ * `x-retry-after` and fails immediately on 401 or 403 EMAIL_NOT_VERIFIED.
+ * It does not register an account.
  */
 setup("authenticate", async ({ page }) => {
 	await signInAs(page, "userA")

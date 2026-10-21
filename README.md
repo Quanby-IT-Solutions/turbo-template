@@ -308,10 +308,13 @@ stored. If the database was seeded with a different or random password, set
 
 ## Web e2e (Playwright)
 
-Authenticated projects stay off until `E2E_AUTH_API_URL` is set. Email
-verification stays required. `pnpm db:seed:e2e` creates userA and userB as
-pre-verified ordinary users (no role) so sign-in works without turning that
-requirement off.
+Authenticated projects stay off until `E2E_AUTH_API_URL` is set. Leave
+`EMAIL_VERIFICATION_REQUIRED=true`. The suite does not turn verification off
+and does not register accounts. `pnpm db:seed:e2e` creates or updates userA
+and userB as pre-verified ordinary users (no role) and stores this run's
+passwords. It refuses `NODE_ENV=production` and a non-local `DATABASE_URL`,
+the same way `pnpm db:seed` does. Re-run it when a reused database still has
+an older password for those two users.
 
 From the repo root, with Postgres up. Start the backend with the e2e limiter
 and leave that process running across repeated suite runs. Production defaults
@@ -324,26 +327,37 @@ THROTTLE_LIMIT=5000 THROTTLE_TTL=60000 pnpm --filter @repo/backend start
 Then:
 
 ```bash
+export EMAIL_VERIFICATION_REQUIRED=true
 export E2E_AUTH_API_URL=http://localhost:3000/api/v1/auth/
-export E2E_ADMIN_PASSWORD="$SEED_ADMIN_PASSWORD"
-export E2E_TEST_PASSWORD
-export E2E_TEST_PASSWORD_B
+export E2E_ADMIN_EMAIL=<admin-email>
+export E2E_ADMIN_PASSWORD=<seed-admin-password>
+export E2E_TEST_EMAIL=<user-a-email>
+export E2E_TEST_NAME=<user-a-name>
+export E2E_TEST_PASSWORD=<user-a-password>
+export E2E_TEST_EMAIL_B=<user-b-email>
+export E2E_TEST_PASSWORD_B=<user-b-password>
+# Set to 1 when a web server is already running. Playwright then does not
+# start `next start` itself.
+# export E2E_NO_WEBSERVER=1
 pnpm db:seed
 pnpm db:seed:e2e
 pnpm test:e2e:web
 ```
 
-`E2E_ADMIN_PASSWORD` is your `SEED_ADMIN_PASSWORD` (the admin from `pnpm db:seed`).
+`E2E_ADMIN_PASSWORD` is the admin password from `pnpm db:seed`.
 `E2E_TEST_PASSWORD` and `E2E_TEST_PASSWORD_B` have no defaults; export them in
-the shell. Do not commit them. Optional `E2E_TEST_EMAIL`, `E2E_TEST_NAME`, and
-`E2E_TEST_EMAIL_B` override the fixture addresses.
+the shell. Do not commit them. `E2E_TEST_EMAIL` defaults to a local test
+address when unset, and `E2E_TEST_EMAIL_B` defaults to the second local test
+address. `E2E_NO_WEBSERVER` skips Playwright's web server so the suite talks
+to one you already started.
 
 `apps/web/.env` (from `apps/web/.env.example`) must set
-`NEXT_PUBLIC_API_BASE_URL` before the web build. Playwright starts that build.
-When the variable is unset, the page CSP stays `connect-src 'self'` only.
+`NEXT_PUBLIC_API_BASE_URL` before the web build. Playwright starts that build
+unless `E2E_NO_WEBSERVER` is set. When the variable is unset, the page CSP
+stays `connect-src 'self'` only.
 
-Re-running `pnpm db:seed:e2e` does not rewrite an existing password. To rotate
-one, pass `--force-password`.
+Re-running `pnpm db:seed:e2e` stores the current `E2E_TEST_PASSWORD` and
+`E2E_TEST_PASSWORD_B` and marks both users verified.
 
 ## Scripts
 

@@ -52,13 +52,13 @@ export const ACCOUNTS: Record<TestRole, Pick<TestAccount, "email" | "name">> = {
 	// `signInAs` fails with where to set them; `trySignInAs("admin")` returns
 	// false and names the missing variable. userA and userB use
 	// `E2E_TEST_PASSWORD` and `E2E_TEST_PASSWORD_B`, also with no default, and
-	// fail before any sign-up when the variable is missing. A 403
-	// EMAIL_NOT_VERIFIED does not sign up; run `pnpm db:seed:e2e`.
+	// fail before any request when the variable is missing. Sign-in does not
+	// register an account. A missing or unverified user needs `pnpm db:seed:e2e`.
 	admin: {
 		email: process.env.E2E_ADMIN_EMAIL ?? "admin@turbo-template.local",
 		name: "Admin User",
 	},
-	// The long-standing e2e account; registered on demand if absent.
+	// Ordinary user from `pnpm db:seed:e2e`, already verified.
 	userA: {
 		email: process.env.E2E_TEST_EMAIL ?? "test@gmail.com",
 		name: process.env.E2E_TEST_NAME ?? "E2E Test User",
@@ -85,8 +85,8 @@ interface SignInResult {
 	account: TestAccount
 }
 
-const UNVERIFIED_SIGN_IN_MESSAGE =
-	"Run `pnpm db:seed:e2e`; E2E_TEST_EMAIL must be a pre-verified test user."
+const SEEDED_USER_MESSAGE =
+	"Run `pnpm db:seed:e2e`; it stores this run's password on the pre-verified user."
 
 /**
  * Milliseconds to wait after a 429. Honours `x-retry-after` (seconds) plus one,
@@ -105,10 +105,11 @@ function isUnverifiedSignIn(status: number, body: string): boolean {
 /**
  * Authenticate against the API and move the cookies into the browser context.
  *
- * An unknown account is registered once, then signed in. A 403
- * EMAIL_NOT_VERIFIED is not that case: sign-up would spend another request
- * and still could not log in. That fails immediately and names `pnpm db:seed:e2e`.
- * A 429 waits for `x-retry-after` and is tried at most twice more.
+ * userA and userB come from `pnpm db:seed:e2e`. This does not register an
+ * account: a sign-up would leave an unverified user when verification is
+ * required, and it cannot replace a password already stored. A 403
+ * EMAIL_NOT_VERIFIED or a 401 fails immediately and names that seed. A 429
+ * waits for `x-retry-after` and is tried at most twice more.
  */
 async function authenticate(page: Page, account: TestAccount): Promise<SignInResult> {
 	let detail = ""
@@ -119,7 +120,7 @@ async function authenticate(page: Page, account: TestAccount): Promise<SignInRes
 			extraHTTPHeaders: { "Content-Type": "application/json", "Origin": WEB_ORIGIN },
 		})
 
-		let res = await api.post("sign-in/email", {
+		const res = await api.post("sign-in/email", {
 			data: { email: account.email, password: account.password },
 		})
 
@@ -131,51 +132,28 @@ async function authenticate(page: Page, account: TestAccount): Promise<SignInRes
 			return { ok: true, detail: "", account }
 		}
 
-		let status = res.status()
-		let body = await res.text()
+		const status = res.status()
+		const body = await res.text()
+		const retryAfter = res.headers()["x-retry-after"]
+		await api.dispose()
+
 		if (isUnverifiedSignIn(status, body)) {
-			await api.dispose()
 			return {
 				ok: false,
-				detail: `403 EMAIL_NOT_VERIFIED for ${account.email}. ${UNVERIFIED_SIGN_IN_MESSAGE}`,
+				detail: `403 EMAIL_NOT_VERIFIED for ${account.email}. ${SEEDED_USER_MESSAGE}`,
 				account,
 			}
 		}
 
-		// Unknown account: create it, then sign in. Never for the admin, which
-		// the seeder owns — silently registering it would produce a second,
-		// unprivileged "admin" and make later permission assertions nonsense.
-		// Never after EMAIL_NOT_VERIFIED (handled above).
-		if (status !== 429 && account.email !== ACCOUNTS.admin.email) {
-			await api.post("sign-up/email", {
-				data: { email: account.email, password: account.password, name: account.name },
-			})
-			res = await api.post("sign-in/email", {
-				data: { email: account.email, password: account.password },
-			})
-			if (res.ok()) {
-				const { cookies } = await api.storageState()
-				await page.context().addCookies(cookies)
-				await api.dispose()
-				console.log(`[e2e] sign-in/email 200 for ${account.email}`)
-				return { ok: true, detail: "", account }
-			}
-			status = res.status()
-			body = await res.text()
-			if (isUnverifiedSignIn(status, body)) {
-				await api.dispose()
-				return {
-					ok: false,
-					detail: `403 EMAIL_NOT_VERIFIED for ${account.email}. ${UNVERIFIED_SIGN_IN_MESSAGE}`,
-					account,
-				}
+		if (status === 401) {
+			return {
+				ok: false,
+				detail: `401 for ${account.email}. ${SEEDED_USER_MESSAGE}`,
+				account,
 			}
 		}
 
 		detail = `${status} ${body}`
-		const retryAfter = res.headers()["x-retry-after"]
-		await api.dispose()
-
 		if (status !== 429 || attempt === 3) break
 		const waitMs = signInRetryDelayMs(retryAfter)
 		console.log(

@@ -48,15 +48,18 @@ describe("prepareE2eSeed", () => {
 		)
 	})
 
-	it("plans pre-verified ordinary users and preserves passwords unless --force-password is set", () => {
+	it("plans this run's passwords for both pre-verified users", () => {
 		const plan = prepareE2eSeed(env(), [])
+		const withFlag = prepareE2eSeed(env(), ["--force-password"])
 
 		expect(plan.userA.email).toBe("test@gmail.com")
 		expect(plan.userA.name).toBe("E2E Test User")
+		expect(plan.userA.password).toBe("user-a-plan-password")
 		expect(plan.userB.email).toBe("e2e-user-b@turbo-template.local")
 		expect(plan.userB.name).toBe("E2E User B")
-		expect(plan.forcePassword).toBe(false)
-		expect(prepareE2eSeed(env(), ["--force-password"]).forcePassword).toBe(true)
+		expect(plan.userB.password).toBe("user-b-plan-password")
+		expect(withFlag.userA.password).toBe(plan.userA.password)
+		expect(withFlag.userB.password).toBe(plan.userB.password)
 	})
 
 	it("refuses to reuse the template's seeded admin, alex, or sam addresses", () => {

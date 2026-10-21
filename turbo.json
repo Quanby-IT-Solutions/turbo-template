@@ -50,6 +50,8 @@
 				"PLAYWRIGHT_*",
 				"BASE_URL",
 				"BACKEND_URL",
+				"E2E_NO_WEBSERVER",
+				"E2E_TEST_EMAIL_B",
 				"E2E_*",
 				"NEXT_PUBLIC_*",
 				"SEED_ADMIN_PASSWORD"

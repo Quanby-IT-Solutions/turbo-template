@@ -29,7 +29,51 @@ permissions:
   checks: write
 
 jobs:
+  # The pinned quality gate filters Playwright on web paths only. Its `changes`
+  # job cannot see lockfile or workspace changes, and the gate pin stays put,
+  # so a dependency-only PR would skip `quality / e2e`. This job drives the
+  # gate's existing `run-e2e` input from this repository.
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      deps: ${{ steps.filter.outputs.deps }}
+      # Keep in sync with the pinned gate's `web` filter
+      # (quality-gate.yml@db900a082cd9f7d1315d1192748324cf49647410, job `changes`).
+      web: ${{ steps.filter.outputs.web }}
+    steps:
+      - name: Checkout
+        # Same pin as backend-e2e. Full history so a push diff has a parent.
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed paths
+        id: filter
+        # Commit the `dorny/paths-filter@v3` tag resolves to (v3.0.3, 2026-08-05).
+        uses: dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad # v3
+        with:
+          token: ${{ github.token }}
+          filters: |
+            deps:
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - 'package.json'
+              - '.github/workflows/ci.yml'
+            # Keep in sync with the pinned gate's `web` filter
+            # (quality-gate.yml@db900a082cd9f7d1315d1192748324cf49647410, job `changes`).
+            web:
+              - 'apps/web/**'
+              - 'packages/contracts/**'
+              - 'packages/auth/**'
+              - 'packages/db/**'
+              - 'packages/e2e-web/**'
+
   quality:
+    needs: changes
     # Pinned to a full commit SHA, not @main: every deploy gates on this job
     # (`needs: ci`), so a branch ref lets an external repository change our
     # quality gate — or replace it — without a single review here.
@@ -47,6 +91,8 @@ jobs:
     # The gate's own default is 22.20.0, which is below engines.node.
     with:
       node-version: 22.22.1
+      # Boolean input. Quoting this expression would pass a string and fail the type check.
+      run-e2e: ${{ needs.changes.outputs.deps == 'true' || github.event_name == 'workflow_dispatch' }}
     # `secrets: inherit` handed every repository secret — AWS keys, the auth
     # signing secret, the database URL — to an external workflow that declares
     # exactly one optional secret. Only that one is passed now, so a compromise
@@ -56,14 +102,13 @@ jobs:
 
   # E2E-001 / QUA-7. Backend Jest e2e should run on PRs to dev.
   #
-  # The reusable quality gate's e2e job runs Playwright (`pnpm test:e2e:web`),
-  # only when web paths changed or `inputs.run-e2e` is true (default false),
-  # and that workflow has no Postgres service. It never runs
-  # `pnpm -F @repo/backend test:e2e`. Turning on `run-e2e` for dependency-only
-  # PRs was considered and is not done here: the gate still has no database,
-  # so the flag would not execute this suite, and
-  # Quanby-IT-Solutions/.github is out of scope. Playwright stays on its
-  # existing path filter; this job is the backend regression signal.
+  # The reusable quality gate's e2e job runs Playwright (`pnpm test:e2e:web`)
+  # and has no Postgres service. It never runs `pnpm -F @repo/backend test:e2e`.
+  # The `changes` job sets `run-e2e` when the lockfile, workspace, root
+  # package.json, or this workflow changes, and on workflow_dispatch. That
+  # flag only selects the gate's unauthenticated Playwright suite. The gate
+  # still has no database, and Quanby-IT-Solutions/.github is out of scope,
+  # so this job remains the backend regression signal.
   #
   # BETTER_AUTH_SECRET and SEED_ADMIN_PASSWORD are generated in the job,
   # masked, and exported through $GITHUB_ENV. They are not repository secrets

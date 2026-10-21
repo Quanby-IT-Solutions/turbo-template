@@ -80,7 +80,7 @@
 		"eslint": "catalog:",
 		"jsdom": "^29.1.1",
 		"prettier": "catalog:",
-		"sharp": "^0.35.2",
+		"sharp": "^0.35.5",
 		"tailwindcss": "catalog:",
 		"typescript": "catalog:",
 		"vite": "^8.1.6",

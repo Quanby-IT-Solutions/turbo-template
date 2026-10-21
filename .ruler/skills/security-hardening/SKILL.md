@@ -336,8 +336,9 @@ hsts: env.ENABLE_HSTS ? { maxAge: 31_536_000, includeSubDomains: true, preload: 
 the real hop count:
 - `1` = one hop. Local / dev: nginx sets `X-Forwarded-For` to `$remote_addr`.
   Production: the load balancer appends the address it saw, and Express keeps
-  that rightmost entry. Staging in this repo is EC2 plus an Elastic IP; any
-  load balancer there is managed outside this repo.
+  that rightmost entry. Staging is EC2 plus an Elastic IP, and host Nginx on
+  the instance is the single trusted hop (`TRUST_PROXY=1`). Health is checked
+  on the host over SSH.
 - `0` = no trusted hop (socket peer used).
 - Raising `TRUST_PROXY` alone does not move `ThrottlerProxyGuard`'s key,
   because `getTracker` reads the rightmost `X-Forwarded-For` entry. An extra

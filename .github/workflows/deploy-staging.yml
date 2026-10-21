@@ -198,6 +198,8 @@ jobs:
           BETTER_AUTH_TRUSTED_ORIGINS=$BETTER_AUTH_TRUSTED_ORIGINS
           GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID
           GOOGLE_CLIENT_SECRET=$GOOGLE_CLIENT_SECRET
+          # one proxy hop, host Nginx on the same instance; the app ports are not opened in the security group; change this only if the hop count changes.
+          TRUST_PROXY=1
           ENV
 
             # Write docker-compose.staging.yml
@@ -211,38 +213,46 @@ jobs:
             docker compose up -d --remove-orphans
             docker image prune -f
 
+            # Both containers are checked on the host. 12 attempts, 10s apart.
+            # Dollars are escaped so this unquoted heredoc runs the loop on the
+            # instance, not on the runner.
+            RETRIES=12
+            DELAY=10
+
+            echo "Checking Backend health..."
+            for i in \$(seq 1 \$RETRIES); do
+              if curl -sf --max-time 10 http://127.0.0.1:3000/api/v1/health > /dev/null 2>&1; then
+                echo "✓ Backend is healthy"
+                break
+              fi
+              if [ "\$i" -eq "\$RETRIES" ]; then
+                echo "❌ Backend health check failed after \$RETRIES attempts"
+                docker compose ps || true
+                docker logs --tail=100 staging-backend || true
+                exit 1
+              fi
+              echo "  Attempt \$i/\$RETRIES failed, retrying in \${DELAY}s..."
+              sleep \$DELAY
+            done
+
+            echo "Checking Web..."
+            for i in \$(seq 1 \$RETRIES); do
+              if curl -sf --max-time 10 http://127.0.0.1:3001/ > /dev/null 2>&1; then
+                echo "✓ Web is healthy"
+                break
+              fi
+              if [ "\$i" -eq "\$RETRIES" ]; then
+                echo "❌ Web health check failed after \$RETRIES attempts"
+                docker compose ps || true
+                docker logs --tail=100 staging-web || true
+                exit 1
+              fi
+              echo "  Attempt \$i/\$RETRIES failed, retrying in \${DELAY}s..."
+              sleep \$DELAY
+            done
+
             echo "✅ Deploy complete"
           DEPLOY
-
-      # ── Health check ────────────────────────────────────────────
-      - name: Health check
-        run: |
-          set -uo pipefail
-          echo "Waiting 30s for containers to start..."
-          sleep 30
-
-          # Both services are probed. Only the backend used to be, which is
-          # exactly why the ECR_REPOSITORY_WEB variable swap survived: staging
-          # ran the backend image twice and reported itself healthy while no
-          # web container was ever started.
-          check() {
-            local name="$1" url="$2" max=10 i status
-            for i in $(seq 1 $max); do
-              status=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$url" || echo "000")
-              echo "[$i/$max] $name: HTTP $status"
-              case "$status" in
-                200|301|302|307|308) echo "✅ $name is healthy"; return 0 ;;
-              esac
-              sleep 10
-            done
-            echo "❌ $name health check failed ($url)"
-            return 1
-          }
-
-          failed=0
-          check "Backend" "http://$STG_EC2_HOST:3000/api/v1/health" || failed=1
-          check "Web" "http://$STG_EC2_HOST:3001/" || failed=1
-          exit $failed
 
       - name: Deployment summary
         run: |

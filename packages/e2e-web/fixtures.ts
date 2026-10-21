@@ -1,5 +1,12 @@
 import { expect, request, type Page } from "@playwright/test"
 
+import {
+	E2eAdminPasswordError,
+	missingAdminPasswordVariables,
+	resolveE2eAdminPassword,
+	resolveE2eUserPassword,
+} from "./e2e-env"
+
 /**
  * Shared multi-user session fixtures for the security suite (HY-1 / F-54).
  *
@@ -34,34 +41,37 @@ export interface TestAccount {
 	name: string
 }
 
-export const ACCOUNTS: Record<TestRole, TestAccount> = {
-	// Seeded by `pnpm db:seed`, holds the Admin role.
-	//
-	// Unlike the other two this account cannot be self-registered, so its
-	// password has to match what the database was seeded with. Seeding without
-	// `SEED_ADMIN_PASSWORD` generates a random one (AC-2) and prints it once —
-	// after which this default stops working and admin-only tests degrade or
-	// fail. Seed with:
-	//
-	//   SEED_ADMIN_PASSWORD=$E2E_ADMIN_PASSWORD pnpm db:seed -- --force-password
+/** Email and display name only. Passwords are resolved at sign-in. */
+export const ACCOUNTS: Record<TestRole, Pick<TestAccount, "email" | "name">> = {
+	// Seeded by `pnpm db:seed`, holds the Admin role. It cannot be
+	// self-registered. The password is `E2E_ADMIN_PASSWORD`, or
+	// `SEED_ADMIN_PASSWORD` when that override is unset. Neither has a default.
+	// `signInAs` fails with where to set them; `trySignInAs("admin")` returns
+	// false and names the missing variable. userA and userB use
+	// `E2E_TEST_PASSWORD` and `E2E_TEST_PASSWORD_B`, also with no default, and
+	// fail before any sign-up when the variable is missing.
 	admin: {
 		email: process.env.E2E_ADMIN_EMAIL ?? "admin@turbo-template.local",
-		password: process.env.E2E_ADMIN_PASSWORD ?? "Password123",
 		name: "Admin User",
 	},
 	// The long-standing e2e account; registered on demand if absent.
 	userA: {
 		email: process.env.E2E_TEST_EMAIL ?? "test@gmail.com",
-		password: process.env.E2E_TEST_PASSWORD ?? "Password123",
 		name: process.env.E2E_TEST_NAME ?? "E2E Test User",
 	},
 	// A second ordinary user. Ownership means nothing without someone to be
 	// excluded, so this account exists purely to be "not user A".
 	userB: {
 		email: process.env.E2E_TEST_EMAIL_B ?? "e2e-user-b@turbo-template.local",
-		password: process.env.E2E_TEST_PASSWORD_B ?? "Password123",
 		name: "E2E User B",
 	},
+}
+
+/** Resolve this role's password at sign-in time. Importing this module does not. */
+function resolveAccount(role: TestRole): TestAccount {
+	const identity = ACCOUNTS[role]
+	const password = role === "admin" ? resolveE2eAdminPassword() : resolveE2eUserPassword(role)
+	return { ...identity, password }
 }
 
 interface SignInResult {
@@ -130,7 +140,7 @@ async function authenticate(page: Page, account: TestAccount): Promise<SignInRes
  * the address.
  */
 export async function signInAs(page: Page, role: TestRole): Promise<TestAccount> {
-	const result = await authenticate(page, ACCOUNTS[role])
+	const result = await authenticate(page, resolveAccount(role))
 	expect(result.ok, `sign-in as ${role} (${result.account.email}) failed: ${result.detail}`).toBe(
 		true
 	)
@@ -145,7 +155,18 @@ export async function signInAs(page: Page, role: TestRole): Promise<TestAccount>
  * fail. Tests asserting admin-only behaviour should use {@link signInAs}.
  */
 export async function trySignInAs(page: Page, role: TestRole): Promise<boolean> {
-	return (await authenticate(page, ACCOUNTS[role])).ok
+	let account: TestAccount
+	try {
+		account = resolveAccount(role)
+	} catch (error) {
+		if (role === "admin" && error instanceof E2eAdminPasswordError) {
+			const missing = missingAdminPasswordVariables()
+			console.log(`trySignInAs("admin"): missing ${missing.join(" and ")}`)
+			return false
+		}
+		throw error
+	}
+	return (await authenticate(page, account)).ok
 }
 
 /** Drop all cookies, returning the context to an anonymous visitor. */

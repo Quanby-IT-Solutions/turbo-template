@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto"
 import { expect, request, test } from "@playwright/test"
 
 /**
@@ -35,8 +36,9 @@ async function loadCookies() {
 	for (let attempt = 1; attempt <= 3; attempt++) {
 		const api = await request.newContext()
 		const email = `hy2-e2e-${Date.now()}@test.local`
+		const password = randomBytes(24).toString("base64url")
 		const response = await api.post(`${AUTH_API}sign-up/email`, {
-			data: { email, password: "Password123", name: "HY2 E2E" },
+			data: { email, password, name: "HY2 E2E" },
 		})
 
 		if (response.ok()) {

@@ -199,16 +199,13 @@ placeholder**:
 BETTER_AUTH_SECRET=<replace-me-run-openssl-rand-base64-32>
 ```
 
-The backend **refuses to boot** with this value. Its shared validator
+The backend **refuses to boot** with a placeholder or a secret shorter than
+**32 characters**. Its shared validator
 (`packages/auth/src/secret-schema.ts`) rejects a secret that is shorter than
 **32 characters** or that starts with a known template prefix (`replace-me`,
 `change-me`, `your-secret`, `default-secret`, `<`, …). This is deliberate
-fail-closed behaviour: a published/guessable secret means every session — Admin
-included — is forgeable. Startup aborts with:
-
-```
-BETTER_AUTH_SECRET is still the template placeholder — sessions signed with a published secret are forgeable. Generate one with: openssl rand -base64 32
-```
+fail-closed behaviour: a known secret makes sessions untrustworthy. Startup
+aborts with an error naming the variable and the command to generate one.
 
 Generate a real value and paste it into `apps/backend/.env`:
 
@@ -828,8 +825,8 @@ NGINX_CONF=./nginx/nginx.conf docker compose --profile docker-proxy up -d
 
 Baseline: TLS 1.2 and 1.3 only, forward-secret cipher suites, HTTP 301s to
 HTTPS, and the ACME challenge path stays on HTTP so renewal keeps working.
-Once this is live, enable `ENABLE_HSTS=true` (ED-1 keeps it off until TLS
-actually terminates, because `max-age` cannot be withdrawn quickly).
+Once this is live, enable `ENABLE_HSTS=true`. It stays off by default until TLS
+actually terminates, because `max-age` cannot be withdrawn quickly.
 
 ### TLS on the deployed hosts
 

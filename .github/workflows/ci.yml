@@ -5,8 +5,16 @@ on:
   pull_request:
     branches: [dev]
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      run-e2e:
+        type: boolean
+        default: true
+    secrets:
+      NPM_TOKEN:
+        required: false
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 # CI-6 / F-26: least privilege, stated rather than inherited.
@@ -92,7 +100,7 @@ jobs:
     with:
       node-version: 22.22.1
       # Boolean input. Quoting this expression would pass a string and fail the type check.
-      run-e2e: ${{ needs.changes.outputs.deps == 'true' || github.event_name == 'workflow_dispatch' }}
+      run-e2e: ${{ needs.changes.outputs.deps == 'true' || github.event_name == 'workflow_dispatch' || inputs.run-e2e == true }}
     # `secrets: inherit` handed every repository secret — AWS keys, the auth
     # signing secret, the database URL — to an external workflow that declares
     # exactly one optional secret. Only that one is passed now, so a compromise
@@ -190,7 +198,7 @@ jobs:
   web-e2e-auth:
     name: Web e2e auth
     needs: changes
-    if: ${{ needs.changes.outputs.web == 'true' || needs.changes.outputs.deps == 'true' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ needs.changes.outputs.web == 'true' || needs.changes.outputs.deps == 'true' || github.event_name == 'workflow_dispatch' || inputs.run-e2e == true }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:

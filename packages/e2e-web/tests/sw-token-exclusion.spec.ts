@@ -15,10 +15,11 @@ const RESET_TOKEN = "wc2-reset-token-abc123"
 const VERIFY_TOKEN = "wc2-verify-token-def456"
 
 /**
- * Wait until the worker controls this page and its one-time claim reload has
- * finished. `settleServiceWorker` throws when a served worker never takes
- * control, and that failure must fail the test. Dev never serves the script,
- * so the helper returns immediately and this stays false.
+ * Wait until the worker controls this page. The first claim does not reload,
+ * and this does not wait for a load event after that controllerchange.
+ * `settleServiceWorker` throws when a served worker never takes control, and
+ * that failure must fail the test. Dev never serves the script, so the helper
+ * returns immediately and this stays false.
  */
 async function serviceWorkerReady(page: Page): Promise<boolean> {
 	await settleServiceWorker(page)
@@ -73,8 +74,8 @@ test("the offline fallback does not impersonate an authenticated page", async ({
 	const swActive = await serviceWorkerReady(page)
 	test.skip(!swActive, "service worker not registered (needs a production build)")
 
-	// Warm the fallback so it is genuinely available to be served. The claim
-	// reload has already finished inside `serviceWorkerReady`, so this
+	// Warm the fallback so it is genuinely available to be served. The worker
+	// already controls the page. The first claim does not reload it, so this
 	// navigation is not racing `location.reload()`.
 	const offline = await page.goto("/~offline")
 	expect(offline?.ok(), "GET /~offline").toBe(true)

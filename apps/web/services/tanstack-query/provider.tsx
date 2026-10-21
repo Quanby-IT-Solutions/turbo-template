@@ -19,20 +19,14 @@ import { registerTodosMutationDefaults } from "@/features/todos/api/todos.hooks"
 import {
 	ANONYMOUS_CACHE_IDENTITY,
 	createIdentityScopedStorage,
-	PERSISTED_CACHE_BUSTER,
 	PERSISTED_CACHE_KEY_PREFIX,
 	PERSISTED_CACHE_MAX_AGE,
+	persistedQueryCacheOptions,
 	readCacheIdentity,
 	writeCacheIdentity,
 } from "./cache-persistence"
 import { discardForeignPausedMutations } from "./paused-mutation-identity"
-import {
-	deserializeQueryData,
-	getQueryClient,
-	serializeQueryData,
-	shouldDehydrateMutation,
-	shouldPersistQuery,
-} from "./query-client"
+import { deserializeQueryData, getQueryClient } from "./query-client"
 
 // IndexedDB-backed AsyncStorage adapter for the persister. Wrapped in a
 // `typeof window` guard so it is never constructed on the server.
@@ -127,7 +121,7 @@ export function QueryProvider({ children }: Readonly<{ children: React.ReactNode
 				// 24h gcTime, and the buster discards every snapshot whenever
 				// the persisted shape changes.
 				maxAge: PERSISTED_CACHE_MAX_AGE,
-				buster: PERSISTED_CACHE_BUSTER,
+				buster: persistedQueryCacheOptions.buster,
 				// PersistQueryClientProvider does NOT merge these with the
 				// QueryClient defaults — it uses them directly. So the IndexedDB
 				// snapshot must explicitly reuse the same serializer-aware
@@ -135,11 +129,12 @@ export function QueryProvider({ children }: Readonly<{ children: React.ReactNode
 				// loses oRPC serialization semantics.
 				//
 				// `shouldPersistQuery` (not `shouldDehydrateQuery`) applies here:
-				// session and rbac data must never reach disk.
+				// session and rbac data must never reach disk. The same object
+				// feeds the pre-reload flush.
 				dehydrateOptions: {
-					shouldDehydrateQuery: shouldPersistQuery,
-					shouldDehydrateMutation,
-					serializeData: serializeQueryData,
+					shouldDehydrateQuery: persistedQueryCacheOptions.shouldDehydrateQuery,
+					shouldDehydrateMutation: persistedQueryCacheOptions.shouldDehydrateMutation,
+					serializeData: persistedQueryCacheOptions.serializeData,
 				},
 				hydrateOptions: {
 					defaultOptions: {

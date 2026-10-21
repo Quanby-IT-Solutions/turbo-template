@@ -110,9 +110,9 @@ test.describe("authenticated todos", () => {
 	 * below is the hydration barrier.
 	 */
 	const openTodosWithCreatePermission = async (page: Page) => {
-		// The worker's claim reloads this document once. Create only after that
-		// reload, or the throttled persister is dropped with the old page and
-		// IndexedDB never receives the title.
+		// Wait until the worker controls the page. The first claim does not reload.
+		// Creating before the document is settled can still drop the throttled
+		// persist if a later navigation cuts the page off.
 		await gotoAndSettle(page, "/todos")
 		await expect(page.getByRole("heading", { name: /todos \/ posts/i })).toBeVisible()
 		await settleServiceWorker(page)
@@ -255,8 +255,8 @@ test.describe("sign-out", () => {
 		// this test for a reason unrelated to sign-out.
 		await signInAs(page, "userB")
 
-		// Settle before the click. The claim reload, or a click that lands
-		// before hydration, leaves this button on screen and the session intact.
+		// Settle before the click. A click that lands before hydration leaves this
+		// button on screen and the session intact. The first claim does not reload.
 		await gotoAndSettle(page, "/")
 		await page.getByRole("button", { name: /logout/i }).click()
 		await expect(page.getByRole("link", { name: /^login$/i })).toBeVisible()

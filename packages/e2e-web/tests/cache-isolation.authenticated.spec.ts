@@ -108,8 +108,9 @@ async function waitForPersistedSnapshot(page: Page): Promise<string[]> {
 
 /** Load the pages that populate the sensitive query roots and an allowed one. */
 async function visitCachePopulatingPages(page: Page, isAdmin: boolean) {
-	// Settle the worker before any IndexedDB read. Its claim reload destroys
-	// the evaluate inside `dumpIndexedDb` when it lands mid-poll.
+	// Settle the worker before any IndexedDB read. The first claim does not
+	// reload the page. Settling still waits until the worker controls it, so a
+	// navigation cannot destroy the evaluate inside `dumpIndexedDb`.
 	await gotoAndSettle(page, "/dashboard")
 	await expect(page).toHaveURL(/\/dashboard/)
 	await settleServiceWorker(page)

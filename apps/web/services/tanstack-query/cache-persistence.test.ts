@@ -4,11 +4,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 // and sign-out removes every bucket from disk.
 
 const idbState = new Map<string, string>()
-const failures = { keys: 0 }
+const failures = { keys: 0, set: 0 }
 
 vi.mock("idb-keyval", () => ({
 	get: vi.fn(async (key: string) => idbState.get(key)),
 	set: vi.fn(async (key: string, value: string) => {
+		if (failures.set > 0) {
+			failures.set -= 1
+			throw new Error("IndexedDB unavailable")
+		}
 		idbState.set(key, value)
 	}),
 	del: vi.fn(async (key: string) => {
@@ -28,13 +32,18 @@ const {
 	createIdentityScopedStorage,
 	isPersistedCacheKey,
 	LEGACY_PERSISTED_CACHE_KEY,
+	PERSISTED_CACHE_BUSTER,
 	PERSISTED_CACHE_KEY_PREFIX,
 	PERSISTED_CACHE_MAX_AGE,
+	flushPersistedQueryCache,
 	persistedCacheKeyFor,
+	persistedQueryCacheOptions,
 	purgePersistedCache,
 	readCacheIdentity,
 	writeCacheIdentity,
 } = await import("./cache-persistence")
+
+const { getQueryClient } = await import("./query-client")
 
 const { del, get, set } = await import("idb-keyval")
 
@@ -47,7 +56,9 @@ const storage = createIdentityScopedStorage({
 beforeEach(() => {
 	idbState.clear()
 	failures.keys = 0
+	failures.set = 0
 	window.localStorage.clear()
+	getQueryClient().clear()
 })
 
 afterEach(() => {
@@ -190,6 +201,70 @@ describe("cache key ownership", () => {
 		[42, false],
 	])("isPersistedCacheKey(%s) === %s", (key, expected) => {
 		expect(isPersistedCacheKey(key as IDBValidKey)).toBe(expected)
+	})
+})
+
+describe("flushPersistedQueryCache", () => {
+	it("writes one identity-scoped snapshot the restore path can read", async () => {
+		writeCacheIdentity("user-a")
+		const client = getQueryClient()
+		client.setQueryData(["todos"], [{ title: "buy milk" }])
+		client.setQueryData(["session"], { email: "admin@turbo-template.local" })
+		client.setQueryData(["rbac", "users"], [{ email: "hidden@example.com" }])
+
+		await flushPersistedQueryCache()
+
+		const keys = [...idbState.keys()]
+		expect(keys).toEqual([persistedCacheKeyFor(readCacheIdentity())])
+		expect(keys[0]).toMatch(/^turbo-template-query-cache:/)
+
+		const raw = await storage.getItem(PERSISTED_CACHE_KEY_PREFIX)
+		expect(raw).toBe(idbState.get(keys[0]!))
+
+		const parsed = JSON.parse(raw ?? "") as {
+			buster: string
+			timestamp: number
+			clientState: { queries: Array<{ queryKey: unknown[] }> }
+		}
+		expect(parsed.buster).toBe(PERSISTED_CACHE_BUSTER)
+		expect(parsed.buster).toBe(persistedQueryCacheOptions.buster)
+		expect(typeof parsed.timestamp).toBe("number")
+		expect(parsed.timestamp).toBeGreaterThan(0)
+
+		const roots = parsed.clientState.queries.map(query => query.queryKey[0])
+		expect(roots).toContain("todos")
+		expect(roots).not.toContain("session")
+		expect(roots).not.toContain("rbac")
+		expect(raw).toContain("buy milk")
+		expect(raw).not.toContain("admin@turbo-template.local")
+		expect(raw).not.toContain("hidden@example.com")
+	})
+
+	it("keeps paused mutations in the shared persist options", () => {
+		expect(persistedQueryCacheOptions.shouldDehydrateMutation({ state: { isPaused: true } })).toBe(
+			true
+		)
+		expect(persistedQueryCacheOptions.shouldDehydrateMutation({ state: { isPaused: false } })).toBe(
+			false
+		)
+	})
+
+	it("swallows a storage failure without logging", async () => {
+		const error = vi.spyOn(console, "error").mockImplementation(() => {})
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {})
+		const log = vi.spyOn(console, "log").mockImplementation(() => {})
+		failures.set = 1
+		getQueryClient().setQueryData(["todos"], [{ title: "buy milk" }])
+
+		await expect(flushPersistedQueryCache()).resolves.toBeUndefined()
+
+		expect(idbState.size).toBe(0)
+		expect(error).not.toHaveBeenCalled()
+		expect(warn).not.toHaveBeenCalled()
+		expect(log).not.toHaveBeenCalled()
+		error.mockRestore()
+		warn.mockRestore()
+		log.mockRestore()
 	})
 })
 

@@ -3,12 +3,10 @@ import type { Page } from "@playwright/test"
 /**
  * Production registers `/serwist/sw.js` during the first client render.
  * `skipWaiting` is false, but nothing is active yet, so the browser activates
- * that first worker anyway. `clientsClaim` then fires `controllerchange`, and
- * the app reloads so the open tab runs the new worker.
- *
- * That reload drops a throttled persist that has not flushed, and it destroys
- * an IndexedDB read that is in progress. A page that already has a controller
- * does not reload. Dev never serves the worker script, and
+ * that first worker anyway. `clientsClaim` then fires `controllerchange`.
+ * The page stays put for that first claim. A later update still reloads once
+ * the user accepts it, and a navigation — if one happens — is waited out.
+ * Dev never serves the worker script, and
  * `navigator.serviceWorker.ready` would wait forever there, so a missing
  * script means there is nothing to settle.
  *
@@ -63,8 +61,9 @@ export async function settleServiceWorker(page: Page): Promise<void> {
 
 				if (!navigator.serviceWorker.controller) return false
 
-				// Let a controllerchange listener call `location.reload()` before
-				// this document is treated as stable. The reload aborts the evaluate.
+				// Yield once so an in-flight navigation can abort this evaluate.
+				// The helper waits for a controller and no navigation. It does
+				// not wait for an update reload.
 				await new Promise(resolve => window.setTimeout(resolve, 0))
 
 				const client = window as Window & { serwist?: unknown }
@@ -87,12 +86,10 @@ export async function settleServiceWorker(page: Page): Promise<void> {
 		if (ready) return
 	}
 
-	throw new Error(
-		"service worker did not take control of the page; the claim reload never finished"
-	)
+	throw new Error("service worker did not take control of the page")
 }
 
-/** Open a route, then wait out the worker's one-time claim reload. */
+/** Open a route, then wait until the worker controls the page. */
 export async function gotoAndSettle(page: Page, path: string): Promise<void> {
 	try {
 		await page.goto(path)

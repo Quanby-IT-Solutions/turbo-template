@@ -94,6 +94,97 @@ describe("SentryExceptionFilter", () => {
 		})
 	})
 
+	it("keeps a plain Error on the 500 path", () => {
+		const logger = createLoggerStub()
+		const filter = new SentryExceptionFilter(logger as unknown as Logger)
+		const { host, status, json } = createHost()
+		const exception = new Error("boom")
+
+		filter.catch(exception, host)
+
+		expect(status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR)
+		expect(json).toHaveBeenCalledWith({
+			success: false,
+			error: { code: "Error", message: "Internal server error" },
+			timestamp: expect.any(String),
+		})
+		expect(mockCaptureException).toHaveBeenCalledTimes(1)
+		expect(mockCaptureException).toHaveBeenCalledWith(exception)
+		expect(logger.error).toHaveBeenCalledWith(
+			{ requestId: "req-1", err: exception },
+			"Unhandled exception"
+		)
+		expect(logger.warn).not.toHaveBeenCalled()
+	})
+
+	it("maps an exposed entity.too.large error to 413 without capturing it", () => {
+		const logger = createLoggerStub()
+		const filter = new SentryExceptionFilter(logger as unknown as Logger)
+		const { host, status, json } = createHost()
+		const exception = {
+			status: 413,
+			type: "entity.too.large",
+			expose: true,
+			message: "request entity too large",
+			limit: 102400,
+			stack: "PayloadTooLargeError: request entity too large",
+		}
+
+		filter.catch(exception, host)
+
+		expect(status).toHaveBeenCalledWith(HttpStatus.PAYLOAD_TOO_LARGE)
+		expect(json).toHaveBeenCalledWith({
+			success: false,
+			error: { code: "PAYLOAD_TOO_LARGE", message: "Request body too large" },
+			timestamp: expect.any(String),
+		})
+		expect(JSON.stringify(json.mock.calls[0]?.[0])).not.toMatch(/102400|entity\.too\.large|stack/i)
+		expect(mockCaptureException).not.toHaveBeenCalled()
+		expect(logger.error).not.toHaveBeenCalled()
+		expect(logger.warn).toHaveBeenCalledTimes(1)
+		expect(logger.warn).toHaveBeenCalledWith({
+			requestId: "req-1",
+			status: 413,
+			type: "entity.too.large",
+		})
+	})
+
+	it("keeps an unexposed unknown 418 on the 500 path", () => {
+		const logger = createLoggerStub()
+		const filter = new SentryExceptionFilter(logger as unknown as Logger)
+		const { host, status } = createHost()
+		const exception = { status: 418, expose: false, type: "not.a.parser" }
+
+		filter.catch(exception, host)
+
+		expect(status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR)
+		expect(mockCaptureException).toHaveBeenCalledTimes(1)
+		expect(mockCaptureException).toHaveBeenCalledWith(exception)
+		expect(logger.error).toHaveBeenCalledWith(
+			expect.objectContaining({ requestId: "req-1", err: exception }),
+			"Unhandled exception"
+		)
+		expect(logger.warn).not.toHaveBeenCalled()
+	})
+
+	it("keeps a 503 on the 500 path", () => {
+		const logger = createLoggerStub()
+		const filter = new SentryExceptionFilter(logger as unknown as Logger)
+		const { host, status, json } = createHost()
+		const exception = { status: 503 }
+
+		filter.catch(exception, host)
+
+		expect(status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR)
+		expect(json.mock.calls[0]?.[0]).toMatchObject({
+			success: false,
+			error: { message: "Internal server error" },
+		})
+		expect(mockCaptureException).toHaveBeenCalledTimes(1)
+		expect(logger.error).toHaveBeenCalled()
+		expect(logger.warn).not.toHaveBeenCalled()
+	})
+
 	// Logs what pino-http cannot: the stack behind the 500.
 	it("logs the exception with the request id", () => {
 		const logger = createLoggerStub()

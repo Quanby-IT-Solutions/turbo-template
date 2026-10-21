@@ -2,6 +2,8 @@ import { Catch, HttpStatus, type ArgumentsHost, type ExceptionFilter } from "@ne
 import * as Sentry from "@sentry/nestjs"
 import { Logger } from "nestjs-pino"
 
+import { clientRequestErrorBody, readClientRequestError } from "./client-request-error"
+
 /**
  * Catch-all filter: reports unexpected failures to Sentry and renders them in
  * the app's uniform error shape.
@@ -18,6 +20,10 @@ import { Logger } from "nestjs-pino"
  * in practice this one only ever sees non-`HttpException` failures — which is
  * exactly why the two can both call `captureException` without ever
  * double-reporting the same error.
+ *
+ * A client request-parsing error is the exception to the 500 path. When the
+ * thrown value carries a 4xx status and is either exposed or a known parser
+ * type, the response uses that status and nothing is sent to Sentry.
  */
 @Catch()
 export class SentryExceptionFilter implements ExceptionFilter {
@@ -25,14 +31,33 @@ export class SentryExceptionFilter implements ExceptionFilter {
 	constructor(private readonly logger: Logger) {}
 
 	catch(exception: unknown, host: ArgumentsHost) {
-		// No enabled-check: `captureException` is a no-op when `Sentry.init` was
-		// never called, so the disabled path costs nothing and needs no branch.
-		Sentry.captureException(exception)
-
 		const ctx = host.switchToHttp()
 		const request = ctx.getRequest()
 		const response = ctx.getResponse()
 		const requestId = request?.headers?.["x-request-id"]
+
+		const clientError = readClientRequestError(exception)
+		if (clientError) {
+			// The parser error's own message, stack and limit stay off both the
+			// log and the response. These three fields are the whole warn line.
+			this.logger.warn({
+				requestId,
+				status: clientError.status,
+				type: clientError.type,
+			})
+
+			const { code, message } = clientRequestErrorBody(clientError.status)
+			response.status(clientError.status).json({
+				success: false,
+				error: { code, message },
+				timestamp: new Date().toISOString(),
+			})
+			return
+		}
+
+		// No enabled-check: `captureException` is a no-op when `Sentry.init` was
+		// never called, so the disabled path costs nothing and needs no branch.
+		Sentry.captureException(exception)
 
 		// pino-http logs the 500 response line but not the stack behind it, and an
 		// unexpected exception is precisely the case where the stack is the whole

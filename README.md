@@ -143,7 +143,10 @@ changes are needed; if it splits web/api across different domains, update
 | Variable                      | Required | App         | Description                                               |
 | ----------------------------- | -------- | ----------- | --------------------------------------------------------- |
 | `DATABASE_URL`                | ✅       | Backend, DB | PostgreSQL connection string. Use the same value in `apps/backend/.env` and `packages/db/.env` |
-| `SEED_ADMIN_PASSWORD`         | ✅ seed / e2e | DB   | Admin password for `pnpm db:seed`, set only in `packages/db/.env`. Backend e2e reads it from that file. Optional test override: `E2E_ADMIN_PASSWORD`. No default |
+| `SEED_ADMIN_PASSWORD`         | ✅ seed / e2e | DB   | Admin password for `pnpm db:seed`, set only in `packages/db/.env`. Backend e2e reads it from that file. Web e2e reads the same variable from the process environment. No default |
+| `E2E_ADMIN_PASSWORD`          | ❌       | Web e2e, backend e2e | Optional override of `SEED_ADMIN_PASSWORD` when a test signs in as the seeded admin. No default |
+| `E2E_TEST_PASSWORD`           | ❌       | Web e2e     | Password for the userA web e2e account. Required when that account signs in. No default |
+| `E2E_TEST_PASSWORD_B`         | ❌       | Web e2e     | Password for the userB web e2e account. Required when that account signs in. No default |
 | `BETTER_AUTH_SECRET`          | ✅       | Backend     | Session signing secret. Must be >= 32 chars and NOT a placeholder — backend fails to boot otherwise. Generate: `openssl rand -base64 32` (see [Generating BETTER_AUTH_SECRET](#generating-better_auth_secret)) |
 | `BETTER_AUTH_TRUSTED_ORIGINS` | ✅       | Backend     | Comma-separated trusted origins                           |
 | `CORS_ORIGINS`                | ✅       | Backend     | Comma-separated CORS origins                              |

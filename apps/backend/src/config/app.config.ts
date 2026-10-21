@@ -25,8 +25,12 @@ const logger = new Logger("AppConfig")
  * whether a legitimate body is rejected, and by the wrong layer. The gap means
  * oversized junk dies at the edge while borderline requests get a coherent 413
  * from the app.
+ *
+ * The value is a byte count, 100 KiB, which is what `express.json({ limit: "100kb" })`
+ * already enforced (`kb` is 1024). The parsers and the auth middleware both
+ * read this constant.
  */
-export const MAX_REQUEST_BODY_SIZE = "100kb"
+export const MAX_REQUEST_BODY_SIZE = 100 * 1024
 
 /**
  * Configure body parser middleware for non-auth routes
@@ -41,7 +45,10 @@ function configureBodyParser(app: INestApplication): void {
 	// BadRequestException and keeps the parser message; this hands the filter
 	// a plain error that still carries the client status and type.
 	httpAdapter.use(forwardClientParseError)
-	logger.log(`Body parser middleware configured (limit: ${MAX_REQUEST_BODY_SIZE})`)
+	// 100 KiB. The label stays "100kb" — the same text this line logged when
+	// the constant was that string — so a request log never has to carry the
+	// raw byte count.
+	logger.log("Body parser middleware configured (limit: 100kb)")
 }
 
 /**

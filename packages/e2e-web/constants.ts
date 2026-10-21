@@ -24,3 +24,9 @@ export const ADMIN_AUTH_FILE = path.join(__dirname, ".auth/admin-session.json")
  * shared.
  */
 export const USER_B_AUTH_FILE = path.join(__dirname, ".auth/user-b-session.json")
+
+/**
+ * Epoch milliseconds when the previous run finished.
+ * The next run uses it to leave the auth limiter idle. Git ignores this directory.
+ */
+export const LAST_RUN_AT_FILE = path.join(__dirname, ".auth/last-run-at")

@@ -1,6 +1,6 @@
 import { expect, test, type BrowserContext } from "@playwright/test"
 
-import { signInAs } from "../fixtures"
+import { installSessionReadRecovery, signInAs } from "../fixtures"
 
 /**
  * HY-2 / F-62 — the submit form calls the real endpoint.
@@ -22,6 +22,7 @@ test.describe.configure({ mode: "serial" })
 let storedCookies: Awaited<ReturnType<BrowserContext["cookies"]>> | undefined
 
 test.beforeEach(async ({ page }) => {
+	installSessionReadRecovery(page)
 	test.skip(!process.env.E2E_AUTH_API_URL, "Requires backend")
 
 	if (!storedCookies) {

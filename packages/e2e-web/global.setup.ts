@@ -1,7 +1,7 @@
 import { expect, test as setup } from "@playwright/test"
 
 import { ADMIN_AUTH_FILE, AUTH_FILE, USER_B_AUTH_FILE } from "./constants"
-import { signInAs, trySignInAs } from "./fixtures"
+import { installSessionReadRecovery, signInAs, trySignInAs } from "./fixtures"
 
 // A 429 retry waits up to 15s, twice. The default 30s test timeout cannot
 // hold that plus the two sign-ins in this file.
@@ -17,6 +17,7 @@ setup.setTimeout(90_000)
  * It does not register an account.
  */
 setup("authenticate", async ({ page }) => {
+	installSessionReadRecovery(page)
 	await signInAs(page, "userA")
 
 	const cookies = await page.context().cookies()

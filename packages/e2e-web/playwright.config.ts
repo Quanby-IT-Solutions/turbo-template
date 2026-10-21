@@ -6,6 +6,7 @@ const hasBackend = !!process.env.E2E_AUTH_API_URL
 
 export default defineConfig({
 	globalSetup: "./global-setup.ts",
+	globalTeardown: "./global-teardown.ts",
 	testDir: "./tests",
 	fullyParallel: true,
 	forbidOnly: !!process.env.CI,

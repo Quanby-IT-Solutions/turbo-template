@@ -349,7 +349,12 @@ pnpm test:e2e:web
 the shell. Do not commit them. `E2E_TEST_EMAIL` defaults to a local test
 address when unset, and `E2E_TEST_EMAIL_B` defaults to the second local test
 address. `E2E_NO_WEBSERVER` skips Playwright's web server so the suite talks
-to one you already started.
+to one you already started. `E2E_ALLOW_DEFAULT_THROTTLE=1` is only for a
+diagnostic run against the code-default limiter: setup warns once with the
+advertised limit and continues, and backend-throttler 429s are expected.
+Leave it unset for a normal run. A local run that starts within 61 seconds
+of the previous one waits out the rest of that gap so the auth limiter can
+idle. `E2E_SKIP_IDLE_GAP=1` skips that wait.
 
 `apps/web/.env` (from `apps/web/.env.example`) must set
 `NEXT_PUBLIC_API_BASE_URL` before the web build. Playwright starts that build

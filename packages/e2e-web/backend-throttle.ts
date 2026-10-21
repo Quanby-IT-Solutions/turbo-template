@@ -9,6 +9,8 @@
 export const E2E_THROTTLE_LIMIT = 5000
 export const E2E_THROTTLE_TTL_MS = 60_000
 
+let warnedAboutDefaultThrottle = false
+
 export class E2eBackendThrottleError extends Error {
 	constructor(detail: string) {
 		super(
@@ -44,9 +46,20 @@ export async function assertE2eBackendThrottle(
 	}
 
 	const limit = response.headers.get("x-ratelimit-limit")
-	if (limit !== String(E2E_THROTTLE_LIMIT)) {
-		throw new E2eBackendThrottleError(
-			`Backend default limiter advertised ${limit ?? "no x-ratelimit-limit header"}, expected ${E2E_THROTTLE_LIMIT}.`
-		)
+	if (limit === String(E2E_THROTTLE_LIMIT)) return
+
+	const advertised = limit ?? "no x-ratelimit-limit header"
+	if (process.env.E2E_ALLOW_DEFAULT_THROTTLE === "1") {
+		if (!warnedAboutDefaultThrottle) {
+			warnedAboutDefaultThrottle = true
+			console.warn(
+				`[e2e] backend default limiter advertised ${advertised}. Continuing for a default-limits diagnostic run. Backend-throttler 429s are expected.`
+			)
+		}
+		return
 	}
+
+	throw new E2eBackendThrottleError(
+		`Backend default limiter advertised ${advertised}, expected ${E2E_THROTTLE_LIMIT}.`
+	)
 }

@@ -72,6 +72,7 @@ overrides:
   "handlebars@<4.7.10": ">=4.7.10 <5"
   "mssql": "-"
   "proxy-addr@<2.0.8": ">=2.0.8 <3"
+  "picomatch@>=4 <4.0.4": ">=4.0.4 <5"
 
 publicHoistPattern:
   - "@ianvs/prettier-plugin-sort-imports"

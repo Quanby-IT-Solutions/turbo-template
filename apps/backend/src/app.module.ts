@@ -130,7 +130,8 @@ import { env } from "./config/env.config"
 		//   - HttpException (deliberate, typed)  -> HttpExceptionFilter, which
 		//     renders the real status/message and captures only 5xx.
 		//   - anything else (bugs, driver faults) -> SentryExceptionFilter, which
-		//     captures unconditionally and renders a generic 500 in the same shape.
+		//     captures it and renders a generic 500 in the same shape. A client
+		//     request-parsing error is returned as that 4xx and is not captured.
 		// Neither can see the other's exceptions, so nothing is reported twice.
 		// The catch-all is registered first, per Sentry's Nest setup guidance.
 		{

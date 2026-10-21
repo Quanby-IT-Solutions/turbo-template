@@ -229,7 +229,6 @@ TanStack Form surfaces validation errors per field:
 
 The `/api/v1/health` endpoint is critical for:
 - Docker HEALTHCHECK directives
-- ECS task health monitoring
 - ALB target group health checks
 
 **Actual response** (`modules/v1/health/health.service.ts`) — deliberately
@@ -252,7 +251,6 @@ message (host/port/user) is logged, never returned. The endpoint is public via
 | Platform | Endpoint | Interval | Timeout | Retries | Start Period |
 |----------|----------|----------|---------|---------|-------------|
 | Docker | `localhost:3000/api/v1/health` | 30s | 10s | 3 | 40s |
-| ECS | Same | 30s | 10s | 3 | 40s |
 | ALB | `/api/v1/health` (200 OK) | 30s | 10s | — | — |
 
 ## Error Monitoring (Sentry)

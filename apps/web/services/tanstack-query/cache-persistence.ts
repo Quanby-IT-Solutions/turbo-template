@@ -21,6 +21,7 @@
 import { dehydrate } from "@tanstack/react-query"
 import { del, get, keys, set } from "idb-keyval"
 
+import { isPersistedCacheRestoring } from "./persisted-cache-restore"
 import {
 	getQueryClient,
 	serializeQueryData,
@@ -100,6 +101,11 @@ export const persistedQueryCacheOptions = {
 export async function flushPersistedQueryCache(): Promise<void> {
 	try {
 		if (typeof window === "undefined") return
+		// The in-memory client is still empty until IndexedDB restore finishes.
+		// Writing now would replace the snapshot, including paused offline
+		// mutations, with that empty client. Skip the write. The reload still
+		// proceeds and restores the snapshot that is already on disk.
+		if (isPersistedCacheRestoring()) return
 
 		const clientState = dehydrate(getQueryClient(), {
 			shouldDehydrateQuery: persistedQueryCacheOptions.shouldDehydrateQuery,

@@ -26,6 +26,7 @@ import {
 	writeCacheIdentity,
 } from "./cache-persistence"
 import { discardForeignPausedMutations } from "./paused-mutation-identity"
+import { markPersistedCacheRestored, markPersistedCacheRestoring } from "./persisted-cache-restore"
 import { deserializeQueryData, getQueryClient } from "./query-client"
 
 // IndexedDB-backed AsyncStorage adapter for the persister. Wrapped in a
@@ -90,6 +91,16 @@ export function QueryProvider({ children }: Readonly<{ children: React.ReactNode
 	// takes effect without reconstructing anything.
 	const [persister] = React.useState(createIdbPersister)
 
+	// Set during render, before any effect can hear `controllerchange`.
+	// `useState`'s initializer does not run again on hydration, so this
+	// cannot live there. A later render must not turn the flag back on
+	// after restore has settled.
+	const restoreArmed = React.useRef<true | null>(null)
+	if (restoreArmed.current === null) {
+		restoreArmed.current = true
+		if (persister) markPersistedCacheRestoring()
+	}
+
 	// Register rehydratable mutation defaults synchronously so newly created
 	// mutations have their functions available before any reload. setMutationDefaults
 	// is synchronous and idempotent, so calling it on every render is safe.
@@ -152,6 +163,7 @@ export function QueryProvider({ children }: Readonly<{ children: React.ReactNode
 			// no interception point, and a mutation that has begun replaying has
 			// already been sent.
 			onSuccess={() => {
+				markPersistedCacheRestored()
 				registerTodosMutationDefaults(queryClient)
 
 				const discarded = discardForeignPausedMutations(queryClient)
@@ -165,6 +177,9 @@ export function QueryProvider({ children }: Readonly<{ children: React.ReactNode
 				}
 
 				void queryClient.resumePausedMutations()
+			}}
+			onError={() => {
+				markPersistedCacheRestored()
 			}}
 		>
 			{children}

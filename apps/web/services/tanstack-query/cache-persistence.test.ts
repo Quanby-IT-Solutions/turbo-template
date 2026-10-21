@@ -44,6 +44,8 @@ const {
 } = await import("./cache-persistence")
 
 const { getQueryClient } = await import("./query-client")
+const { markPersistedCacheRestored, markPersistedCacheRestoring } =
+	await import("./persisted-cache-restore")
 
 const { del, get, set } = await import("idb-keyval")
 
@@ -59,6 +61,7 @@ beforeEach(() => {
 	failures.set = 0
 	window.localStorage.clear()
 	getQueryClient().clear()
+	markPersistedCacheRestored()
 })
 
 afterEach(() => {
@@ -247,6 +250,38 @@ describe("flushPersistedQueryCache", () => {
 		expect(persistedQueryCacheOptions.shouldDehydrateMutation({ state: { isPaused: false } })).toBe(
 			false
 		)
+	})
+
+	it("does not overwrite a snapshot, including a paused mutation, while restore is in progress", async () => {
+		writeCacheIdentity("user-a")
+		const stored = JSON.stringify({
+			buster: PERSISTED_CACHE_BUSTER,
+			timestamp: 1,
+			clientState: {
+				mutations: [
+					{
+						state: { isPaused: true, variables: { title: "offline edit" } },
+					},
+				],
+				queries: [{ queryKey: ["todos"], state: { data: [{ title: "saved" }] } }],
+			},
+		})
+		await storage.setItem(PERSISTED_CACHE_KEY_PREFIX, stored)
+		getQueryClient().setQueryData(["todos"], [{ title: "empty client" }])
+		markPersistedCacheRestoring()
+
+		await flushPersistedQueryCache()
+
+		expect(await storage.getItem(PERSISTED_CACHE_KEY_PREFIX)).toBe(stored)
+		expect(idbState.size).toBe(1)
+
+		markPersistedCacheRestored()
+		await flushPersistedQueryCache()
+
+		const written = await storage.getItem(PERSISTED_CACHE_KEY_PREFIX)
+		expect(written).not.toBe(stored)
+		expect(written).toContain("empty client")
+		expect(written).not.toContain("offline edit")
 	})
 
 	it("swallows a storage failure without logging", async () => {

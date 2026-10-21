@@ -1,5 +1,6 @@
-import type { INestApplication } from "@nestjs/common"
+import { Logger, type INestApplication } from "@nestjs/common"
 
+import { MAX_REQUEST_BODY_SIZE } from "@/config/app.config"
 import { setupBetterAuth } from "@/config/auth.config"
 
 // The Better Auth node handler: matched auth requests are handed off to this
@@ -52,40 +53,105 @@ function makeServer() {
 	}
 }
 
-async function dispatch(server: ReturnType<typeof makeServer>, method: string, url: string) {
+async function dispatch(
+	server: ReturnType<typeof makeServer>,
+	method: string,
+	url: string,
+	headers?: Record<string, string>
+) {
 	let body: unknown
 	let statusCode: number | undefined
+	let requestDestroyed = false
+	const finishers: Array<() => void> = []
 	const res = {
+		statusCode: undefined as number | undefined,
+		writableEnded: false,
+		headersSent: false,
+		destroyed: false,
+		headersOut: {} as Record<string, unknown>,
+		setHeader(name: string, value: unknown) {
+			this.headersOut[name.toLowerCase()] = value
+		},
+		once(event: string, fn: () => void) {
+			if (event === "finish" || event === "close") finishers.push(fn)
+		},
+		on(event: string, fn: () => void) {
+			this.once(event, fn)
+		},
 		status(code: number) {
 			statusCode = code
+			this.statusCode = code
 			return this
 		},
 		json: (b: Record<string, unknown>) => {
 			body = b
 		},
-		end: (b: string) => {
+		end: (b?: string) => {
 			body = b
+			res.writableEnded = true
+			res.headersSent = true
+			statusCode = res.statusCode ?? statusCode
+			for (const fn of finishers) fn()
+		},
+		destroy() {
+			this.destroyed = true
+		},
+	}
+	const req = {
+		url,
+		method,
+		headers: headers ?? {},
+		id: headers?.["x-request-id"],
+		destroyed: false,
+		on() {
+			return this
+		},
+		once() {
+			return this
+		},
+		removeListener() {
+			return this
+		},
+		pause() {
+			return this
+		},
+		destroy() {
+			requestDestroyed = true
+			this.destroyed = true
+			return this
 		},
 	}
 
 	for (const layer of server.stack) {
 		if (layer.type === "get" && method === "GET" && url === layer.path) {
 			await layer.handler({ url }, res)
-			return { handledBy: "route" as const, body, statusCode }
+			return {
+				handledBy: "route" as const,
+				body,
+				statusCode,
+				requestDestroyed,
+				headers: res.headersOut,
+			}
 		}
 
 		if (layer.type === "use") {
 			let calledNext = false
-			layer.handler({ url }, res, () => {
+			layer.handler(req, res, () => {
 				calledNext = true
 			})
 			if (!calledNext) {
-				return { handledBy: "middleware" as const, body, statusCode }
+				return {
+					handledBy: "middleware" as const,
+					body,
+					statusCode,
+					requestDestroyed,
+					headers: res.headersOut,
+				}
 			}
 		}
 	}
 
-	return { handledBy: "none" as const, body, statusCode }
+	return { handledBy: "none" as const, body, statusCode, requestDestroyed, headers: res.headersOut }
 }
 
 function appWith(server: ReturnType<typeof makeServer>): INestApplication {
@@ -157,5 +223,70 @@ describe("setupBetterAuth open-api gating", () => {
 
 		expect(result.handledBy).toBe("middleware")
 		expect(authHandler).toHaveBeenCalledTimes(1)
+	})
+
+	it("answers 413 from Content-Length before Better Auth reads the body", async () => {
+		const warn = jest.spyOn(Logger.prototype, "warn").mockImplementation(() => undefined)
+		try {
+			const server = makeServer()
+			setupBetterAuth(appWith(server), false)
+
+			const result = await dispatch(server, "POST", "/api/v1/auth/sign-in/email", {
+				"content-type": "application/json",
+				"content-length": String(MAX_REQUEST_BODY_SIZE + 1),
+				"x-request-id": "req-auth-limit",
+			})
+
+			expect(result.handledBy).toBe("middleware")
+			expect(authHandler).not.toHaveBeenCalled()
+			expect(result.statusCode).toBe(413)
+			expect(result.headers.connection).toBe("close")
+			expect(result.requestDestroyed).toBe(true)
+			expect(JSON.parse(String(result.body))).toEqual({
+				success: false,
+				error: { code: "PAYLOAD_TOO_LARGE", message: "Request body too large" },
+				timestamp: expect.any(String),
+			})
+			expect(warn).toHaveBeenCalledWith({
+				requestId: "req-auth-limit",
+				status: 413,
+				type: "entity.too.large",
+			})
+		} finally {
+			warn.mockRestore()
+		}
+	})
+
+	it("does not limit GET, including the OAuth callback path", async () => {
+		const server = makeServer()
+		setupBetterAuth(appWith(server), false)
+
+		const session = await dispatch(server, "GET", "/api/v1/auth/get-session", {
+			"content-type": "application/json",
+			"content-length": String(MAX_REQUEST_BODY_SIZE + 1),
+		})
+		const callback = await dispatch(server, "GET", "/api/v1/auth/callback/google", {
+			"content-length": String(MAX_REQUEST_BODY_SIZE + 1),
+		})
+
+		expect(session.handledBy).toBe("middleware")
+		expect(callback.handledBy).toBe("middleware")
+		expect(authHandler).toHaveBeenCalledTimes(2)
+		expect(session.statusCode).not.toBe(413)
+		expect(callback.statusCode).not.toBe(413)
+	})
+
+	it("forwards an empty auth body", async () => {
+		const server = makeServer()
+		setupBetterAuth(appWith(server), false)
+
+		const result = await dispatch(server, "POST", "/api/v1/auth/sign-out", {
+			"content-type": "application/json",
+			"content-length": "0",
+		})
+
+		expect(result.handledBy).toBe("middleware")
+		expect(authHandler).toHaveBeenCalledTimes(1)
+		expect(result.requestDestroyed).toBe(false)
 	})
 })

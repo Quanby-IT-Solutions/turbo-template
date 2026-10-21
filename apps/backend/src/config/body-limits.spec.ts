@@ -34,9 +34,39 @@ function jsonBodyOf(kb: number) {
 	return { concern: "x".repeat(kb * 1024) }
 }
 
+/** A valid JSON body of exactly `byteLength` bytes. */
+function rawJson(byteLength: number): Buffer {
+	const prefix = Buffer.from('{"concern":"')
+	const suffix = Buffer.from('"}')
+	const filler = byteLength - prefix.length - suffix.length
+	return Buffer.concat([prefix, Buffer.alloc(filler, 0x61), suffix])
+}
+
 describe("request body limits", () => {
-	it("is configured at 100kb", () => {
-		expect(MAX_REQUEST_BODY_SIZE).toBe("100kb")
+	it("is the shared 102400 byte ceiling", () => {
+		expect(MAX_REQUEST_BODY_SIZE).toBe(100 * 1024)
+		expect(MAX_REQUEST_BODY_SIZE).toBe(102400)
+	})
+
+	it("accepts a JSON body of exactly the shared byte limit", async () => {
+		const body = rawJson(MAX_REQUEST_BODY_SIZE).toString("utf8")
+		expect(Buffer.byteLength(body)).toBe(102400)
+
+		const response = await request(appWithLimits())
+			.post("/echo")
+			.set("Content-Type", "application/json")
+			.send(body)
+
+		expect(response.status).toBe(200)
+	})
+
+	it("rejects one byte over the shared limit", async () => {
+		const response = await request(appWithLimits())
+			.post("/echo")
+			.set("Content-Type", "application/json")
+			.send("x".repeat(MAX_REQUEST_BODY_SIZE + 1))
+
+		expect(response.status).toBe(413)
 	})
 
 	it("rejects an oversized JSON body with 413", async () => {

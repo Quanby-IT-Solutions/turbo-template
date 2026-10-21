@@ -1,0 +1,19 @@
+name: CI call check
+
+on:
+  push:
+    branches: [scratch/ci-workflow-call-check]
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    name: CI
+    permissions:
+      contents: read
+      pull-requests: write
+      checks: write
+    uses: ./.github/workflows/ci.yml
+    secrets:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}

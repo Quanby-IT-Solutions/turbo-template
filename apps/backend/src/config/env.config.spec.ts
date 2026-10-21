@@ -77,7 +77,7 @@ describe("booleanFromEnv", () => {
 })
 
 // ---------------------------------------------------------------------------
-// AC-1 / F-03 — BETTER_AUTH_SECRET must fail the boot, not warn.
+// BETTER_AUTH_SECRET must fail the boot, not warn.
 //
 // env.config validates at module load, so each case re-requires the module with
 // a fresh process.env. `@repo/auth/secret-schema` is the SAME schema object the

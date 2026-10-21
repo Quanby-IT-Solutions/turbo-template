@@ -7,8 +7,8 @@ import {
 	PLACEHOLDER_SECRET_PREFIXES,
 } from "./secret-schema.js"
 
-// AC-1 / F-03: a missing, short, or template-default BETTER_AUTH_SECRET must be
-// rejected so the process fails closed instead of signing forgeable sessions.
+// A missing, short, or template-default BETTER_AUTH_SECRET must be rejected so
+// the process fails closed. Otherwise sessions become untrustworthy.
 
 const VALID_SECRET = "Zq3n1r5pQ8vT2wY6bK9cA4dF7gH0jL2m" // 32 chars, no placeholder prefix
 
@@ -38,7 +38,9 @@ describe("authSecretSchema", () => {
 		const result = authSecretSchema.safeParse("default-secret-for-testing-change-in-production")
 
 		expect(result.success).toBe(false)
-		expect(result.error?.issues[0]?.message).toContain("template placeholder")
+		expect(result.error?.issues[0]?.message).toContain(
+			"BETTER_AUTH_SECRET is a placeholder or too short"
+		)
 		expect(result.error?.issues[0]?.message).toContain("openssl rand -base64 32")
 	})
 

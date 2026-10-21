@@ -1,4 +1,6 @@
-# Phase 1 — Audit Scope Baseline & Attack-Surface Inventory
+> These records are summarised for a public repo. They keep what was found, what changed, and where, without internal finding ids or step-by-step misuse.
+
+# Phase 1 — Audit Scope Baseline & Exposure Inventory
 
 Status: Complete. Mode: READ-ONLY. No file was created, modified, deleted, or formatted. No installs, migrations, seeders, autofix, or commits were run. All evidence comes from reading tracked files.
 
@@ -51,7 +53,7 @@ Root router: packages/contracts/src/modules/v1/v1.contract.ts:13 applies prefix 
 | ticket.get | GET /api/v1/tickets/{id} | tickets.contract.ts:26-35 |
 | ticket.submit | POST /api/v1/tickets | tickets.contract.ts:41-51 |
 
-19 oRPC routes total. Four declare `spec: spec => ({ ...spec, security: [] })` — health.check, example.todo.list, ticket.list, ticket.submit — which marks them public in the generated OpenAPI document. Only two of those four carry a matching runtime @AllowAnonymous(). See the mismatch flagged as PF-02.
+19 oRPC routes total. Four declare `spec: spec => ({ ...spec, security: [] })` — health.check, example.todo.list, ticket.list, ticket.submit — which marks them public in the generated OpenAPI document. Only two of those four carry a matching runtime @AllowAnonymous(). See the mismatch flagged as the contract and runtime disagreeing on ticket auth.
 
 ## Artifact 3 — Endpoint Matrix
 
@@ -79,11 +81,11 @@ Global registrations, from apps/backend/src/app.module.ts:66-88: APP_PIPE = ZodV
 | ticket.get | GET /tickets/{id} | tickets.contract.ts:26 | tickets.controller.ts:21 | tickets.service.ts:19 | Presumed yes | No | No | default only | No | n/a |
 | ticket.submit | POST /tickets | tickets.contract.ts:41 | tickets.controller.ts:28-29 | tickets.service.ts:26 | Presumed yes (contract says public) | No | Never sets authorId | @StrictThrottle() | No | none |
 
-Enforcement primitives read. rbac.guard.ts:34-36 is inert without @RequirePermissions; it re-resolves the session from headers at lines 64-73 if the library guard has not run, and fails closed at 76-78. require-permissions.decorator.ts:21 widens the type to PermissionName | string. strict-throttle.decorator.ts:21-28 makes the strict limiter opt-in — every route without @StrictThrottle() sits on the default limiter only. idempotency.interceptor.ts bypasses when no Idempotency-Key header (line 60) or no resolvable author (line 68), serializes on pg_advisory_xact_lock(hashtext(key)) (line 77), and rejects cross-author key reuse with 409 (line 91).
+Enforcement primitives read. rbac.guard.ts:34-36 is inert without @RequirePermissions; it re-resolves the session from headers at lines 64-73 if the library guard has not run, and fails closed at 76-78. require-permissions.decorator.ts:21 widens the type to PermissionName | string. strict-throttle.decorator.ts:21-28 makes the strict limiter opt-in — every route without @StrictThrottle() sits on the default limiter only. idempotency.interceptor.ts skips when no Idempotency-Key header (line 60) or no resolvable author (line 68), serializes on pg_advisory_xact_lock(hashtext(key)) (line 77), and rejects cross-author key reuse with 409 (line 91).
 
-## Artifact 4 — Non-oRPC Attack Surface
+## Artifact 4 — Non-oRPC Exposed Surface
 
-Better Auth (Express-level, bypasses the Nest pipeline). apps/backend/src/config/auth.config.ts:76 mounts createAuthMiddleware(["/api/v1/auth"]) via httpServer.use(). Lines 25-35 rewrite any URL matching url.startsWith("/api/v1/auth") to the internal base path /auth (packages/auth/src/config.ts:60) and hand it to toNodeHandler, returning without calling next(). Consequence: all /api/v1/auth/* traffic never reaches NestJS guards, the throttler, or the Zod pipe.
+Better Auth (Express-level, does not enter the Nest pipeline). apps/backend/src/config/auth.config.ts:76 mounts createAuthMiddleware(["/api/v1/auth"]) via httpServer.use(). Lines 25-35 rewrite any URL matching url.startsWith("/api/v1/auth") to the internal base path /auth (packages/auth/src/config.ts:60) and hand it to toNodeHandler, returning without calling next(). Consequence: all /api/v1/auth/* traffic never reaches NestJS guards, the throttler, or the Zod pipe.
 
 Middleware order in apps/backend/src/bootstrap.ts is: trust proxy (line 40) → CORS (46) → pino-http (55) → Better Auth (63) → body parser + versioning (64-65). Each ordering choice is documented in-file.
 
@@ -114,28 +116,28 @@ One combined regex was run across *.{ts,tsx,dart,json,yml,yaml,mjs,js,md,conf}: 
 
 | ID | Observation | Location | Owner phase |
 |----|-------------|----------|-------------|
-| PF-01 | packages/contracts depends on a package literally named orpc ^0.1.1 — an unrelated, abandoned 2018-era package, not the real @orpc/* scope. It drags in socket.io@2.5.1, socket.io-client@2.5.0, and uuid@3.4.0. No source file imports bare orpc. Name-collision / dependency-confusion shape | packages/contracts/package.json:27; pnpm-lock.yaml:560-564, 15669-15675 | Dependencies & Supply Chain |
-| PF-02 | Contract declares security: [] for ticket.list and ticket.submit, but neither controller method carries @AllowAnonymous(). Published OpenAPI and runtime enforcement disagree | tickets.contract.ts:18, 48 vs tickets.controller.ts:14, 28 | Authorization & Contracts |
-| PF-03 | Ticket read endpoints have no @RequirePermissions and no scoping; findAll() returns every ticket with name, email, subject, and concern | tickets.controller.ts:14, 21; tickets.service.ts:14-24 | Authorization & IDOR |
-| PF-04 | todo.update / todo.delete filter on id alone. posts:edit / posts:delete is a capability check, not an ownership check | todos.service.ts:44-63 | Authorization & IDOR |
-| PF-05 | socialProviders.google is registered unconditionally with clientId: authEnv.GOOGLE_CLIENT_ID as string even when the variable is .optional() and undefined | packages/auth/src/config.ts:31-32, 164-170 | Authentication |
-| PF-06 | Better Auth openAPI({ path: "/reference" }) plugin registered with no environment gate, unlike the separately gated /open-api route | packages/auth/src/config.ts:180-184 vs auth.config.ts:64 | Authentication / API docs |
-| PF-07 | BETTER_AUTH_SECRET: z.string() — no minimum length or entropy floor, in both env validators | packages/auth/src/config.ts:26; apps/backend/src/config/env.config.ts:38 | Auth / Secrets |
-| PF-08 | trustedOrigins: authEnv.BETTER_AUTH_TRUSTED_ORIGINS?.split(",") — no .trim(), no empty-entry filter. CORS_ORIGINS.split(",").map(trim) trims but does not drop empties | packages/auth/src/config.ts:171; app.config.ts:29 | Authentication / Transport |
-| PF-09 | skipValidation: !!process.env.CI \|\| npm_lifecycle_event === "lint" in both env validators — CI never exercises env validation | packages/auth/src/config.ts:52; env.config.ts:46 | Secrets & Environment |
-| PF-10 | Throttler uses default in-memory storage; the limitation is acknowledged in a code comment | app.module.ts:40-41 | Rate Limiting |
-| PF-11 | No RBAC write endpoint applies IdempotencyInterceptor, though every todo write does | rbac.controller.ts (all @StrictThrottle methods) | Rate Limiting & Idempotency |
-| PF-12 | CreateTicketSchema inherits concern: z.string().min(1) with no .max() — unbounded body field on a strict-throttled but otherwise open write | tickets.schema.ts:15, 32-38 | Contracts & Validation |
-| PF-13 | Flutter default base URL is cleartext http://10.0.2.2:3000/api when API_BASE_URL is unset | api_constants.dart:7 | Flutter Mobile |
-| PF-14 | Build-time, not injectable. execSync("git rev-parse HEAD") runs with a static literal command at module scope in a force-static route. Recorded now so it is not later misclassified as command injection | apps/web/app/serwist/[path]/route.ts:1, 31-34 | Contracts & Injection |
-| PF-15 | @RequirePermissions accepts PermissionName \| string, so a typo silently becomes an unknown permission. RbacService is documented to fail closed — needs verification | require-permissions.decorator.ts:21 | Authorization |
-| PF-16 | Docs describe services/orpc/client.ts and Server Actions; only services/orpc/orpc-server.ts exists and no "use server" module exists | AGENTS.md vs apps/web/services/orpc/ | CI/CD & Docs Drift |
+| the stray package named orpc | packages/contracts depends on a package literally named orpc ^0.1.1 — an unrelated, abandoned 2018-era package, not the real @orpc/* scope. It drags in socket.io@2.5.1, socket.io-client@2.5.0, and uuid@3.4.0. No source file imports bare orpc. Name-collision / dependency-confusion shape | packages/contracts/package.json:27; pnpm-lock.yaml:560-564, 15669-15675 | Dependencies & Supply Chain |
+| the contract and runtime disagreeing on ticket auth | Contract declares security: [] for ticket.list and ticket.submit, but neither controller method carries @AllowAnonymous(). Published OpenAPI and runtime enforcement disagree | tickets.contract.ts:18, 48 vs tickets.controller.ts:14, 28 | Authorization & Contracts |
+| ungated ticket reads | Ticket read endpoints have no @RequirePermissions and no scoping; findAll() returns every ticket with name, email, subject, and concern | tickets.controller.ts:14, 21; tickets.service.ts:14-24 | Authorization & IDOR |
+| unowned todo updates | todo.update / todo.delete filter on id alone. posts:edit / posts:delete is a capability check, not an ownership check | todos.service.ts:44-63 | Authorization & IDOR |
+| the always-on Google provider | socialProviders.google is registered unconditionally with clientId: authEnv.GOOGLE_CLIENT_ID as string even when the variable is .optional() and undefined | packages/auth/src/config.ts:31-32, 164-170 | Authentication |
+| the ungated API reference | Better Auth openAPI({ path: "/reference" }) plugin registered with no environment gate, unlike the separately gated /open-api route | packages/auth/src/config.ts:180-184 vs auth.config.ts:64 | Authentication / API docs |
+| a signing secret with no strength check | BETTER_AUTH_SECRET: z.string() — no minimum length or entropy floor, in both env validators | packages/auth/src/config.ts:26; apps/backend/src/config/env.config.ts:38 | Auth / Secrets |
+| untrimmed origin lists | trustedOrigins: authEnv.BETTER_AUTH_TRUSTED_ORIGINS?.split(",") — no .trim(), no empty-entry filter. CORS_ORIGINS.split(",").map(trim) trims but does not drop empties | packages/auth/src/config.ts:171; app.config.ts:29 | Authentication / Transport |
+| validation skipped in CI | skipValidation: !!process.env.CI \|\| npm_lifecycle_event === "lint" in both env validators — CI never exercises env validation | packages/auth/src/config.ts:52; env.config.ts:46 | Secrets & Environment |
+| in-memory throttler storage | Throttler uses default in-memory storage; the limitation is acknowledged in a code comment | app.module.ts:40-41 | Rate Limiting |
+| RBAC writes without idempotency | No RBAC write endpoint applies IdempotencyInterceptor, though every todo write does | rbac.controller.ts (all @StrictThrottle methods) | Rate Limiting & Idempotency |
+| the unbounded concern field | CreateTicketSchema inherits concern: z.string().min(1) with no .max() — unbounded body field on a strict-throttled but otherwise open write | tickets.schema.ts:15, 32-38 | Contracts & Validation |
+| the cleartext mobile default URL | Flutter default base URL is cleartext http://10.0.2.2:3000/api when API_BASE_URL is unset | api_constants.dart:7 | Flutter Mobile |
+| the static build-time git command | Build-time, not injectable. execSync("git rev-parse HEAD") runs with a static literal command at module scope in a force-static route. Recorded now so it is not later misclassified as command injection | apps/web/app/serwist/[path]/route.ts:1, 31-34 | Contracts & Injection |
+| the permission decorator widened to string | @RequirePermissions accepts PermissionName \| string, so a typo silently becomes an unknown permission. RbacService is documented to fail closed — needs verification | require-permissions.decorator.ts:21 | Authorization |
+| docs that describe absent files | Docs describe services/orpc/client.ts and Server Actions; only services/orpc/orpc-server.ts exists and no "use server" module exists | AGENTS.md vs apps/web/services/orpc/ | CI/CD & Docs Drift |
 
 ## Unresolved Coverage
 
 1. git ls-files not executed — no shell available. Scope derived from recursive listing plus .gitignore cross-check. File counts are approximate (±2 per area); route, line, and content evidence is exact.
 
-2. Global AuthGuard registration not directly confirmed. AuthModule.forRoot({ disableControllers: true }) (app.module.ts:58) plus the presence of @AllowAnonymous() on todos list/get and health strongly implies a globally applied library guard, but the registration lives inside @thallesp/nestjs-better-auth v2.2.0, outside the tracked tree. Every "Presumed yes" in the matrix depends on this. The Authentication phase must confirm it before PF-02 and PF-03 can be graded — if the guard is not global, the ticket endpoints are anonymous and PF-03 escalates sharply.
+2. Global AuthGuard registration not directly confirmed. AuthModule.forRoot({ disableControllers: true }) (app.module.ts:58) plus the presence of @AllowAnonymous() on todos list/get and health strongly implies a globally applied library guard, but the registration lives inside @thallesp/nestjs-better-auth v2.2.0, outside the tracked tree. Every "Presumed yes" in the matrix depends on this. The Authentication phase must confirm it before the contract and runtime disagreeing on ticket auth and ungated ticket reads can be graded — if the guard is not global, the ticket endpoints are anonymous and ungated ticket reads escalates sharply.
 
 3. rbac-admin.service.ts and rbac.service.ts bodies not yet read — deferred to the Authorization phase. Default-role bootstrap, reserved-role protection, and cache invalidation are unassessed.
 

@@ -154,8 +154,8 @@ session. It rejects (fail-closed, at module load):
 - template placeholders via `isPlaceholderSecret()` — prefixes like `default-secret`,
   `change-me`, `your-secret`, `<`, matched case-insensitively
 
-A missing/weak/placeholder secret stops boot rather than silently enabling
-session forgery for every account.
+A missing, short, or placeholder secret stops boot. Otherwise sessions become
+untrustworthy for every account.
 
 ### Mailer, Email Verification & Password Reset
 

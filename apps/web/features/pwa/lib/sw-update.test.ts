@@ -31,6 +31,18 @@ describe("service-worker update flow (F-49)", () => {
 		expect(sw).toContain("self.skipWaiting()")
 	})
 
+	it("stops API and cross-origin fetches before Serwist handles them", () => {
+		const fetchListener = sw.indexOf('addEventListener("fetch"')
+		const serwistListeners = sw.indexOf("serwist.addEventListeners()")
+		expect(fetchListener).toBeGreaterThan(-1)
+		expect(serwistListeners).toBeGreaterThan(fetchListener)
+		expect(sw).toContain("bypassesServiceWorker")
+		expect(sw).toContain("stopImmediatePropagation()")
+
+		const listener = sw.slice(fetchListener, serwistListeners)
+		expect(listener).not.toContain("respondWith")
+	})
+
 	it("prompts the user rather than reloading unasked", () => {
 		expect(provider).toContain("A new version is available")
 		expect(provider).toContain("SKIP_WAITING")

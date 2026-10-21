@@ -1,4 +1,4 @@
-import { Module } from "@nestjs/common"
+import { Module, RequestMethod } from "@nestjs/common"
 import { ConfigModule } from "@nestjs/config"
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR, APP_PIPE } from "@nestjs/core"
 import { ThrottlerModule } from "@nestjs/throttler"
@@ -48,7 +48,16 @@ import { env } from "./config/env.config"
 		// its genReqId reuses the `req.id` already assigned by the pre-auth
 		// middleware (see buildPinoHttpOptions), so both agree on one correlation
 		// id and the response header is never overwritten with a fresh one.
-		LoggerModule.forRoot({ pinoHttp: buildPinoHttpOptions({ autoLogging: false }) }),
+		//
+		// forRoutes is set explicitly. nestjs-pino's default is `{ path: "*" }`.
+		// Under the global `api` prefix, Nest 11 rewrites that legacy wildcard
+		// and logs a LegacyRouteConverter warning. `{*path}` is the v8 form Nest
+		// rewrites `*` into, so coverage stays the same and the warning is not
+		// emitted.
+		LoggerModule.forRoot({
+			pinoHttp: buildPinoHttpOptions({ autoLogging: false }),
+			forRoutes: [{ path: "{*path}", method: RequestMethod.ALL }],
+		}),
 		// Rate limiting (AB-2 / F-38).
 		//
 		// Counters live in Redis when REDIS_URL is set, so a limit of N is N

@@ -16,6 +16,10 @@
 		"./secret-schema": {
 			"types": "./dist/secret-schema.d.ts",
 			"default": "./dist/secret-schema.js"
+		},
+		"./api-docs": {
+			"types": "./dist/api-docs.d.ts",
+			"default": "./dist/api-docs.js"
 		}
 	},
 	"scripts": {

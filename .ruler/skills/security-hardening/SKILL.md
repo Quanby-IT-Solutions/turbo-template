@@ -1,6 +1,6 @@
 ---
 name: security-hardening
-description: Security patterns and hardening practices for this monorepo. Use when implementing authentication, configuring CORS, validating input, handling secrets, securing API endpoints, or reviewing code for vulnerabilities. Triggers on tasks involving security, auth guards, env validation, CORS, CSP, rate limiting, or OWASP compliance.
+description: Security patterns and hardening practices for this monorepo. Use when implementing authentication, configuring CORS, validating input, handling secrets, securing API endpoints, or reviewing code for security best practices. Triggers on tasks involving security, auth guards, env validation, CORS, CSP, rate limiting, or OWASP compliance.
 frameworks:
   - nestjs
   - nextjs
@@ -339,16 +339,14 @@ the real hop count:
   that rightmost entry. Staging in this repo is EC2 plus an Elastic IP; any
   load balancer there is managed outside this repo.
 - `0` = no trusted hop (socket peer used).
-- Raising `TRUST_PROXY` alone does not move `ThrottlerProxyGuard`'s key,
-  because `getTracker` reads the rightmost `X-Forwarded-For` entry. An extra
-  hop needs `TRUST_PROXY` and `getTracker` updated together.
+- Raising `TRUST_PROXY` alone does not move `ThrottlerProxyGuard`'s key.
+  An extra hop needs `TRUST_PROXY` and `getTracker` updated together.
 
 ## Request Body Size
 
 `MAX_REQUEST_BODY_SIZE = "100kb"` (`config/app.config.ts`) caps both JSON and
-urlencoded parsers. Both were unbounded — a memory-exhaustion path on every
-mutation route. Nginx caps at `1m` (it counts the whole request) so oversized
-junk dies at the edge while borderline bodies get a coherent 413 from the app.
+urlencoded parsers. Nginx caps at `1m` (it counts the whole request) so oversized
+requests stop at the edge while borderline bodies get a coherent 413 from the app.
 
 ## Error Monitoring (Sentry)
 
@@ -401,7 +399,7 @@ Backend ECS SG:
 | `BETTER_AUTH_COOKIE_DOMAIN` | unset (host-only cookie) | any set value widens cookie scope to subdomains — validated by `cookie-domain-schema` |
 | `THROTTLE_TTL` / `THROTTLE_LIMIT` | `60000` / `100` | default limiter window/limit |
 | `THROTTLE_STRICT_TTL` / `THROTTLE_STRICT_LIMIT` | `60000` / `10` | strict limiter (opt-in via `@StrictThrottle()`) |
-| `TRUST_PROXY` | `1` | trusted proxy hops; too high re-opens rate-limit bypass (RF2) |
+| `TRUST_PROXY` | `1` | trusted proxy hops; must equal the real proxy hop count |
 | `ENABLE_HSTS` | `false` | keep off until TLS terminates in target env |
 | `REDIS_URL` | unset | throttle counters + RBAC cache; optional single-instance, required multi-instance |
 | `REDIS_KEY_PREFIX` | `turbo-template` | isolates environments sharing one Redis |

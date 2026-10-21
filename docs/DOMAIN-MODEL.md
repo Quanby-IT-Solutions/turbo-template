@@ -46,9 +46,7 @@ client → load balancer (appends the address it saw onto X-Forwarded-For)
        → Redis throttle store (shared across instances, AB-2)
 ```
 
-Staging in this repo is EC2 plus an Elastic IP. The workflow probes the host
-on ports 3000 and 3001. Any load balancer is managed outside this repo.
-`BACKEND_BIND_ADDRESS` must stay unset while that probe hits the host address.
+Staging is EC2 plus an Elastic IP. Host Nginx on the instance (80/443) is the one trusted hop and proxies to `127.0.0.1:3000` and `127.0.0.1:3001`; it appends the address it saw onto `X-Forwarded-For`, so `TRUST_PROXY=1` keeps that entry. The app ports are not opened in the security group, and the deploy checks health on the host over SSH. `BACKEND_BIND_ADDRESS` stays unset on staging.
 
 The deployed backend port is `${BACKEND_BIND_ADDRESS:-0.0.0.0}:3000:3000`.
 On production, the variable is the instance private IPv4, set outside this

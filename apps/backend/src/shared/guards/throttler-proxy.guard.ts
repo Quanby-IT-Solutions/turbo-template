@@ -41,8 +41,9 @@ import { resolveRequestSession, type RequestWithSession } from "./resolve-reques
  *      so the header carries exactly one nginx-authored entry.
  *   2. Production: the load balancer **appends** the address it saw onto
  *      `X-Forwarded-For`. With one trusted hop, Express keeps that rightmost,
- *      load-balancer-authored entry. Staging in this repo is EC2 plus an
- *      Elastic IP; any load balancer there is managed outside this repo.
+ *      load-balancer-authored entry. Staging is EC2 plus an Elastic IP, and
+ *      host Nginx on the instance is the single trusted hop (TRUST_PROXY=1).
+ *      Health is checked on the host over SSH.
  *
  * Raising `TRUST_PROXY` alone does not move this guard's address key, because
  * `getTracker` reads the rightmost `X-Forwarded-For` entry. An extra hop

@@ -650,8 +650,10 @@ import { todos, users } from "@repo/db/schema"
 
 | Branch       | Environment | Strategy                                              |
 | ------------ | ----------- | ----------------------------------------------------- |
-| `staging`    | Staging     | Single EC2 + Docker Compose + Elastic IP              |
+| `staging`    | Staging     | EC2 + Elastic IP, host Nginx on 80/443                |
 | `production` | Production  | EC2 + load balancer + ASG (auto-scaling)              |
+
+Staging is one EC2 instance with an Elastic IP. Host Nginx listens on 80 and 443 and proxies to `127.0.0.1:3000` (backend) and `127.0.0.1:3001` (web). The app ports are not opened in the security group. The deploy checks health on the host.
 
 Merge to the branch → CI runs → Docker images build → deploy automatically.
 
@@ -670,10 +672,12 @@ one hop:
   header to `web:3001` and `backend:3000`, and appends the address it saw
   onto `X-Forwarded-For`. There is no nginx service in
   `docker-compose.production.yml`.
-- **Staging** in this repo is a single EC2 instance with an Elastic IP
-  (`deploy-staging.yml`). The workflow probes `$STG_EC2_HOST` on ports 3000
-  and 3001 from the runner. Any load balancer in front of staging is managed
-  outside this repo. There is no nginx service in `docker-compose.staging.yml`.
+- **Staging** is one EC2 instance with an Elastic IP. Host Nginx on the
+  instance, outside compose, is the single front hop. It listens on 80 and
+  443 and proxies to `127.0.0.1:3000` and `127.0.0.1:3001`. The app ports are
+  not opened in the security group. The deploy checks health over SSH at
+  those addresses. Nginx is not part of `docker-compose.staging.yml`. The
+  local docker-proxy nginx stays for local/dev.
 
 The web container still calls the backend on the compose network
 (`INTERNAL_API_BASE_URL=http://backend:3000/api`). That path does not use the
@@ -692,8 +696,8 @@ working when the variable is unset. Do not bind the port to `127.0.0.1` and
 do not remove the host mapping: the load balancer's health checks must reach
 port 3000. Web stays on `0.0.0.0:3001`. Redis stays unpublished.
 
-`BACKEND_BIND_ADDRESS` must stay unset on staging while that probe hits the
-host address.
+`BACKEND_BIND_ADDRESS` stays unset on staging. Health is checked on the host
+at `127.0.0.1:3000` and `127.0.0.1:3001`.
 
 This repo does not set `BACKEND_BIND_ADDRESS`. Production publishes the compose
 file and a shared env payload to SSM; that payload has no per-instance private
@@ -826,11 +830,19 @@ actually terminates, because `max-age` cannot be withdrawn quickly.
 
 ### TLS on the deployed hosts
 
-Production terminates TLS on the load balancer (AWS ACM). Staging in this
-repo is EC2 plus an Elastic IP; any load balancer, and its certificates, are
-managed outside this repo. Neither deploy compose file runs nginx, and
-neither workflow installs certificates on the host. Host nginx and certbot
-are the local / self-hosted path in the section above.
+Production terminates TLS on the load balancer (AWS ACM). Neither deploy compose file runs nginx.
+
+### First-Time Staging SSL
+
+Staging uses host Nginx plus certbot. After the first staging deployment, SSH into the instance and issue the certificate:
+
+```bash
+ssh -i <your-key> ec2-user@<staging-host>
+cd /opt/staging
+sudo certbot --nginx -d <staging-web-domain> -d <staging-api-domain>
+sudo certbot renew --dry-run
+sudo nginx -t && sudo systemctl status nginx
+```
 
 ### Docker (Local) — single-port reverse proxy
 
@@ -867,11 +879,18 @@ certbot/ACM cert. Same path routing — no second domain or cert needed.
 <details>
 <summary>Staging</summary>
 
+Staging is one EC2 instance with an Elastic IP. Host Nginx and certbot run on that instance, outside Compose. Nginx listens on 80 and 443 and proxies to `127.0.0.1:3000` (backend) and `127.0.0.1:3001` (web). The app ports are not opened in the security group. The deploy checks those URLs over SSH.
+
 ```bash
-ssh -i your-key.pem ubuntu@EC2_HOST
-cd /opt/staging && docker compose -f docker-compose.staging.yml ps
-docker compose -f docker-compose.staging.yml logs web
-docker compose -f docker-compose.staging.yml logs backend
+ssh -i <your-key> ec2-user@<staging-host>
+cd /opt/staging
+docker compose ps
+docker compose logs web
+docker compose logs backend
+curl -sf http://127.0.0.1:3000/api/v1/health
+curl -sf http://127.0.0.1:3001/
+sudo nginx -t && sudo systemctl status nginx
+sudo certbot certificates
 ```
 
 </details>

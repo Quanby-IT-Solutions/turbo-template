@@ -16,6 +16,7 @@ import { buildPinoHttpOptions } from "@/config/pino-logger.config"
 import { V1Module } from "@/modules/v1/v1.module"
 import { skipStrictThrottle } from "@/shared/decorators/strict-throttle.decorator"
 import { RbacGuard } from "@/shared/guards/rbac.guard"
+import { SessionAuthGuard } from "@/shared/guards/session-auth.guard"
 import { ThrottlerProxyGuard } from "@/shared/guards/throttler-proxy.guard"
 
 import { AuditModule } from "./common/audit/audit.module"
@@ -93,8 +94,14 @@ import { env } from "./config/env.config"
 					: {}),
 			}),
 		}),
-		// Authentication (controllers disabled - we register versioned routes in setupBetterAuth)
-		AuthModule.forRoot({ auth: getAuth(), disableControllers: true }),
+		// Authentication. Controllers stay off; versioned auth routes are registered
+		// in setupBetterAuth. The library global guard is disabled so
+		// SessionAuthGuard can reuse the session already resolved for this request.
+		AuthModule.forRoot({
+			auth: getAuth(),
+			disableControllers: true,
+			disableGlobalAuthGuard: true,
+		}),
 		// oRPC setup
 		ORPCCommonModule,
 		// Shared Redis connection for the throttler and the RBAC cache (AB-2).
@@ -141,6 +148,12 @@ import { env } from "./config/env.config"
 		{
 			provide: APP_GUARD,
 			useClass: RbacGuard,
+		},
+		// After the throttler and the permission guard. Root-module guards run
+		// in this order, so auth stays last and reads the stored session.
+		{
+			provide: APP_GUARD,
+			useClass: SessionAuthGuard,
 		},
 	],
 })

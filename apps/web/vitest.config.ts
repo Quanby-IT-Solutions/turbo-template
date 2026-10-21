@@ -49,6 +49,10 @@ export default defineConfig({
 			"@repo/auth": fromRoot("../../packages/auth/src/index.ts"),
 			"@repo/db/schema": fromRoot("../../packages/db/src/schema.ts"),
 			"@repo/db/client": fromRoot("../../packages/db/src/client.ts"),
+			// `server-only` is a marker Next resolves in the app build. It is not
+			// a direct dependency, so the Vitest resolver cannot find it. The
+			// stub lets server modules load in tests.
+			"server-only": fromRoot("./test/server-only-stub.ts"),
 			"@": rootDir,
 		},
 	},

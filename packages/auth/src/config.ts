@@ -9,6 +9,7 @@ import { accounts, sessions, users, verifications } from "@repo/db/schema"
 
 import { isApiDocsEnabled } from "./api-docs.js"
 import { buildAuthPlugins } from "./auth-plugins.js"
+import { AUTH_CLIENT_ADDRESS_HEADER } from "./client-address.js"
 import { cookieDomainSchema } from "./cookie-domain-schema.js"
 import { booleanFromEnv } from "./mailer/bool-schema.js"
 import { sendMail } from "./mailer/send-mail.js"
@@ -363,6 +364,19 @@ export function createAuth() {
 		},
 
 		advanced: {
+			/**
+			 * Client address for the rate limiter.
+			 *
+			 * The backend writes one address — the one Express resolved — into
+			 * this header and removes any inbound value first. Listing it here
+			 * replaces the default `x-forwarded-for` read, which rejects a
+			 * multi-entry chain and then shares one per-path bucket.
+			 * `trustedProxies` stays unset; those ranges are managed outside
+			 * this repo.
+			 */
+			ipAddress: {
+				ipAddressHeaders: [AUTH_CLIENT_ADDRESS_HEADER],
+			},
 			/**
 			 * Cookie attributes, pinned (AC-3 / F-58, F-59).
 			 *

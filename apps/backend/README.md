@@ -180,6 +180,7 @@ See `.env.example` for reference.
 - Interactive Scalar UI at `/api/v1/docs`, raw OpenAPI spec at `/api/v1/spec.json`, Better Auth schema at `/api/v1/auth/open-api`, and the Better Auth reference at `/api/v1/auth/reference`.
 - **Default behaviour:** docs and the auth reference follow one rule, shared with `@repo/auth`: **on** when `NODE_ENV` is `development` or unset, **off** in test and production. Whenever docs are on, the spec includes the `/v1/auth/*` paths.
 - Override with `ENABLE_API_DOCS=true` (enable in any environment) or `ENABLE_API_DOCS=false` (disable in any environment).
+- The docs page sends its own Content-Security-Policy and loads a pinned Scalar bundle with subresource integrity. Every other response keeps the API policy.
 - When disabled, `/api/v1/docs`, `/api/v1/spec.json`, `/api/v1/auth/open-api`, and `/api/v1/auth/reference` are not served.
 
 ## API Endpoints

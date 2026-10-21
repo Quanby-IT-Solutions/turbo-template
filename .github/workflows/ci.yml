@@ -53,7 +53,7 @@ jobs:
 
       - name: Detect changed paths
         id: filter
-        # Commit the `dorny/paths-filter@v3` tag resolves to (v3.0.3, 2026-08-05).
+        # Commit the `dorny/paths-filter@v3` tag resolves to (v3.0.4, 2026-08-05).
         uses: dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad # v3
         with:
           token: ${{ github.token }}

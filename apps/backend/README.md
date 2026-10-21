@@ -60,7 +60,7 @@ Runs on [http://localhost:3000](http://localhost:3000)
 
 ## Run Production Entry Point Locally
 
-Use this when you want local behavior that matches Docker/ECS (`node dist/main.js`):
+Use this when you want local behavior that matches the container entrypoint (`node dist/main.js`):
 
 ```bash
 # From monorepo root
@@ -156,7 +156,7 @@ See `.env.example` for reference.
 ### Rate Limiting
 
 - Two named throttlers: `default` (all routes, `THROTTLE_TTL`/`THROTTLE_LIMIT`) and `strict` (mutating routes decorated with `@StrictThrottle()`, `THROTTLE_STRICT_TTL`/`THROTTLE_STRICT_LIMIT`).
-- Throttler storage is **in-memory** (`ThrottlerStorageService`). Counters reset on restart. Multi-instance deployments (horizontal scaling) require a shared store such as Redis (`ThrottlerStorageRedis`) — a documented future step.
+- Throttler storage is Redis when `REDIS_URL` is set (`ResilientThrottlerStorage`: shared across instances, fail-open) and in-memory otherwise (per instance, reset on restart).
 - `TRUST_PROXY` (default `1`) is the hop count Express uses to read the client address from `X-Forwarded-For`. Local / dev is nginx, which sets the header to `$remote_addr`. Production is the load balancer, which appends the address it saw. Staging is EC2 plus an Elastic IP. Host Nginx on the instance (80/443) is the one trusted hop and proxies to `127.0.0.1:3000` and `127.0.0.1:3001`; it appends the address it saw onto `X-Forwarded-For`, so `TRUST_PROXY=1` keeps that entry. The app ports are not opened in the security group, and the deploy checks health on the host over SSH. `BACKEND_BIND_ADDRESS` stays unset on staging. The deployed compose files publish backend port 3000 as `${BACKEND_BIND_ADDRESS:-0.0.0.0}`. On production, the variable is the instance private IPv4, set outside this repo. On EC2 the Elastic IP is translated 1:1 to the private IPv4, so binding to the private address only limits the host-side publish to that one interface. On production, direct access must be blocked by a security group that allows port 3000 only from the load balancer's security group, and that group is managed outside this repo. Set that variable on production only.
 - Auth routes (`/api/v*/auth/*`) are throttled by Better Auth's built-in `rateLimit` (`AUTH_RATE_LIMIT_WINDOW`/`AUTH_RATE_LIMIT_MAX`, default `10` per `60` seconds), not the NestJS throttler.
 

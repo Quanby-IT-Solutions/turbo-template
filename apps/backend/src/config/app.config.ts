@@ -3,6 +3,7 @@ import * as express from "express"
 
 import { parseOriginList } from "@repo/auth"
 
+import { forwardClientParseError } from "@/common/filters/client-request-error"
 import { env } from "@/config/env.config"
 
 const logger = new Logger("AppConfig")
@@ -36,6 +37,10 @@ function configureBodyParser(app: INestApplication): void {
 	const httpAdapter = app.getHttpAdapter()
 	httpAdapter.use(express.json({ limit: MAX_REQUEST_BODY_SIZE }))
 	httpAdapter.use(express.urlencoded({ extended: true, limit: MAX_REQUEST_BODY_SIZE }))
+	// Directly after the parsers. Nest turns a JSON SyntaxError into
+	// BadRequestException and keeps the parser message; this hands the filter
+	// a plain error that still carries the client status and type.
+	httpAdapter.use(forwardClientParseError)
 	logger.log(`Body parser middleware configured (limit: ${MAX_REQUEST_BODY_SIZE})`)
 }
 

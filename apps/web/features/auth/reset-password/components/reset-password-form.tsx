@@ -53,7 +53,8 @@ export function ResetPasswordForm({ token, className, ...props }: ResetPasswordF
 		},
 		onSubmit: async ({ value }) => {
 			if (!token) return
-			await resetPassword({ newPassword: value.newPassword, token })
+			// The mutation stores the error, and the banner reads that state.
+			await resetPassword({ newPassword: value.newPassword, token }).catch(() => undefined)
 		},
 	})
 

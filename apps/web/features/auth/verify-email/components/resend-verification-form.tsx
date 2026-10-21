@@ -37,8 +37,14 @@ export function ResendVerificationForm({ prefillEmail }: ResendVerificationFormP
 			onSubmit: ResendSchema,
 		},
 		onSubmit: async ({ value }) => {
-			await resend(value)
-			setIsSubmitted(true)
+			// A thrown rate-limit error stays on the mutation. Only a resolved
+			// call moves on to the neutral confirmation.
+			try {
+				await resend(value)
+				setIsSubmitted(true)
+			} catch {
+				// Banner reads the mutation error.
+			}
 		},
 	})
 

@@ -57,12 +57,64 @@ function readRetryAfterHeader(headers: unknown): number | null {
  * Extracts retry-after seconds from a Better Auth error object, preferring the
  * `Retry-After`/`X-Retry-After` response headers and falling back to a number
  * parsed from the message. Returns null when nothing usable is present.
+ *
+ * Auth calls should pass a value from `createRetryAfterCapture().seconds()`
+ * instead of calling this directly: the client error object does not carry
+ * response headers.
  */
 export function extractRetryAfterSeconds(error: {
 	message?: string
 	headers?: unknown
 }): number | null {
 	return readRetryAfterHeader(error.headers) ?? parseSecondsFromMessage(error.message)
+}
+
+// `onError` context from better-fetch. Only `response` is read. `request`,
+// `error` and `responseText` are accepted so callers can pass the real context
+// through without a cast; they are not used.
+type RetryAfterErrorContext = {
+	response?: {
+		status?: number
+		headers?: unknown
+	} | null
+	responseText?: string
+	request?: unknown
+	error?: unknown
+}
+
+export type RetryAfterCapture = {
+	fetchOptions: {
+		onError: (ctx: RetryAfterErrorContext) => void
+	}
+	seconds: (error?: { message?: string; headers?: unknown } | null) => number | null
+}
+
+/**
+ * Per-request capture of the rate-limit wait from one auth call.
+ *
+ * The client library builds its returned error as the JSON body plus `status`
+ * and `statusText`, and does not attach response headers. The `Response` is
+ * only available to `fetchOptions.onError`. Create one capture inside each
+ * request, pass `fetchOptions` with that call, then use `seconds(error)`.
+ *
+ * Precedence: captured `Retry-After` / `X-Retry-After` on a 429, then
+ * `error.headers`, then a number in the message. A non-429 response captures
+ * nothing. Separate calls do not share state.
+ */
+export function createRetryAfterCapture(): RetryAfterCapture {
+	let captured: number | null = null
+
+	return {
+		fetchOptions: {
+			onError(ctx) {
+				if (ctx.response?.status !== 429) return
+				captured = readRetryAfterHeader(ctx.response.headers)
+			},
+		},
+		seconds(error) {
+			return captured ?? extractRetryAfterSeconds(error ?? {})
+		},
+	}
 }
 
 /**

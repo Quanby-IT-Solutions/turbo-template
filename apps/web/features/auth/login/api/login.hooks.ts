@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 
-import { extractRetryAfterSeconds, RateLimitError } from "@/core/lib/rate-limit-utils"
+import { createRetryAfterCapture, RateLimitError } from "@/core/lib/rate-limit-utils"
 import { authClient } from "@/services/better-auth/auth-client"
 import { sessionKeys } from "@/features/auth/api/session.hooks"
 
@@ -39,13 +39,17 @@ export function useLoginMutation() {
 
 	return useMutation({
 		mutationFn: async (data: Login) => {
-			const result = await authClient.signIn.email(data)
+			const retryAfterCapture = createRetryAfterCapture()
+			const result = await authClient.signIn.email({
+				...data,
+				fetchOptions: retryAfterCapture.fetchOptions,
+			})
 			if (result.error) {
 				if (isUnverifiedEmailError(result.error)) {
 					throw new UnverifiedEmailError(data.email)
 				}
 				if (result.error.status === 429) {
-					throw new RateLimitError(extractRetryAfterSeconds(result.error))
+					throw new RateLimitError(retryAfterCapture.seconds(result.error))
 				}
 				throw new Error(result.error.message || "Failed to sign in")
 			}

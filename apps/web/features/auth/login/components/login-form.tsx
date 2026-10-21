@@ -47,7 +47,9 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
 			onSubmit: LoginSchema,
 		},
 		onSubmit: async ({ value }) => {
-			await login(value)
+			// The mutation stores the error, and the banner reads that state.
+			// Catching here keeps the rejection off the window.
+			await login(value).catch(() => undefined)
 		},
 	})
 

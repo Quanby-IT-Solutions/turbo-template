@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import { NON_PERSISTED_QUERY_ROOTS, shouldDehydrateQuery, shouldPersistQuery } from "./query-client"
 
-// WC-1 / F-04: `session` and `rbac` (the full user directory, emails included)
+// The `session` and `rbac` roots (the full user directory, emails included)
 // must never be written to IndexedDB, while offline-first roots like todos must
 // still persist or the PWA loses its offline reads.
 

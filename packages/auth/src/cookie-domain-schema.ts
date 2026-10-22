@@ -1,7 +1,7 @@
 import { z } from "zod"
 
 /**
- * Validation for `BETTER_AUTH_COOKIE_DOMAIN` (AC-3 / F-33).
+ * Validation for `BETTER_AUTH_COOKIE_DOMAIN`.
  *
  * Any non-empty value used to switch on cross-subdomain cookies, so a typo, a
  * stray quote, or a pasted URL silently widened the session cookie's scope to

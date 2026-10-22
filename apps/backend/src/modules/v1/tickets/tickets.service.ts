@@ -26,11 +26,11 @@ export class TicketsService {
 	/**
 	 * Record a submitted ticket.
 	 *
-	 * AZ-3 / F-30: `authorId` was never stored, so tickets were unattributable
+	 * The `authorId` field was never stored, so tickets were unattributable
 	 * even though the route required a session. It is nullable rather than
 	 * required — the column is additive over rows that predate this, and the
 	 * submit route is not permission-gated, so a future anonymous form would
-	 * still record a ticket rather than fail. Reads stay staff-gated (AZ-1).
+	 * still record a ticket rather than fail. Reads stay staff-gated.
 	 */
 	async submit({ payload, authorId }: { payload: CreateTicketInput; authorId: string | null }) {
 		const [ticket] = await db

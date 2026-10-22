@@ -163,8 +163,8 @@ export class TodosService {
     return todo
   }
 
-  // Ownership is scoped IN the where clause (AZ-3): filter, don't fetch-then-check
-  // (that's a TOCTOU and leaks existence). 0 rows → 404, whether missing or not yours.
+  // Ownership is scoped IN the where clause: filter, don't fetch-then-check
+  // (a check-then-write race between concurrent requests). 0 rows → 404, whether missing or not yours.
   async update({ payload, authorId }: { payload: V1Inputs["example"]["todo"]["update"]; authorId: string }) {
     const id = payload.id as number
     const [todo] = await db

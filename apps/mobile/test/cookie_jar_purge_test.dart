@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:cookie_jar/cookie_jar.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// MB-1 / F-23 + F-43 — one cookie store, fully purged at sign-out.
+/// One cookie store is fully purged at sign-out.
 ///
 /// Exercises a real [PersistCookieJar] over a real temp directory, because the
 /// claim is about what remains ON DISK after sign-out. A mocked jar would
@@ -50,7 +50,7 @@ void main() {
 
       await jar.deleteAll();
 
-      // F-43: this is what sign-out failed to do, so the next launch resumed
+      // This is what sign-out failed to do, so the next launch resumed
       // the session from a cookie nobody had cleared.
       expect(await diskContents(), isNot(contains('SESSIONVALUE123')));
       expect(await jar.loadForRequest(uri), isEmpty);
@@ -68,7 +68,7 @@ void main() {
     });
 
     test('preserves cookie attributes the server asked for', () async {
-      // F-23: the deleted interceptor joined every set-cookie value with '; ',
+      // The deleted interceptor joined every set-cookie value with '; ',
       // turning attributes (Path, HttpOnly, SameSite) into name=value pairs and
       // discarding the scoping. The jar round-trips them properly.
       await jar.saveFromResponse(uri, [

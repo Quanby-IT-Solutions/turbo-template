@@ -61,7 +61,7 @@ function createAuthMiddleware(versionedAuthPaths: string[]) {
 	return (req: AuthIncomingMessage, res: ServerResponse, next: () => void) => {
 		const url = req.url ?? ""
 
-		// AC-5 / F-57: match on a PREFIX BOUNDARY, not a bare `startsWith`.
+		// Paths match on a PREFIX BOUNDARY, not a bare `startsWith`.
 		//
 		// `startsWith("/api/v1/auth")` also matched `/api/v1/authx/...` and
 		// `/api/v1/authorize`, so any current or future route whose name merely

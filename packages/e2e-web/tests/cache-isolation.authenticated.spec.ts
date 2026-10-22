@@ -10,7 +10,7 @@ test.beforeEach(async ({ page }) => {
 })
 
 /**
- * WC-1 / F-04 — cache isolation on a shared browser profile.
+ * Cache isolation on a shared browser profile.
  *
  * This automates the audit's own verification script: sign in as admin, open
  * `/user-management`, sign out, then inspect IndexedDB. Before the fix the
@@ -22,7 +22,7 @@ test.beforeEach(async ({ page }) => {
  * Read-only cases reuse the sessions saved by setup. Cases that sign out sign
  * in as **userB** on their own: logout revokes that session server-side, and
  * userA is the account the shared `storageState` holds a token for. Using
- * userA here would log the rest of the authenticated project out mid-run (HY-1).
+ * userA here would log the rest of the authenticated project out mid-run.
  */
 
 // The seeded Admin holds `users:read`, so `/user-management` returns the real
@@ -216,7 +216,7 @@ test.describe("persisted cache isolation", () => {
 		// quietly break the feature the persister exists for.
 		//
 		// Only the *API* is cut, not the whole network. Serving the document
-		// offline is the service worker's job (WC-2/WC-4) and it is not
+		// offline is the service worker's job and it is not
 		// registered against the dev server, so killing every request would test
 		// the SW rather than the persisted cache this ticket owns.
 		//

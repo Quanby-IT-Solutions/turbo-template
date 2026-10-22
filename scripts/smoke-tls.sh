@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# ED-2 / F-15 — smoke-test the SHIPPED production proxy config.
+# Smoke-test the SHIPPED production proxy config.
 #
 # The TLS block used to be commented out and the upstreams pointed at
 # host.docker.internal, so what shipped neither terminated TLS nor routed under

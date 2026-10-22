@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
-// WC-1 / F-04: nothing sensitive reaches IndexedDB, buckets are per-identity,
+// Nothing sensitive reaches IndexedDB, buckets are per-identity,
 // and sign-out removes every bucket from disk.
 
 const idbState = new Map<string, string>()
@@ -162,7 +162,7 @@ describe("purgePersistedCache", () => {
 		expect(idbState.size).toBe(0)
 	})
 
-	it("deletes the pre-WC-1 shared bucket so upgrading clients are cleaned too", async () => {
+	it("deletes the previous shared bucket so upgrading clients are cleaned too", async () => {
 		idbState.set(LEGACY_PERSISTED_CACHE_KEY, "pre-fix snapshot with emails")
 
 		await purgePersistedCache()

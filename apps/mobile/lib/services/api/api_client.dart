@@ -14,7 +14,7 @@ part 'api_client.g.dart';
 /// - Attaches a [PersistCookieJar] backed by the app's document directory
 ///   (via `path_provider`) so Better Auth session cookies survive app restarts.
 ///
-/// MB-1 / F-23: the jar is the SINGLE cookie store. A second interceptor used
+/// The jar is the SINGLE cookie store. A second interceptor used
 /// to copy the session cookie into secure storage and re-inject it as a header,
 /// which duplicated the credential and re-serialised it badly: it joined every
 /// `set-cookie` value with `'; '`, so cookie ATTRIBUTES (Path, HttpOnly,
@@ -55,7 +55,7 @@ Future<Dio> createDio(
 
 /// A configured [Dio] together with the cookie jar it uses.
 ///
-/// MB-1 / F-43: the jar was previously unreachable outside [createDio], so
+/// The jar was previously unreachable outside [createDio], so
 /// nothing could purge it and the session cookie survived sign-out on disk.
 /// Returning it makes the single store addressable by the code that must
 /// clear it.

@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/constants/api_constants.dart';
 
-/// MB-2 / F-24 + F-42 — mobile transport and bundled-config hardening.
+/// Mobile transport and bundled-config hardening.
 ///
 /// The runtime half is asserted where it can be; the rest are source-level
 /// guarantees, because the behaviour they protect (a release build refusing to

@@ -11,7 +11,7 @@ import {
 	shouldWritePassword,
 } from "./seed-guard.js"
 
-// AC-2 / F-06: the seeder provisions a pre-verified Admin. It must refuse
+// The seeder provisions a pre-verified Admin. It must refuse
 // production before any write, never use a fixed password, and never rotate an
 // existing password without an explicit opt-in.
 

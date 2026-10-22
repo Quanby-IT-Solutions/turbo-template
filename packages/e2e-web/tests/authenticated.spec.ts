@@ -26,10 +26,10 @@ test.describe("authenticated home page", () => {
 	})
 
 	test("an authenticated visitor can still open the login page", async ({ page }) => {
-		// HY-1: this asserted a redirect to `/` that the app does not perform.
+		// This asserted a redirect to `/` that the app does not perform.
 		// `/login` is a STATIC route (see the build output) and therefore cannot
 		// read the session; implementing the redirect would make it dynamic and
-		// undo ED-1's static-route work for no security benefit — the page is
+		// undo the static-route work for no security benefit — the page is
 		// public either way. Asserting the real behaviour instead of an
 		// imagined one.
 		await page.goto("/login")
@@ -69,7 +69,7 @@ test.describe("authenticated session page", () => {
 	})
 
 	test("displays session information", async ({ page }) => {
-		// HY-1: there is no standalone "Session" text on the page — the drift
+		// There is no standalone "Session" text on the page — the drift
 		// this suite was full of. Assert the two headings that actually exist.
 		await expect(page.getByText("Server Session")).toBeVisible()
 		await expect(page.getByText("Client Session")).toBeVisible()
@@ -87,7 +87,7 @@ test.describe("authenticated session page", () => {
 })
 
 test.describe("authenticated todos", () => {
-	// HY-1 / F-54: these targeted `/examples/todos`, which is a documentation
+	// These targeted `/examples/todos`, which is a documentation
 	// page describing how to wire todos up — not the CRUD screen. They could
 	// never have passed. The real screen is `/todos`, and the selectors below
 	// match what it actually renders.
@@ -159,7 +159,7 @@ test.describe("authenticated todos", () => {
 		const toggle = page.getByRole("checkbox", { name: `Toggle ${title}` })
 		await expect(toggle).toBeVisible()
 
-		// Reloading the instant the row appears raced WC-1's persister. It writes
+		// Reloading the instant the row appears raced the persister. It writes
 		// on a throttle, so the snapshot on disk could still predate this todo;
 		// after the reload TanStack hydrates that older list and, being inside its
 		// 30s staleTime, does not refetch — so the row was legitimately absent and
@@ -215,7 +215,7 @@ test.describe("authenticated todos", () => {
 	})
 
 	test("a todo count survives a reload without duplicating", async ({ page }) => {
-		// Guards the AB-3 idempotency path from the UI side: a retry must not
+		// Guards the idempotency path from the UI side: a retry must not
 		// create a second row.
 		await gotoAndSettle(page, "/todos")
 		await expect(page.getByRole("heading", { name: /todos \/ posts/i })).toBeVisible()
@@ -237,7 +237,7 @@ test.describe("authenticated todos", () => {
 })
 
 /**
- * Sign-out, in an ISOLATED context (HY-1 / F-54).
+ * Sign-out, in an ISOLATED context.
  *
  * This lived in the shared-`storageState` block with a comment acknowledging it
  * "can make other authenticated tests flaky". It did more than that: clicking
@@ -256,7 +256,7 @@ test.describe("sign-out", () => {
 		// Sign-out shares one address. A 429 waits for `x-retry-after` (at most 61s, twice).
 		// The default 30s test timeout kills that wait. Assertion timeouts are unchanged.
 		test.setTimeout(180_000)
-		// HY-1: the shared fixture, so this sign-in gets the same 429 retry as
+		// Sign in through the shared fixture, so this sign-in gets the same 429 retry as
 		// every other. Better Auth rate-limits `sign-in/email` per path, and a
 		// full serial run makes enough sign-ins to trip it — which used to fail
 		// this test for a reason unrelated to sign-out.

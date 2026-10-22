@@ -63,7 +63,7 @@ export function SerwistRegistrationProvider({ children }: { children: React.Reac
 }
 
 /**
- * Offers the user a reload when a new service worker is waiting (WC-4 / F-49).
+ * Offers the user a reload when a new service worker is waiting.
  *
  * `app/sw.ts` no longer sets `skipWaiting`, so a newly-installed worker sits in
  * `waiting` instead of swapping the code under an open tab. This is the piece
@@ -132,8 +132,7 @@ function ServiceWorkerUpdatePrompt() {
 }
 
 /**
- * Unregister every service worker and delete every cache for this origin
- * (WC-4 / F-49).
+ * Unregister every service worker and delete every cache for this origin.
  *
  * The existing self-heal returns early in production, so a bad worker shipped
  * to production could not be recovered from in the browser at all — the user

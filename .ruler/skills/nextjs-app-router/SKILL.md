@@ -187,7 +187,7 @@ const config: NextConfig = {
     "@t3-oss/env-nextjs",
   ],
   async headers() {
-    // Per-response CSP for every HTML response (ED-1). Next.js owns the page CSP
+    // Per-response CSP for every HTML response. Next.js owns the page CSP
     // because it alone knows what the app loads. connect-src uses the API ORIGIN
     // (not the base URL — a CSP source with a path is a prefix and would block
     // /api/v1/...). frame-ancestors 'none', object-src 'none', plus
@@ -209,7 +209,7 @@ export default (phase: string) => withSentryConfig(withSerwist(config), {
 })
 ```
 
-- `typescript.ignoreBuildErrors` was **deleted** (CI-4/F-22) — do not restore it; fix types instead.
+- `typescript.ignoreBuildErrors` was **deleted** — do not restore it; fix types instead.
 - `withSentryConfig(withSerwist(config))` order matters: Serwist builds the SW config first, Sentry decorates the result.
 
 ### Environment Variables
@@ -250,7 +250,7 @@ export const env = createEnv({
     NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE: z.coerce.number().min(0).max(1).optional(),
   },
   runtimeEnv: { /* every key destructured from process.env */ },
-  // CI-4/F-16: validation is NEVER skipped just because CI is set (that anti-pattern
+  // Validation is NEVER skipped just because CI is set (that anti-pattern
   // was deleted). SKIP_ENV_VALIDATION is the one documented escape hatch; lint stays exempt.
   skipValidation:
     process.env.SKIP_ENV_VALIDATION === "true" || process.env.npm_lifecycle_event === "lint",

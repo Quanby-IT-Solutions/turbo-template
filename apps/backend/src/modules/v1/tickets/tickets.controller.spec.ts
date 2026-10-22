@@ -8,7 +8,7 @@ import { RbacGuard } from "@/shared/guards/rbac.guard"
 
 import { TicketsController } from "./tickets.controller"
 
-// AZ-3 threaded the session into `submitTicket` so submissions are attributed.
+// The submit handler threaded the session into `submitTicket` so submissions are attributed.
 // `@thallesp/nestjs-better-auth` ships ESM that this jest config does not
 // transform, so the decorator is stubbed exactly as in the todos controller spec.
 jest.mock("@thallesp/nestjs-better-auth", () => ({
@@ -17,7 +17,7 @@ jest.mock("@thallesp/nestjs-better-auth", () => ({
 	Session: () => () => ({ user: { id: "template-user-id" } }),
 }))
 
-// AZ-1: tickets.list / tickets.get must be gated on `users:read` — any
+// The tickets.list and tickets.get routes must be gated on `users:read` — any
 // self-registered user must NOT be able to read reporter PII. This suite
 // proves the wiring (decorator present) AND the runtime outcome (permitted
 // caller succeeds, unpermitted caller gets 403) by driving the REAL
@@ -79,7 +79,7 @@ const buildContext = (
 		switchToHttp: () => ({ getRequest: () => request }),
 	}) as unknown as ExecutionContext
 
-describe("TicketsController RBAC gating (AZ-1)", () => {
+describe("TicketsController RBAC gating", () => {
 	let guard: RbacGuard
 	let rbacService: { hasAllPermissions: jest.Mock; getMissingPermissions: jest.Mock }
 	let warn: jest.SpyInstance
@@ -191,7 +191,7 @@ describe("TicketsController RBAC gating (AZ-1)", () => {
 	})
 
 	it("submit is unaffected — remains callable without a permission requirement", () => {
-		// AZ-1 is scoped to reads only; ticket.submit stays anonymous (out of scope).
+		// The reads-only rule is scoped to reads only; ticket.submit stays anonymous (out of scope).
 		expect(
 			reflector.get(REQUIRED_PERMISSIONS_KEY, TicketsController.prototype.submitTicket)
 		).toBeUndefined()

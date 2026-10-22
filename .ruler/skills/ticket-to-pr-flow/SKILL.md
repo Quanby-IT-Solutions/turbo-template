@@ -66,3 +66,4 @@ Both workflows check for an existing open PR on the head branch first, so re-pus
 - Use `--dry-run` first; it lists the labels and issues it would create without writing.
 - The date-tagged release notes (`release-changelog.yml`) group merged PRs by their epic label — the same labels these scripts apply. See `ci-cd-pipelines`.
 - README sections: "From tickets to pull requests (GitHub Issues)" and "(Linear)".
+- Internal finding or ticket ids stay out of code, docs, and test titles; commit subjects keep the Linear id, and CI checks it.

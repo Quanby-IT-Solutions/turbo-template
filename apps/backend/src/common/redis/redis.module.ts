@@ -20,7 +20,7 @@ import { createRedisClient, REDIS_CLIENT, type RedisClient } from "./redis.provi
 const REDIS_READY_WAIT_MS = 1_000
 
 /**
- * Shared Redis connection (AB-2).
+ * Shared Redis connection.
  *
  * Global because two unrelated subsystems need the same connection — the
  * throttler store and the RBAC permission cache — and opening one client per

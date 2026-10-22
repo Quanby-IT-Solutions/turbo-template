@@ -36,7 +36,7 @@ export function buildPinoHttpOptions(overrides?: { autoLogging?: boolean }): Opt
 					},
 				}
 			: undefined,
-		// LG-1 / F-05: logs must be shippable and retainable without becoming a
+		// Logs must be shippable and retainable without becoming a
 		// credential store. Everything here is removed outright rather than
 		// masked, so no value survives in any sink.
 		redact: {
@@ -81,8 +81,8 @@ export function buildPinoHttpOptions(overrides?: { autoLogging?: boolean }): Opt
 		genReqId: (req: IncomingMessage, res: ServerResponse) => {
 			// pino-http augments IncomingMessage with `id` (ReqId = string|number|object).
 			const existing = (req as { id?: unknown }).id
-			// LG-2 / F-37: an inbound id is honoured only when it cannot forge a
-			// log line or a response header. Anything else gets a fresh UUID
+			// An inbound id is honoured only when it is safe to put in a log line
+			// or a response header. Anything else gets a fresh UUID
 			// rather than being rejected — a malformed correlation id is not a
 			// reason to fail a request.
 			const inbound = sanitizeRequestId(req.headers["x-request-id"])

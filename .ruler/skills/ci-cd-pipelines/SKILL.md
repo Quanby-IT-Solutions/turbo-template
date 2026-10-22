@@ -104,7 +104,7 @@ See `observability-sentry` and `docs/sentry.md`.
 
 ## Docker build pattern
 
-Both deploys use buildx with a **ref-scoped, content-addressed** cache key (`hashFiles('apps/*/Dockerfile', 'pnpm-lock.yaml')` + `github.sha`, restore-keys scoped to `github.ref_name`) so a poisoned layer from another branch cannot reach a deploy build. Cache is rotated (`mv .buildx-cache-new .buildx-cache`).
+Both deploys use buildx with a **ref-scoped, content-addressed** cache key (`hashFiles('apps/*/Dockerfile', 'pnpm-lock.yaml')` + `github.sha`, restore-keys scoped to `github.ref_name`) so a layer from another branch cannot reach a deploy build. Cache is rotated (`mv .buildx-cache-new .buildx-cache`).
 
 ## Release + Changelog (`release-changelog.yml`)
 
@@ -123,7 +123,7 @@ See the `ticket-to-pr-flow` skill.
 
 1. Immutable image tags (`github.sha`); prod also carries `:production-latest`, staging `:latest`.
 2. Fail-fast `require_var` validation before costly builds.
-3. Ref-scoped buildx cache (no cross-branch layer poisoning).
+3. Ref-scoped buildx cache (a layer from another branch is not restored).
 4. Concurrency: staging cancels in-progress, production never does.
 5. Secrets are piped, never written to runner disk; SSH keys stay in `ssh-agent`.
 6. Config for production travels through SSM, not inline task definitions.

@@ -23,7 +23,7 @@ android {
     }
 
     defaultConfig {
-        // MB-3 / F-44: a real, unique application id.
+        // Use a real, unique application id.
         //
         // It was `com.example.mobile`, the Android sample namespace, which Play
         // rejects and which any other app could also claim.
@@ -42,7 +42,7 @@ android {
 
     signingConfigs {
         create("release") {
-            // MB-3 / F-44: real signing material, never committed.
+            // Real signing material is never committed.
             //
             // Release builds were signed with the DEBUG keystore, whose key is
             // shipped with the Android SDK and identical on every machine.
@@ -87,7 +87,7 @@ android {
     }
 }
 
-// MB-3 / F-44: fail the build rather than ship a release nobody can update.
+// Fail the build rather than ship a release nobody can update.
 // Without this, an absent keystore produces an unsigned or debug-signed APK
 // that installs fine locally and is rejected — or worse, silently accepted —
 // downstream.

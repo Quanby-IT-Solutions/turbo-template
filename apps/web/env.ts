@@ -154,7 +154,7 @@ export const env = createEnv({
 	/**
 	 * Skip validation during CI or linting to prevent errors in non-build contexts
 	 */
-	// CI-4 / F-16 (RF3): validation is never skipped merely because CI is set.
+	// Validation is never skipped merely because CI is set.
 	// It was disabled in exactly the environment meant to catch misconfiguration,
 	// so a missing or malformed value shipped instead of failing the build.
 	// `SKIP_ENV_VALIDATION` is the one documented escape hatch, for build-only

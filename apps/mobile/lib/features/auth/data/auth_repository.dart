@@ -23,7 +23,7 @@ class AuthRepository {
   final SecureStorageService _storage;
   final PersistCookieJar _cookieJar;
 
-  /// Logs an auth diagnostic, debug builds only (LG-1 / F-05).
+  /// Logs an auth diagnostic, debug builds only.
   ///
   /// Two problems are closed here. `dart:developer`'s `log()` is not stripped
   /// from release builds, so anything passed to it ships to end-user devices
@@ -107,7 +107,7 @@ class AuthRepository {
 
   /// Signs out and clears every stored credential on the device.
   ///
-  /// MB-1 / F-43 (Risky Flow RF1, mobile leg): the cookie jar was unreachable
+  /// The cookie jar was unreachable
   /// from here, so sign-out cleared secure storage while the session cookie
   /// stayed on disk in the jar's persistence directory — the next launch
   /// resumed the session. The jar is purged too, and the purge runs in

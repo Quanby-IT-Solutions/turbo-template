@@ -80,7 +80,7 @@ services:
       - THROTTLE_STRICT_LIMIT=${THROTTLE_STRICT_LIMIT:-10}
       - TRUST_PROXY=${TRUST_PROXY:-1}
       - LOG_LEVEL=${LOG_LEVEL:-info}
-      # AB-2: shared throttle counters + RBAC cache across instances.
+      # Shared throttle counters and the RBAC cache are used across instances.
       - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
       - REDIS_KEY_PREFIX=${REDIS_KEY_PREFIX:-turbo-template}
       - ENABLE_API_DOCS=${ENABLE_API_DOCS:-false}
@@ -101,7 +101,7 @@ services:
     restart: unless-stopped
 
   # ----------------------------------------------------------
-  # Redis — shared throttle counters + RBAC permission cache (AB-2)
+  # Redis — shared throttle counters + RBAC permission cache
   # ----------------------------------------------------------
   # No `ports:` mapping on purpose. Redis is reachable only from the compose
   # network by service name; publishing it would expose a data store to the

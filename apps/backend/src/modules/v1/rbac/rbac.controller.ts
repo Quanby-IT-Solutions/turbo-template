@@ -12,7 +12,7 @@ import { IdempotencyInterceptor } from "@/shared/interceptors/idempotency.interc
 import { RbacAdminService } from "./rbac-admin.service"
 
 /**
- * The user to attribute a privileged mutation to (AZ-4).
+ * The user to attribute a privileged mutation to.
  *
  * Null rather than throwing: every route here already requires a permission,
  * so an absent session means the guard let something through and the safer
@@ -89,7 +89,7 @@ export class RbacController {
 	}
 
 	// ---------------------------------------------------------------- users
-	// AZ-5 / F-51: the LIST needs `users:read`; the EMAIL ADDRESSES additionally
+	// The LIST needs `users:read`; the EMAIL ADDRESSES additionally
 	// need `users:read-directory`. Splitting them means ticket triage no longer
 	// carries the full directory.
 	@RequirePermissions("users:read")
@@ -126,7 +126,7 @@ export class RbacController {
 	}
 
 	// ------------------------------------------------------------ audit log
-	// Read-only by design (AZ-4 / F-17). There is deliberately no update or
+	// Read-only by design. There is deliberately no update or
 	// delete route for `audit_log`, and none may be added.
 	@RequirePermissions("users:read")
 	@Implement(v1.rbac.audit.list)

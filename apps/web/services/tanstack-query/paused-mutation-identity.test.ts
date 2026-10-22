@@ -9,7 +9,7 @@ import {
 	stampIdentity,
 } from "./paused-mutation-identity"
 
-// WC-3 / F-19 (RF1). Offline-queued mutations are persisted and replayed on
+// Offline-queued mutations are persisted and replayed on
 // reconnect. Replay used to run under whichever session was active at that
 // moment, so a device handover fired user A's queued writes as user B.
 
@@ -36,7 +36,7 @@ describe("stampIdentity", () => {
 	})
 
 	it("stamps the hashed identity, never the raw user id", () => {
-		// Reuses WC-1's cache identity so there is one notion of "who this
+		// Reuses the cache identity so there is one notion of "who this
 		// client is", and keeps the raw id out of persisted mutation state.
 		writeCacheIdentity("seed-user-admin")
 		const vars = stampIdentity({ title: "x" })
@@ -138,7 +138,7 @@ describe("discardForeignPausedMutations", () => {
 
 describe("sign-out clears the queue with the rest of client state", () => {
 	it("queryClient.clear() empties the mutation cache too", () => {
-		// WC-1's sign-out purge calls clear(); this asserts the paused queue is
+		// The sign-out purge calls clear(); this asserts the paused queue is
 		// covered by it rather than surviving into the next session.
 		const client = new QueryClient()
 		writeCacheIdentity("user-a")

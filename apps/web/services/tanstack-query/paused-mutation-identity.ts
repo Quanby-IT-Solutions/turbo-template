@@ -3,8 +3,7 @@ import type { QueryClient } from "@tanstack/react-query"
 import { readCacheIdentity } from "./cache-persistence"
 
 /**
- * Binds offline-queued mutations to the identity that queued them
- * (WC-3 / F-19, Risky Flow RF1).
+ * Binds offline-queued mutations to the identity that queued them.
  *
  * Paused mutations are persisted and replayed on reconnect. Replay used to run
  * under whichever session happened to be active at that moment, so handing a
@@ -12,7 +11,7 @@ import { readCacheIdentity } from "./cache-persistence"
  * fired A's writes as B. The victim is B, who silently performs actions they
  * never took, and A, whose writes land under someone else's name.
  *
- * The stamp is the *hashed* identity WC-1 already derives for the cache
+ * The stamp is the *hashed* identity derived for the cache
  * bucket, not the raw user id. Reusing it means there is one notion of "who
  * this client is" rather than two that can disagree, and it keeps the raw id
  * out of persisted mutation state on a shared browser profile.

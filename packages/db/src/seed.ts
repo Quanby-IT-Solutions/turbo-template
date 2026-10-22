@@ -54,7 +54,7 @@ async function seedDatabase() {
 		throw new Error("DATABASE_URL environment variable is not set")
 	}
 
-	// RF3: refuse production (and any non-local database) BEFORE opening a pool
+	// Refuse production (and any non-local database) BEFORE opening a pool
 	// or writing a single row. Throws SeedRefusedError -> non-zero exit below.
 	assertSeedAllowed({
 		nodeEnv: process.env.NODE_ENV,
@@ -213,7 +213,7 @@ async function seedDatabase() {
 
 	// Role -> permission names. Admin omitted: granted via role-name
 	// short-circuit, which is also how it picks up `users:read-directory`
-	// without a migration — no admin loses access (AZ-5 / F-51).
+	// without a migration — no admin loses access.
 	//
 	// Manager deliberately does NOT get `users:read-directory`. That is the
 	// point of the split: it can triage tickets and see who exists, without
@@ -252,7 +252,7 @@ async function seedDatabase() {
 					})
 			}
 
-			// AC-2: re-running the seeder must NOT rotate credentials that already
+			// Re-running the seeder must NOT rotate credentials that already
 			// exist — only an explicit --force-password does that. New accounts still
 			// get the resolved password on the INSERT path.
 			const existingCredentialRows = await tx

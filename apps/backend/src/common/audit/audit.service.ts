@@ -44,7 +44,7 @@ export interface AuditEvent {
 }
 
 /**
- * Append-only audit trail for privileged mutations (AZ-4 / F-17).
+ * Append-only audit trail for privileged mutations.
  *
  * The `authz` epic owns both the `audit_log` schema and this service. Other
  * domains record events by calling {@link record}; nothing else inserts into

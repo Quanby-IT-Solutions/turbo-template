@@ -15,7 +15,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Load environment variables
-  // MB-2 / F-42: no `.env` is loaded. It used to be bundled as a Flutter
+  // No `.env` is loaded. It used to be bundled as a Flutter
   // asset, which ships it inside the APK in cleartext where unzipping the
   // package reveals it. Configuration now arrives via --dart-define; see
   // ApiConstants.
@@ -102,7 +102,7 @@ Future<void> _bootstrap() async {
         sharedPreferencesProvider.overrideWithValue(sharedPreferences),
         secureStorageProvider.overrideWithValue(storage),
         dioProvider.overrideWithValue(apiClient.dio),
-        // MB-1: sign-out purges the very jar the client writes to.
+        // Sign-out purges the very jar the client writes to.
         cookieJarProvider.overrideWithValue(apiClient.cookieJar),
       ],
       child: const App(),

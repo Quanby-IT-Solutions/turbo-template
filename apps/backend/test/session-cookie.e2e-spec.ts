@@ -7,11 +7,11 @@ import { createApplication } from "../src/bootstrap"
 import { resolveE2eAdminEmail, resolveE2eAdminPassword } from "./e2e-admin-password"
 
 /**
- * AC-3 / F-56 + F-58 + F-59 — the session cookie's attributes, as actually sent.
+ * The session cookie's attributes, as actually sent.
  *
  * The ticket pins `expiresIn`, rotation, SameSite, Secure, HttpOnly and path in
  * `packages/auth/src/config.ts`, and its technical note is explicit that config
- * alone is not proof: F-58/F-59 were held at Low confidence precisely because
+ * alone is not proof: those options were held at Low confidence precisely because
  * the library internals were unreadable, so what Better Auth *does* with those
  * options had never been observed. Asserting the config object would restate
  * the source file, not test it.
@@ -20,7 +20,7 @@ import { resolveE2eAdminEmail, resolveE2eAdminPassword } from "./e2e-admin-passw
  * Better Auth handler — and reads the `Set-Cookie` header off a genuine
  * sign-in.
  */
-describe("session cookie attributes (AC-3)", () => {
+describe("session cookie attributes", () => {
 	let app: INestApplication<App>
 	let setCookie: string | undefined
 
@@ -55,7 +55,7 @@ describe("session cookie attributes (AC-3)", () => {
 		expect(setCookie).toMatch(/;\s*HttpOnly/i)
 	})
 
-	it("is SameSite=Lax, the posture ED-1's frame-ancestors is paired with", () => {
+	it("is SameSite=Lax, the posture that frame-ancestors is paired with", () => {
 		expect(setCookie).toMatch(/;\s*SameSite=Lax/i)
 	})
 
@@ -70,7 +70,7 @@ describe("session cookie attributes (AC-3)", () => {
 	})
 
 	it("carries no Domain attribute, so the cookie stays host-only", () => {
-		// F-33: BETTER_AUTH_COOKIE_DOMAIN is unset by default and any value used
+		// BETTER_AUTH_COOKIE_DOMAIN is unset by default and any value used
 		// to widen the cookie across subdomains silently. Unset must mean
 		// host-only, which is the absence of Domain — not a Domain of the host.
 		expect(process.env.BETTER_AUTH_COOKIE_DOMAIN ?? "").toBe("")

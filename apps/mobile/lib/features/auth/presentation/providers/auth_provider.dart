@@ -101,7 +101,7 @@ class AuthState extends _$AuthState {
       // so the user is logged out on the device.
       state = const AsyncData(null);
 
-      // Same reasoning as the MB-1 cookie-jar purge: sign-out must leave no
+      // Same reasoning as the cookie-jar purge: sign-out must leave no
       // trace of who was signed in. A stale identity here would attach the
       // previous user's id to whatever the *next* user crashes on.
       _syncCrashReportingIdentity(null);

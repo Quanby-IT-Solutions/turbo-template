@@ -3,7 +3,7 @@
 Deferred dependency work. Each entry names the risk of leaving it, so the
 decision to defer stays reviewable rather than becoming a silent default.
 
-## drizzle-orm / drizzle-kit 1.0 (HY-2 / F-53)
+## drizzle-orm / drizzle-kit 1.0
 
 **Status:** still tracked. The pins moved from `1.0.0-beta.9-e89174b` to
 `1.0.0-beta.20`. Stable 1.0 (and the `rc` line the beta packages advertise) is

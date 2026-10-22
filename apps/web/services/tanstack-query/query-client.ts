@@ -36,7 +36,7 @@ export function shouldDehydrateMutation(mutation: { state: { isPaused: boolean }
 }
 
 /**
- * Query-key roots that must never be written to IndexedDB (WC-1 / F-04).
+ * Query-key roots that must never be written to IndexedDB.
  *
  * `session` carries the signed-in identity; `rbac` carries the full user
  * directory including every email address. Persisting either hands the next

@@ -89,9 +89,9 @@ describe("ThrottlerProxyGuard (unit)", () => {
 			)
 		})
 
-		// AB-1 / F-02: req.ips is ordered upstream-most -> downstream-most, so the
+		// The `req.ips` list is ordered upstream-most -> downstream-most, so the
 		// LEFTMOST entries are the client-writable ones. Keying on ips[0] would let
-		// a caller mint a bucket per request.
+		// each request get its own bucket.
 		it("uses the rightmost-untrusted entry, never the client-writable leftmost one", async () => {
 			await expect(
 				guard["getTracker"]({ ips: ["1.2.3.4", "5.6.7.8", "203.0.113.9"], ip: "203.0.113.9" })
@@ -319,9 +319,9 @@ describe("ThrottlerProxyGuard (integration)", () => {
 })
 
 // ---------------------------------------------------------------------------
-// AB-1 / F-02 — forged X-Forwarded-For must not mint fresh rate-limit buckets.
+// A client-supplied X-Forwarded-For must not give each request its own bucket.
 //
-// The control is a CHAIN, so it is tested as one (Risky Flow RF2):
+// The control is a CHAIN, so it is tested as one:
 //   1. Nginx SETS X-Forwarded-For to $remote_addr (overwrite, not append), and
 //   2. the app runs with `trust proxy` = 1 (exactly one hop), so Express keeps
 //      only that proxy-authored entry in req.ips, and
@@ -361,7 +361,7 @@ const buildProxiedApp = async (options: {
 	return app
 }
 
-describe("ThrottlerProxyGuard forged X-Forwarded-For (AB-1)", () => {
+describe("ThrottlerProxyGuard client-supplied X-Forwarded-For", () => {
 	let app: INestApplication<App>
 
 	beforeEach(() => {
@@ -373,11 +373,11 @@ describe("ThrottlerProxyGuard forged X-Forwarded-For (AB-1)", () => {
 		await app.close()
 	})
 
-	it("collapses forged headers into ONE bucket when the proxy overwrites X-Forwarded-For", async () => {
+	it("collapses differing client-supplied headers into ONE bucket when the proxy overwrites X-Forwarded-For", async () => {
 		app = await buildProxiedApp({ overwriteForwardedFor: true })
 
-		// Every request forges a DIFFERENT chain. If the header were trusted, each
-		// would open its own bucket and none would ever be throttled.
+		// Every request sends a different chain. If the header were trusted, each
+		// request would get its own bucket and none would ever be throttled.
 		for (let i = 0; i < DEFAULT_LIMIT; i++) {
 			await request(app.getHttpServer())
 				.get("/read")
@@ -392,12 +392,12 @@ describe("ThrottlerProxyGuard forged X-Forwarded-For (AB-1)", () => {
 		expect(res.status).toBe(429)
 	})
 
-	it("proves the Nginx overwrite is load-bearing: without it forged headers split the bucket", async () => {
+	it("proves the Nginx overwrite is load-bearing: without it differing client-supplied headers split the bucket", async () => {
 		app = await buildProxiedApp({ overwriteForwardedFor: false })
 
 		// Same traffic, but the proxy appended instead of overwriting: the
-		// rightmost-untrusted entry is now attacker-chosen, so each request lands
-		// in its own bucket and the limit never bites. This is the failure mode
+		// rightmost-untrusted entry now differs per request, so each request
+		// would get its own bucket and the limit never bites. This is the failure mode
 		// nginx.conf's `$remote_addr` directive exists to prevent.
 		for (let i = 0; i < DEFAULT_LIMIT + 2; i++) {
 			await request(app.getHttpServer())
@@ -411,10 +411,10 @@ describe("ThrottlerProxyGuard forged X-Forwarded-For (AB-1)", () => {
 // Both shipped configs, not just production. nginx.dev.conf is the default a
 // fresh clone runs — the compose mount falls back to it — so a regression there
 // reaches far more people than one in nginx.conf, and only this file was
-// covered. The trust chain (RF2) is only sound while EVERY proxy that fronts
+// covered. The trust chain is only sound while EVERY proxy that fronts
 // the app overwrites the header.
 describe.each([["nginx.conf"], ["nginx.dev.conf"]])(
-	"%s client-IP directives (AB-1)",
+	"%s client-IP directives",
 	(configFile: string) => {
 		const conf = readFileSync(join(__dirname, "../../../../../nginx", configFile), "utf8")
 		const activeLines = conf

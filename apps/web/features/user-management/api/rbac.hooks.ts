@@ -82,10 +82,10 @@ export function useUsersQuery() {
 }
 
 /**
- * Privileged-mutation audit trail (AZ-4 / F-17). Read-only: there is no
+ * Privileged-mutation audit trail. Read-only: there is no
  * corresponding mutation hook, and none should be added.
  *
- * Note the `rbac` key root — WC-1's persistence allowlist already excludes it,
+ * Note the `rbac` key root — the persistence allowlist already excludes it,
  * so these entries (which name actors and targets) never reach IndexedDB.
  */
 export function useAuditLogQuery(limit = 50) {

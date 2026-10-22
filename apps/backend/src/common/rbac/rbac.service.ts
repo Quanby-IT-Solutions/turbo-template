@@ -14,7 +14,7 @@ import { RbacCacheService, type ResolvedPermissionSet } from "./rbac-cache.servi
 type TransactionLike = Parameters<Parameters<typeof db.transaction>[0]>[0]
 
 /**
- * A privileged change refused by a guard inside the transaction (AZ-2).
+ * A privileged change refused by a guard inside the transaction.
  *
  * Thrown from inside `db.transaction` so the refusal aborts the mutation, then
  * unwrapped outside it by {@link RbacService.runGuarded} — the denial entry has
@@ -126,7 +126,7 @@ export class RbacService {
 	 *
 	 * Deliberately not routed through {@link hasRole}: that consults the
 	 * in-process cache, and a privilege-tier decision must not be made from a
-	 * value that a stale or poisoned cache entry could supply. Reading inside
+	 * value that a stale or otherwise untrusted cache entry could supply. Reading inside
 	 * the caller's transaction also means the check sees the same snapshot as
 	 * the write it guards.
 	 */
@@ -143,13 +143,13 @@ export class RbacService {
 	/**
 	 * Grant a role.
 	 *
-	 * AZ-4 / RF5: the membership row and its audit entry are written in one
+	 * The membership row and its audit entry are written in one
 	 * transaction, so a privileged grant can never commit unrecorded — if the
 	 * audit insert fails, the grant rolls back with it. The cache is
 	 * invalidated only after the commit, because invalidating earlier would let
 	 * a concurrent request repopulate it from a state that then rolled back.
 	 *
-	 * AZ-2 / F-10: granting Admin additionally requires the caller to hold
+	 * Granting Admin additionally requires the caller to hold
 	 * Admin. Without this, any `users:manage` holder could grant themselves the
 	 * top tier — the permission that lets you manage users became the
 	 * permission that lets you become anyone.
@@ -213,11 +213,10 @@ export class RbacService {
 	/**
 	 * Revoke a role. Same in-transaction audit guarantee as {@link assignRole}.
 	 *
-	 * AZ-2 / F-31: removing the last Admin is refused. The count is taken
+	 * Removing the last Admin is refused. The count is taken
 	 * **inside** the transaction and takes a row lock, which is what closes the
-	 * TOCTOU: two concurrent removals of the last two Admins would each
-	 * otherwise read "2 remain, fine to remove one" and between them leave the
-	 * system with nobody able to administer it.
+	 * check-then-write race between concurrent requests, so at most one of
+	 * two concurrent removals succeeds.
 	 */
 	async removeRole(userId: string, roleName: string, actorId: string | null): Promise<void> {
 		await this.runGuarded(

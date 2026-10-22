@@ -43,7 +43,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (authState.hasError) {
       if (!context.mounted) return;
 
-      // MB-3 / F-45: a fixed, mapped string. Never `toString()`, and never
+      // Show a fixed, mapped string. Never `toString()`, and never
       // the server's own text — `error.message` embeds the host and port it
       // tried to reach, which then lands in a user's screenshot.
       final message = authErrorMessage(authState.error);

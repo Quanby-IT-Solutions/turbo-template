@@ -1,7 +1,7 @@
 /**
  * Load the environment the e2e suite boots with, before any spec imports the app.
  *
- * AC-1 made the auth config fail closed: `createEnv` throws at import time when
+ * The auth config fails closed: `createEnv` throws at import time when
  * BETTER_AUTH_SECRET or DATABASE_URL are missing. That is correct behaviour, and
  * it means the e2e suite — which boots the real AppModule — needs the same
  * environment the app itself needs.

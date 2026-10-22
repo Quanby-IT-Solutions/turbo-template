@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import { parseOriginList } from "./origin-list.js"
 
-// AC-5 / F-32: origin allowlists were split on "," with no trim and no empty
+// Origin allowlists were split on "," with no trim and no empty
 // filter, so a list written with spaces produced entries matching nothing, and
 // a trailing comma produced an empty string — which some origin checks treat
 // as "any". Both fail silently.

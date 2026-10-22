@@ -1,9 +1,9 @@
 /**
- * AZ-2 / F-10 + F-31 — privilege-tier collapse and last-Admin protection.
+ * Privilege-tier collapse and last-Admin protection.
  *
  * Against a real Postgres, because both guarantees are transactional: the
  * last-Admin count must be taken under a row lock inside the same transaction
- * as the removal, and the TOCTOU this closes only exists between concurrent
+ * as the removal, and the check-then-write race this closes only exists between concurrent
  * database transactions. A mocked db cannot exhibit it, so a mocked test could
  * not catch its return.
  */
@@ -145,7 +145,7 @@ const itDb: jest.It = ((name: string, fn: jest.ProvidesCallback, timeout?: numbe
 		timeout
 	)) as jest.It
 
-describe("Admin grants require Admin (F-10)", () => {
+describe("Admin grants require Admin", () => {
 	beforeEach(async () => {
 		if (!dbReachable) return
 		await db.delete(auditLog).where(eq(auditLog.actorId, MANAGER))
@@ -212,7 +212,7 @@ describe("Admin grants require Admin (F-10)", () => {
 	})
 })
 
-describe("last Admin cannot be removed (F-31)", () => {
+describe("last Admin cannot be removed", () => {
 	beforeEach(async () => {
 		if (!dbReachable) return
 		await db.delete(auditLog).where(eq(auditLog.actorId, ADMIN_A))
@@ -244,7 +244,7 @@ describe("last Admin cannot be removed (F-31)", () => {
 	})
 
 	itDb(
-		"closes the TOCTOU: concurrent removals of the last two Admins",
+		"closes the check-then-write race: concurrent removals of the last two Admins",
 		async () => {
 			// Without the in-transaction locked count, both transactions read
 			// "2 Admins remain" and both proceed, leaving nobody able to

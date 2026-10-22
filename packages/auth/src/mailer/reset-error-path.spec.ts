@@ -4,7 +4,7 @@ import { sendMail } from "./send-mail.js"
 import { buildResetPasswordEmail } from "./templates/reset-password-email.js"
 
 /**
- * AC-4 / F-18 — the password-reset path must not become an enumeration oracle.
+ * The password-reset path must not become an enumeration oracle.
  *
  * Better Auth already returns the same generic response whether or not the
  * account exists. What broke that was `sendResetPassword` letting a transport
@@ -90,7 +90,7 @@ describe("password-reset send failures", () => {
 	})
 
 	it("never writes the reset link or its token to the log", async () => {
-		// LG-1 removed the body from the dev mailer's output; this keeps the
+		// Log redaction removed the body from the dev mailer's output; this keeps the
 		// reset path honest too.
 		const transporter = {
 			sendMail: vi.fn().mockRejectedValue(new Error("ECONNREFUSED")),

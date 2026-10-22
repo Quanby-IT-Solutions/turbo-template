@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import { cookieDomainSchema, isValidCookieDomain } from "./cookie-domain-schema.js"
 
-// AC-3 / F-33: any non-empty value used to enable cross-subdomain cookies, so a
+// Any non-empty value used to enable cross-subdomain cookies, so a
 // typo or a pasted URL silently widened the session cookie's scope.
 
 describe("isValidCookieDomain", () => {

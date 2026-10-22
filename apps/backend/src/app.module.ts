@@ -59,7 +59,7 @@ import { env } from "./config/env.config"
 			pinoHttp: buildPinoHttpOptions({ autoLogging: false }),
 			forRoutes: [{ path: "{*path}", method: RequestMethod.ALL }],
 		}),
-		// Rate limiting (AB-2 / F-38).
+		// Rate limiting.
 		//
 		// Counters live in Redis when REDIS_URL is set, so a limit of N is N
 		// across the whole cluster rather than N per instance. Without it the
@@ -104,13 +104,13 @@ import { env } from "./config/env.config"
 		}),
 		// oRPC setup
 		ORPCCommonModule,
-		// Shared Redis connection for the throttler and the RBAC cache (AB-2).
+		// Shared Redis connection for the throttler and the RBAC cache.
 		RedisModule,
 		// RBAC services
-		// Global: the audit trail is meant to outgrow RBAC (AZ-4).
+		// Global: the audit trail is meant to outgrow RBAC.
 		AuditModule,
 		RbacModule,
-		// Scheduled sweeps of expired rows (AB-3; HY-2 extends it).
+		// Scheduled sweeps of expired rows (the idempotency sweep; the verifications sweep extends it).
 		MaintenanceModule,
 		// Versioned modules
 		V1Module,

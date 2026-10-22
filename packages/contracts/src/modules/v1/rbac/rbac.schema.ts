@@ -92,7 +92,7 @@ export const UserRoleMutationResponseSchema = z.object({
 /**
  * Whether a recorded attempt went through or was refused. Denials are kept
  * because "who tried to escalate and was stopped" is the question an audit
- * trail most often has to answer (AZ-4 / F-17).
+ * trail most often has to answer.
  */
 export const AuditOutcomeSchema = z.enum(["success", "denied"])
 

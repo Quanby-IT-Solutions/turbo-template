@@ -16,7 +16,7 @@ concurrency:
   # instance refresh leaves the ASG split across two image versions.
   cancel-in-progress: false
 
-# CI-5: least privilege. This workflow reads the repo and talks to AWS with
+# Least privilege. This workflow reads the repo and talks to AWS with
 # its own credentials; it never needs to write anything back to GitHub.
 permissions:
   contents: read
@@ -187,11 +187,11 @@ jobs:
         uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
         with:
           path: /tmp/.buildx-cache
-          # CI-6 / F-27: the key is content-addressed on the Dockerfiles and
+          # The key is content-addressed on the Dockerfiles and
           # the lockfile, and restore-keys is scoped to the same ref. A broad
           # prefix let a build on any ref restore -- and then extend -- a cache
-          # populated by another ref, which is a path for a poisoned layer from
-          # an untrusted branch to reach a deploy build.
+          # populated by another ref. Scoping the key to this ref keeps another
+          # branch's layer out of a deploy build.
           key: ${{ runner.os }}-buildx-production-${{ github.ref_name }}-${{ hashFiles('apps/*/Dockerfile', 'pnpm-lock.yaml') }}-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-buildx-production-${{ github.ref_name }}-${{ hashFiles('apps/*/Dockerfile', 'pnpm-lock.yaml') }}-
@@ -273,7 +273,7 @@ jobs:
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
-          # CI-5 / RF4: refuse to continue past an error, so a partial run
+          # Refuse to continue past an error, so a partial run
           # cannot proceed to publish a half-built parameter.
           set -euo pipefail
 
@@ -289,7 +289,7 @@ jobs:
             --value "$COMPOSE_B64" \
             --overwrite
 
-          # CI-5 / F-25: the env file is PIPED, never written to disk.
+          # The env file is PIPED, never written to disk.
           #
           # It used to be `cat > /tmp/deploy.env`, holding every production
           # secret in plaintext on the runner. The `rm -f` that followed was

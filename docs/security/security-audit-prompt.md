@@ -189,7 +189,7 @@ Inspect:
 - Rate-limit header behavior
 - Idempotency-key validation, length limits, expiry, storage growth, ownership, replay behavior, and concurrency guarantees
 - Whether write endpoints consistently use idempotency where the template expects it
-- Denial-of-service risks from database advisory locks or attacker-chosen keys
+- Denial-of-service risks from database advisory locks or caller-chosen keys
 
 Recommend endpoint-specific limits only where the existing code presents an abuse path.
 
@@ -209,7 +209,7 @@ Inspect:
 - API documentation and specification exposure in production
 - Better Auth reference endpoint exposure
 - Health-check output, version leakage, database detail leakage, and readiness/liveness behavior
-- Request IDs and acceptance of attacker-controlled correlation IDs
+- Request IDs and acceptance of caller-supplied correlation IDs
 - Proxy header handling and host-header trust
 - HTTP timeout, keepalive, and payload-limit configuration
 
@@ -251,7 +251,7 @@ Inspect:
 - Paused mutation persistence and replay after reconnect
 - Replay under a different authenticated user
 - Interaction between offline mutations and backend idempotency
-- Service-worker update and takeover behavior
+- Service-worker update and mid-session claim behavior
 - Offline exposure of previously viewed user or administrative data
 - PWA manifest settings that have security relevance
 

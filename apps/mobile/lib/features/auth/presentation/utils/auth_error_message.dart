@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart';
 
-/// Maps an auth failure to a fixed, user-facing string (MB-3 / F-45).
+/// Maps an auth failure to a fixed, user-facing string.
 ///
 /// Errors used to be rendered with `error.toString()`, and the Dio branch fell
 /// back to `error.message`, which embeds the host and port it tried to reach.
@@ -39,7 +39,7 @@ String _fromStatus(int? status) {
 
   if (status == 401 || status == 403) {
     // Same string for both, and for a missing account: a distinct message per
-    // case is an account-enumeration oracle, exactly as in AC-4.
+    // case is an account-enumeration oracle, exactly as in the reset flow.
     return 'Incorrect email or password.';
   }
   if (status == 409) return 'That email is already registered.';

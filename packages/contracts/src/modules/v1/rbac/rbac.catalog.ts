@@ -53,10 +53,10 @@ export const PERMISSION_NAMES = [
 	// User management actions
 	"users:read",
 	"users:manage",
-	// AZ-5 / F-51: directory PII, split from `users:read`.
+	// Directory PII is split from `users:read`.
 	//
 	// `users:read` grants operational reads — the user list with names and
-	// roles, and (per AZ-1) support-ticket triage. It used to also yield every
+	// roles, and support-ticket triage. It used to also yield every
 	// email address, so granting someone ticket triage handed them the complete
 	// email directory as a side effect.
 	//

@@ -4,7 +4,7 @@ import { REDACTED_VALUE } from "@repo/observability"
 
 import { scrubSentryBreadcrumb } from "./sentry-config"
 
-// AB-1 / F-05: the OAuth callback breadcrumb records the query the SDK already
+// The OAuth callback breadcrumb records the query the SDK already
 // parsed off the URL. `state` and `code` are credentials *as query parameters*,
 // so the structured field deny-list never sees them — only the query-parameter
 // list does.

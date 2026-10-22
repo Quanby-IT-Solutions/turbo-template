@@ -36,7 +36,7 @@ const config: NextConfig = {
 		"@t3-oss/env-nextjs",
 	],
 
-	// CI-4 / F-22: `typescript.ignoreBuildErrors` was true, so type errors in
+	// The `typescript.ignoreBuildErrors` flag was true, so type errors in
 	// permission logic shipped silently. Deleted deliberately — do not restore
 	// it; fix the types instead.
 	reactCompiler: true,
@@ -62,7 +62,7 @@ const config: NextConfig = {
 			: {},
 
 	/**
-	 * Browser-level defences for every HTML response (ED-1 / F-12, F-21).
+	 * Browser-level defences for every HTML response.
 	 *
 	 * Next.js owns the page CSP because it is the only layer that knows what
 	 * the app actually loads. The backend sets its own, much tighter policy for
@@ -103,7 +103,7 @@ const config: NextConfig = {
 			`connect-src 'self' ${apiOrigin}${isDev ? " ws: wss:" : ""}`.trim(),
 			"worker-src 'self' blob:",
 			"manifest-src 'self'",
-			// Retires the F-21 clickjacking path: /user-management cannot be
+			// Retires the clickjacking path: /user-management cannot be
 			// framed, so framed clicks can never reach role assignment.
 			"frame-ancestors 'none'",
 			"base-uri 'self'",
@@ -121,7 +121,7 @@ const config: NextConfig = {
 		]
 
 		// HSTS is a promise the browser remembers and max-age cannot be
-		// withdrawn quickly, so it waits for TLS to actually terminate (ED-2).
+		// withdrawn quickly, so it waits for TLS to actually terminate.
 		if (process.env.ENABLE_HSTS === "true") {
 			headers.push({
 				key: "Strict-Transport-Security",

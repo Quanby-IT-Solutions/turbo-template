@@ -1,5 +1,5 @@
 /**
- * Parse a comma-separated origin allowlist (AC-5 / F-32).
+ * Parse a comma-separated origin allowlist.
  *
  * Both allowlists in this codebase — Better Auth's `trustedOrigins` and the
  * backend's CORS origins — were split on "," with no trim and no empty filter.

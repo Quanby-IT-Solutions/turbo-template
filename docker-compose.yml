@@ -53,7 +53,7 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
-      # ED-2: defaults to the HTTP-only dev config so a fresh clone works with
+      # NGINX_CONF defaults to the HTTP-only dev config so a fresh clone works with
       # no certificates. Point NGINX_CONF at ./nginx/nginx.conf for the
       # TLS-terminating production config, and mount certificates alongside.
       #
@@ -139,7 +139,7 @@ services:
       # Server Configuration
       - NODE_ENV=production
       - PORT=3000
-      # AB-2: point the backend at the `redis` service this file already starts.
+      # Point the backend at the `redis` service this file already starts.
       # Without it the stack ran a Redis nothing connected to — the backend fell
       # back to process-local throttle counters and RBAC cache, so the guarantee
       # that limits hold cluster-wide and a revoked role dies everywhere at once
@@ -172,7 +172,7 @@ services:
     restart: unless-stopped
 
   # ----------------------------------------------------------
-  # Redis — shared throttle counters + RBAC permission cache (AB-2)
+  # Redis — shared throttle counters + RBAC permission cache
   # ----------------------------------------------------------
   # No `ports:` mapping on purpose. Redis is reachable only from the compose
   # network by service name; publishing it would expose an authenticated but

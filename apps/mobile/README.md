@@ -15,11 +15,11 @@ For help getting started with Flutter development, view the
 [online documentation](https://docs.flutter.dev/), which offers tutorials,
 samples, guidance on mobile development, and a full API reference.
 
-## Build configuration (MB-2)
+## Build configuration
 
 Configuration is compiled in with `--dart-define`. It is **not** read from a
 bundled `.env`: a Flutter asset ships inside the APK in cleartext and is
-readable by unzipping the package (F-42).
+readable by unzipping the package.
 
 ```bash
 # Local development — no flags needed; debug falls back to the emulator alias
@@ -38,7 +38,7 @@ A **release build refuses to start without `API_BASE_URL`** and requires
 `https://`. There is deliberately no fallback — a silent default is how a
 production build ends up talking plaintext to a laptop address. The release
 manifest denies cleartext traffic (`usesCleartextTraffic="false"`); the
-debug-only manifest re-enables it for local HTTP work (F-24).
+debug-only manifest re-enables it for local HTTP work.
 
 CI builds must pass the define.
 

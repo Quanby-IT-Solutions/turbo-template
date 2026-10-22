@@ -63,7 +63,7 @@ export type TodoUi = {
 	updatedAt: Date
 }
 
-// WC-3: every rehydratable mutation carries the identity that queued it, so a
+// Every rehydratable mutation carries the identity that queued it, so a
 // device handover cannot replay one person's offline writes as another's.
 type CreateTodoVars = {
 	title: string

@@ -73,7 +73,7 @@ export class RbacAdminService {
 	}
 
 	async createRole(payload: CreateRoleInput, actorId: string | null): Promise<Role> {
-		// AZ-4: the role row and its audit entry share one transaction, so a
+		// The role row and its audit entry share one transaction, so a
 		// role can never appear without a record of who created it.
 		const roleId = await db.transaction(async tx => {
 			const [existing] = await tx.select().from(roles).where(eq(roles.name, payload.name))
@@ -278,11 +278,11 @@ export class RbacAdminService {
 
 	// ---------------------------------------------------------------- users
 	/**
-	 * List users (AZ-5 / F-51).
+	 * List users.
 	 *
 	 * `includeDirectory` decides whether email addresses are returned. Holding
 	 * `users:read` used to yield the complete email directory, so granting
-	 * someone support-ticket triage (AZ-1, also on `users:read`) handed them
+	 * someone support-ticket triage (also on `users:read`) handed them
 	 * every address as a side effect.
 	 *
 	 * The design call: the endpoint OMITS the emails rather than returning 403.

@@ -5,10 +5,10 @@ import * as React from "react"
 import { env } from "@/env"
 
 /**
- * First-party connectivity probe (WC-4 / F-50, brought forward by ED-1).
+ * First-party connectivity probe.
  *
  * This used to hit `https://www.gstatic.com/generate_204`, which leaked the
- * user's IP and session duration to a third party every 15 seconds. ED-1's CSP
+ * user's IP and session duration to a third party every 15 seconds. The CSP
  * then made that actively harmful rather than merely leaky: `connect-src` does
  * not allow gstatic, so the probe throws, the app concludes it is offline, and
  * `networkMode: "online"` pauses **every** mutation indefinitely — todos never

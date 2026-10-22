@@ -13,10 +13,9 @@ export type MailMessage = {
 /**
  * Send an email through the given transport.
  *
- * LG-1 / F-05: this used to write `info.message` — the entire serialized email,
+ * This used to write `info.message` — the entire serialized email,
  * verification and password-reset links included — to stdout via `console.log`,
- * bypassing Pino's redaction entirely. Anyone with log access could complete a
- * password reset for any account that had requested one.
+ * outside Pino's redaction. The body stays out of the log.
  *
  * The dev transport still needs *some* signal that mail was produced, so the
  * envelope is logged and the body is not. Real SMTP errors propagate to the

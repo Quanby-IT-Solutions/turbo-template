@@ -14,7 +14,7 @@ concurrency:
   group: deploy-staging
   cancel-in-progress: true
 
-# CI-6: least privilege. This workflow reads the repo and talks to AWS and the
+# Least privilege. This workflow reads the repo and talks to AWS and the
 # staging host with their own credentials; it never writes back to GitHub.
 permissions:
   contents: read
@@ -48,7 +48,7 @@ jobs:
       # Public host key of the staging EC2 instance, in known_hosts format
       # (`ssh-keyscan -t ed25519 <host>`). A repo *variable*, not a secret — it
       # is public key material, and keeping it readable means a change is
-      # visible in review rather than silently swapped. See RF4.
+      # visible in review rather than silently swapped.
       STG_EC2_HOST_KEY: ${{ vars.STG_EC2_HOST_KEY }}
       NODE_ENV: "production"
       NEXT_PUBLIC_APP_URL: ${{ vars.NEXT_PUBLIC_APP_URL }}
@@ -77,7 +77,7 @@ jobs:
           require_var STG_EC2_HOST
           # Without a pinned host key there is nothing to verify the server
           # against, so refuse to deploy rather than fall back to trusting
-          # whatever answers (RF4).
+          # whatever answers.
           require_var STG_EC2_HOST_KEY
           require_var NEXT_PUBLIC_APP_URL
           require_var NEXT_PUBLIC_API_BASE_URL
@@ -130,11 +130,11 @@ jobs:
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: /tmp/.buildx-cache
-          # CI-6 / F-27: the key is content-addressed on the Dockerfiles and
+          # The key is content-addressed on the Dockerfiles and
           # the lockfile, and restore-keys is scoped to the same ref. A broad
           # prefix let a build on any ref restore -- and then extend -- a cache
-          # populated by another ref, which is a path for a poisoned layer from
-          # an untrusted branch to reach a deploy build.
+          # populated by another ref. Scoping the key to this ref keeps another
+          # branch's layer out of a deploy build.
           key: ${{ runner.os }}-buildx-staging-${{ github.ref_name }}-${{ hashFiles('apps/*/Dockerfile', 'pnpm-lock.yaml') }}-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-buildx-staging-${{ github.ref_name }}-${{ hashFiles('apps/*/Dockerfile', 'pnpm-lock.yaml') }}-
@@ -176,7 +176,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          # RF4: the private key goes straight from the secret store into the
+          # The private key goes straight from the secret store into the
           # agent's memory. It is never written to the runner's disk, so a
           # failed or compromised later step has no file to read — and no
           # cleanup step has to be relied on to run.

@@ -3,7 +3,7 @@ import { expect, test, type Page } from "@playwright/test"
 import { gotoAndSettle, settleServiceWorker } from "../service-worker"
 
 /**
- * WC-2 / F-20 + F-48 — the service worker must not cache token URLs, and must
+ * The service worker must not cache token URLs, and must
  * not fake authenticated pages offline.
  *
  * Runs unauthenticated on purpose: the reset and verification links are hit by
@@ -90,7 +90,7 @@ test("the offline fallback does not impersonate an authenticated page", async ({
 		// eslint-disable-next-line no-console
 		console.log("OFFLINE /dashboard body:", body.slice(0, 120))
 
-		// F-48: the request must fail honestly rather than render the generic
+		// The request must fail honestly rather than render the generic
 		// offline shell as though it were the dashboard.
 		const servedFallback = /offline/i.test(body) && response?.ok() === true
 		expect(servedFallback).toBe(false)

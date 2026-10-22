@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { renderHook, waitFor } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
-// WC-1 / RF1: sign-out must clear memory before disk, and a purge that fails
+// Sign-out must clear memory before disk, and a purge that fails
 // must surface — never navigate away as though the device were clean.
 
 const signOut = vi.fn()
@@ -68,7 +68,7 @@ describe("useSignOutMutation", () => {
 
 		await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
-		// RF1: memory -> disk -> done. A disk purge that ran first could be
+		// The order is memory, then disk, then done. A disk purge that ran first could be
 		// undone by the persister writing the still-populated memory cache back.
 		expect(order).toEqual(["memory", "disk", "navigate"])
 		expect(writeCacheIdentity).toHaveBeenCalledWith(null)

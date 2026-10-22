@@ -70,14 +70,14 @@ Remediation. Reject assignment of ADMIN_ROLE unless the caller already holds it;
 ### No last-Admin protection on role removal
 Severity: Low · Confidence: High
 
-removeRole deletes the userRoles row with no check on whether this is the final Admin assignment. Also a TOCTOU race on concurrent removals.
+removeRole deletes the userRoles row with no check on whether this is the final Admin assignment. Also a check-then-write race between concurrent requests.
 
 Remediation. Inside a transaction, count remaining Admin assignments before deleting and reject if the count would reach zero.
 
 ### ticket.submit never records the authenticated author
 Severity: Low · Confidence: High
 
-authorId column exists and is nullable; submit handler takes no @Session() and service never sets it. Every ticket created through the API is orphaned with authorId = null. Attacker-controlled name and email are the only identity recorded.
+authorId column exists and is nullable; submit handler takes no @Session() and service never sets it. Every ticket created through the API is orphaned with authorId = null. The name and email supplied with the request are the only identity recorded.
 
 Remediation. Thread session.user.id into the insert, exactly as todos.controller.ts:42 does.
 

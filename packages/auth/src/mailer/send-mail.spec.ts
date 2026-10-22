@@ -5,10 +5,9 @@ import { buildResetPasswordEmail } from "./templates/reset-password-email.js"
 import { buildVerificationEmail } from "./templates/verification-email.js"
 import { createTransport } from "./transport-factory.js"
 
-// LG-1 / F-05: the dev transport used to write the whole serialized message —
+// The dev transport used to write the whole serialized message —
 // verification and password-reset links included — to stdout via console.log,
-// bypassing Pino redaction entirely. Anyone with log access could complete a
-// password reset for any account that had requested one.
+// outside Pino's redaction. The body stays out of the log.
 
 const RESET_TOKEN = "live-reset-token-9f3a"
 const RESET_URL = `https://app.local/reset-password?token=${RESET_TOKEN}`
@@ -112,7 +111,7 @@ describe("sendMail on the dev transport", () => {
 	})
 
 	it("lets a real SMTP failure propagate to the caller", async () => {
-		// AC-4 sanitizes it into a generic response; swallowing it here would
+		// The reset caller sanitizes it into a generic response; swallowing it here would
 		// make that impossible and hide a broken mail server.
 		const transporter = {
 			sendMail: vi.fn().mockRejectedValue(new Error("ECONNREFUSED smtp.internal:587")),

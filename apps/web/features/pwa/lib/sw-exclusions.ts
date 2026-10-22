@@ -1,5 +1,5 @@
 /**
- * What the service worker must never cache or fake (WC-2 / F-20, F-48).
+ * What the service worker must never cache or fake.
  *
  * Lives outside `sw.ts` so the rules are unit-testable and defined in exactly
  * one place — `sw.ts` imports them rather than restating them, and a new
@@ -46,7 +46,7 @@ export function isAuthenticatedRoute(url: URL): boolean {
 /**
  * Whether the offline fallback page may stand in for this navigation.
  *
- * Excludes authenticated routes (F-48) and token-bearing links: the offline
+ * Excludes authenticated routes and token-bearing links: the offline
  * shell cannot consume a token, so showing it strands the user on a link they
  * cannot retry.
  */

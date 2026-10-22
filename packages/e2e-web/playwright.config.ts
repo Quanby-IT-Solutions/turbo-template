@@ -19,7 +19,7 @@ export default defineConfig({
 		screenshot: "only-on-failure",
 		video: "off",
 	},
-	// HY-1 / F-54: the URL is derived from BASE_URL rather than hard-coded.
+	// The URL is derived from BASE_URL rather than hard-coded.
 	// It was pinned to :3001, so pointing BASE_URL at any other port still made
 	// Playwright start (and fail to start) a second server on :3001 — the suite
 	// could only ever run against one address.

@@ -2,7 +2,7 @@ import { getSession, SessionUnavailableError } from "@/services/better-auth/auth
 import { CacheIdentityStamp } from "@/services/tanstack-query/provider"
 
 /**
- * Binds the persisted query cache to the signed-in user (WC-1 / F-04).
+ * Binds the persisted query cache to the signed-in user.
  *
  * Render this once per authenticated subtree. It resolves the session on the
  * server and hands the id to the client stamp, which scopes every IndexedDB

@@ -1,5 +1,5 @@
 /**
- * AZ-3 / F-11 + F-30 — ownership scoping on todo mutations, ticket authorship.
+ * Ownership scoping on todo mutations, ticket authorship.
  *
  * Against a real Postgres: the guarantee is that the `where` clause matches
  * zero rows for a non-owner, which is a property of the query, not of the
@@ -88,7 +88,7 @@ async function todoOwnedByA(title = "A's todo") {
 	return service.create({ payload: { title, completed: false }, authorId: USER_A })
 }
 
-describe("todo mutations are scoped to the owner (F-11)", () => {
+describe("todo mutations are scoped to the owner", () => {
 	beforeEach(async () => {
 		if (!dbReachable) return
 		await db.delete(todos).where(eq(todos.authorId, USER_A))
@@ -187,7 +187,7 @@ describe("todo mutations are scoped to the owner (F-11)", () => {
 	})
 })
 
-describe("submitted tickets are attributed (F-30)", () => {
+describe("submitted tickets are attributed", () => {
 	const ticketsService = new TicketsService()
 
 	itDb("records the submitting user's id", async () => {

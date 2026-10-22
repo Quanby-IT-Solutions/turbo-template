@@ -24,7 +24,7 @@ import { Textarea } from "@/core/components/ui/textarea"
 import { useSubmitTicketMutation } from "@/features/tickets/api/tickets.hooks"
 
 // Kept in step with CreateTicketSchema: the server bounds `concern` at 5000
-// (HY-2 / F-29). Declaring it here too turns a 400 round-trip into an inline
+// Declaring it here too turns a 400 round-trip into an inline
 // message, but the server remains the authority — this is a convenience, not
 // the check.
 const CONCERN_MAX_LENGTH = 5000

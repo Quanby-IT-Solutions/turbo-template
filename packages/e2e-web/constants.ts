@@ -3,7 +3,7 @@ import path from "path"
 export const AUTH_FILE = path.join(__dirname, ".auth/session.json")
 
 /**
- * A second stored session, for the seeded admin (HY-1 / F-54).
+ * A second stored session, for the seeded admin.
  *
  * Tests that exercise a permission-gated screen need an identity that holds the
  * permission; `AUTH_FILE` belongs to userA, who holds no role. Signing in per

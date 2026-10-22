@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest"
 
 import { useIsQueryLoading } from "./use-query-loading"
 
-// WC-1: the persisted-cache restore pins `fetchStatus` to `idle`, so a query
+// The persisted-cache restore pins `fetchStatus` to `idle`, so a query
 // with no data reports `isLoading === false` on the client's first render while
 // the server rendered the same component with `isLoading === true`. That
 // disagreement is a hydration mismatch; this predicate closes it.

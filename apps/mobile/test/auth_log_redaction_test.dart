@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-/// LG-1 / F-05 — mobile log redaction.
+/// Mobile log redaction.
 ///
 /// `AuthRepository` used to interpolate whole response bodies — session tokens
 /// included — into `dart:developer`'s `log()`. That call is **not** stripped

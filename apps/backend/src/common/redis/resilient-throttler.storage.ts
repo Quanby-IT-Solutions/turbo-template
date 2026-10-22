@@ -3,7 +3,7 @@ import type { ThrottlerStorage } from "@nestjs/throttler"
 import type { ThrottlerStorageRecord } from "@nestjs/throttler/dist/throttler-storage-record.interface"
 
 /**
- * Redis-backed throttle storage that fails **open** (AB-2 / F-38).
+ * Redis-backed throttle storage that fails **open**.
  *
  * `ThrottlerStorageRedisService` propagates connection errors, and the
  * ThrottlerGuard turns those into a 500. That converts a Redis outage into a

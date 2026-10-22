@@ -2,12 +2,12 @@ import { existsSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import { describe, expect, it } from "vitest"
 
-/** HY-2 — F-41, F-52, F-61, F-62. Checked-in artefacts that mislead. */
+/** Checked-in artefacts that mislead. */
 
 const root = join(__dirname, "../../../..")
 const read = (p: string) => readFileSync(join(root, p), "utf8")
 
-describe("no working credentials in example files (F-41, F-61)", () => {
+describe("no working credentials in example files", () => {
 	it("packages/db/.env.example ships a placeholder, not a real pair", () => {
 		const env = read("packages/db/.env.example")
 		expect(env).not.toContain("postgres://postgres:password@")
@@ -23,7 +23,7 @@ describe("no working credentials in example files (F-41, F-61)", () => {
 	})
 })
 
-describe("dead weight is gone (F-52)", () => {
+describe("dead weight is gone", () => {
 	it("has no unused root Dockerfile", () => {
 		// It built the whole monorepo with dev dependencies and full source into a
 		// shipped image, and nothing referenced it. The real ones are per-app.
@@ -33,7 +33,7 @@ describe("dead weight is gone (F-52)", () => {
 	})
 })
 
-describe("submit form is real (F-62)", () => {
+describe("submit form is real", () => {
 	const page = read("apps/web/app/(site)/(protected)/submit-ticket/page.tsx")
 
 	it("calls the ticket endpoint instead of faking success", () => {
@@ -52,7 +52,7 @@ describe("submit form is real (F-62)", () => {
 	})
 })
 
-describe("drizzle 1.0 upgrade is tracked (F-53)", () => {
+describe("drizzle 1.0 upgrade is tracked", () => {
 	it("records the deferred upgrade and keeps the pins exact", () => {
 		expect(read("docs/UPGRADES.md")).toContain("drizzle-orm / drizzle-kit 1.0")
 		// A range on a pre-release is the specific risk the entry warns about.

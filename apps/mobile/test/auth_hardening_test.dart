@@ -5,9 +5,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/auth/presentation/utils/auth_error_message.dart';
 import 'package:mobile/features/auth/presentation/utils/auth_validation.dart';
 
-/// MB-3 / F-44..F-47 — release hardening.
+/// Release hardening.
 void main() {
-  group('error messages never leak infrastructure (F-45)', () {
+  group('error messages never leak infrastructure', () {
     final host = 'http://internal-api.corp.local:8443/api/v1/auth/sign-in/email';
 
     DioException dio(DioExceptionType type, {int? status}) => DioException(
@@ -34,7 +34,7 @@ void main() {
 
     test('401 and 403 are indistinguishable', () {
       // A distinct message per case is an account-enumeration oracle, the same
-      // reasoning as AC-4's reset path.
+      // reasoning as the reset path.
       expect(
         authErrorMessage(dio(DioExceptionType.badResponse, status: 401)),
         authErrorMessage(dio(DioExceptionType.badResponse, status: 403)),
@@ -56,7 +56,7 @@ void main() {
     });
   });
 
-  group('password rules match the server (F-46)', () {
+  group('password rules match the server', () {
     test('minimum is 8, matching register.schema.ts', () {
       expect(AuthValidation.passwordMinLength, 8);
     });
@@ -75,7 +75,7 @@ void main() {
     });
   });
 
-  group('release hardening (F-44, F-47)', () {
+  group('release hardening', () {
     String read(String p) => File(p).readAsStringSync();
 
     test('manifest drops the unused permissions and denies backup', () {

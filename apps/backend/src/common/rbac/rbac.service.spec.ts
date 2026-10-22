@@ -1,7 +1,7 @@
 import { RbacService } from "./rbac.service"
 
 // `RbacService` refuses with `ORPCError` so oRPC maps denials to real statuses
-// rather than a 500 (AZ-2). `@orpc/server` is ESM and this jest config does not
+// rather than a 500. `@orpc/server` is ESM and this jest config does not
 // transform it, so it is stubbed here as it is in the other RBAC specs.
 jest.mock("@orpc/server", () => ({
 	ORPCError: class ORPCError extends Error {
@@ -55,7 +55,7 @@ describe("RbacService", () => {
 			invalidate: jest.fn(),
 		}
 
-		// AZ-4: RbacService now writes an audit entry inside every grant/removal
+		// RbacService now writes an audit entry inside every grant/removal
 		// transaction. This test only exercises the read path, so the collaborator
 		// is a stub — the in-transaction behaviour is covered in audit.service.spec.
 		const auditService = { record: jest.fn(), list: jest.fn() }

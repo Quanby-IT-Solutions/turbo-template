@@ -17,7 +17,7 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-# CI-6 / F-26: least privilege, stated rather than inherited.
+# Least privilege: permissions are stated rather than inherited.
 #
 # Without a block here the job runs on whatever the repository/organization
 # default grants, which is commonly write-all — the caller's token is the
@@ -28,7 +28,7 @@ concurrency:
 # restrict the caller's token, never escalate it, and the quality gate posts
 # coverage comments and check results, which need `pull-requests: write` and
 # `checks: write`; a read-only baseline here would break them on every PR.
-# These three are the callee's actual requirements (confirmed in the CI-3
+# These three are the callee's actual requirements (confirmed in the
 # review of the pinned SHA below) and nothing more — no `packages`, no
 # `id-token`, no `actions: write`.
 permissions:
@@ -101,7 +101,7 @@ jobs:
     # quality gate — or replace it — without a single review here.
     #
     # Pinned commit: db900a0 "Update timeout settings for jobs in quality gate
-    # workflow" (2026-07-05). Reviewed at this SHA on 2026-08-12 (CI-3 / F-09);
+    # workflow" (2026-07-05). Reviewed at this SHA on 2026-08-12;
     # it runs, in order: pnpm typecheck, pnpm lint, pnpm format, and
     # `pnpm turbo test:cov` for unit tests, plus Playwright e2e when web or its
     # upstream packages change. A final `quality-gate` job fails the run if
@@ -118,11 +118,11 @@ jobs:
     # `secrets: inherit` handed every repository secret — AWS keys, the auth
     # signing secret, the database URL — to an external workflow that declares
     # exactly one optional secret. Only that one is passed now, so a compromise
-    # of the external repo has nothing to exfiltrate.
+    # of the external repo receives no other repository secret.
     secrets:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-  # E2E-001 / QUA-7. Backend Jest e2e should run on PRs to dev.
+  # Backend Jest e2e should run on PRs to dev.
   #
   # The reusable quality gate's e2e job runs Playwright (`pnpm test:e2e:web`)
   # and has no Postgres service. It never runs `pnpm -F @repo/backend test:e2e`.
@@ -324,3 +324,16 @@ jobs:
           path: packages/e2e-web/playwright-report/
           if-no-files-found: ignore
           retention-days: 7
+
+  public-ids:
+    name: Public ids
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Check public ids
+        run: bash scripts/check-public-ids.sh

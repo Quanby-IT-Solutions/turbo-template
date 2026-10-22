@@ -1,5 +1,5 @@
 /**
- * Identity-scoped persistence for the TanStack Query cache (WC-1 / F-04).
+ * Identity-scoped persistence for the TanStack Query cache.
  *
  * The persisted cache used to live under one shared, user-agnostic IndexedDB
  * key with no `maxAge` and no buster, and it persisted *everything* — session
@@ -12,9 +12,9 @@
  *     reach disk in the first place (see `shouldPersistQuery` in query-client).
  *  2. Identity-scoped storage keys — user A's snapshot is unreachable from
  *     user B's session even if a purge never ran (crash, expired cookie).
- *  3. `purgePersistedCache()` — the disk half of the RF1 sign-out purge.
+ *  3. `purgePersistedCache()` — the disk half of the sign-out purge.
  *
- * Risky Flow **RF1**: the order is memory → disk → done. A purge that throws
+ * The order is memory → disk → done. A purge that throws
  * must not leave the disk copy behind, so the delete is retried.
  */
 
@@ -33,7 +33,7 @@ import {
 export const PERSISTED_CACHE_KEY_PREFIX = "turbo-template-query-cache"
 
 /**
- * The persister's default key, used before WC-1 introduced identity scoping.
+ * The persister's default key is what was used before identity scoping.
  * Purged alongside our own buckets so upgrading clients don't keep a
  * pre-fix snapshot on disk forever.
  */
@@ -179,7 +179,7 @@ export function createIdentityScopedStorage(idb: {
 	}
 }
 
-/** True for any IndexedDB key this app owns, including the pre-WC-1 default. */
+/** True for any IndexedDB key this app owns, including the previous default. */
 export function isPersistedCacheKey(key: IDBValidKey): key is string {
 	return (
 		typeof key === "string" &&
@@ -192,7 +192,7 @@ export function isPersistedCacheKey(key: IDBValidKey): key is string {
  * Sign-out is the one moment we can be sure nothing on this profile should be
  * restorable, so a bucket abandoned by an earlier crashed session goes too.
  *
- * RF1: retried, because a purge that throws must not leave the disk copy.
+ * The delete is retried, because a purge that throws must not leave the disk copy.
  */
 export async function purgePersistedCache(attempts = 3): Promise<void> {
 	if (typeof window === "undefined") return

@@ -1,4 +1,4 @@
-# MB-3 / F-44 — Android release signing.
+# Android release signing.
 #
 # Copy to android/key.properties (gitignored) and fill in. NEVER commit the
 # real file or the keystore it points at: whoever holds them can publish an

@@ -50,9 +50,9 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
 			try {
 				await login(value)
 			} catch {
-				// Surfaced via the mutation's error state. Catching keeps
-				// TanStack Form's handleSubmit() from rejecting, which would
-				// be an unhandled rejection on the form's submit handler.
+				// The mutation stores the error, and the banner reads that state.
+				// Catching keeps TanStack Form's handleSubmit() from rejecting,
+				// which would be an unhandled rejection on the form's submit handler.
 			}
 		},
 	})

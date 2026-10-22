@@ -20,10 +20,10 @@ A complete reference for the three-tier testing strategy in this monorepo: **uni
 
 ## Overview
 
-| Layer | Tool | Packages | Environment |
-|-------|------|----------|-------------|
-| Unit / Component | Vitest + React Testing Library | `apps/web`, `packages/contracts` | jsdom / node |
-| E2E | Playwright | `packages/e2e-web` | Chromium (headless) |
+| Layer            | Tool                           | Packages                         | Environment         |
+| ---------------- | ------------------------------ | -------------------------------- | ------------------- |
+| Unit / Component | Vitest + React Testing Library | `apps/web`, `packages/contracts` | jsdom / node        |
+| E2E              | Playwright                     | `packages/e2e-web`               | Chromium (headless) |
 
 The root `vitest.config.ts` aggregates both package configs into a single workspace:
 
@@ -212,8 +212,7 @@ describe("TodoIdSchema", () => {
 
 ```bash
 # Install Playwright browsers (first time or after updates)
-cd packages/e2e-web
-npx playwright install chromium --with-deps
+pnpm --filter @repo/e2e-web exec playwright install --with-deps chromium
 ```
 
 ### Running
@@ -238,14 +237,14 @@ BASE_URL=https://staging.example.com pnpm test:e2e:web
 
 **`packages/e2e-web/playwright.config.ts`**
 
-| Setting | Local | CI |
-|---------|-------|----|
-| Retries | 0 | 2 |
-| Workers | CPU-based | 1 (serial) |
-| Reporter | HTML | Blob |
-| Base URL | `http://localhost:3001` | `$BASE_URL` |
-| Screenshots | On failure | On failure |
-| Trace | On first retry | On first retry |
+| Setting     | Local                   | CI             |
+| ----------- | ----------------------- | -------------- |
+| Retries     | 0                       | 2              |
+| Workers     | CPU-based               | 1 (serial)     |
+| Reporter    | HTML                    | Blob           |
+| Base URL    | `http://localhost:3001` | `$BASE_URL`    |
+| Screenshots | On failure              | On failure     |
+| Trace       | On first retry          | On first retry |
 
 ### Writing E2E tests
 
@@ -294,9 +293,9 @@ pnpm --filter @repo/contracts test:cov
 
 ### Report locations
 
-| Package | HTML report | JSON summary |
-|---------|-------------|--------------|
-| `apps/web` | `apps/web/coverage/index.html` | `apps/web/coverage/coverage-summary.json` |
+| Package              | HTML report                              | JSON summary                                        |
+| -------------------- | ---------------------------------------- | --------------------------------------------------- |
+| `apps/web`           | `apps/web/coverage/index.html`           | `apps/web/coverage/coverage-summary.json`           |
 | `packages/contracts` | `packages/contracts/coverage/index.html` | `packages/contracts/coverage/coverage-summary.json` |
 
 Open the HTML report in a browser for line-by-line coverage:
@@ -313,10 +312,10 @@ start apps/web/coverage/index.html
 
 Tests fail if coverage drops below these thresholds:
 
-| Package | Lines | Functions | Branches | Statements |
-|---------|-------|-----------|----------|------------|
-| `apps/web` | 60% | 60% | 50% | 60% |
-| `packages/contracts` | 90% | 90% | 85% | 90% |
+| Package              | Lines | Functions | Branches | Statements |
+| -------------------- | ----- | --------- | -------- | ---------- |
+| `apps/web`           | 60%   | 60%       | 50%      | 60%        |
+| `packages/contracts` | 90%   | 90%       | 85%      | 90%        |
 
 `packages/contracts` has stricter thresholds because it defines the API contract boundary — schema regressions have wider blast radius.
 
@@ -326,12 +325,12 @@ Tests fail if coverage drops below these thresholds:
 
 ### File naming
 
-| Type | Pattern | Example |
-|------|---------|---------|
-| Unit / hook | `*.test.ts` | `use-auth.test.ts` |
-| Component | `*.test.tsx` | `todo-card.test.tsx` |
-| Schema | `*.test.ts` | `todos.schema.test.ts` |
-| E2E | `*.spec.ts` | `checkout.spec.ts` |
+| Type        | Pattern      | Example                |
+| ----------- | ------------ | ---------------------- |
+| Unit / hook | `*.test.ts`  | `use-auth.test.ts`     |
+| Component   | `*.test.tsx` | `todo-card.test.tsx`   |
+| Schema      | `*.test.ts`  | `todos.schema.test.ts` |
+| E2E         | `*.spec.ts`  | `checkout.spec.ts`     |
 
 ### Co-location rule
 
@@ -441,23 +440,24 @@ pnpm format
 
 ### Job 2 — Unit Tests
 
-| Trigger | Command |
-|---------|---------|
-| Pull request | `pnpm turbo test:cov --affected` |
-| Branch push | `pnpm turbo test:cov` (full suite) |
+| Trigger      | Command                            |
+| ------------ | ---------------------------------- |
+| Pull request | `pnpm turbo test:cov --affected`   |
+| Branch push  | `pnpm turbo test:cov` (full suite) |
 
 On pull requests, the job also:
+
 - Posts per-file coverage annotations via `davelosert/vitest-coverage-report-action` (only when coverage files exist)
 - Leaves a sticky PR comment with actual coverage percentages and pass/fail status
 
 ### Job 3 — E2E Tests
 
-| Trigger | Behavior |
-|---------|----------|
-| Push to `staging` or `production` | Always runs |
-| Push to `dev` | Always runs |
-| Pull request | Only runs if `apps/web/**`, `packages/contracts/**`, `packages/auth/**`, `packages/db/**`, or `packages/e2e-web/**` changed |
-| `workflow_dispatch` | Always runs |
+| Trigger                           | Behavior                                                                                                                    |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Push to `staging` or `production` | Always runs                                                                                                                 |
+| Push to `dev`                     | Always runs                                                                                                                 |
+| Pull request                      | Only runs if `apps/web/**`, `packages/contracts/**`, `packages/auth/**`, `packages/db/**`, or `packages/e2e-web/**` changed |
+| `workflow_dispatch`               | Always runs                                                                                                                 |
 
 On failure, the Playwright HTML report is uploaded as a GitHub Actions artifact (retained 7 days).
 

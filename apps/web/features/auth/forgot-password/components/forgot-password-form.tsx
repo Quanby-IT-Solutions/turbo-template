@@ -38,8 +38,14 @@ export function ForgotPasswordForm({ className, ...props }: React.ComponentProps
 			onSubmit: ForgotPasswordSchema,
 		},
 		onSubmit: async ({ value }) => {
-			await forgotPassword(value)
-			setIsSubmitted(true)
+			// A thrown rate-limit error stays on the mutation. Only a resolved
+			// call moves on to the neutral confirmation.
+			try {
+				await forgotPassword(value)
+				setIsSubmitted(true)
+			} catch {
+				// Banner reads the mutation error.
+			}
 		},
 	})
 

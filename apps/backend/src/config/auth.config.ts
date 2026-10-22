@@ -2,7 +2,7 @@ import { Logger, type INestApplication } from "@nestjs/common"
 import type { IncomingMessage, ServerResponse } from "http"
 import { toNodeHandler } from "better-auth/node"
 
-import { AUTH_BASE_PATH, getAuth } from "@repo/auth"
+import { AUTH_BASE_PATH, AUTH_CLIENT_ADDRESS_HEADER, getAuth } from "@repo/auth"
 
 import { enforceAuthBodyLimit } from "@/common/auth-body-limit"
 import { getVersionKeys } from "@/config/api-versions.config"
@@ -10,6 +10,35 @@ import { MAX_REQUEST_BODY_SIZE } from "@/config/app.config"
 import { generateBetterAuthSchema } from "@/utils/openapi"
 
 const logger = new Logger("BetterAuthConfig")
+
+interface AuthIncomingMessage extends IncomingMessage {
+	/** Address Express resolved from `trust proxy`. Absent when unset. */
+	ip?: string
+}
+
+/**
+ * Write the client address Better Auth's limiter keys on.
+ *
+ * Express resolves `req.ip` from the trust chain in DOMAIN-MODEL.md
+ * (`trust proxy` = TRUST_PROXY): one trusted hop, so the rightmost entry is
+ * the address that hop saw. Better Auth reads only
+ * `AUTH_CLIENT_ADDRESS_HEADER` and only when it is a single address, so
+ * every own header of that name, in any letter case, is removed first. A
+ * request with no `req.ip` gets no header and keeps the library's own
+ * fallback.
+ */
+function applyResolvedClientAddress(req: AuthIncomingMessage): void {
+	for (const name of Object.keys(req.headers)) {
+		if (name.toLowerCase() === AUTH_CLIENT_ADDRESS_HEADER) {
+			delete req.headers[name]
+		}
+	}
+	const address = req.ip
+	if (!address) {
+		return
+	}
+	req.headers[AUTH_CLIENT_ADDRESS_HEADER] = address
+}
 
 // No context name: the warn line is only requestId, status and type, the same
 // shape the JSON parser's 413 uses.
@@ -29,7 +58,7 @@ interface JsonResponse {
 function createAuthMiddleware(versionedAuthPaths: string[]) {
 	const handler = toNodeHandler(getAuth())
 
-	return (req: IncomingMessage, res: ServerResponse, next: () => void) => {
+	return (req: AuthIncomingMessage, res: ServerResponse, next: () => void) => {
 		const url = req.url ?? ""
 
 		// AC-5 / F-57: match on a PREFIX BOUNDARY, not a bare `startsWith`.
@@ -49,6 +78,7 @@ function createAuthMiddleware(versionedAuthPaths: string[]) {
 
 		if (matchedPath) {
 			req.url = url.replace(matchedPath, AUTH_BASE_PATH)
+			applyResolvedClientAddress(req)
 			// Better Auth reads the raw stream and the pinned handler accepts
 			// no body limit. Cap the body here, before that handler runs.
 			// GET, HEAD, OPTIONS and requests with no body are forwarded as they

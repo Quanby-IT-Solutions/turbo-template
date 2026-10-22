@@ -8,15 +8,14 @@ import { z } from "zod"
  * NestJS backend's own env config. They MUST agree on what counts as an
  * acceptable secret, so the rules live here once and both import them.
  *
- * Risky Flow **RF3** (fail-closed boot): a missing, short, or template-default
- * secret must stop the process at startup rather than silently enabling session
- * forgery for every account, including Admin.
+ * A missing, short, or template-default secret must stop the process at
+ * startup. Otherwise sessions become untrustworthy for every account,
+ * including Admin.
  */
 
 /**
  * Minimum accepted length. `openssl rand -base64 32` produces 44 characters, so
- * a real secret clears this comfortably; 32 is the floor below which brute
- * force becomes plausible.
+ * a real secret clears this comfortably. 32 is the floor.
  */
 export const AUTH_SECRET_MIN_LENGTH = 32
 
@@ -24,7 +23,7 @@ export const AUTH_SECRET_MIN_LENGTH = 32
  * Lowercased prefixes that identify a value copied straight out of the
  * template/docs rather than generated. Matched case-insensitively.
  *
- * `default-secret` is the value `.env.example` used to ship (F-03); the rest
+ * `default-secret` is the value `.env.example` used to ship; the rest
  * cover the common "fill me in" placeholders, including the angle-bracket form
  * the example file now uses.
  */
@@ -59,5 +58,5 @@ export const authSecretSchema = z
 		`BETTER_AUTH_SECRET must be at least ${AUTH_SECRET_MIN_LENGTH} characters. ${GENERATE_HINT}`
 	)
 	.refine(value => !isPlaceholderSecret(value), {
-		message: `BETTER_AUTH_SECRET is still the template placeholder — sessions signed with a published secret are forgeable. ${GENERATE_HINT}`,
+		message: `BETTER_AUTH_SECRET is a placeholder or too short. ${GENERATE_HINT}`,
 	})

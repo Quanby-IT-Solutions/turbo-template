@@ -45,9 +45,9 @@ export const env = createEnv({
 		//   0 = no trusted hop. X-Forwarded-For is ignored and the socket peer is used.
 		TRUST_PROXY: z.coerce.number().int().min(0).default(1),
 
-		// Security headers (ED-1). HSTS is a promise the browser remembers, so it
-		// stays off until TLS actually terminates in the target environment
-		// (ED-2). Enabling it early pins clients to HTTPS a deployment cannot
+		// Security headers. HSTS is a promise the browser remembers, so it
+		// stays off until TLS actually terminates in the target environment.
+		// Enabling it early pins clients to HTTPS a deployment cannot
 		// serve, and max-age cannot be withdrawn quickly.
 		ENABLE_HSTS: booleanFromEnv.optional().default(false),
 
@@ -77,7 +77,7 @@ export const env = createEnv({
 		// Database
 		DATABASE_URL: z.string(),
 
-		// Redis (AB-2). Shared state for the throttler and the RBAC permission
+		// Redis. Shared state for the throttler and the RBAC permission
 		// cache. Optional so a single-instance local run still boots, but see
 		// the degradation notes in redis.provider.ts: without it, rate limits
 		// multiply by instance count and a revoked permission only dies on the
@@ -88,7 +88,7 @@ export const env = createEnv({
 
 		// Authentication.
 		// Same schema object the @repo/auth package validates with — the two
-		// processes sign the same sessions, so their rules must never drift (F-03).
+		// processes sign the same sessions, so their rules must never drift.
 		BETTER_AUTH_SECRET: authSecretSchema,
 		BETTER_AUTH_TRUSTED_ORIGINS: z.string(),
 
@@ -97,7 +97,7 @@ export const env = createEnv({
 		GOOGLE_CLIENT_SECRET: z.string().optional(),
 	},
 	runtimeEnv: process.env,
-	// CI-4 / F-16 (RF3): validation is never skipped merely because CI is set.
+	// Validation is never skipped merely because CI is set.
 	// It was disabled in exactly the environment meant to catch misconfiguration,
 	// so a missing or malformed value shipped instead of failing the build.
 	// `SKIP_ENV_VALIDATION` is the one documented escape hatch, for build-only

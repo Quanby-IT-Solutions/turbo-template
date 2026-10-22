@@ -1,3 +1,5 @@
+> These records are summarised for a public repo. They keep what was found, what changed, and where, without internal finding ids or step-by-step misuse.
+
 # Turbo Template Read-Only Security Audit Prompt
 
 This is a **READ-ONLY security audit** of the current Turbo Template monorepo.
@@ -79,9 +81,9 @@ If a concern depends on external configuration, label it **external dependency /
 - Include browser, backend, database, PWA, and mobile trust boundaries.
 - Search repository-wide before concluding that a capability is absent.
 - Consolidate duplicate root causes into one finding with all affected locations.
-- Distinguish exploitable vulnerabilities from defense-in-depth recommendations.
+- Distinguish practical vulnerabilities from defense-in-depth recommendations.
 - Do not elevate a finding solely because a best-practice control is absent.
-- Critical and High findings require a plausible, code-supported attack path.
+- Critical and High findings require a plausible, code-supported impact, stated as the consequence and the missing control.
 - State the security checks performed and positive evidence for every area that is clean.
 - If evidence is incomplete, lower confidence instead of speculating.
 - Report versions and advisory results as of the audit date.
@@ -96,7 +98,7 @@ Inspect Better Auth configuration and its NestJS integration:
 - Session creation, expiry, rotation, revocation, concurrent sessions, password-change invalidation, and sign-out completeness
 - Browser and Flutter session handling consistency
 - Email/password hashing behavior and Better Auth configuration overrides
-- Email verification requirements and bypass paths
+- Email verification requirements and paths that skip them
 - Password-reset token expiry, reuse, leakage, and account-enumeration behavior
 - Authentication and email-send rate limiting
 - CSRF and origin validation
@@ -182,7 +184,7 @@ Inspect:
 - Request-body size limits
 - URL-encoded body limits
 - Trust-proxy configuration and `X-Forwarded-For` handling
-- Client-IP spoofing possibilities
+- Whether the client address is taken from an untrusted header
 - In-memory throttling behavior in multi-instance deployment
 - Rate-limit header behavior
 - Idempotency-key validation, length limits, expiry, storage growth, ownership, replay behavior, and concurrency guarantees
@@ -228,7 +230,7 @@ Inspect:
 - Caching of authenticated SSR responses
 - Browser history or URL leakage of password-reset and verification tokens
 - XSS and unsafe HTML or style construction
-- Clickjacking and CSP coverage
+- Framing and CSP coverage
 - Next.js production-build safety settings
 - Whether TypeScript or build errors are ignored
 - Source maps and production error disclosure
@@ -314,9 +316,9 @@ Scan the current tracked tree for:
 - Non-placeholder values in `.env.example` files
 - GitHub Actions secret exposure
 - Secrets written to command lines, logs, generated environment files, or Docker layers
-- Direct `process.env` access that bypasses validated configuration
+- Direct `process.env` access that skips validated configuration
 - Weak validation of secrets, URLs, origins, cookie domains, and SMTP settings
-- CI-specific validation bypasses that can hide production misconfiguration
+- CI-specific validation skips that can hide production misconfiguration
 - `NEXT_PUBLIC_*` exposure
 - Flutter `.env` asset exposure
 - Docker `ARG` versus runtime secret handling
@@ -347,7 +349,7 @@ Inspect:
 - Generated Dart/TypeScript code provenance
 - Whether development-only tooling is included in production images
 
-Run `pnpm audit` read-only if possible and report only applicable vulnerabilities with package path, installed version, affected range, exploit relevance, and upgrade path. Do not list every advisory without assessing reachability.
+Run `pnpm audit` read-only if possible and report only applicable vulnerabilities with package path, installed version, affected range, whether it applies to this repository, and upgrade path. Do not list every advisory without assessing reachability.
 
 For Flutter, use the checked-in lockfile and any available read-only advisory mechanism. Clearly state if no reliable vulnerability database was available.
 
@@ -388,7 +390,7 @@ Direct, practical compromise of authentication, administrator privileges, arbitr
 
 ### High
 
-Practical cross-user access, privilege escalation, session compromise, credential disclosure, or a highly exploitable deployment weakness.
+Practical cross-user access, privilege escalation, session compromise, credential disclosure, or a deployment weakness with broad practical impact.
 
 ### Medium
 
@@ -404,10 +406,10 @@ Positive assurance, external dependency/residual risk, configuration observation
 
 Critical and High findings must include:
 
-- A code-supported attack scenario
-- Required attacker access or preconditions
-- What the attacker gains
-- Why existing controls do not stop the attack
+- The consequence and the missing control
+- Required access or preconditions
+- What is exposed or changed
+- Which control is missing
 
 Do not use Critical or High for theoretical best-practice gaps.
 
@@ -431,7 +433,7 @@ Use exactly these columns:
 | ID | Severity | Area | File:Line | Issue | Fix | Confidence (High/Medium/Low) |
 | --- | --- | --- | --- | --- | --- | --- |
 
-Sort by severity, then exploitability.
+Sort by severity, then how practical the impact is.
 
 ### 3. Detailed Findings
 
@@ -442,7 +444,7 @@ For each finding include:
 - Affected files and exact lines
 - Evidence
 - Security impact
-- Attack scenario for every Critical and High
+- Consequence for every Critical and High, without a step-by-step path
 - Root cause
 - Concrete remediation
 - Minimal illustrative code/config snippet where useful
@@ -461,7 +463,7 @@ Group findings into:
 - **Fix within 30 days**
 - **Hardening backlog**
 
-Only Critical or High repository-remediable findings with a practical attack path should normally block release. Explain any exception.
+Only Critical or High repository-remediable findings with practical impact should normally block release. Explain any exception.
 
 ### 5. Quick Wins
 

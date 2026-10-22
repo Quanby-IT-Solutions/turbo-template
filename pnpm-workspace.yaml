@@ -78,6 +78,12 @@ overrides:
   "js-yaml@>=5 <5.4.1": ">=5.4.1 <5.5.0"
   "http-cache-semantics@<4.3.0": ">=4.3.0 <5"
   "drizzle-orm>zod": "4.3.5"
+  # The override below replaces @next/eslint-plugin-next's fast-glob with
+  # tinyglobby. While it is in place, settings.next.rootDir must be a wildcard
+  # pattern (e.g. "apps/*/"): a literal path makes the replacement scan the
+  # whole tree. Remove this override once @next/eslint-plugin-next stops
+  # pinning fast-glob 3.3.1, or when upstream ships a fix, and re-run lint
+  # after removing it.
   "@next/eslint-plugin-next>fast-glob": "npm:tinyglobby@^0.2.15"
 
 publicHoistPattern:

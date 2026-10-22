@@ -184,7 +184,6 @@ describe("ThrottlerProxyGuard (unit)", () => {
 				headers: Record<string, string>
 				session?: { user?: { id?: string } }
 				user?: { id?: string }
-				sessionResolved?: boolean
 			} = {
 				ips: ["10.0.0.8"],
 				ip: "10.0.0.8",

@@ -44,6 +44,13 @@ const reflectorFor = (metadata: Record<string, unknown>): Reflector =>
 		getAllAndOverride: (key: string) => metadata[key],
 	}) as unknown as Reflector
 
+/** Caller-supplied marker that used to mean "already resolved". Not a verified answer. */
+const staleResolvedMarker = ["session", "Resolved"].join("")
+
+const markStaleResolved = (request: object): void => {
+	Object.assign(request, { [staleResolvedMarker]: true })
+}
+
 describe("SessionAuthGuard", () => {
 	beforeEach(() => {
 		mockGetSession.mockReset()
@@ -53,31 +60,34 @@ describe("SessionAuthGuard", () => {
 	})
 
 	it("reuses a session that was already resolved", async () => {
+		const verified = { user: { id: "user-a", role: "admin" } }
+		mockGetSession.mockResolvedValue(verified)
 		const request: RequestWithSession = {
 			headers: { cookie: "better-auth.session_token=present" },
-			session: { user: { id: "user-a", role: "admin" } },
-			sessionResolved: true,
 		}
+		await resolveRequestSession(request)
+		expect(mockGetSession).toHaveBeenCalledTimes(1)
 		const guard = new SessionAuthGuard(reflectorFor({}))
 
 		await expect(guard.canActivate(buildContext(request))).resolves.toBe(true)
 
-		expect(mockGetSession).not.toHaveBeenCalled()
+		expect(mockGetSession).toHaveBeenCalledTimes(1)
 		expect(request.user).toEqual({ id: "user-a", role: "admin" })
 	})
 
 	it("does not look up again when the resolved answer is no session", async () => {
+		mockGetSession.mockResolvedValue(null)
 		const request: RequestWithSession = {
 			headers: { cookie: "better-auth.session_token=forged" },
-			session: null,
-			sessionResolved: true,
 		}
+		await resolveRequestSession(request)
+		expect(mockGetSession).toHaveBeenCalledTimes(1)
 		const guard = new SessionAuthGuard(reflectorFor({}))
 
 		await expect(guard.canActivate(buildContext(request))).rejects.toBeInstanceOf(
 			UnauthorizedException
 		)
-		expect(mockGetSession).not.toHaveBeenCalled()
+		expect(mockGetSession).toHaveBeenCalledTimes(1)
 	})
 
 	it("looks the session up once and stores it when nothing is resolved yet", async () => {
@@ -88,9 +98,12 @@ describe("SessionAuthGuard", () => {
 		await expect(guard.canActivate(buildContext(request))).resolves.toBe(true)
 
 		expect(mockGetSession).toHaveBeenCalledTimes(1)
-		expect(request.sessionResolved).toBe(true)
+		expect(request).not.toHaveProperty(staleResolvedMarker)
 		expect(request.session?.user?.id).toBe("user-a")
 		expect(request.user?.id).toBe("user-a")
+
+		await resolveRequestSession(request)
+		expect(mockGetSession).toHaveBeenCalledTimes(1)
 	})
 
 	it("does not trust a pre-set session and rejects when the lookup finds none", async () => {
@@ -140,19 +153,45 @@ describe("SessionAuthGuard", () => {
 		expect(request.user).toEqual({ id: "real-user", role: "admin" })
 	})
 
-	it("does not call getSession when this helper already resolved the request", async () => {
-		const stored = { user: { id: "user-a", role: "admin" } }
+	it("returns the verified session after the request session is overwritten", async () => {
+		const verified = { user: { id: "user-a", role: "admin" }, session: { id: "sess-a" } }
+		mockGetSession.mockResolvedValue(verified)
 		const request: RequestWithSession = {
 			headers: { cookie: "better-auth.session_token=present" },
-			session: stored,
-			sessionResolved: true,
 		}
 
-		const result = await resolveRequestSession(request)
+		const first = await resolveRequestSession(request)
 
-		expect(mockGetSession).not.toHaveBeenCalled()
-		expect(result).toBe(stored)
-		expect(request.user).toEqual(stored.user)
+		expect(first).toBe(verified)
+		expect(mockGetSession).toHaveBeenCalledTimes(1)
+
+		request.session = { user: { id: "other" } }
+		request.user = { id: "other" }
+		markStaleResolved(request)
+
+		const second = await resolveRequestSession(request)
+
+		expect(second).toBe(verified)
+		expect(request.session).toBe(verified)
+		expect(request.user).toBe(verified.user)
+		expect(mockGetSession).toHaveBeenCalledTimes(1)
+	})
+
+	it("looks up a fresh request that already carries a resolved marker and a pre-set session", async () => {
+		mockGetSession.mockResolvedValue(null)
+		const request: RequestWithSession = {
+			headers: {},
+			session: { user: { id: "preset-user" } },
+		}
+		markStaleResolved(request)
+		const guard = new SessionAuthGuard(reflectorFor({}))
+
+		await expect(guard.canActivate(buildContext(request))).rejects.toBeInstanceOf(
+			UnauthorizedException
+		)
+		expect(mockGetSession).toHaveBeenCalledTimes(1)
+		expect(request.session).toBeNull()
+		expect(request.user).toBeNull()
 	})
 
 	it("returns the library unauthorized shape when no session verifies", async () => {
@@ -178,9 +217,12 @@ describe("SessionAuthGuard", () => {
 
 		await expect(guard.canActivate(buildContext(request))).resolves.toBe(true)
 		expect(mockGetSession).toHaveBeenCalledTimes(1)
-		expect(request.sessionResolved).toBe(true)
+		expect(request).not.toHaveProperty(staleResolvedMarker)
 		expect(request.session).toBeNull()
 		expect(request.user).toBeNull()
+
+		await resolveRequestSession(request)
+		expect(mockGetSession).toHaveBeenCalledTimes(1)
 	})
 
 	it("allows an anonymous request on an optional-auth route", async () => {
@@ -191,10 +233,8 @@ describe("SessionAuthGuard", () => {
 	})
 
 	it("rejects a signed-in user who lacks a required role", async () => {
-		const request: RequestWithSession = {
-			session: { user: { id: "user-a", role: "user" } },
-			sessionResolved: true,
-		}
+		mockGetSession.mockResolvedValue({ user: { id: "user-a", role: "user" } })
+		const request: RequestWithSession = { headers: {} }
 		const guard = new SessionAuthGuard(reflectorFor({ ROLES: ["admin"] }))
 
 		try {
@@ -207,53 +247,48 @@ describe("SessionAuthGuard", () => {
 				message: "Insufficient permissions",
 			})
 		}
-		expect(mockGetSession).not.toHaveBeenCalled()
+		expect(mockGetSession).toHaveBeenCalledTimes(1)
 	})
 
 	it("accepts a comma-separated role that includes a required role", async () => {
-		const request: RequestWithSession = {
-			session: { user: { id: "user-a", role: "editor, admin" } },
-			sessionResolved: true,
-		}
+		mockGetSession.mockResolvedValue({ user: { id: "user-a", role: "editor, admin" } })
+		const request: RequestWithSession = { headers: {} }
 		const guard = new SessionAuthGuard(reflectorFor({ ROLES: ["admin"] }))
 
 		await expect(guard.canActivate(buildContext(request))).resolves.toBe(true)
+		expect(mockGetSession).toHaveBeenCalledTimes(1)
 	})
 
 	it("rejects an organization role when the session has no active organization", async () => {
-		const request: RequestWithSession = {
-			session: { user: { id: "user-a", role: "admin" }, session: {} },
-			sessionResolved: true,
-		}
+		mockGetSession.mockResolvedValue({ user: { id: "user-a", role: "admin" }, session: {} })
+		const request: RequestWithSession = { headers: {} }
 		const guard = new SessionAuthGuard(reflectorFor({ ORG_ROLES: ["owner"] }))
 
 		await expect(guard.canActivate(buildContext(request))).rejects.toBeInstanceOf(
 			ForbiddenException
 		)
+		expect(mockGetSession).toHaveBeenCalledTimes(1)
 		expect(mockGetActiveMemberRole).not.toHaveBeenCalled()
 	})
 
 	it("accepts an organization role reported for the active organization", async () => {
+		mockGetSession.mockResolvedValue({
+			user: { id: "user-a" },
+			session: { activeOrganizationId: "org-1" },
+		})
 		mockGetActiveMemberRole.mockResolvedValue({ role: "owner" })
-		const request: RequestWithSession = {
-			session: {
-				user: { id: "user-a" },
-				session: { activeOrganizationId: "org-1" },
-			},
-			sessionResolved: true,
-		}
+		const request: RequestWithSession = { headers: {} }
 		const guard = new SessionAuthGuard(reflectorFor({ ORG_ROLES: ["owner"] }))
 
 		await expect(guard.canActivate(buildContext(request))).resolves.toBe(true)
+		expect(mockGetSession).toHaveBeenCalledTimes(1)
 		expect(mockGetActiveMemberRole).toHaveBeenCalledTimes(1)
 	})
 
 	it("uses the user permission check and rejects when it does not succeed", async () => {
+		mockGetSession.mockResolvedValue({ user: { id: "user-a" } })
 		mockUserHasPermission.mockResolvedValue({ success: false })
-		const request: RequestWithSession = {
-			session: { user: { id: "user-a" } },
-			sessionResolved: true,
-		}
+		const request: RequestWithSession = { headers: {} }
 		const guard = new SessionAuthGuard(
 			reflectorFor({ USER_HAS_PERMISSION: { permission: { project: ["read"] } } })
 		)
@@ -261,6 +296,7 @@ describe("SessionAuthGuard", () => {
 		await expect(guard.canActivate(buildContext(request))).rejects.toBeInstanceOf(
 			ForbiddenException
 		)
+		expect(mockGetSession).toHaveBeenCalledTimes(1)
 		expect(mockUserHasPermission).toHaveBeenCalledWith(
 			expect.objectContaining({
 				body: { userId: "user-a", permissions: { project: ["read"] } },
@@ -269,11 +305,12 @@ describe("SessionAuthGuard", () => {
 	})
 
 	it("rejects a member permission check when the API denies it", async () => {
+		mockGetSession.mockResolvedValue({
+			user: { id: "user-a" },
+			session: { activeOrganizationId: "org-1" },
+		})
 		mockHasPermission.mockResolvedValue({ success: false })
-		const request: RequestWithSession = {
-			session: { user: { id: "user-a" }, session: { activeOrganizationId: "org-1" } },
-			sessionResolved: true,
-		}
+		const request: RequestWithSession = { headers: {} }
 		const guard = new SessionAuthGuard(
 			reflectorFor({ MEMBER_HAS_PERMISSION: { permissions: { project: ["delete"] } } })
 		)
@@ -281,6 +318,7 @@ describe("SessionAuthGuard", () => {
 		await expect(guard.canActivate(buildContext(request))).rejects.toBeInstanceOf(
 			ForbiddenException
 		)
+		expect(mockGetSession).toHaveBeenCalledTimes(1)
 	})
 
 	it("rejects a non-HTTP context with the HTTP 401 object", async () => {
@@ -308,7 +346,7 @@ describe("SessionAuthGuard", () => {
 		const guard = new SessionAuthGuard(reflectorFor({}))
 
 		await expect(guard.canActivate(buildContext(request))).rejects.toThrow("database unavailable")
-		expect(request.sessionResolved).toBeUndefined()
+		expect(request).not.toHaveProperty(staleResolvedMarker)
 
 		mockGetSession.mockResolvedValueOnce(null)
 		await expect(guard.canActivate(buildContext(request))).rejects.toBeInstanceOf(
@@ -332,6 +370,14 @@ describe("SessionAuthGuard", () => {
 describe("session resolution wiring", () => {
 	const backendRoot = join(__dirname, "../../..")
 	const repoRoot = join(backendRoot, "../..")
+
+	it("keeps the verified answer in a non-exported WeakMap", () => {
+		const source = readFileSync(join(__dirname, "resolve-request-session.ts"), "utf8")
+
+		expect(source).toContain("const resolved = new WeakMap<object, RequestSession | null>()")
+		expect(source).not.toMatch(/export\s+(?:const|let|function|class)\s+resolved\b/)
+		expect(source.includes(staleResolvedMarker)).toBe(false)
+	})
 
 	it("keeps auth last and leaves the library guard disabled", () => {
 		const source = readFileSync(join(backendRoot, "src/app.module.ts"), "utf8")

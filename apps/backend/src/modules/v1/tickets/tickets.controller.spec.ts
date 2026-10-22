@@ -57,13 +57,16 @@ jest.mock("@/common/rbac/rbac.service", () => ({
 	})),
 }))
 
-// ESM auth modules — stubbed so the guard's header-based session fallback is
-// deterministic (resolves no session unless the request already carries one).
+// ESM auth modules. The permission guard reads the user id only from the
+// verified lookup, so each case supplies that user through getSession.
+const mockGetSession = jest.fn().mockResolvedValue(null)
 jest.mock("better-auth/node", () => ({
 	fromNodeHeaders: jest.fn(() => ({})),
 }))
 jest.mock("@repo/auth", () => ({
-	getAuth: jest.fn(() => ({ api: { getSession: jest.fn().mockResolvedValue(null) } })),
+	getAuth: jest.fn(() => ({
+		api: { getSession: (...args: unknown[]) => mockGetSession(...args) },
+	})),
 }))
 
 const buildContext = (
@@ -83,6 +86,8 @@ describe("TicketsController RBAC gating (AZ-1)", () => {
 	const reflector = new Reflector()
 
 	beforeEach(async () => {
+		mockGetSession.mockReset()
+		mockGetSession.mockResolvedValue(null)
 		// The guard audits denials through the Nest logger; capture it so the
 		// audit trail is asserted rather than printed as test noise.
 		warn = jest.spyOn(Logger.prototype, "warn").mockImplementation(() => undefined)
@@ -117,6 +122,7 @@ describe("TicketsController RBAC gating (AZ-1)", () => {
 		["getTicket", TicketsController.prototype.getTicket],
 	] as const)("%s allows a caller holding users:read", async (_name, handler) => {
 		rbacService.hasAllPermissions.mockResolvedValue(true)
+		mockGetSession.mockResolvedValue({ user: { id: "staff-1" } })
 
 		await expect(
 			guard.canActivate(
@@ -134,6 +140,7 @@ describe("TicketsController RBAC gating (AZ-1)", () => {
 		async (_name, handler) => {
 			rbacService.hasAllPermissions.mockResolvedValue(false)
 			rbacService.getMissingPermissions.mockResolvedValue(["users:read"])
+			mockGetSession.mockResolvedValue({ user: { id: "registrant-1" } })
 
 			await expect(
 				guard.canActivate(
@@ -150,6 +157,7 @@ describe("TicketsController RBAC gating (AZ-1)", () => {
 	] as const)("%s records an auditable denial when access is refused", async (name, handler) => {
 		rbacService.hasAllPermissions.mockResolvedValue(false)
 		rbacService.getMissingPermissions.mockResolvedValue(["users:read"])
+		mockGetSession.mockResolvedValue({ user: { id: "registrant-1" } })
 
 		await expect(
 			guard.canActivate(
@@ -170,6 +178,7 @@ describe("TicketsController RBAC gating (AZ-1)", () => {
 
 	it("does not audit a permitted read", async () => {
 		rbacService.hasAllPermissions.mockResolvedValue(true)
+		mockGetSession.mockResolvedValue({ user: { id: "staff-1" } })
 
 		await guard.canActivate(
 			buildContext(TicketsController.prototype.listTickets, {

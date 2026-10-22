@@ -5,6 +5,8 @@ import { Test, type TestingModule } from "@nestjs/testing"
 import { RbacService } from "@/common/rbac/rbac.service"
 
 import { RbacGuard } from "./rbac.guard"
+import { resolveRequestSession } from "./resolve-request-session"
+import { ThrottlerProxyGuard } from "./throttler-proxy.guard"
 
 jest.mock("@/common/rbac/rbac.service", () => ({
 	RbacService: jest.fn().mockImplementation(() => ({
@@ -18,8 +20,8 @@ jest.mock("@/config/env.config", () => ({
 }))
 
 // better-auth/node and @repo/auth are ESM; mock them so Jest doesn't try to
-// parse the real modules and so the guard's session-resolution fallback is
-// deterministic (returns no session unless a test overrides it).
+// parse the real modules. The permission guard reads the user id only from
+// resolveRequestSession, so these tests supply that user through getSession.
 const mockGetSession = jest.fn().mockResolvedValue(null)
 jest.mock("better-auth/node", () => ({
 	fromNodeHeaders: jest.fn(() => ({})),
@@ -41,13 +43,15 @@ const buildContext = (
 		}),
 	}) as unknown as ExecutionContext
 
-// Verified request shapes (source: @thallesp/nestjs-better-auth v2.2.0 README,
-// "Request Object Access"). The auth middleware attaches both of these after a
-// session resolves:
-//   - request.session → full UserSession ({ user: { id, ... }, session: { ... } })
-//   - request.user    → direct reference to request.session.user
-// The guard prefers request.session?.user?.id (matches the @Session() decorator
-// shape used in controllers) and falls back to request.user?.id.
+const buildStableContext = (request: object): ExecutionContext =>
+	({
+		getHandler: () => () => undefined,
+		getClass: () => class {},
+		switchToHttp: () => ({
+			getRequest: () => request,
+		}),
+	}) as unknown as ExecutionContext
+
 describe("RbacGuard", () => {
 	let guard: RbacGuard
 	let reflector: { getAllAndOverride: jest.Mock }
@@ -79,6 +83,7 @@ describe("RbacGuard", () => {
 
 		await expect(guard.canActivate(buildContext())).resolves.toBe(true)
 		expect(rbacService.hasAllPermissions).not.toHaveBeenCalled()
+		expect(mockGetSession).not.toHaveBeenCalled()
 	})
 
 	it("allows when permissions array is empty (no-op)", async () => {
@@ -86,6 +91,7 @@ describe("RbacGuard", () => {
 
 		await expect(guard.canActivate(buildContext())).resolves.toBe(true)
 		expect(rbacService.hasAllPermissions).not.toHaveBeenCalled()
+		expect(mockGetSession).not.toHaveBeenCalled()
 	})
 
 	it("throws UnauthorizedException when no session on protected route", async () => {
@@ -106,62 +112,75 @@ describe("RbacGuard", () => {
 		expect(rbacService.hasAllPermissions).not.toHaveBeenCalled()
 	})
 
-	it("throws ForbiddenException when user id is on req.user (no req.session)", async () => {
+	it("throws ForbiddenException when the verified lookup supplies the user id", async () => {
 		reflector.getAllAndOverride.mockReturnValue(["posts:create"])
 		rbacService.hasAllPermissions.mockResolvedValue(false)
+		mockGetSession.mockResolvedValue({ user: { id: "u1" } })
 
-		await expect(guard.canActivate(buildContext(undefined, { id: "u1" }))).rejects.toBeInstanceOf(
-			ForbiddenException
+		await expect(
+			guard.canActivate(buildContext(undefined, { id: "someone-else" }))
+		).rejects.toBeInstanceOf(ForbiddenException)
+		expect(rbacService.hasAllPermissions).toHaveBeenCalledWith("u1", ["posts:create"])
+	})
+
+	it("allows when the verified lookup supplies a user who has permission", async () => {
+		reflector.getAllAndOverride.mockReturnValue(["posts:create"])
+		rbacService.hasAllPermissions.mockResolvedValue(true)
+		mockGetSession.mockResolvedValue({ user: { id: "u1" } })
+
+		await expect(guard.canActivate(buildContext(undefined, { id: "someone-else" }))).resolves.toBe(
+			true
 		)
 		expect(rbacService.hasAllPermissions).toHaveBeenCalledWith("u1", ["posts:create"])
 	})
 
-	it("allows when user id is on req.user and has permission", async () => {
+	it("checks permissions for the user getSession returns when pre-set objects say otherwise", async () => {
 		reflector.getAllAndOverride.mockReturnValue(["posts:create"])
 		rbacService.hasAllPermissions.mockResolvedValue(true)
+		mockGetSession.mockResolvedValue({ user: { id: "u1" } })
+		const request = {
+			headers: {},
+			session: { user: { id: "session-u" } },
+			user: { id: "user-u" },
+		}
 
-		await expect(guard.canActivate(buildContext(undefined, { id: "u1" }))).resolves.toBe(true)
-	})
-
-	it("prefers req.session.user.id over req.user.id when both present", async () => {
-		reflector.getAllAndOverride.mockReturnValue(["posts:create"])
-		rbacService.hasAllPermissions.mockResolvedValue(true)
-
-		await expect(
-			guard.canActivate(buildContext({ user: { id: "session-u" } }, { id: "user-u" }))
-		).resolves.toBe(true)
-		expect(rbacService.hasAllPermissions).toHaveBeenCalledWith("session-u", ["posts:create"])
+		await expect(guard.canActivate(buildStableContext(request))).resolves.toBe(true)
+		expect(rbacService.hasAllPermissions).toHaveBeenCalledWith("u1", ["posts:create"])
 	})
 
 	it("throws ForbiddenException when authenticated but missing permission", async () => {
 		reflector.getAllAndOverride.mockReturnValue(["posts:create"])
 		rbacService.hasAllPermissions.mockResolvedValue(false)
+		mockGetSession.mockResolvedValue({ user: { id: "u1" } })
 
-		await expect(guard.canActivate(buildContext({ user: { id: "u1" } }))).rejects.toBeInstanceOf(
-			ForbiddenException
-		)
+		await expect(guard.canActivate(buildContext())).rejects.toBeInstanceOf(ForbiddenException)
 		expect(rbacService.hasAllPermissions).toHaveBeenCalledWith("u1", ["posts:create"])
 	})
 
 	it("allows when authenticated and has permission", async () => {
 		reflector.getAllAndOverride.mockReturnValue(["posts:create"])
 		rbacService.hasAllPermissions.mockResolvedValue(true)
+		mockGetSession.mockResolvedValue({ user: { id: "u1" } })
 
-		await expect(guard.canActivate(buildContext({ user: { id: "u1" } }))).resolves.toBe(true)
+		await expect(guard.canActivate(buildContext())).resolves.toBe(true)
+		expect(rbacService.hasAllPermissions).toHaveBeenCalledWith("u1", ["posts:create"])
 	})
 
 	it("does not look the session up again when resolution was already recorded", async () => {
 		reflector.getAllAndOverride.mockReturnValue(["posts:create"])
+		mockGetSession.mockResolvedValue(null)
+		const request = { headers: {} }
+		await resolveRequestSession(request)
+		expect(mockGetSession).toHaveBeenCalledTimes(1)
 
-		await expect(
-			guard.canActivate(buildContext(undefined, undefined, { sessionResolved: true }))
-		).rejects.toBeInstanceOf(UnauthorizedException)
-		expect(mockGetSession).not.toHaveBeenCalled()
+		await expect(guard.canActivate(buildStableContext(request))).rejects.toBeInstanceOf(
+			UnauthorizedException
+		)
+		expect(mockGetSession).toHaveBeenCalledTimes(1)
+		expect(rbacService.hasAllPermissions).not.toHaveBeenCalled()
 	})
 
 	it("resolves the session itself when not yet attached to the request", async () => {
-		// Simulates RbacGuard running before the better-auth AuthGuard: no session
-		// on the request, but getSession resolves one from the headers.
 		reflector.getAllAndOverride.mockReturnValue(["posts:create"])
 		rbacService.hasAllPermissions.mockResolvedValue(true)
 		mockGetSession.mockResolvedValue({ user: { id: "resolved-u" } })
@@ -171,14 +190,67 @@ describe("RbacGuard", () => {
 		expect(rbacService.hasAllPermissions).toHaveBeenCalledWith("resolved-u", ["posts:create"])
 	})
 
+	it("rejects with the lookup error when a pre-set session is present and getSession throws", async () => {
+		reflector.getAllAndOverride.mockReturnValue(["posts:create"])
+		const lookupError = new Error("database unavailable")
+		mockGetSession.mockRejectedValue(lookupError)
+		const request = {
+			headers: {},
+			session: { user: { id: "preset-user" } },
+			user: { id: "preset-user" },
+		}
+
+		await expect(guard.canActivate(buildStableContext(request))).rejects.toBe(lookupError)
+		expect(rbacService.hasAllPermissions).not.toHaveBeenCalled()
+	})
+
+	it("returns 401 when getSession returns null for a request that already carries a user id", async () => {
+		reflector.getAllAndOverride.mockReturnValue(["posts:create"])
+		mockGetSession.mockResolvedValue(null)
+		const request = {
+			headers: {},
+			session: { user: { id: "preset-user" } },
+			user: { id: "preset-user" },
+		}
+
+		await expect(guard.canActivate(buildStableContext(request))).rejects.toBeInstanceOf(
+			UnauthorizedException
+		)
+		expect(mockGetSession).toHaveBeenCalledTimes(1)
+		expect(rbacService.hasAllPermissions).not.toHaveBeenCalled()
+	})
+
+	it("calls getSession again in the permission guard after the throttler lookup threw", async () => {
+		reflector.getAllAndOverride.mockReturnValue(["posts:create"])
+		rbacService.hasAllPermissions.mockResolvedValue(true)
+		mockGetSession.mockRejectedValueOnce(new Error("database unavailable"))
+		mockGetSession.mockResolvedValueOnce({ user: { id: "u1" } })
+		const request = {
+			headers: {},
+			ips: ["203.0.113.9"],
+			ip: "203.0.113.9",
+			session: { user: { id: "preset-user" } },
+			user: { id: "preset-user" },
+		}
+		const throttler = Object.create(ThrottlerProxyGuard.prototype) as ThrottlerProxyGuard
+
+		await expect(throttler["getTracker"](request)).resolves.toBe("203.0.113.9")
+		expect(mockGetSession).toHaveBeenCalledTimes(1)
+
+		await expect(guard.canActivate(buildStableContext(request))).resolves.toBe(true)
+		expect(mockGetSession).toHaveBeenCalledTimes(2)
+		expect(rbacService.hasAllPermissions).toHaveBeenCalledWith("u1", ["posts:create"])
+	})
+
 	it("includes missingPermissions in non-production 403 response", async () => {
 		env.NODE_ENV = "development"
 		reflector.getAllAndOverride.mockReturnValue(["posts:create"])
 		rbacService.hasAllPermissions.mockResolvedValue(false)
 		rbacService.getMissingPermissions.mockResolvedValue(["posts:create"])
+		mockGetSession.mockResolvedValue({ user: { id: "u1" } })
 
 		try {
-			await guard.canActivate(buildContext({ user: { id: "u1" } }))
+			await guard.canActivate(buildContext())
 			fail("expected ForbiddenException")
 		} catch (error) {
 			expect(error).toBeInstanceOf(ForbiddenException)
@@ -194,11 +266,11 @@ describe("RbacGuard", () => {
 		env.NODE_ENV = "development"
 		reflector.getAllAndOverride.mockReturnValue(["posts:create", "posts:delete", "posts:read"])
 		rbacService.hasAllPermissions.mockResolvedValue(false)
-		// User has posts:create but lacks posts:delete and posts:read.
 		rbacService.getMissingPermissions.mockResolvedValue(["posts:delete", "posts:read"])
+		mockGetSession.mockResolvedValue({ user: { id: "u1" } })
 
 		try {
-			await guard.canActivate(buildContext({ user: { id: "u1" } }))
+			await guard.canActivate(buildContext())
 			fail("expected ForbiddenException")
 		} catch (error) {
 			expect(error).toBeInstanceOf(ForbiddenException)
@@ -220,9 +292,10 @@ describe("RbacGuard", () => {
 		env.NODE_ENV = "production"
 		reflector.getAllAndOverride.mockReturnValue(["posts:create"])
 		rbacService.hasAllPermissions.mockResolvedValue(false)
+		mockGetSession.mockResolvedValue({ user: { id: "u1" } })
 
 		try {
-			await guard.canActivate(buildContext({ user: { id: "u1" } }))
+			await guard.canActivate(buildContext())
 			fail("expected ForbiddenException")
 		} catch (error) {
 			expect(error).toBeInstanceOf(ForbiddenException)

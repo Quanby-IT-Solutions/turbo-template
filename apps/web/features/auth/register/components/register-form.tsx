@@ -46,8 +46,9 @@ export function RegisterForm({ className, ...props }: React.ComponentProps<"div"
 			onSubmit: RegisterSchema,
 		},
 		onSubmit: async ({ value }) => {
-			const result = await register(value)
-			if (result.requiresVerification) {
+			// The mutation stores the error, and the banner reads that state.
+			const result = await register(value).catch(() => null)
+			if (result?.requiresVerification) {
 				setVerificationEmail(result.email)
 			}
 		},

@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation"
 import { useMutation } from "@tanstack/react-query"
 
-import { extractRetryAfterSeconds, RateLimitError } from "@/core/lib/rate-limit-utils"
+import { createRetryAfterCapture, RateLimitError } from "@/core/lib/rate-limit-utils"
 import { authClient } from "@/services/better-auth/auth-client"
 
 export function useResetPasswordMutation() {
@@ -11,10 +11,15 @@ export function useResetPasswordMutation() {
 
 	return useMutation({
 		mutationFn: async ({ newPassword, token }: { newPassword: string; token: string }) => {
-			const result = await authClient.resetPassword({ newPassword, token })
+			const retryAfterCapture = createRetryAfterCapture()
+			const result = await authClient.resetPassword({
+				newPassword,
+				token,
+				fetchOptions: retryAfterCapture.fetchOptions,
+			})
 			if (result.error) {
 				if (result.error.status === 429) {
-					throw new RateLimitError(extractRetryAfterSeconds(result.error))
+					throw new RateLimitError(retryAfterCapture.seconds(result.error))
 				}
 				throw new Error(result.error.message || "Failed to reset password")
 			}

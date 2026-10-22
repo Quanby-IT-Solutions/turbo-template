@@ -140,42 +140,42 @@ changes are needed; if it splits web/api across different domains, update
 
 ## Environment Variables
 
-| Variable                      | Required | App         | Description                                               |
-| ----------------------------- | -------- | ----------- | --------------------------------------------------------- |
-| `DATABASE_URL`                | ✅       | Backend, DB | PostgreSQL connection string. Use the same value in `apps/backend/.env` and `packages/db/.env` |
-| `SEED_ADMIN_PASSWORD`         | ✅ seed / e2e | DB   | Admin password for `pnpm db:seed`, set only in `packages/db/.env`. Backend e2e reads it from that file. Web e2e reads the same variable from the process environment. No default |
-| `E2E_ADMIN_PASSWORD`          | ❌       | Web e2e, backend e2e | Optional override of `SEED_ADMIN_PASSWORD` when a test signs in as the seeded admin. No default |
-| `E2E_AUTH_API_URL`            | ❌       | Web e2e     | Auth API base, including the trailing slash. When set, Playwright runs setup, authenticated, and auth-negative projects. Local: `http://localhost:3000/api/v1/auth/` |
-| `E2E_TEST_EMAIL`              | ❌       | Web e2e     | userA address for `pnpm db:seed:e2e` and sign-in. Default `test@gmail.com` |
-| `E2E_TEST_NAME`               | ❌       | Web e2e     | userA display name. Default `E2E Test User` |
-| `E2E_TEST_EMAIL_B`            | ❌       | Web e2e     | userB address. Default `e2e-user-b@turbo-template.local` |
-| `E2E_TEST_PASSWORD`           | ❌       | Web e2e     | Password for userA. Required by `pnpm db:seed:e2e` and by sign-in. No default |
-| `E2E_TEST_PASSWORD_B`         | ❌       | Web e2e     | Password for userB. Required by `pnpm db:seed:e2e` and by sign-in. No default |
-| `BETTER_AUTH_SECRET`          | ✅       | Backend     | Session signing secret. Must be >= 32 chars and NOT a placeholder — backend fails to boot otherwise. Generate: `openssl rand -base64 32` (see [Generating BETTER_AUTH_SECRET](#generating-better_auth_secret)) |
-| `BETTER_AUTH_TRUSTED_ORIGINS` | ✅       | Backend     | Comma-separated trusted origins                           |
-| `CORS_ORIGINS`                | ✅       | Backend     | Comma-separated CORS origins                              |
-| `PORT`                        | ❌       | Backend     | Server port (default: 3000)                               |
-| `GOOGLE_CLIENT_ID`            | ❌       | Backend     | Google OAuth client ID                                    |
-| `GOOGLE_CLIENT_SECRET`        | ❌       | Backend     | Google OAuth client secret                                |
-| `REDIS_URL`                   | ❌       | Backend     | Shared throttle counters + RBAC cache (see below)         |
-| `REDIS_KEY_PREFIX`            | ❌       | Backend     | Key namespace (default: `turbo-template`)                 |
-| `REDIS_PASSWORD`              | ✅ Docker | Docker      | Set in the **root** `.env`. Every `docker compose` command needs it — including `--no-deps` ones — because Compose interpolates the whole file before choosing services |
-| `NEXT_PUBLIC_APP_URL`         | ✅       | Web         | Web app URL                                               |
-| `NEXT_PUBLIC_API_BASE_URL`    | ✅       | Web         | Backend API base URL                                      |
-| `NEXT_PUBLIC_API_VERSION`     | ✅       | Web         | API version (default: v1)                                 |
-| `INTERNAL_API_BASE_URL`       | ❌       | Web         | SSR-only API URL (Docker net)                             |
-| `COMPOSE_PROFILES`            | ❌       | Root/Docker | `docker-proxy` runs bundled Nginx; empty = external proxy |
-| `SENTRY_ENABLED`              | ❌       | Backend, Web, Mobile | Crash reporting master switch (off unless `true` **and** a DSN is set). Mobile reads it as a `--dart-define`, not an env var |
-| `SENTRY_DSN`                  | ❌       | Backend, Web, Mobile | Ingest DSN (backend + web server/edge; mobile takes it as a `--dart-define`) |
-| `SENTRY_ENVIRONMENT`          | ❌       | Backend, Web, Mobile | Environment tag. Backend/web default to `NODE_ENV`; mobile is a `--dart-define` defaulting to `development` |
-| `SENTRY_TRACES_SAMPLE_RATE`   | ❌       | Backend     | Trace sampling 0–1 (default: 0, errors only)              |
-| `NEXT_PUBLIC_SENTRY_ENABLED`  | ❌       | Web         | Browser crash reporting switch                            |
-| `NEXT_PUBLIC_SENTRY_DSN`      | ❌       | Web         | Browser ingest DSN                                        |
-| `NEXT_PUBLIC_SENTRY_ENVIRONMENT` | ❌    | Web         | Browser environment tag (falls back to `SENTRY_ENVIRONMENT`) |
-| `NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE` | ❌ | Web      | Trace sampling 0–1 for all web runtimes (default: 0)      |
-| `SENTRY_ORG`                  | ❌       | Web (build) | Sentry org slug, source-map upload only                   |
-| `SENTRY_PROJECT`              | ❌       | Web (build) | Sentry project slug, source-map upload only               |
-| `SENTRY_AUTH_TOKEN`           | ❌       | Web (build) | Source-map upload credential. Never `NEXT_PUBLIC_*`       |
+| Variable                                | Required      | App                  | Description                                                                                                                                                                                                    |
+| --------------------------------------- | ------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`                          | ✅            | Backend, DB          | PostgreSQL connection string. Use the same value in `apps/backend/.env` and `packages/db/.env`                                                                                                                 |
+| `SEED_ADMIN_PASSWORD`                   | ✅ seed / e2e | DB                   | Admin password for `pnpm db:seed`, set only in `packages/db/.env`. Backend e2e reads it from that file. Web e2e reads the same variable from the process environment. No default                               |
+| `E2E_ADMIN_PASSWORD`                    | ❌            | Web e2e, backend e2e | Optional override of `SEED_ADMIN_PASSWORD` when a test signs in as the seeded admin. No default                                                                                                                |
+| `E2E_AUTH_API_URL`                      | ❌            | Web e2e              | Auth API base, including the trailing slash. When set, Playwright runs setup, authenticated, and auth-negative projects. Local: `http://localhost:3000/api/v1/auth/`                                           |
+| `E2E_TEST_EMAIL`                        | ❌            | Web e2e              | userA address for `pnpm db:seed:e2e` and sign-in. Default `test@gmail.com`                                                                                                                                     |
+| `E2E_TEST_NAME`                         | ❌            | Web e2e              | userA display name. Default `E2E Test User`                                                                                                                                                                    |
+| `E2E_TEST_EMAIL_B`                      | ❌            | Web e2e              | userB address. Default `e2e-user-b@turbo-template.local`                                                                                                                                                       |
+| `E2E_TEST_PASSWORD`                     | ❌            | Web e2e              | Password for userA. Required by `pnpm db:seed:e2e` and by sign-in. No default                                                                                                                                  |
+| `E2E_TEST_PASSWORD_B`                   | ❌            | Web e2e              | Password for userB. Required by `pnpm db:seed:e2e` and by sign-in. No default                                                                                                                                  |
+| `BETTER_AUTH_SECRET`                    | ✅            | Backend              | Session signing secret. Must be >= 32 chars and NOT a placeholder — backend fails to boot otherwise. Generate: `openssl rand -base64 32` (see [Generating BETTER_AUTH_SECRET](#generating-better_auth_secret)) |
+| `BETTER_AUTH_TRUSTED_ORIGINS`           | ✅            | Backend              | Comma-separated trusted origins                                                                                                                                                                                |
+| `CORS_ORIGINS`                          | ✅            | Backend              | Comma-separated CORS origins                                                                                                                                                                                   |
+| `PORT`                                  | ❌            | Backend              | Server port (default: 3000)                                                                                                                                                                                    |
+| `GOOGLE_CLIENT_ID`                      | ❌            | Backend              | Google OAuth client ID                                                                                                                                                                                         |
+| `GOOGLE_CLIENT_SECRET`                  | ❌            | Backend              | Google OAuth client secret                                                                                                                                                                                     |
+| `REDIS_URL`                             | ❌            | Backend              | Shared throttle counters + RBAC cache (see below)                                                                                                                                                              |
+| `REDIS_KEY_PREFIX`                      | ❌            | Backend              | Key namespace (default: `turbo-template`)                                                                                                                                                                      |
+| `REDIS_PASSWORD`                        | ✅ Docker     | Docker               | Set in the **root** `.env`. Every `docker compose` command needs it — including `--no-deps` ones — because Compose interpolates the whole file before choosing services                                        |
+| `NEXT_PUBLIC_APP_URL`                   | ✅            | Web                  | Web app URL                                                                                                                                                                                                    |
+| `NEXT_PUBLIC_API_BASE_URL`              | ✅            | Web                  | Backend API base URL                                                                                                                                                                                           |
+| `NEXT_PUBLIC_API_VERSION`               | ✅            | Web                  | API version (default: v1)                                                                                                                                                                                      |
+| `INTERNAL_API_BASE_URL`                 | ❌            | Web                  | SSR-only API URL (Docker net)                                                                                                                                                                                  |
+| `COMPOSE_PROFILES`                      | ❌            | Root/Docker          | `docker-proxy` runs bundled Nginx; empty = external proxy                                                                                                                                                      |
+| `SENTRY_ENABLED`                        | ❌            | Backend, Web, Mobile | Crash reporting master switch (off unless `true` **and** a DSN is set). Mobile reads it as a `--dart-define`, not an env var                                                                                   |
+| `SENTRY_DSN`                            | ❌            | Backend, Web, Mobile | Ingest DSN (backend + web server/edge; mobile takes it as a `--dart-define`)                                                                                                                                   |
+| `SENTRY_ENVIRONMENT`                    | ❌            | Backend, Web, Mobile | Environment tag. Backend/web default to `NODE_ENV`; mobile is a `--dart-define` defaulting to `development`                                                                                                    |
+| `SENTRY_TRACES_SAMPLE_RATE`             | ❌            | Backend              | Trace sampling 0–1 (default: 0, errors only)                                                                                                                                                                   |
+| `NEXT_PUBLIC_SENTRY_ENABLED`            | ❌            | Web                  | Browser crash reporting switch                                                                                                                                                                                 |
+| `NEXT_PUBLIC_SENTRY_DSN`                | ❌            | Web                  | Browser ingest DSN                                                                                                                                                                                             |
+| `NEXT_PUBLIC_SENTRY_ENVIRONMENT`        | ❌            | Web                  | Browser environment tag (falls back to `SENTRY_ENVIRONMENT`)                                                                                                                                                   |
+| `NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE` | ❌            | Web                  | Trace sampling 0–1 for all web runtimes (default: 0)                                                                                                                                                           |
+| `SENTRY_ORG`                            | ❌            | Web (build)          | Sentry org slug, source-map upload only                                                                                                                                                                        |
+| `SENTRY_PROJECT`                        | ❌            | Web (build)          | Sentry project slug, source-map upload only                                                                                                                                                                    |
+| `SENTRY_AUTH_TOKEN`                     | ❌            | Web (build)          | Source-map upload credential. Never `NEXT_PUBLIC_*`                                                                                                                                                            |
 
 Copy from `.env.example` in each app: `apps/backend/.env`, `apps/web/.env`, `packages/db/.env`.
 
@@ -252,10 +252,10 @@ without one.
 If Redis becomes unavailable the app keeps serving, degrading two different
 ways on purpose:
 
-| Subsystem | Behaviour | Why |
-| --- | --- | --- |
-| RBAC cache | **Fail closed** — every read falls through to the database | Slower but always correct. A cache that answers from a store it can no longer invalidate is how revoked access survives. |
-| Throttler | **Fail open** — requests are allowed, logged once | It guards how *often*, not *who*. Refusing all traffic because the counter is unreachable turns a dependency outage into a full outage. |
+| Subsystem  | Behaviour                                                  | Why                                                                                                                                     |
+| ---------- | ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| RBAC cache | **Fail closed** — every read falls through to the database | Slower but always correct. A cache that answers from a store it can no longer invalidate is how revoked access survives.                |
+| Throttler  | **Fail open** — requests are allowed, logged once          | It guards how _often_, not _who_. Refusing all traffic because the counter is unreachable turns a dependency outage into a full outage. |
 
 **Separate ports (native `pnpm dev`):** `NEXT_PUBLIC_APP_URL=http://localhost:3001`,
 `NEXT_PUBLIC_API_BASE_URL=http://localhost:3000/api`.
@@ -266,13 +266,13 @@ into the web image at build time).
 ## Error Monitoring (Sentry)
 
 All three apps can report crashes to Sentry, and all three ship with it **off**.
-Every surface needs *both* an enable flag *and* a DSN, but the checks differ:
+Every surface needs _both_ an enable flag _and_ a DSN, but the checks differ:
 
-- **Backend and web** require a *parseable* DSN, warn once when the flag is set
+- **Backend and web** require a _parseable_ DSN, warn once when the flag is set
   without one instead of silently dropping events, and tag events with
   `SENTRY_ENVIRONMENT` falling back to `NODE_ENV`. Both expose a
   development-only diagnostics endpoint/page.
-- **Mobile** enables on `SENTRY_ENABLED=true` plus a *non-empty* `SENTRY_DSN`.
+- **Mobile** enables on `SENTRY_ENABLED=true` plus a _non-empty_ `SENTRY_DSN`.
   The current implementation emits **no startup warning** and has **no
   diagnostics screen** — verification means checking the Sentry dashboard. It
   also defaults `SENTRY_ENVIRONMENT` to `development` unless a `--dart-define`
@@ -332,13 +332,13 @@ Then:
 ```bash
 export EMAIL_VERIFICATION_REQUIRED=true
 export E2E_AUTH_API_URL=http://localhost:3000/api/v1/auth/
-export E2E_ADMIN_EMAIL=<admin-email>
+export E2E_ADMIN_EMAIL='<admin-email>'
 # Set SEED_ADMIN_PASSWORD in this shell to the value in packages/db/.env.
 export E2E_ADMIN_PASSWORD="$SEED_ADMIN_PASSWORD"
-export E2E_TEST_EMAIL=<user-a-email>
-export E2E_TEST_NAME=<user-a-name>
+export E2E_TEST_EMAIL='<user-a-email>'
+export E2E_TEST_NAME='<user-a-name>'
 export E2E_TEST_PASSWORD='<choose-a-local-password-for-userA>'
-export E2E_TEST_EMAIL_B=<user-b-email>
+export E2E_TEST_EMAIL_B='<user-b-email>'
 export E2E_TEST_PASSWORD_B='<choose-a-local-password-for-userB>'
 # Set to 1 when a web server is already running. Playwright then does not
 # start `next start` itself.
@@ -372,18 +372,18 @@ Re-running `pnpm db:seed:e2e` stores the current `E2E_TEST_PASSWORD` and
 
 ## Scripts
 
-| Command                            | Description                                                                 |
-| ---------------------------------- | --------------------------------------------------------------------------- |
-| `pnpm dev`                         | Start all apps in dev mode                                                  |
-| `pnpm build`                       | Build all apps                                                              |
-| `pnpm lint`                        | Run ESLint                                                                  |
-| `pnpm typecheck`                   | Run TypeScript checks                                                       |
-| `pnpm format:fix`                  | Format code with Prettier                                                   |
-| `pnpm db:push`                     | Push schema to database (may prompt; needs an interactive terminal to answer prompts, non-interactive runs apply only changes that need no confirmation) |
-| `pnpm db:seed`                     | Seed local roles, users, and sample data (`SEED_ADMIN_PASSWORD` in `packages/db/.env`) |
-| `pnpm db:seed:e2e`                 | Upsert pre-verified userA and userB for web e2e (`E2E_TEST_PASSWORD` and `E2E_TEST_PASSWORD_B`, no defaults) |
-| `pnpm -F @repo/backend test:e2e`   | Run backend e2e against the seeded database                                 |
-| `pnpm db:studio`                   | Open Drizzle Studio                                                         |
+| Command                          | Description                                                                                                                                              |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm dev`                       | Start all apps in dev mode                                                                                                                               |
+| `pnpm build`                     | Build all apps                                                                                                                                           |
+| `pnpm lint`                      | Run ESLint                                                                                                                                               |
+| `pnpm typecheck`                 | Run TypeScript checks                                                                                                                                    |
+| `pnpm format:fix`                | Format code with Prettier                                                                                                                                |
+| `pnpm db:push`                   | Push schema to database (may prompt; needs an interactive terminal to answer prompts, non-interactive runs apply only changes that need no confirmation) |
+| `pnpm db:seed`                   | Seed local roles, users, and sample data (`SEED_ADMIN_PASSWORD` in `packages/db/.env`)                                                                   |
+| `pnpm db:seed:e2e`               | Upsert pre-verified userA and userB for web e2e (`E2E_TEST_PASSWORD` and `E2E_TEST_PASSWORD_B`, no defaults)                                             |
+| `pnpm -F @repo/backend test:e2e` | Run backend e2e against the seeded database                                                                                                              |
+| `pnpm db:studio`                 | Open Drizzle Studio                                                                                                                                      |
 
 ## From tickets to pull requests (GitHub Issues)
 
@@ -717,10 +717,10 @@ import { todos, users } from "@repo/db/schema"
 
 ### How It Works
 
-| Branch       | Environment | Strategy                                              |
-| ------------ | ----------- | ----------------------------------------------------- |
-| `staging`    | Staging     | EC2 + Elastic IP, host Nginx on 80/443                |
-| `production` | Production  | EC2 + load balancer + ASG (auto-scaling)              |
+| Branch       | Environment | Strategy                                 |
+| ------------ | ----------- | ---------------------------------------- |
+| `staging`    | Staging     | EC2 + Elastic IP, host Nginx on 80/443   |
+| `production` | Production  | EC2 + load balancer + ASG (auto-scaling) |
 
 Staging is one EC2 instance with an Elastic IP. Host Nginx listens on 80 and 443 and proxies to `127.0.0.1:3000` (backend) and `127.0.0.1:3001` (web). The app ports are not opened in the security group. The deploy checks health on the host.
 
@@ -795,32 +795,32 @@ Before your first deploy, go to **Settings → Environments** and create `stagin
 
 #### Variables
 
-| Variable                    | Description               | Staging                             | Production                          |
-| --------------------------- | ------------------------- | ----------------------------------- | ----------------------------------- |
-| `AWS_REGION`                | AWS region                | `ap-southeast-1`                    | `ap-southeast-1`                    |
-| `PROJECT_NAME`              | Project identifier        | `turbo-template`                    | `turbo-template`                    |
-| `ECR_REGISTRY`              | ECR registry host (staging only; production uses the ECR login output) | `123...dkr.ecr.ap-southeast-1.amazonaws.com` |                                     |
-| `STG_EC2_HOST`              | Staging EC2 IP / hostname | `203.0.113.10`                      |                                     |
-| `STG_EC2_HOST_KEY`          | Pinned SSH host key (see below) | `203.0.113.10 ssh-ed25519 AAAAC3...` |                                |
-| `ECR_REPOSITORY_WEB`        | ECR repo name for web     | `turbo-template-web-staging`        | `turbo-template-web-production`     |
-| `ECR_REPOSITORY_BACKEND`    | ECR repo name for backend | `turbo-template-backend-staging`    | `turbo-template-backend-production` |
-| `ASG_NAME`                  | Auto Scaling Group name   |                                     | `<asg-name>`                        |
-| `LAUNCH_TEMPLATE_ID`        | Launch template id        |                                     | `<launch-template-id>`              |
-| `NEXT_PUBLIC_APP_URL`       | Public web URL            | `https://stg-turbo.quanbyit.com`    | `https://turbo.quanbyit.com`        |
-| `NEXT_PUBLIC_API_BASE_URL`  | Public API URL            | `https://stg-turbo-be.quanbyit.com` | `https://turbo-be.quanbyit.com`     |
-| `NEXT_PUBLIC_API_VERSION`   | API version path segment (production deploy requires it; staging defaults to `v1`) | `v1` | `v1` |
-| `BETTER_AUTH_COOKIE_DOMAIN` | Cookie domain for auth    |                                     | `.quanbyit.com`                     |
-| `SENTRY_ORG`                | Sentry org slug (source-map upload) |                           | `<org-slug>`                        |
-| `SENTRY_PROJECT`            | Sentry project slug (source-map upload) |                       | `<project-slug>`                    |
-| `SENTRY_ENABLED`            | Backend + web server/edge switch |                              | `true`                              |
-| `WEB_SENTRY_DSN`            | Web server/edge DSN (mapped to `SENTRY_DSN` in the web container) |         | `https://<publicKey>@<org>.ingest.sentry.io/<webProjectId>` |
-| `BACKEND_SENTRY_DSN`        | Backend DSN (mapped to `SENTRY_DSN` in the backend container) |             | `https://<publicKey>@<org>.ingest.sentry.io/<apiProjectId>` |
-| `SENTRY_ENVIRONMENT`        | Environment tag for all runtimes |                              | `production`                        |
-| `SENTRY_TRACES_SAMPLE_RATE` | Backend trace sampling 0–1 |                                    | `0`                                 |
-| `NEXT_PUBLIC_SENTRY_ENABLED` | Browser switch           |                                     | `true`                              |
-| `NEXT_PUBLIC_SENTRY_DSN`    | Browser DSN (public by design) |                                | `https://<publicKey>@<org>.ingest.sentry.io/<projectId>` |
-| `NEXT_PUBLIC_SENTRY_ENVIRONMENT` | Browser environment tag (optional; defaults to `SENTRY_ENVIRONMENT`) |    | `production`                        |
-| `NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE` | Web trace sampling 0–1 |                            | `0`                                 |
+| Variable                                | Description                                                                        | Staging                                      | Production                                                  |
+| --------------------------------------- | ---------------------------------------------------------------------------------- | -------------------------------------------- | ----------------------------------------------------------- |
+| `AWS_REGION`                            | AWS region                                                                         | `ap-southeast-1`                             | `ap-southeast-1`                                            |
+| `PROJECT_NAME`                          | Project identifier                                                                 | `turbo-template`                             | `turbo-template`                                            |
+| `ECR_REGISTRY`                          | ECR registry host (staging only; production uses the ECR login output)             | `123...dkr.ecr.ap-southeast-1.amazonaws.com` |                                                             |
+| `STG_EC2_HOST`                          | Staging EC2 IP / hostname                                                          | `203.0.113.10`                               |                                                             |
+| `STG_EC2_HOST_KEY`                      | Pinned SSH host key (see below)                                                    | `203.0.113.10 ssh-ed25519 AAAAC3...`         |                                                             |
+| `ECR_REPOSITORY_WEB`                    | ECR repo name for web                                                              | `turbo-template-web-staging`                 | `turbo-template-web-production`                             |
+| `ECR_REPOSITORY_BACKEND`                | ECR repo name for backend                                                          | `turbo-template-backend-staging`             | `turbo-template-backend-production`                         |
+| `ASG_NAME`                              | Auto Scaling Group name                                                            |                                              | `<asg-name>`                                                |
+| `LAUNCH_TEMPLATE_ID`                    | Launch template id                                                                 |                                              | `<launch-template-id>`                                      |
+| `NEXT_PUBLIC_APP_URL`                   | Public web URL                                                                     | `https://stg-turbo.quanbyit.com`             | `https://turbo.quanbyit.com`                                |
+| `NEXT_PUBLIC_API_BASE_URL`              | Public API URL                                                                     | `https://stg-turbo-be.quanbyit.com`          | `https://turbo-be.quanbyit.com`                             |
+| `NEXT_PUBLIC_API_VERSION`               | API version path segment (production deploy requires it; staging defaults to `v1`) | `v1`                                         | `v1`                                                        |
+| `BETTER_AUTH_COOKIE_DOMAIN`             | Cookie domain for auth                                                             |                                              | `.quanbyit.com`                                             |
+| `SENTRY_ORG`                            | Sentry org slug (source-map upload)                                                |                                              | `<org-slug>`                                                |
+| `SENTRY_PROJECT`                        | Sentry project slug (source-map upload)                                            |                                              | `<project-slug>`                                            |
+| `SENTRY_ENABLED`                        | Backend + web server/edge switch                                                   |                                              | `true`                                                      |
+| `WEB_SENTRY_DSN`                        | Web server/edge DSN (mapped to `SENTRY_DSN` in the web container)                  |                                              | `https://<publicKey>@<org>.ingest.sentry.io/<webProjectId>` |
+| `BACKEND_SENTRY_DSN`                    | Backend DSN (mapped to `SENTRY_DSN` in the backend container)                      |                                              | `https://<publicKey>@<org>.ingest.sentry.io/<apiProjectId>` |
+| `SENTRY_ENVIRONMENT`                    | Environment tag for all runtimes                                                   |                                              | `production`                                                |
+| `SENTRY_TRACES_SAMPLE_RATE`             | Backend trace sampling 0–1                                                         |                                              | `0`                                                         |
+| `NEXT_PUBLIC_SENTRY_ENABLED`            | Browser switch                                                                     |                                              | `true`                                                      |
+| `NEXT_PUBLIC_SENTRY_DSN`                | Browser DSN (public by design)                                                     |                                              | `https://<publicKey>@<org>.ingest.sentry.io/<projectId>`    |
+| `NEXT_PUBLIC_SENTRY_ENVIRONMENT`        | Browser environment tag (optional; defaults to `SENTRY_ENVIRONMENT`)               |                                              | `production`                                                |
+| `NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE` | Web trace sampling 0–1                                                             |                                              | `0`                                                         |
 
 Every Sentry row is optional — leave them all unset and the deploy behaves
 exactly as it did before Sentry existed. The two DSN rows are separate so web
@@ -830,18 +830,18 @@ wiring. See [docs/sentry.md](docs/sentry.md).
 
 #### Secrets
 
-| Secret                        | Description              | Staging                               | Production                            |
-| ----------------------------- | ------------------------ | ------------------------------------- | ------------------------------------- |
-| `AWS_ACCESS_KEY_ID`           | IAM access key           | `<aws-access-key-id>`                             | `<aws-access-key-id>`                             |
-| `AWS_SECRET_ACCESS_KEY`       | IAM secret key           | `wJal...`                             | `wJal...`                             |
-| `STG_EC2_SSH_KEY`             | Staging EC2 SSH private key | `-----BEGIN OPENSSH PRIVATE KEY-----...` |                                  |
-| `DATABASE_URL`                | PostgreSQL connection    | `postgresql://user:pass@host:5432/db` | `postgresql://user:pass@host:5432/db` |
-| `BETTER_AUTH_SECRET`          | Auth signing secret      | `openssl rand -base64 32`             | `openssl rand -base64 32`             |
-| `BETTER_AUTH_TRUSTED_ORIGINS` | Trusted origins          | `https://stg-turbo.quanbyit.com`      | `https://turbo.quanbyit.com`          |
-| `CORS_ORIGINS`                | Allowed CORS origins     | `https://stg-turbo.quanbyit.com`      | `https://turbo.quanbyit.com`          |
-| `GOOGLE_CLIENT_ID`            | Google OAuth client ID   | `123...apps.googleusercontent.com`    | `456...apps.googleusercontent.com`    |
-| `GOOGLE_CLIENT_SECRET`        | Google OAuth secret      | `<google-oauth-client-secret>`                          | `<google-oauth-client-secret>`                          |
-| `SENTRY_AUTH_TOKEN`           | Sentry source-map upload token (org write credential; passed as a BuildKit secret, never a build arg) |                                       | `<sentry-auth-token>`                 |
+| Secret                        | Description                                                                                           | Staging                                  | Production                            |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------- | ---------------------------------------- | ------------------------------------- |
+| `AWS_ACCESS_KEY_ID`           | IAM access key                                                                                        | `<aws-access-key-id>`                    | `<aws-access-key-id>`                 |
+| `AWS_SECRET_ACCESS_KEY`       | IAM secret key                                                                                        | `wJal...`                                | `wJal...`                             |
+| `STG_EC2_SSH_KEY`             | Staging EC2 SSH private key                                                                           | `-----BEGIN OPENSSH PRIVATE KEY-----...` |                                       |
+| `DATABASE_URL`                | PostgreSQL connection                                                                                 | `postgresql://user:pass@host:5432/db`    | `postgresql://user:pass@host:5432/db` |
+| `BETTER_AUTH_SECRET`          | Auth signing secret                                                                                   | `openssl rand -base64 32`                | `openssl rand -base64 32`             |
+| `BETTER_AUTH_TRUSTED_ORIGINS` | Trusted origins                                                                                       | `https://stg-turbo.quanbyit.com`         | `https://turbo.quanbyit.com`          |
+| `CORS_ORIGINS`                | Allowed CORS origins                                                                                  | `https://stg-turbo.quanbyit.com`         | `https://turbo.quanbyit.com`          |
+| `GOOGLE_CLIENT_ID`            | Google OAuth client ID                                                                                | `123...apps.googleusercontent.com`       | `456...apps.googleusercontent.com`    |
+| `GOOGLE_CLIENT_SECRET`        | Google OAuth secret                                                                                   | `<google-oauth-client-secret>`           | `<google-oauth-client-secret>`        |
+| `SENTRY_AUTH_TOKEN`           | Sentry source-map upload token (org write credential; passed as a BuildKit secret, never a build arg) |                                          | `<sentry-auth-token>`                 |
 
 > Get values from `terraform output` in the [turbo-infrastructure](https://github.com/Quanby-IT-Solutions/turbo-infrastructure) repo.
 
@@ -871,10 +871,10 @@ step, and a key that does not match aborts the SSH connection with
 The bundled Nginx ships **two** configs, both live — the production one is not
 commented out:
 
-| File | Use | Listens |
-| --- | --- | --- |
-| `nginx/nginx.dev.conf` | local development (**default**) | HTTP :80 |
-| `nginx/nginx.conf` | production, terminates TLS | :80 redirect + :443 |
+| File                   | Use                             | Listens             |
+| ---------------------- | ------------------------------- | ------------------- |
+| `nginx/nginx.dev.conf` | local development (**default**) | HTTP :80            |
+| `nginx/nginx.conf`     | production, terminates TLS      | :80 redirect + :443 |
 
 Both route `/api/*` to `backend:3000` and everything else to `web:3001` **by
 Compose service name**, so they work inside the network without

@@ -24,10 +24,11 @@ const PROBE_URL = `${env.NEXT_PUBLIC_API_BASE_URL}/${env.NEXT_PUBLIC_API_VERSION
 // --- Shared, module-scoped connectivity source -----------------------------
 //
 // `navigator.onLine` alone is unreliable: it only reports whether the machine
-// has *a* network interface, not whether the internet is actually reachable
-// (localhost dev server, LAN/VPN/ethernet with no uplink all read `true`). So we
-// combine it with an active probe to an external host, driven by the
-// `online`/`offline` events plus a periodic poll.
+// has *a* network interface, not whether the app's own API health endpoint can
+// be reached (localhost dev server, LAN/VPN/ethernet with no uplink all read
+// `true`). So we combine it with an active probe to that endpoint, driven by
+// the `online`/`offline` events plus a periodic poll. "offline" means the API
+// can't be reached, which is when mutations pause.
 //
 // The probe machinery is module-scoped and shared across all subscribers: a
 // single probe loop runs while at least one subscriber is registered, and every

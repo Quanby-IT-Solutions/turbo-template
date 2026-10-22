@@ -31,14 +31,15 @@ export class SessionUnavailableError extends Error {
  * Read the current session from the backend.
  *
  * A 2xx with a user is the session. A 2xx null body or a 401 is signed out.
- * Anything else, including a network failure, throws {@link SessionUnavailableError}.
- * There is no retry here.
+ * A failed session request, including a network failure or a body that is not
+ * valid JSON, throws {@link SessionUnavailableError}. Errors from reading the
+ * request headers propagate unchanged. There is no retry here.
  */
 export const getSession = cache(async (): Promise<AuthSession | null> => {
-	try {
-		const cookieHeader = await getCookieHeader()
-		const forwardedFor = await getForwardedForHeader()
+	const cookieHeader = await getCookieHeader()
+	const forwardedFor = await getForwardedForHeader()
 
+	try {
 		const response = await fetch(`${getServerAuthUrl()}/get-session`, {
 			headers: {
 				"Content-Type": "application/json",

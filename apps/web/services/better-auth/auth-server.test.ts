@@ -87,7 +87,33 @@ describe("getSession", () => {
 	it("throws when the request fails", async () => {
 		vi.mocked(fetch).mockRejectedValue(new Error("connect ECONNREFUSED"))
 
+		await expect(getSession()).rejects.toBeInstanceOf(SessionUnavailableError)
 		await expect(getSession()).rejects.toMatchObject({ status: null, retryAfter: null })
 		expect(vi.mocked(fetch)).toHaveBeenCalled()
+	})
+
+	it("throws when a success body is not valid JSON", async () => {
+		vi.mocked(fetch).mockResolvedValue(new Response("not-json", { status: 200 }))
+
+		await expect(getSession()).rejects.toBeInstanceOf(SessionUnavailableError)
+		await expect(getSession()).rejects.toMatchObject({ status: null, retryAfter: null })
+	})
+
+	it("propagates a cookie header failure without calling fetch", async () => {
+		const failure = new Error("cookie header failed")
+		getCookieHeader.mockRejectedValue(failure)
+
+		await expect(getSession()).rejects.toBe(failure)
+		expect(failure).not.toBeInstanceOf(SessionUnavailableError)
+		expect(vi.mocked(fetch)).not.toHaveBeenCalled()
+	})
+
+	it("propagates a forwarded header failure without calling fetch", async () => {
+		const failure = new Error("forwarded header failed")
+		getForwardedForHeader.mockRejectedValue(failure)
+
+		await expect(getSession()).rejects.toBe(failure)
+		expect(failure).not.toBeInstanceOf(SessionUnavailableError)
+		expect(vi.mocked(fetch)).not.toHaveBeenCalled()
 	})
 })

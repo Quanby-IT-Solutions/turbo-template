@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import { ApiError } from "@/core/lib/api-error"
 
-import { parseRateLimitError, RateLimitError } from "./rate-limit-utils"
+import { createRetryAfterCapture, parseRateLimitError, RateLimitError } from "./rate-limit-utils"
 
 describe("parseRateLimitError", () => {
 	it("reads Retry-After from a 429 ApiError", () => {
@@ -53,5 +53,103 @@ describe("parseRateLimitError", () => {
 	it("returns fallback for a non-429 ApiError", () => {
 		const result = parseRateLimitError(new ApiError(500, "Server error"))
 		expect(result.isRateLimit).toBe(false)
+	})
+})
+
+const HEADERLESS_429 = {
+	status: 429,
+	statusText: "Too Many Requests",
+	message: "Too many requests. Please try again later.",
+}
+
+describe("createRetryAfterCapture", () => {
+	it("reads X-Retry-After from a 429 Response when the error has no headers", () => {
+		const capture = createRetryAfterCapture()
+		const response = new Response(null, {
+			status: 429,
+			headers: { "X-Retry-After": "10" },
+		})
+
+		capture.fetchOptions.onError({
+			response,
+			responseText: JSON.stringify({ message: HEADERLESS_429.message }),
+			request: new Request("http://localhost:3000/api/v1/auth/sign-in/email"),
+			error: { ...HEADERLESS_429 },
+		})
+
+		expect(HEADERLESS_429).not.toHaveProperty("headers")
+		expect(capture.seconds(HEADERLESS_429)).toBe(10)
+	})
+
+	it("reads Retry-After when that is the only wait header", () => {
+		const capture = createRetryAfterCapture()
+		capture.fetchOptions.onError({
+			response: new Response(null, {
+				status: 429,
+				headers: { "Retry-After": "12" },
+			}),
+		})
+
+		expect(capture.seconds(HEADERLESS_429)).toBe(12)
+	})
+
+	it("prefers Retry-After over X-Retry-After, error.headers, and the message", () => {
+		const capture = createRetryAfterCapture()
+		capture.fetchOptions.onError({
+			response: new Response(null, {
+				status: 429,
+				headers: { "Retry-After": "7", "X-Retry-After": "10" },
+			}),
+		})
+
+		expect(
+			capture.seconds({
+				headers: new Headers({ "retry-after": "42" }),
+				message: "try again in 3 seconds",
+			})
+		).toBe(7)
+	})
+
+	it("captures nothing from a non-429 response", () => {
+		const capture = createRetryAfterCapture()
+		capture.fetchOptions.onError({
+			response: new Response(null, {
+				status: 401,
+				headers: { "X-Retry-After": "10", "Retry-After": "10" },
+			}),
+		})
+
+		expect(capture.seconds(HEADERLESS_429)).toBeNull()
+		expect(capture.seconds({ message: "try again in 4 seconds" })).toBe(4)
+	})
+
+	it("falls back to error.headers when the response was not captured", () => {
+		const capture = createRetryAfterCapture()
+		expect(
+			capture.seconds({
+				headers: new Headers({ "x-retry-after": "15" }),
+				message: "try again in 3 seconds",
+			})
+		).toBe(15)
+	})
+
+	it("falls back to a number in the message when no header is available", () => {
+		const capture = createRetryAfterCapture()
+		expect(capture.seconds({ message: "try again in 20 seconds" })).toBe(20)
+		expect(capture.seconds(HEADERLESS_429)).toBeNull()
+	})
+
+	it("keeps each request's capture separate", () => {
+		const first = createRetryAfterCapture()
+		const second = createRetryAfterCapture()
+		first.fetchOptions.onError({
+			response: new Response(null, {
+				status: 429,
+				headers: { "X-Retry-After": "10" },
+			}),
+		})
+
+		expect(first.seconds(HEADERLESS_429)).toBe(10)
+		expect(second.seconds(HEADERLESS_429)).toBeNull()
 	})
 })

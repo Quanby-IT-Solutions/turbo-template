@@ -34,7 +34,7 @@ export class SentryExceptionFilter implements ExceptionFilter {
 		const ctx = host.switchToHttp()
 		const request = ctx.getRequest()
 		const response = ctx.getResponse()
-		const requestId = request?.headers?.["x-request-id"]
+		const requestId = loggedRequestId(request as { id?: unknown } | undefined)
 
 		const clientError = readClientRequestError(exception)
 		if (clientError) {
@@ -84,4 +84,20 @@ export class SentryExceptionFilter implements ExceptionFilter {
 
 		response.status(HttpStatus.INTERNAL_SERVER_ERROR).json(errorResponse)
 	}
+}
+
+/**
+ * The request id the logger assigned.
+ *
+ * `genReqId` stores that id on `request.id` and echoes it as `X-Request-Id`.
+ * The inbound header is not a fallback: when the client sent none, the field
+ * would be undefined, and a value the policy rejects must not be written into
+ * the log. No id means this path had no pino-http, so the field is null.
+ */
+function loggedRequestId(request: { id?: unknown } | null | undefined): string | null {
+	const id = request?.id
+	if (id === undefined || id === null) {
+		return null
+	}
+	return String(id)
 }

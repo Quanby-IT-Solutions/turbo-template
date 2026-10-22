@@ -1,4 +1,4 @@
-import { getSession } from "@/services/better-auth/auth-server"
+import { getSession, SessionUnavailableError } from "@/services/better-auth/auth-server"
 import { CacheIdentityStamp } from "@/services/tanstack-query/provider"
 
 /**
@@ -17,9 +17,19 @@ import { CacheIdentityStamp } from "@/services/tanstack-query/provider"
  *
  * Unauthenticated pages need no stamp: with no session there is no identity to
  * separate, and they read nothing that the dehydration allowlist lets persist.
+ *
+ * A failed read is the anonymous bucket, not a failed page. The home layout
+ * mounts this beside pages that already render an anonymous view when the
+ * session service is down. Protected layouts still throw from their own
+ * `getSession()` call before this stamp is reached.
  */
 export async function CacheIdentity() {
-	const session = await getSession()
+	let session: Awaited<ReturnType<typeof getSession>> = null
+	try {
+		session = await getSession()
+	} catch (error) {
+		if (!(error instanceof SessionUnavailableError)) throw error
+	}
 
 	return <CacheIdentityStamp userId={session?.user?.id ?? null} />
 }

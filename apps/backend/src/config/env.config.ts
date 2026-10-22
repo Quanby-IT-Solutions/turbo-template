@@ -38,14 +38,16 @@ export const env = createEnv({
 		//       address it saw, and Express keeps that rightmost entry.
 		//       ThrottlerProxyGuard keys on that rightmost entry. Raising this
 		//       value alone does not move the guard's key; an extra hop needs
-		//       TRUST_PROXY and getTracker updated together. Staging in this repo
-		//       is EC2 plus an Elastic IP; any load balancer there is outside it.
+		//       TRUST_PROXY and getTracker updated together. Staging is EC2 plus
+		//       an Elastic IP, and host Nginx on the instance is the single
+		//       trusted hop (TRUST_PROXY=1). Health is checked on the host
+		//       over SSH.
 		//   0 = no trusted hop. X-Forwarded-For is ignored and the socket peer is used.
 		TRUST_PROXY: z.coerce.number().int().min(0).default(1),
 
-		// Security headers (ED-1). HSTS is a promise the browser remembers, so it
-		// stays off until TLS actually terminates in the target environment
-		// (ED-2). Enabling it early pins clients to HTTPS a deployment cannot
+		// Security headers. HSTS is a promise the browser remembers, so it
+		// stays off until TLS actually terminates in the target environment.
+		// Enabling it early pins clients to HTTPS a deployment cannot
 		// serve, and max-age cannot be withdrawn quickly.
 		ENABLE_HSTS: booleanFromEnv.optional().default(false),
 
@@ -69,13 +71,13 @@ export const env = createEnv({
 		SENTRY_ENVIRONMENT: z.string().optional(),
 		/** 0 = errors only. Tracing costs quota, so it is opt-in per environment. */
 		SENTRY_TRACES_SAMPLE_RATE: z.coerce.number().min(0).max(1).optional().default(0),
-		/** Deploy image tag, injected by the compose/ECS task definition; reported as the Sentry release. */
+		/** Deploy image tag, injected by the deploy compose file / env; reported as the Sentry release. */
 		IMAGE_TAG: z.string().optional(),
 
 		// Database
 		DATABASE_URL: z.string(),
 
-		// Redis (AB-2). Shared state for the throttler and the RBAC permission
+		// Redis. Shared state for the throttler and the RBAC permission
 		// cache. Optional so a single-instance local run still boots, but see
 		// the degradation notes in redis.provider.ts: without it, rate limits
 		// multiply by instance count and a revoked permission only dies on the
@@ -86,7 +88,7 @@ export const env = createEnv({
 
 		// Authentication.
 		// Same schema object the @repo/auth package validates with — the two
-		// processes sign the same sessions, so their rules must never drift (F-03).
+		// processes sign the same sessions, so their rules must never drift.
 		BETTER_AUTH_SECRET: authSecretSchema,
 		BETTER_AUTH_TRUSTED_ORIGINS: z.string(),
 
@@ -95,7 +97,7 @@ export const env = createEnv({
 		GOOGLE_CLIENT_SECRET: z.string().optional(),
 	},
 	runtimeEnv: process.env,
-	// CI-4 / F-16 (RF3): validation is never skipped merely because CI is set.
+	// Validation is never skipped merely because CI is set.
 	// It was disabled in exactly the environment meant to catch misconfiguration,
 	// so a missing or malformed value shipped instead of failing the build.
 	// `SKIP_ENV_VALIDATION` is the one documented escape hatch, for build-only

@@ -1,6 +1,6 @@
 ---
 name: aws-infrastructure
-description: AWS deployment patterns for this monorepo. Infrastructure (VPC, ALB, EC2, ASG, ECR, SSM) is provisioned in a separate turbo-infrastructure repo via Terraform; this repo holds the deploy workflows and compose files. Staging in this repo is a single EC2 (Elastic IP); any load balancer is outside this repo. Production is EC2 + ALB + Auto Scaling Group, configured through SSM Parameter Store and rolled via launch-template versioning + instance refresh. Use when deploying to AWS or setting up GitHub environment variables.
+description: AWS deployment patterns for this monorepo. Infrastructure (VPC, ALB, EC2, ASG, ECR, SSM) is provisioned in a separate turbo-infrastructure repo via Terraform; this repo holds the deploy workflows and compose files. Staging is a single EC2 (Elastic IP) with host Nginx as the one hop. Production is EC2 + ALB + Auto Scaling Group, configured through SSM Parameter Store and rolled via launch-template versioning + instance refresh. Use when deploying to AWS or setting up GitHub environment variables.
 updated: 2026-08-15
 ---
 
@@ -25,10 +25,11 @@ There is NO ECS / Fargate. Both environments run Docker Compose on EC2 hosts. Pr
 ### Architecture
 
 ```
-STAGING (this repo: EC2 + Elastic IP; any load balancer is outside the repo):
-  Internet → EC2 (Elastic IP)
-                └── docker compose (web :3001, backend :3000)
-  The workflow probes $STG_EC2_HOST:3000 and :3001 from the runner.
+STAGING (EC2 + Elastic IP, host Nginx is the one hop):
+  Internet → host Nginx (:80/:443) on the EC2 instance
+                └── proxies to 127.0.0.1:3000 (backend) and 127.0.0.1:3001 (web)
+  The app ports are not opened in the security group.
+  Health is checked on the host over SSH. Local docker-proxy nginx stays for local/dev.
 
 PRODUCTION:
   Internet → ALB (:80/:443, host-header rules)
@@ -75,9 +76,9 @@ The workflow then creates a new launch-template version (`--source-version '$Lat
 1. `ci` passes → build + push images to ECR.
 2. Load deploy key into `ssh-agent`, **pin the host key** from `STG_EC2_HOST_KEY` (a repo variable — public key material, so a change is visible in review; `require_var` refuses to deploy without it).
 3. SSH `ec2-user@$STG_EC2_HOST` with `StrictHostKeyChecking=yes` + `BatchMode=yes`; write `.env` + compose; `docker compose pull && up -d`.
-4. Health-check `:3000/api/v1/health` and `:3001/`.
+4. On the instance, health-check `http://127.0.0.1:3000/api/v1/health` and `http://127.0.0.1:3001/`.
 
-This repo's staging path is one EC2 instance with an Elastic IP. The workflow probes `http://$STG_EC2_HOST:3000/api/v1/health` and `:3001/` from the runner. Any load balancer is managed outside this repo. There is NO Let's Encrypt / certbot on the host, NO inline nginx config generation, NO SSL auto-detection, NO auto-rollback. Nginx is the local / dev proxy only.
+Host Nginx on the staging instance is the one hop. It listens on 80 and 443 and proxies to `127.0.0.1:3000` and `127.0.0.1:3001`. The app ports are not opened in the security group. The local docker-proxy nginx stays for local/dev. Staging TLS is issued on the host with certbot. There is NO inline nginx config generation in the workflow, NO SSL auto-detection, NO auto-rollback.
 
 ## Backend publish address
 
@@ -88,7 +89,7 @@ On EC2 the Elastic IP is translated 1:1 to the private IPv4, so binding to the p
 This repo does not set `BACKEND_BIND_ADDRESS`:
 
 - Production writes the compose file and a shared env payload to SSM. The payload has no per-instance private address. Each instance's boot script (turbo-infrastructure, not this repo) is what would export the private IPv4 before `docker compose up`. Set `BACKEND_BIND_ADDRESS` there for production.
-- Staging's workflow writes `/opt/staging/.env` over SSH and does not include the variable. `BACKEND_BIND_ADDRESS` must stay unset on staging while the workflow probes `$STG_EC2_HOST` on ports 3000 and 3001.
+- Staging's workflow writes `/opt/staging/.env` over SSH and does not include the variable. `BACKEND_BIND_ADDRESS` stays unset on staging. Health is checked on the host at `127.0.0.1:3000` and `127.0.0.1:3001`.
 
 Leave the variable unset and the port stays `0.0.0.0`, so a deploy does not fail closed. The target-group port and health-check matcher are not defined in this repo. After the instance refresh, production checks the health of both `${PROJECT_NAME}-web-tg-production` and `${PROJECT_NAME}-backend-tg-production` (`deploy-production.yml`). `TRUST_PROXY` stays `1`. On production the load balancer appends `X-Forwarded-For`, and that is the one trusted hop.
 

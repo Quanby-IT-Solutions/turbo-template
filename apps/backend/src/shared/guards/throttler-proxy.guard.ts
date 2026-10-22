@@ -11,9 +11,9 @@ import { resolveRequestSession, type RequestWithSession } from "./resolve-reques
  *
  * Express orders `req.ips` **upstream-most → downstream-most**, i.e. exactly as
  * the `X-Forwarded-For` header reads left-to-right. The leftmost entry is the
- * one furthest from us and therefore the one a client can write itself — keying
- * the throttler on it lets any caller mint a fresh rate-limit bucket per request
- * simply by varying a header.
+ * one furthest from us. This guard does not key on it. Set the header from the
+ * connection address, keep `TRUST_PROXY` equal to the hop count, and change the
+ * tracker and the hop count together so keys stay per client.
  *
  * ## What this guard keys on
  *
@@ -41,8 +41,9 @@ import { resolveRequestSession, type RequestWithSession } from "./resolve-reques
  *      so the header carries exactly one nginx-authored entry.
  *   2. Production: the load balancer **appends** the address it saw onto
  *      `X-Forwarded-For`. With one trusted hop, Express keeps that rightmost,
- *      load-balancer-authored entry. Staging in this repo is EC2 plus an
- *      Elastic IP; any load balancer there is managed outside this repo.
+ *      load-balancer-authored entry. Staging is EC2 plus an Elastic IP, and
+ *      host Nginx on the instance is the single trusted hop (TRUST_PROXY=1).
+ *      Health is checked on the host over SSH.
  *
  * Raising `TRUST_PROXY` alone does not move this guard's address key, because
  * `getTracker` reads the rightmost `X-Forwarded-For` entry. An extra hop

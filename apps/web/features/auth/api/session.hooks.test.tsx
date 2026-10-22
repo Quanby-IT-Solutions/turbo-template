@@ -103,5 +103,6 @@ describe("useSignOutMutation", () => {
 		expect(clear).not.toHaveBeenCalled()
 		expect(purgePersistedCache).not.toHaveBeenCalled()
 		expect(toastError).toHaveBeenCalledTimes(1)
+		expect(String(toastError.mock.calls[0]?.[0])).toMatch(/still signed in/i)
 	})
 })

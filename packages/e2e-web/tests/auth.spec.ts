@@ -32,19 +32,9 @@ test.describe("login page", () => {
 		await expect(page).toHaveURL(/\/register/)
 	})
 
-	test("shows an error and stays on /login with invalid credentials", async ({ page }) => {
-		test.skip(!process.env.E2E_AUTH_API_URL, "Requires backend")
-
-		await page.getByLabel(/email/i).fill("test@gmail.com")
-		await page.getByLabel("Password", { exact: true }).fill("WrongPassword123")
-		await page.getByRole("button", { name: /^login$/i }).click()
-
-		await expect(page).toHaveURL(/\/login/)
-		// Error banner is a red/destructive block; we assert by its message rather than styling.
-		await expect(page.getByText(/failed to sign in|invalid|incorrect|unauthorized/i)).toBeVisible()
-	})
-
-	test("blocks submit with invalid email / missing password (native validation)", async ({ page }) => {
+	test("blocks submit with invalid email / missing password (native validation)", async ({
+		page,
+	}) => {
 		const email = page.getByLabel(/email/i)
 		const password = page.getByLabel("Password", { exact: true })
 

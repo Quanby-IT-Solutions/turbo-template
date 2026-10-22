@@ -18,7 +18,16 @@
  * must not leave the disk copy behind, so the delete is retried.
  */
 
-import { del, keys } from "idb-keyval"
+import { dehydrate } from "@tanstack/react-query"
+import { del, get, keys, set } from "idb-keyval"
+
+import { isPersistedCacheRestoring } from "./persisted-cache-restore"
+import {
+	getQueryClient,
+	serializeQueryData,
+	shouldDehydrateMutation,
+	shouldPersistQuery,
+} from "./query-client"
 
 /** Prefix for every cache bucket this app writes to IndexedDB. */
 export const PERSISTED_CACHE_KEY_PREFIX = "turbo-template-query-cache"
@@ -67,6 +76,56 @@ function hashIdentity(userId: string): string {
 /** The IndexedDB key for a given identity. */
 export function persistedCacheKeyFor(identity: string): string {
 	return `${PERSISTED_CACHE_KEY_PREFIX}:${identity}`
+}
+
+/**
+ * Dehydrate options shared by `PersistQueryClientProvider` and the flush
+ * below. The provider does not inherit these from the QueryClient, so both
+ * paths have to name them. `shouldPersistQuery` keeps `session` and `rbac`
+ * off disk. `shouldDehydrateMutation` keeps paused mutations.
+ */
+export const persistedQueryCacheOptions = {
+	shouldDehydrateQuery: shouldPersistQuery,
+	shouldDehydrateMutation,
+	serializeData: serializeQueryData,
+	buster: PERSISTED_CACHE_BUSTER,
+}
+
+/**
+ * Write the current query cache to IndexedDB immediately.
+ *
+ * The persister throttles writes. An update reload inside that window would
+ * otherwise drop the pending snapshot. Errors are swallowed: the reload still
+ * has to happen, and a failed flush must not log.
+ */
+export async function flushPersistedQueryCache(): Promise<void> {
+	try {
+		if (typeof window === "undefined") return
+		// The in-memory client is still empty until IndexedDB restore finishes.
+		// Writing now would replace the snapshot, including paused offline
+		// mutations, with that empty client. Skip the write. The reload still
+		// proceeds and restores the snapshot that is already on disk.
+		if (isPersistedCacheRestoring()) return
+
+		const clientState = dehydrate(getQueryClient(), {
+			shouldDehydrateQuery: persistedQueryCacheOptions.shouldDehydrateQuery,
+			shouldDehydrateMutation: persistedQueryCacheOptions.shouldDehydrateMutation,
+			serializeData: persistedQueryCacheOptions.serializeData,
+		})
+		const payload = {
+			buster: persistedQueryCacheOptions.buster,
+			timestamp: Date.now(),
+			clientState,
+		}
+
+		await createIdentityScopedStorage({
+			get: key => get<string>(key),
+			set: (key, value) => set(key, value),
+			del: key => del(key),
+		}).setItem(PERSISTED_CACHE_KEY_PREFIX, JSON.stringify(payload))
+	} catch {
+		// The caller reloads either way. Nothing is written to the console.
+	}
 }
 
 /**

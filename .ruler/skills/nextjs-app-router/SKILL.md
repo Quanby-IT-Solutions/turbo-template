@@ -116,7 +116,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 ### Page Files — Routing Only, No Logic
 
 ```tsx
-// app/(site)/submit-ticket/page.tsx
+// app/(site)/(protected)/submit-ticket/page.tsx
 import { SubmitTicketForm } from "@/features/tickets/components/submit-ticket-form"
 
 export default function SubmitTicketPage() {
@@ -125,7 +125,7 @@ export default function SubmitTicketPage() {
 ```
 
 - Pages import from `features/` or `core/` — never contain business logic
-- Route groups share layouts without affecting URL paths. Three exist: `(auth)/` (login, register, forgot-password, reset-password, verify-email, session), `(home)/` (landing page + examples/todos), and `(site)/` (account, dashboard, todos, user-management, submit-ticket)
+- Route groups share layouts without affecting URL paths. `(auth)/` (login, register, forgot-password, reset-password, verify-email, session), `(home)/` (landing page + examples/todos), and `(site)/` whose pages live in `(site)/(protected)/` (account, dashboard, todos, user-management, submit-ticket). `(site)/layout.tsx` passes children through; `(site)/(protected)/layout.tsx` reads the session.
 - Use `export const metadata: Metadata` for static metadata
 
 ### Server Components vs Client Components
@@ -141,7 +141,7 @@ export default function SubmitTicketPage() {
 // Cannot: directly access DB, use async functions for data
 
 // Pattern: Server component fetches, client component renders
-// app/(site)/todos/page.tsx (server)
+// app/(site)/(protected)/todos/page.tsx (server)
 import { TodosList } from "@/features/todos/components/todos-list"
 export default function TodosPage() {
   return <TodosList />  // TodosList is "use client" with hooks
@@ -280,8 +280,8 @@ const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"]
 | Hooks           | kebab-case  | `use-auth.ts`, `use-todos.ts`     |
 | Query hooks     | kebab-case  | `todos.hooks.ts`                  |
 | Folders         | kebab-case  | `user-management/`                |
-| Pages           | `page.tsx`  | `app/(site)/todos/page.tsx`       |
-| Layouts         | `layout.tsx`| `app/(site)/layout.tsx`           |
+| Pages           | `page.tsx`  | `app/(site)/(protected)/todos/page.tsx` |
+| Layouts         | `layout.tsx`| `app/(site)/(protected)/layout.tsx` |
 | Route handlers  | `route.ts`  | `app/api/tickets/route.ts`        |
 
 ## Key Rules

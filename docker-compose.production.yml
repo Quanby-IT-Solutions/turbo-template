@@ -17,8 +17,11 @@
 # unset and the default stays 0.0.0.0, so a deploy does not fail for a
 # missing variable.
 # Do not bind this port to 127.0.0.1 and do not drop the host mapping.
-# Web stays on 0.0.0.0:3001. The web container reaches the backend over
-# the compose network (INTERNAL_API_BASE_URL=http://backend:3000/api).
+# Web stays on 0.0.0.0:3001. The web port, like 3000, must be reachable
+# only from the load balancer's security group (managed outside this
+# repo), because the web container is the trusted hop for the client
+# address. The web container reaches the backend over the compose
+# network (INTERNAL_API_BASE_URL=http://backend:3000/api).
 # The target group that calls the health check is provisioned outside
 # this repo.
 #

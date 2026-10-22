@@ -15,3 +15,18 @@ export const AUTH_FILE = path.join(__dirname, ".auth/session.json")
  * Written empty when no admin is seeded, so specs can skip rather than fail.
  */
 export const ADMIN_AUTH_FILE = path.join(__dirname, ".auth/admin-session.json")
+
+/**
+ * userB's session, saved once by the setup project.
+ *
+ * Tests that only need to be "not userA" reuse this file. Tests that sign out
+ * must not: logout revokes the session server-side, and this file's token is
+ * shared.
+ */
+export const USER_B_AUTH_FILE = path.join(__dirname, ".auth/user-b-session.json")
+
+/**
+ * Epoch milliseconds when the previous run finished.
+ * The next run uses it to leave the auth limiter idle. Git ignores this directory.
+ */
+export const LAST_RUN_AT_FILE = path.join(__dirname, ".auth/last-run-at")

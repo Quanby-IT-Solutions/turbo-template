@@ -19,20 +19,15 @@ import { registerTodosMutationDefaults } from "@/features/todos/api/todos.hooks"
 import {
 	ANONYMOUS_CACHE_IDENTITY,
 	createIdentityScopedStorage,
-	PERSISTED_CACHE_BUSTER,
 	PERSISTED_CACHE_KEY_PREFIX,
 	PERSISTED_CACHE_MAX_AGE,
+	persistedQueryCacheOptions,
 	readCacheIdentity,
 	writeCacheIdentity,
 } from "./cache-persistence"
 import { discardForeignPausedMutations } from "./paused-mutation-identity"
-import {
-	deserializeQueryData,
-	getQueryClient,
-	serializeQueryData,
-	shouldDehydrateMutation,
-	shouldPersistQuery,
-} from "./query-client"
+import { markPersistedCacheRestored, markPersistedCacheRestoring } from "./persisted-cache-restore"
+import { deserializeQueryData, getQueryClient } from "./query-client"
 
 // IndexedDB-backed AsyncStorage adapter for the persister. Wrapped in a
 // `typeof window` guard so it is never constructed on the server.
@@ -96,6 +91,16 @@ export function QueryProvider({ children }: Readonly<{ children: React.ReactNode
 	// takes effect without reconstructing anything.
 	const [persister] = React.useState(createIdbPersister)
 
+	// Set during render, before any effect can hear `controllerchange`.
+	// `useState`'s initializer does not run again on hydration, so this
+	// cannot live there. A later render must not turn the flag back on
+	// after restore has settled.
+	const restoreArmed = React.useRef<true | null>(null)
+	if (restoreArmed.current === null) {
+		restoreArmed.current = true
+		if (persister) markPersistedCacheRestoring()
+	}
+
 	// Register rehydratable mutation defaults synchronously so newly created
 	// mutations have their functions available before any reload. setMutationDefaults
 	// is synchronous and idempotent, so calling it on every render is safe.
@@ -127,7 +132,7 @@ export function QueryProvider({ children }: Readonly<{ children: React.ReactNode
 				// 24h gcTime, and the buster discards every snapshot whenever
 				// the persisted shape changes.
 				maxAge: PERSISTED_CACHE_MAX_AGE,
-				buster: PERSISTED_CACHE_BUSTER,
+				buster: persistedQueryCacheOptions.buster,
 				// PersistQueryClientProvider does NOT merge these with the
 				// QueryClient defaults — it uses them directly. So the IndexedDB
 				// snapshot must explicitly reuse the same serializer-aware
@@ -135,11 +140,12 @@ export function QueryProvider({ children }: Readonly<{ children: React.ReactNode
 				// loses oRPC serialization semantics.
 				//
 				// `shouldPersistQuery` (not `shouldDehydrateQuery`) applies here:
-				// session and rbac data must never reach disk.
+				// session and rbac data must never reach disk. The same object
+				// feeds the pre-reload flush.
 				dehydrateOptions: {
-					shouldDehydrateQuery: shouldPersistQuery,
-					shouldDehydrateMutation,
-					serializeData: serializeQueryData,
+					shouldDehydrateQuery: persistedQueryCacheOptions.shouldDehydrateQuery,
+					shouldDehydrateMutation: persistedQueryCacheOptions.shouldDehydrateMutation,
+					serializeData: persistedQueryCacheOptions.serializeData,
 				},
 				hydrateOptions: {
 					defaultOptions: {
@@ -157,6 +163,7 @@ export function QueryProvider({ children }: Readonly<{ children: React.ReactNode
 			// no interception point, and a mutation that has begun replaying has
 			// already been sent.
 			onSuccess={() => {
+				markPersistedCacheRestored()
 				registerTodosMutationDefaults(queryClient)
 
 				const discarded = discardForeignPausedMutations(queryClient)
@@ -170,6 +177,9 @@ export function QueryProvider({ children }: Readonly<{ children: React.ReactNode
 				}
 
 				void queryClient.resumePausedMutations()
+			}}
+			onError={() => {
+				markPersistedCacheRestored()
 			}}
 		>
 			{children}

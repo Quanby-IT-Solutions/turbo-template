@@ -41,6 +41,14 @@ export class ResilientThrottlerStorage implements ThrottlerStorage {
 
 			return record
 		} catch (error) {
+			// A client closed on purpose (shutdown calls `quit()`, status `end`)
+			// rejects the same way a dead server does. That is not an outage:
+			// don't log it, and don't arm the recovery line. A real loss still
+			// logs once and still fails open below.
+			if (this.closedOnPurpose()) {
+				return failOpen(ttl)
+			}
+
 			if (!this.degraded) {
 				this.degraded = true
 				this.logger.error(
@@ -50,9 +58,31 @@ export class ResilientThrottlerStorage implements ThrottlerStorage {
 				)
 			}
 
-			// `totalHits: 0` with `isBlocked: false` reads as "well under the
-			// limit", so the guard admits the request.
-			return { totalHits: 0, timeToExpire: ttl, isBlocked: false, timeToBlockExpire: 0 }
+			return failOpen(ttl)
 		}
+	}
+
+	/**
+	 * `ThrottlerStorageRedisService` keeps the shared client on `redis`.
+	 * Status `end` means the client was closed and will not reconnect.
+	 */
+	private closedOnPurpose(): boolean {
+		const redis = (this.inner as { redis?: { status?: string } }).redis
+		return redis?.status === "end"
+	}
+}
+
+/**
+ * Same units as the Redis and in-memory stores. `ttl` arrives in milliseconds;
+ * `timeToExpire` is seconds (`Math.ceil(ttl / 1000)`). `isBlocked` stays false
+ * and `timeToBlockExpire` stays 0: both are unit-neutral, and the guard only
+ * sends them when the request is blocked, so 0 is never sent.
+ */
+function failOpen(ttl: number): ThrottlerStorageRecord {
+	return {
+		totalHits: 0,
+		timeToExpire: Math.ceil(ttl / 1000),
+		isBlocked: false,
+		timeToBlockExpire: 0,
 	}
 }

@@ -26,7 +26,11 @@ import { Skeleton } from "@/core/components/ui/skeleton"
 import { useRateLimitToast } from "@/core/hooks/use-rate-limit-toast"
 import { ApiError } from "@/core/lib/api-error"
 import { useIsQueryLoading } from "@/services/tanstack-query/use-query-loading"
-import { canAccess, type AccessProfile } from "@/features/dashboard/lib/access"
+import {
+	permissionAvailability,
+	type AccessProfile,
+	type PermissionAvailability,
+} from "@/features/dashboard/lib/access"
 import {
 	useCreateTodoMutation,
 	useTodoReplayErrors,
@@ -35,13 +39,21 @@ import {
 import { TodoItem } from "@/features/todos/components/todo-item"
 
 interface TodosViewProps {
-	access: AccessProfile
+	access: AccessProfile & { status?: "loaded" | "error" }
+}
+
+const CREATE_FIELD_COPY: Record<PermissionAvailability, string> = {
+	allowed: "New todo title",
+	denied: "You lack posts:create",
+	unavailable: "Permissions could not be loaded",
 }
 
 export function TodosView({ access }: TodosViewProps) {
-	const canCreate = canAccess(access, { requiredPermission: "posts:create" })
-	const canEdit = canAccess(access, { requiredPermission: "posts:edit" })
-	const canDelete = canAccess(access, { requiredPermission: "posts:delete" })
+	const createState = permissionAvailability(access, { requiredPermission: "posts:create" })
+	const canCreate = createState === "allowed"
+	const canEdit = permissionAvailability(access, { requiredPermission: "posts:edit" }) === "allowed"
+	const canDelete =
+		permissionAvailability(access, { requiredPermission: "posts:delete" }) === "allowed"
 
 	const todosQuery = useTodosQuery()
 	const { data: todos, isError, error } = todosQuery
@@ -97,9 +109,15 @@ export function TodosView({ access }: TodosViewProps) {
 					<CardTitle className="text-base">Your access</CardTitle>
 					<CardDescription>Effective permissions on the posts resource</CardDescription>
 					<div className="flex flex-wrap gap-1 pt-1">
-						<PermBadge label="create" granted={canCreate} />
-						<PermBadge label="edit" granted={canEdit} />
-						<PermBadge label="delete" granted={canDelete} />
+						{createState === "unavailable" ? (
+							<p className="text-muted-foreground text-xs">Permissions could not be loaded</p>
+						) : (
+							<>
+								<PermBadge label="create" granted={canCreate} />
+								<PermBadge label="edit" granted={canEdit} />
+								<PermBadge label="delete" granted={canDelete} />
+							</>
+						)}
 					</div>
 				</CardHeader>
 				<CardContent>
@@ -107,7 +125,7 @@ export function TodosView({ access }: TodosViewProps) {
 						<Input
 							value={title}
 							onChange={e => setTitle(e.target.value)}
-							placeholder={canCreate ? "New todo title" : "You lack posts:create"}
+							placeholder={CREATE_FIELD_COPY[createState]}
 							disabled={!canCreate}
 						/>
 						<Button type="submit" disabled={!canCreate || createRateLimit.isActive}>

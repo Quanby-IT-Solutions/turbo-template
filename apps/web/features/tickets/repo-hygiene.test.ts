@@ -34,7 +34,7 @@ describe("dead weight is gone (F-52)", () => {
 })
 
 describe("submit form is real (F-62)", () => {
-	const page = read("apps/web/app/(site)/submit-ticket/page.tsx")
+	const page = read("apps/web/app/(site)/(protected)/submit-ticket/page.tsx")
 
 	it("calls the ticket endpoint instead of faking success", () => {
 		expect(page).toContain("useSubmitTicketMutation")

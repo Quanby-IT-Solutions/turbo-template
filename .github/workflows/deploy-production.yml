@@ -30,7 +30,13 @@ jobs:
   # ──────────────────────────────────────────────
   ci:
     name: CI
+    permissions:
+      contents: read
+      pull-requests: write
+      checks: write
     uses: ./.github/workflows/ci.yml
+    secrets:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   deploy-production:
     name: Deploy to Production (EC2 + ALB + ASG)

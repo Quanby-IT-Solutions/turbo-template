@@ -4,6 +4,8 @@ import React from "react"
 import { SerwistProvider } from "@serwist/turbopack/react"
 import { toast } from "sonner"
 
+import { flushPersistedQueryCache } from "@/services/tanstack-query/cache-persistence"
+import { createControllerChangeHandler } from "@/features/pwa/lib/sw-reload"
 import { env } from "@/env"
 
 /**
@@ -74,6 +76,16 @@ function ServiceWorkerUpdatePrompt() {
 
 		let cancelled = false
 
+		// Read before `getRegistration()` awaits. A controller already present
+		// means this tab is past the first claim, so the next change is an update.
+		const { onControllerChange, markAccepted } = createControllerChangeHandler({
+			initiallyControlled: navigator.serviceWorker.controller !== null,
+			beforeReload: () => flushPersistedQueryCache(),
+			reload: () => {
+				if (!cancelled) window.location.reload()
+			},
+		})
+
 		const offer = (registration: ServiceWorkerRegistration) => {
 			const waiting = registration.waiting
 			if (!waiting || cancelled) return
@@ -85,6 +97,8 @@ function ServiceWorkerUpdatePrompt() {
 					label: "Reload",
 					onClick: () => {
 						// The worker activates only now, with the user's consent.
+						// An uncontrolled tab still reloads for this acceptance.
+						markAccepted()
 						waiting.postMessage({ type: "SKIP_WAITING" })
 					},
 				},
@@ -103,11 +117,9 @@ function ServiceWorkerUpdatePrompt() {
 			})
 		})
 
-		// Reload once the new worker has taken control, so every open tab lands
-		// on the same version rather than a mix of old and new chunks.
-		const onControllerChange = () => {
-			if (!cancelled) window.location.reload()
-		}
+		// A first claim sets the controlled flag and leaves the page where it is.
+		// An update reloads once the new worker has taken control, after a
+		// bounded flush, so every open tab lands on the same version.
 		navigator.serviceWorker.addEventListener("controllerchange", onControllerChange)
 
 		return () => {

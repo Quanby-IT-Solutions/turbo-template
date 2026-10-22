@@ -1,6 +1,13 @@
-import { expect, test, type Page } from "@playwright/test"
+import fs from "fs"
+import { expect, test, type Cookie, type Page } from "@playwright/test"
 
-import { ACCOUNTS, signInAs, trySignInAs } from "../fixtures"
+import { ADMIN_AUTH_FILE, USER_B_AUTH_FILE } from "../constants"
+import { ACCOUNTS, installSessionReadRecovery, signInAs, signOutToLogin } from "../fixtures"
+import { gotoAndSettle, settleServiceWorker } from "../service-worker"
+
+test.beforeEach(async ({ page }) => {
+	installSessionReadRecovery(page)
+})
 
 /**
  * WC-1 / F-04 — cache isolation on a shared browser profile.
@@ -12,11 +19,10 @@ import { ACCOUNTS, signInAs, trySignInAs } from "../fixtures"
  * 24h — restorable by whoever used the browser next, and readable from
  * DevTools without authenticating at all.
  *
- * These tests drive their own sign-in rather than inheriting the shared
- * `storageState`, and they sign in as **userB** specifically: signing out
- * invalidates that account's session server-side, and userA is the account the
- * shared `storageState` holds a token for. Using userA here would log the rest
- * of the authenticated project out mid-run (HY-1).
+ * Read-only cases reuse the sessions saved by setup. Cases that sign out sign
+ * in as **userB** on their own: logout revokes that session server-side, and
+ * userA is the account the shared `storageState` holds a token for. Using
+ * userA here would log the rest of the authenticated project out mid-run (HY-1).
  */
 
 // The seeded Admin holds `users:read`, so `/user-management` returns the real
@@ -24,8 +30,18 @@ import { ACCOUNTS, signInAs, trySignInAs } from "../fixtures"
 const ADMIN_EMAIL = ACCOUNTS.admin.email
 const TEST_EMAIL = ACCOUNTS.userB.email
 
-// Start each test from a clean, signed-out profile.
-test.use({ storageState: { cookies: [], origins: [] } })
+function hasSessionCookie(file: string): boolean {
+	const state = JSON.parse(fs.readFileSync(file, "utf8")) as {
+		cookies?: { name: string }[]
+	}
+	return !!state.cookies?.some(cookie => cookie.name === "better-auth.session_token")
+}
+
+async function useStoredSession(page: Page, file: string): Promise<void> {
+	const state = JSON.parse(fs.readFileSync(file, "utf8")) as { cookies?: Cookie[] }
+	await page.context().clearCookies()
+	if (state.cookies?.length) await page.context().addCookies(state.cookies)
+}
 
 /**
  * Dump every value held in every IndexedDB database for this origin.
@@ -96,8 +112,12 @@ async function waitForPersistedSnapshot(page: Page): Promise<string[]> {
 
 /** Load the pages that populate the sensitive query roots and an allowed one. */
 async function visitCachePopulatingPages(page: Page, isAdmin: boolean) {
-	await page.goto("/dashboard")
+	// Settle the worker before any IndexedDB read. The first claim does not
+	// reload the page. Settling still waits until the worker controls it, so a
+	// navigation cannot destroy the evaluate inside `dumpIndexedDb`.
+	await gotoAndSettle(page, "/dashboard")
 	await expect(page).toHaveURL(/\/dashboard/)
+	await settleServiceWorker(page)
 
 	if (isAdmin) {
 		await page.goto("/user-management")
@@ -111,16 +131,20 @@ async function visitCachePopulatingPages(page: Page, isAdmin: boolean) {
 }
 
 test.describe("persisted cache isolation", () => {
+	test.use({ storageState: { cookies: [], origins: [] } })
+
 	test("never writes the session identity or the email directory to IndexedDB", async ({
 		page,
 	}) => {
-		const isAdmin = await trySignInAs(page, "admin")
-		if (!isAdmin) {
+		const isAdmin = hasSessionCookie(ADMIN_AUTH_FILE)
+		if (isAdmin) {
+			await useStoredSession(page, ADMIN_AUTH_FILE)
+		} else {
 			// Fall back to the standard test account: the session-exclusion half of
 			// the fix is still provable without the directory.
 			// eslint-disable-next-line no-console
 			console.warn("[wc-1] admin unavailable; directory check skipped")
-			await signInAs(page, "userB")
+			await useStoredSession(page, USER_B_AUTH_FILE)
 		}
 
 		const email = isAdmin ? ADMIN_EMAIL : TEST_EMAIL
@@ -148,7 +172,7 @@ test.describe("persisted cache isolation", () => {
 	})
 
 	test("writes to an identity-scoped key, never the shared default", async ({ page }) => {
-		await signInAs(page, "userB")
+		await useStoredSession(page, USER_B_AUTH_FILE)
 		await visitCachePopulatingPages(page, false)
 
 		const keys = await waitForPersistedSnapshot(page)
@@ -161,18 +185,21 @@ test.describe("persisted cache isolation", () => {
 	})
 
 	test("gives a second user a different cache bucket than the first", async ({ page }) => {
+		// Sign-out shares one address. A 429 waits for `x-retry-after` (at most 61s, twice).
+		// The default 30s test timeout kills that wait. Assertion timeouts are unchanged.
+		test.setTimeout(180_000)
 		await signInAs(page, "userB")
 		await visitCachePopulatingPages(page, false)
 		const firstUserKeys = await waitForPersistedSnapshot(page)
 
 		// Sign out so the first user's bucket is purged, then hand the browser to
 		// the next person — the scenario the audit describes.
-		await page.goto("/")
-		await page.getByRole("button", { name: /logout/i }).click()
-		await expect(page.getByRole("link", { name: /^login$/i })).toBeVisible()
+		await gotoAndSettle(page, "/")
+		await signOutToLogin(page)
 
-		const isAdmin = await trySignInAs(page, "admin")
+		const isAdmin = hasSessionCookie(ADMIN_AUTH_FILE)
 		test.skip(!isAdmin, "second account unavailable in this environment")
+		await useStoredSession(page, ADMIN_AUTH_FILE)
 
 		await visitCachePopulatingPages(page, true)
 		const secondUserKeys = await waitForPersistedSnapshot(page)
@@ -196,8 +223,9 @@ test.describe("persisted cache isolation", () => {
 		// The Admin account, because listing todos needs `posts:read`; the plain
 		// test account holds no role and would render an empty list either way,
 		// which would prove nothing about restore.
-		const isAdmin = await trySignInAs(page, "admin")
+		const isAdmin = hasSessionCookie(ADMIN_AUTH_FILE)
 		test.skip(!isAdmin, "admin account unavailable in this environment")
+		await useStoredSession(page, ADMIN_AUTH_FILE)
 
 		await visitCachePopulatingPages(page, true)
 		await waitForPersistedSnapshot(page)
@@ -223,13 +251,15 @@ test.describe("persisted cache isolation", () => {
 	})
 
 	test("sign-out purges every persisted cache entry from IndexedDB", async ({ page }) => {
+		// Sign-out shares one address. A 429 waits for `x-retry-after` (at most 61s, twice).
+		// The default 30s test timeout kills that wait. Assertion timeouts are unchanged.
+		test.setTimeout(180_000)
 		await signInAs(page, "userB")
 		await visitCachePopulatingPages(page, false)
 		const signedInKeys = await waitForPersistedSnapshot(page)
 
-		await page.goto("/")
-		await page.getByRole("button", { name: /logout/i }).click()
-		await expect(page.getByRole("link", { name: /^login$/i })).toBeVisible()
+		await gotoAndSettle(page, "/")
+		await signOutToLogin(page)
 
 		// The signed-in user's bucket must be gone. Browsing on as an anonymous
 		// visitor legitimately creates a fresh anonymous bucket, so assert on the

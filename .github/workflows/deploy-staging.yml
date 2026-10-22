@@ -25,7 +25,13 @@ env:
 jobs:
   ci:
     name: CI
+    permissions:
+      contents: read
+      pull-requests: write
+      checks: write
     uses: ./.github/workflows/ci.yml
+    secrets:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   deploy-staging:
     name: Deploy to Staging (EC2 + Elastic IP)

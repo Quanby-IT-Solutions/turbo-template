@@ -2,18 +2,18 @@
 
 # Phase 5 — Areas 6 & 7: Next.js Browser Security & PWA Offline Persistence
 
-Status: Complete. Mode: READ-ONLY. No file created, modified, deleted, or formatted. No installs, builds, or commits. SameSite/CSRF left unresolved per instruction.
+Status: Complete. A failed session read shows the session-unavailable boundary. Only a 401 or a null session redirects to /login. SameSite/CSRF left unresolved per instruction.
 
 ## Per-Route Gating Table
 
 | Route | Server session check | Notes |
 |-------|---------------------|-------|
-| (site)/layout.tsx | ✅ getSession() → redirect("/login") | Gates the whole group |
-| (site)/dashboard | ✅ Redundant own check | Defence in depth |
-| (site)/todos | ⚠️ Inherits layout only; calls getAccess() | Backend enforces posts:* |
-| (site)/account | ⚠️ Inherits layout only | Static placeholder |
-| (site)/user-management | ⚠️ Inherits layout only — no permission gate | Backend enforces users:read/users:manage |
-| (site)/submit-ticket | ❌ "use client" page — no server component | Inherits layout gate; form is a mock |
+| (site)/(protected)/layout.tsx | ✅ failed read shows session-unavailable; 401 or null session redirects to /login | Gates the protected group. (site)/layout.tsx passes children through |
+| (site)/(protected)/dashboard | ✅ Redundant own check | Defence in depth |
+| (site)/(protected)/todos | ⚠️ Inherits layout only; calls getAccess() | Backend enforces posts:* |
+| (site)/(protected)/account | ⚠️ Inherits layout only | Static placeholder |
+| (site)/(protected)/user-management | ⚠️ Inherits layout only — no permission gate | Backend enforces users:read/users:manage |
+| (site)/(protected)/submit-ticket | ❌ "use client" page — no server component | Inherits layout gate; form is a mock |
 | (auth)/* | n/a — public by design | |
 | (auth)/session | ❌ Renders session JSON, no gate | Session JSON is rendered with no gate |
 | (home)/* | n/a — public | |

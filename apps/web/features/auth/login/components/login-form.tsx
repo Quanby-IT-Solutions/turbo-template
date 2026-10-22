@@ -47,7 +47,13 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
 			onSubmit: LoginSchema,
 		},
 		onSubmit: async ({ value }) => {
-			await login(value)
+			try {
+				await login(value)
+			} catch {
+				// Surfaced via the mutation's error state. Catching keeps
+				// TanStack Form's handleSubmit() from rejecting, which would
+				// be an unhandled rejection on the form's submit handler.
+			}
 		},
 	})
 
@@ -69,7 +75,11 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
 							</div>
 
 							{isError && isUnverified && (
-								<div className="bg-destructive/10 text-destructive dark:bg-destructive/20 flex flex-col items-start gap-1 rounded-lg p-3 text-sm">
+								<div
+									role="alert"
+									data-testid="login-unverified-error"
+									className="bg-destructive/10 text-destructive dark:bg-destructive/20 flex flex-col items-start gap-1 rounded-lg p-3 text-sm"
+								>
 									<span>Please verify your email before signing in.</span>
 									<Button
 										type="button"
@@ -87,7 +97,11 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
 							)}
 
 							{isError && !isUnverified && !rateLimit.isRateLimit && (
-								<div className="bg-destructive/10 text-destructive dark:bg-destructive/20 rounded-lg p-3 text-sm">
+								<div
+									role="alert"
+									data-testid="login-error"
+									className="bg-destructive/10 text-destructive dark:bg-destructive/20 rounded-lg p-3 text-sm"
+								>
 									{error instanceof Error ? error.message : "An unexpected error occurred"}
 								</div>
 							)}

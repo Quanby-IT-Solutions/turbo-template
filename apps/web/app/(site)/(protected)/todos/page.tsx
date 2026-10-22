@@ -10,5 +10,5 @@ export const metadata: Metadata = {
 export default async function TodosPage() {
 	const access = await getAccess()
 
-	return <TodosView access={{ roles: access.roles, permissions: access.permissions }} />
+	return <TodosView access={access} />
 }

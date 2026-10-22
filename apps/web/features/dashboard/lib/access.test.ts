@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { canAccess, type AccessProfile } from "./access"
+import { canAccess, permissionAvailability, type AccessProfile } from "./access"
 import { getAccessibleNavItems, getDashboardRouteTitle, navItems } from "./nav-items"
 
 const noAccess: AccessProfile = {
@@ -49,6 +49,35 @@ describe("canAccess", () => {
 	it("denies restricted items when no requirement matches", () => {
 		expect(canAccess(noAccess, { requiredPermission: "users:read" })).toBe(false)
 		expect(canAccess({ roles: ["User"], permissions: [] }, { requiredRole: "Manager" })).toBe(false)
+	})
+})
+
+describe("permissionAvailability", () => {
+	it("treats a failed lookup as unavailable, not as a missing permission", () => {
+		expect(
+			permissionAvailability(
+				{ status: "error", roles: [], permissions: [] },
+				{ requiredPermission: "posts:create" }
+			)
+		).toBe("unavailable")
+	})
+
+	it("denies a loaded profile that does not hold the permission", () => {
+		expect(
+			permissionAvailability(
+				{ status: "loaded", roles: [], permissions: [] },
+				{ requiredPermission: "posts:create" }
+			)
+		).toBe("denied")
+	})
+
+	it("allows a loaded profile that holds the permission", () => {
+		expect(
+			permissionAvailability(
+				{ status: "loaded", roles: [], permissions: ["posts:create"] },
+				{ requiredPermission: "posts:create" }
+			)
+		).toBe("allowed")
 	})
 })
 

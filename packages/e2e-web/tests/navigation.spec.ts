@@ -1,14 +1,35 @@
 import { expect, test } from "@playwright/test"
 
+// A signed-out answer (401 or an empty session) is only available when the API
+// is up. With no API, the read fails and protected routes show an error instead
+// of the login page. Optional pages stay put.
+const sessionService = !!process.env.E2E_AUTH_API_URL
+
 test.describe("protected route guards", () => {
 	test("redirects /dashboard to /login when unauthenticated", async ({ page }) => {
+		test.skip(!sessionService, "Signed-out redirect needs a session service")
 		await page.goto("/dashboard")
 		await expect(page).toHaveURL(/\/login/)
 	})
 
+	test("shows an error on /dashboard when the session read fails", async ({ page }) => {
+		test.skip(sessionService, "Requires the session service to be unreachable")
+		await page.goto("/dashboard")
+		await expect(page).toHaveURL(/\/dashboard/)
+		await expect(page.getByTestId("session-unavailable")).toBeVisible()
+	})
+
 	test("redirects /examples/todos to /login when unauthenticated", async ({ page }) => {
+		test.skip(!sessionService, "Signed-out redirect needs a session service")
 		await page.goto("/examples/todos")
 		await expect(page).toHaveURL(/\/login/)
+	})
+
+	test("keeps the todos example open when the session read fails", async ({ page }) => {
+		test.skip(sessionService, "Requires the session service to be unreachable")
+		await page.goto("/examples/todos")
+		await expect(page).toHaveURL(/\/examples\/todos/)
+		await expect(page.getByText("Todos API Example")).toBeVisible()
 	})
 })
 

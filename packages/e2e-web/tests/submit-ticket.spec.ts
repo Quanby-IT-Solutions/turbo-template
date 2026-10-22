@@ -1,68 +1,36 @@
-import { randomBytes } from "node:crypto"
-import { expect, request, test } from "@playwright/test"
+import { expect, test, type BrowserContext } from "@playwright/test"
+
+import { installSessionReadRecovery, signInAs } from "../fixtures"
 
 /**
  * HY-2 / F-62 — the submit form calls the real endpoint.
  *
- * Self-authenticating rather than using the shared `authenticated` project:
- * the page sits inside the `(site)` shell, which requires a session, and this
- * keeps the check independent of the global auth fixture.
+ * The page sits inside the `(site)` shell, which requires a session. userA is
+ * the pre-verified ordinary user from `pnpm db:seed:e2e`. One sign-in for the
+ * file, then the same cookies on the later tests. Self-registration cannot
+ * produce a session while email verification is required.
  *
- * The endpoint accepts anonymous submissions too (verified directly against
- * the API); this covers the UI path, which also exercises AZ-3 attribution.
- *
- * Every test here needs a live API — the sign-up in `loadCookies` and the
- * POST /tickets under test both go to it. `E2E_AUTH_API_URL` is this suite's
- * existing signal for "a backend is reachable": playwright.config.ts gates the
- * whole authenticated project on it and auth.spec.ts skips on it. This file was
- * the one backend-dependent spec in the ungated `chromium` project without the
- * guard, so on a runner with no API all three failed with ECONNREFUSED against
- * the :3000 default instead of reporting that they could not run.
+ * Every test here needs a live API. `E2E_AUTH_API_URL` is the suite's signal
+ * for "a backend is reachable". Without it these tests skip instead of
+ * failing with ECONNREFUSED against the :3000 default.
  */
-const AUTH_API = process.env.E2E_AUTH_API_URL ?? "http://localhost:3000/api/v1/auth/"
 
-// One account for the whole file, created lazily. A sign-up per test trips
-// Better Auth's rate limit once the file grows, which surfaces as an
-// unrelated-looking redirect to /login.
-let sessionCookies: Awaited<ReturnType<typeof loadCookies>> | undefined
+// Serial so the shared cookies are created once. Parallel workers would each
+// sign in and spend the sign-in budget.
+test.describe.configure({ mode: "serial" })
 
-async function loadCookies() {
-	let detail = ""
-
-	// Better Auth rate-limits `sign-up/email` per path, and that budget is shared
-	// with every other spec in the suite that registers an account. Throwing on
-	// the first 429 failed all three tests here with a sign-up error that looks
-	// like a broken endpoint. Retried on the same schedule as `fixtures.ts`.
-	for (let attempt = 1; attempt <= 3; attempt++) {
-		const api = await request.newContext()
-		const email = `hy2-e2e-${Date.now()}@test.local`
-		const password = randomBytes(24).toString("base64url")
-		const response = await api.post(`${AUTH_API}sign-up/email`, {
-			data: { email, password, name: "HY2 E2E" },
-		})
-
-		if (response.ok()) {
-			const { cookies } = await api.storageState()
-			await api.dispose()
-			return cookies
-		}
-
-		const status = response.status()
-		detail = `${status} ${await response.text()}`
-		await api.dispose()
-
-		if (status !== 429) break
-		await new Promise(resolve => setTimeout(resolve, 11_000))
-	}
-
-	throw new Error(`[hy2] sign-up failed: ${detail}`)
-}
+let storedCookies: Awaited<ReturnType<BrowserContext["cookies"]>> | undefined
 
 test.beforeEach(async ({ page }) => {
+	installSessionReadRecovery(page)
 	test.skip(!process.env.E2E_AUTH_API_URL, "Requires backend")
 
-	sessionCookies ??= await loadCookies()
-	await page.context().addCookies(sessionCookies)
+	if (!storedCookies) {
+		await signInAs(page, "userA")
+		storedCookies = await page.context().cookies()
+	} else {
+		await page.context().addCookies(storedCookies)
+	}
 
 	// Fail loudly here rather than as "element not found" further down.
 	await page.goto("/submit-ticket")
@@ -72,13 +40,26 @@ test.beforeEach(async ({ page }) => {
 test("submit-ticket form persists a real ticket", async ({ page }) => {
 	const consoleErrors: string[] = []
 	const failedRequests: string[] = []
+	// WC-4 polls GET /health with `mode: "no-cors"`. A 429 is an opaque
+	// response (the app stays online) but Chrome still logs it. Parallel
+	// pages share the API's default per-IP throttle, so the probe can 429
+	// while POST /tickets is accepted. Count those probes and ignore only
+	// that many console lines.
+	let healthProbe429s = 0
 	page.on("console", m => {
 		if (m.type() === "error" || m.type() === "warning") consoleErrors.push(m.text())
 	})
+	page.on("response", response => {
+		if (response.status() !== 429) return
+		if (response.url().includes("/health")) {
+			healthProbe429s += 1
+			return
+		}
+		consoleErrors.push(`429 ${response.request().method()} ${response.url()}`)
+	})
 	page.on("requestfailed", r => {
-		// WC-4's connectivity probe polls on a timer; whichever poll is in flight
-		// when the page navigates or the test tears down is cancelled, and an
-		// abort is not a failed request. Anything else is.
+		// Whichever probe is in flight when the page navigates or the test
+		// tears down is cancelled, and an abort is not a failed request.
 		if (r.failure()?.errorText === "net::ERR_ABORTED") return
 		failedRequests.push(`${r.method()} ${r.url()} :: ${r.failure()?.errorText}`)
 	})
@@ -101,7 +82,14 @@ test("submit-ticket form persists a real ticket", async ({ page }) => {
 	// Form clears, so a second ticket is not an accidental duplicate.
 	await expect(page.getByLabel("Subject")).toHaveValue("")
 
-	expect(consoleErrors, `console: ${consoleErrors.join(" | ")}`).toEqual([])
+	const probeNoise = /^Failed to load resource: the server responded with a status of 429/
+	const unexpected = consoleErrors.filter(message => {
+		if (!probeNoise.test(message)) return true
+		if (healthProbe429s <= 0) return true
+		healthProbe429s -= 1
+		return false
+	})
+	expect(unexpected, `console: ${unexpected.join(" | ")}`).toEqual([])
 	expect(failedRequests, `failed: ${failedRequests.join(" | ")}`).toEqual([])
 })
 

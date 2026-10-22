@@ -8,8 +8,8 @@ import {
 	missingAdminPasswordVariables,
 	resolveE2eAdminPassword,
 	resolveE2eUserPassword,
-} from "./e2e-env"
-import { pageShowsFailedSessionRead } from "./session-read-recovery"
+} from "./e2e-env.ts"
+import { pageShowsFailedSessionRead } from "./session-read-recovery.ts"
 
 /**
  * Shared multi-user session fixtures for the security suite.
@@ -86,8 +86,16 @@ interface SignInResult {
 	account: TestAccount
 }
 
-const SEEDED_USER_MESSAGE =
-	"Run `pnpm db:seed:e2e`; it stores this run's password on the pre-verified user."
+/**
+ * Names the seed for a failed sign-in. The admin comes from `pnpm db:seed`.
+ * userA and userB come from `pnpm db:seed:e2e`.
+ */
+export function seedHintFor(role: TestRole): string {
+	if (role === "admin") {
+		return "The admin comes from `pnpm db:seed`; its password is `E2E_ADMIN_PASSWORD`, or `SEED_ADMIN_PASSWORD` when that is unset. Re-running the seed does not change an existing admin password."
+	}
+	return "Run `pnpm db:seed:e2e`; it stores this run's password on the pre-verified user."
+}
 
 /**
  * Milliseconds to wait after a 429. Honours `x-retry-after` (seconds) plus one,
@@ -109,10 +117,14 @@ function isUnverifiedSignIn(status: number, body: string): boolean {
  * userA and userB come from `pnpm db:seed:e2e`. This does not register an
  * account: a sign-up would leave an unverified user when verification is
  * required, and it cannot replace a password already stored. A 403
- * EMAIL_NOT_VERIFIED or a 401 fails immediately and names that seed. A 429
- * waits for `x-retry-after` and is tried at most twice more.
+ * EMAIL_NOT_VERIFIED or a 401 fails immediately and names the seed for that
+ * role. A 429 waits for `x-retry-after` and is tried at most twice more.
  */
-async function authenticate(page: Page, account: TestAccount): Promise<SignInResult> {
+async function authenticate(
+	page: Page,
+	account: TestAccount,
+	role: TestRole
+): Promise<SignInResult> {
 	let detail = ""
 
 	for (let attempt = 1; attempt <= 3; attempt++) {
@@ -141,7 +153,7 @@ async function authenticate(page: Page, account: TestAccount): Promise<SignInRes
 		if (isUnverifiedSignIn(status, body)) {
 			return {
 				ok: false,
-				detail: `403 EMAIL_NOT_VERIFIED for ${account.email}. ${SEEDED_USER_MESSAGE}`,
+				detail: `403 EMAIL_NOT_VERIFIED for ${account.email}. ${seedHintFor(role)}`,
 				account,
 			}
 		}
@@ -149,7 +161,7 @@ async function authenticate(page: Page, account: TestAccount): Promise<SignInRes
 		if (status === 401) {
 			return {
 				ok: false,
-				detail: `401 for ${account.email}. ${SEEDED_USER_MESSAGE}`,
+				detail: `401 for ${account.email}. ${seedHintFor(role)}`,
 				account,
 			}
 		}
@@ -174,7 +186,7 @@ async function authenticate(page: Page, account: TestAccount): Promise<SignInRes
  * the address.
  */
 export async function signInAs(page: Page, role: TestRole): Promise<TestAccount> {
-	const result = await authenticate(page, resolveAccount(role))
+	const result = await authenticate(page, resolveAccount(role), role)
 	expect(result.ok, `sign-in as ${role} (${result.account.email}) failed: ${result.detail}`).toBe(
 		true
 	)
@@ -200,7 +212,7 @@ export async function trySignInAs(page: Page, role: TestRole): Promise<boolean> 
 		}
 		throw error
 	}
-	return (await authenticate(page, account)).ok
+	return (await authenticate(page, account, role)).ok
 }
 
 /** Drop all cookies, returning the context to an anonymous visitor. */

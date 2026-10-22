@@ -8,7 +8,7 @@ import { type App } from "supertest/types"
 import { ResilientThrottlerStorage } from "@/common/redis/resilient-throttler.storage"
 
 /**
- * AB-2 / F-38 — the throttler's fail-open degradation.
+ * The throttler's fail-open degradation.
  *
  * The unwrapped Redis storage propagates connection errors and the
  * ThrottlerGuard turns them into a 500, so a Redis outage became a total

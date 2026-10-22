@@ -13,9 +13,9 @@
  *                              responses. Lookalike paths such as `/apiary`
  *                              are not included.
  * - Token-bearing URLs      => NetworkOnly. Single-use credentials must not be
- *                              written to any cache (WC-2 / F-20).
+ * written to any cache.
  * - Authenticated routes    => excluded from the offline fallback, so the app
- *                              never fakes a signed-in page (WC-2 / F-48).
+ * never fakes a signed-in page.
  * - Static assets           => defaultCache (CacheFirst / StaleWhileRevalidate).
  * - Navigations (documents) => NetworkFirst behaviour via `fallbacks` to `/~offline`.
  */
@@ -40,7 +40,7 @@ declare const self: ServiceWorkerGlobalScope
 
 const serwist = new Serwist({
 	precacheEntries: self.__SW_MANIFEST,
-	// WC-4 / F-49: the new worker does NOT take over mid-session.
+	// The new worker does NOT take over mid-session.
 	//
 	// `skipWaiting: true` activated a freshly-installed worker immediately,
 	// swapping the code serving an open tab underneath the user — a half-loaded
@@ -65,7 +65,7 @@ const serwist = new Serwist({
 			matcher: ({ url }) => isApiPath(url),
 			handler: new NetworkOnly(),
 		},
-		// WC-2 / F-20: reset and verification links travel as `?token=…` URLs.
+		// Reset and verification links travel as `?token=…` URLs.
 		// Anything that caches them turns a single-use credential into a stored
 		// one, readable from the Cache Storage viewer long after the flow ended.
 		// Must precede defaultCache, which would otherwise handle the navigation.
@@ -84,7 +84,7 @@ const serwist = new Serwist({
 
 					const url = new URL(request.url)
 
-					// WC-2 / F-48: never fake an authenticated page, and never
+					// Never fake an authenticated page, and never
 					// stand in for a token-bearing one.
 					return mayServeOfflineFallback(url)
 				},
@@ -93,7 +93,7 @@ const serwist = new Serwist({
 	},
 })
 
-// WC-4 / F-49: the page asks the waiting worker to activate, once the user has
+// The page asks the waiting worker to activate, once the user has
 // agreed. This is the only path that skips waiting.
 self.addEventListener("message", event => {
 	if ((event.data as { type?: string } | undefined)?.type === "SKIP_WAITING") {

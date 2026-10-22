@@ -15,7 +15,7 @@ Full CRUD mirroring the real `todos` module:
 - Types inferred from `V1Inputs`/`V1Outputs`
 - `db` queried directly (no repository)
 - `ORPCError` for handler errors (not NestJS HTTP exceptions)
-- Ownership scoped in the `where` clause (no TOCTOU / existence leak)
+- Ownership scoped in the `where` clause (no check-then-write race, and no response that reveals whether someone else's row exists)
 - `@AllowAnonymous`, `@RequirePermissions`, `@StrictThrottle`, `IdempotencyInterceptor`
 
 Use when: building any resource endpoint.

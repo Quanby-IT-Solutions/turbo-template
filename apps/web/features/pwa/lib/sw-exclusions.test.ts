@@ -8,7 +8,7 @@ import {
 	TOKEN_PARAMS,
 } from "./sw-exclusions"
 
-// WC-2 / F-20 + F-48. Reset and verification links travel as `?token=…` URLs
+// Reset and verification links travel as `?token=…` URLs
 // that the service worker could cache, turning a single-use credential into a
 // stored one; and the offline fallback was served for authenticated
 // navigations, masking auth state.
@@ -64,7 +64,7 @@ describe("mayServeOfflineFallback", () => {
 		expect(mayServeOfflineFallback(url("/login"))).toBe(true)
 	})
 
-	it("refuses to fake an authenticated page (F-48)", () => {
+	it("refuses to fake an authenticated page", () => {
 		// Otherwise a signed-out visitor sees a plausible app shell instead of
 		// being sent to sign in.
 		expect(mayServeOfflineFallback(url("/dashboard"))).toBe(false)

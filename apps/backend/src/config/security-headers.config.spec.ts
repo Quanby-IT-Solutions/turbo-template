@@ -11,7 +11,7 @@ import {
 } from "@/config/security-headers.config"
 
 /**
- * ED-1 / F-12 + F-21 — browser defences on API responses.
+ * Browser defences on API responses.
  *
  * Exercises the real helmet middleware with the shipped options rather than
  * inspecting the options object: a header only protects anything if it is
@@ -51,7 +51,7 @@ describe("API security headers", () => {
 	})
 
 	it("trims the referrer on cross-origin navigations", async () => {
-		// Closes the referrer half of F-20: a reset link must not leak its token
+		// A reset link must not leak its token
 		// through the Referer header.
 		const response = await request(appWithHeaders()).get("/json")
 
@@ -92,7 +92,7 @@ describe("API security headers", () => {
 		it("is absent by default", async () => {
 			const response = await request(appWithHeaders()).get("/json")
 
-			// Sending it before ED-2 terminates TLS pins clients to a scheme the
+			// Sending it before TLS termination is in place pins clients to a scheme the
 			// deployment cannot serve, and max-age cannot be withdrawn quickly.
 			expect(response.headers["strict-transport-security"]).toBeUndefined()
 		})

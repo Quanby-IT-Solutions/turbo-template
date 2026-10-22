@@ -108,7 +108,7 @@ describe("TodosController (v1)", () => {
 	}
 
 	// Helper to set up delete mock
-	// AZ-3: delete is now ownership-scoped and uses `.returning()` to tell
+	// Delete is now ownership-scoped and uses `.returning()` to tell
 	// "deleted" from "not yours / not there", so the mock must resolve rows.
 	const setupDeleteMock = (rows: unknown[] = [createMockTodo({ id: 3 })]) => {
 		mockDb.delete.mockReturnValueOnce({

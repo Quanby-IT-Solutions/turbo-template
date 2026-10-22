@@ -29,10 +29,10 @@ export const authEnv = createEnv({
 	server: {
 		// Authentication.
 		// Shared with the backend's own env config via `authSecretSchema` so both
-		// processes reject the same weak/placeholder secrets (RF3, F-03).
+		// processes reject the same weak/placeholder secrets.
 		BETTER_AUTH_SECRET: authSecretSchema,
 		BETTER_AUTH_TRUSTED_ORIGINS: z.string(),
-		// AC-3 / F-33: any non-empty value used to enable cross-subdomain cookies,
+		// Any non-empty value used to enable cross-subdomain cookies,
 		// so a typo silently widened the session cookie's scope. Unset by default,
 		// which means a host-only cookie — the narrowest option.
 		BETTER_AUTH_COOKIE_DOMAIN: cookieDomainSchema,
@@ -52,7 +52,7 @@ export const authEnv = createEnv({
 
 		// Email verification behaviour
 		EMAIL_VERIFICATION_ENABLED: booleanFromEnv.optional().default(true),
-		// AC-3: the PRD records this business decision as "verification required".
+		// The PRD records this business decision as "verification required".
 		// Defaulting it off meant an unverified address could sign in, which is
 		// the opposite of what was agreed.
 		EMAIL_VERIFICATION_REQUIRED: booleanFromEnv.optional().default(true),
@@ -68,7 +68,7 @@ export const authEnv = createEnv({
 		AUTH_RATE_LIMIT_MAX: z.coerce.number().int().positive().optional().default(10),
 	},
 	runtimeEnv: process.env,
-	// CI-4 / F-16 (RF3): validation is never skipped merely because CI is set.
+	// Validation is never skipped merely because CI is set.
 	// It was disabled in exactly the environment meant to catch misconfiguration,
 	// so a missing or malformed value shipped instead of failing the build.
 	// `SKIP_ENV_VALIDATION` is the one documented escape hatch, for build-only
@@ -137,7 +137,7 @@ function resolveAuthBaseURL(): string | { allowedHosts: string[]; fallback?: str
 export function createAuth() {
 	const db = createDBClient()
 
-	// LG-1 / RF3: throws in production when SMTP_HOST is unset, rather than
+	// The mail transport throws in production when SMTP_HOST is unset, rather than
 	// falling back to a transport that prints reset links and delivers nothing.
 	const transporter = createTransport({
 		smtpHost: authEnv.SMTP_HOST,
@@ -150,7 +150,7 @@ export function createAuth() {
 	const mailFrom = authEnv.MAIL_FROM
 	const appWebUrl = authEnv.APP_WEB_URL
 	const verificationRequired = authEnv.EMAIL_VERIFICATION_REQUIRED
-	// AC-3: requiring verification while sending is disabled produces accounts
+	// Requiring verification while sending is disabled produces accounts
 	// that can never sign in — no mail is sent, so the gate never opens. The two
 	// flags are made coherent here rather than left to trip an operator: if
 	// verification is required, sending is on.
@@ -265,7 +265,7 @@ export function createAuth() {
 			enabled: true,
 			requireEmailVerification: verificationRequired,
 			/**
-			 * Send a password-reset link (AC-4 / F-18).
+			 * Send a password-reset link.
 			 *
 			 * Failures are swallowed on purpose. Better Auth already returns the
 			 * same generic response whether or not the account exists; letting a
@@ -274,7 +274,7 @@ export function createAuth() {
 			 * the endpoint into an account-enumeration oracle for anyone who can
 			 * make delivery fail for one address and not another.
 			 *
-			 * The real error goes to the server log, where LG-1's Pino redaction
+			 * The real error goes to the server log, where the Pino redaction
 			 * applies, and never to the client: raw transport errors disclose
 			 * host, port and credentials-in-use.
 			 */
@@ -300,7 +300,7 @@ export function createAuth() {
 			},
 		},
 		/**
-		 * AC-5 / F-35: the Google provider is registered only when BOTH
+		 * The Google provider is registered only when BOTH
 		 * credentials are present.
 		 *
 		 * It used to register unconditionally with `as string` casting
@@ -320,14 +320,14 @@ export function createAuth() {
 					}
 				: {}),
 		},
-		// AC-5 / F-32: trimmed and emptied-filtered. A list written with spaces
+		// Origins are trimmed and empty entries are filtered. A list written with spaces
 		// after the commas produced entries like " http://localhost:3001" that
 		// match nothing, and a trailing comma produced an empty string — which
 		// some origin checks treat as "any". Both are silent failures.
 		trustedOrigins: parseOriginList(authEnv.BETTER_AUTH_TRUSTED_ORIGINS),
 
 		/**
-		 * Session lifetime, pinned rather than inherited (AC-3 / F-56).
+		 * Session lifetime is pinned rather than inherited.
 		 *
 		 * These rode library defaults, so the security posture was whatever the
 		 * installed version happened to choose and could change under a patch
@@ -342,18 +342,16 @@ export function createAuth() {
 			updateAge: 60 * 60 * 24, // 1 day
 			// Cookie cache is deliberately OFF. It serves session data from a
 			// signed cookie without hitting the database, which means a revoked
-			// session keeps working until the cache lapses — the same staleness
-			// AB-2 removed from the RBAC cache, and not worth reintroducing here.
+			// session keeps working until the cache lapses — the same staleness the
+			// shared permission cache removed from the RBAC cache, and not worth reintroducing here.
 			cookieCache: { enabled: false },
 		},
 
 		/**
-		 * Account linking, stated explicitly (AC-3 / F-56).
+		 * Account linking is stated explicitly.
 		 *
 		 * Trusted providers only, and only ones that verify the address they
-		 * assert. Automatic linking on an unverified email is an account-takeover
-		 * path: sign up with someone's address at a provider that never checks
-		 * it, and you inherit their account.
+		 * assert. An unverified email is not linked automatically.
 		 */
 		account: {
 			accountLinking: {
@@ -378,10 +376,10 @@ export function createAuth() {
 				ipAddressHeaders: [AUTH_CLIENT_ADDRESS_HEADER],
 			},
 			/**
-			 * Cookie attributes, pinned (AC-3 / F-58, F-59).
+			 * Cookie attributes are pinned.
 			 *
-			 * F-59 asked which SameSite posture applies, because it gates how bad
-			 * F-21's clickjacking is. The answer is `lax`, chosen not defaulted:
+			 * The open question was which SameSite posture applies, because it gates how bad
+			 * the clickjacking is. The answer is `lax`, chosen not defaulted:
 			 *
 			 *  - `strict` breaks the OAuth return leg — the browser drops the
 			 *    cookie on the top-level redirect back from Google, so the user
@@ -392,7 +390,7 @@ export function createAuth() {
 			 *    case) while allowing it on top-level navigations (the OAuth
 			 *    case).
 			 *
-			 * With `lax` here and ED-1's `frame-ancestors 'none'`, F-21 is closed
+			 * With `lax` here and the CSP's `frame-ancestors 'none'`, framing is closed
 			 * from both directions: the page cannot be framed, and even if it
 			 * were, the cookie would not ride a cross-site subrequest.
 			 */
@@ -416,7 +414,7 @@ export function createAuth() {
 			}),
 		},
 		/**
-		 * AC-5 / F-34: the openAPI reference is a debug surface and is
+		 * The openAPI reference is a debug surface and is
 		 * registered only when API docs are enabled.
 		 *
 		 * It used to mount unconditionally, so `/api/v1/auth/reference` listed

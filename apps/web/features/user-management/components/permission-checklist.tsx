@@ -19,7 +19,7 @@ export function PermissionChecklist({ value, onChange, disabled }: PermissionChe
 	const permissionsQuery = usePermissionsQuery()
 	const { data: permissions, isError, error } = permissionsQuery
 
-	// WC-1: during the persisted-cache restore a pending query reports
+	// During the persisted-cache restore a pending query reports
 	// `isLoading === false`; without this the checklist flashes "no permissions"
 	// before the snapshot lands. See `useIsQueryLoading`.
 	const isQueryLoading = useIsQueryLoading()

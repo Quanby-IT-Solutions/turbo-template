@@ -1,5 +1,5 @@
 /**
- * AZ-4 / F-17 — the audit trail's two load-bearing guarantees.
+ * The audit trail's two load-bearing guarantees.
  *
  * These run against a real Postgres (the same instance the app uses), because
  * the claim under test is transactional: a privileged mutation and its audit
@@ -8,7 +8,7 @@
  * behaviour, not ours.
  *
  * Skips itself when no database is reachable so the unit suite stays runnable
- * offline; CI provides Postgres (HY-1 wires the compose service).
+ * offline; CI provides Postgres (the workflow wires the compose service).
  */
 
 import { and, eq, sql } from "drizzle-orm"
@@ -89,7 +89,7 @@ beforeAll(async () => {
 			updatedAt: now,
 		},
 	])
-	await db.insert(roles).values({ name: TEST_ROLE, description: "AZ-4 fixture" })
+	await db.insert(roles).values({ name: TEST_ROLE, description: "fixture" })
 })
 
 afterAll(async () => {
@@ -160,7 +160,7 @@ describe("audit trail is written in the same transaction as the mutation", () =>
 	})
 
 	itDb("rolls the grant back when the audit insert fails", async () => {
-		// The whole point of AZ-4: a privileged change must not be able to
+		// A privileged change must not be able to
 		// commit unrecorded. Break only the audit write and the grant must die
 		// with it.
 		const audit = new AuditService()
@@ -208,7 +208,7 @@ describe("audit trail is written in the same transaction as the mutation", () =>
 })
 
 describe("refused privileged attempts are recorded", () => {
-	// AZ-4: "a denial is evidence". Who *tried* to escalate and was stopped is
+	// "a denial is evidence". Who *tried* to escalate and was stopped is
 	// the question an audit trail most often has to answer, so a rejection must
 	// leave a row behind rather than only an error response.
 	let adminRoleId: number

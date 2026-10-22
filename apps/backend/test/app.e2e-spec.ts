@@ -52,7 +52,7 @@ describe("Examples API (e2e)", () => {
 		// Password is SEED_ADMIN_PASSWORD from packages/db/.env (loaded in
 		// setup-env.ts) — the same value `pnpm db:seed` wrote. E2E_ADMIN_PASSWORD
 		// is an explicit override. The seeder randomises the password when that
-		// variable is unset (AC-2); the suite fails at startup instead of guessing.
+		// variable is unset; the suite fails at startup instead of guessing.
 		const signIn = await request(server).post("/api/v1/auth/sign-in/email").send({
 			email: resolveE2eAdminEmail(),
 			password: resolveE2eAdminPassword(),

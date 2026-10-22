@@ -11,7 +11,7 @@
 | `authz` | Authorization & Data Scoping | ungated ticket reads, the Admin self-grant, unowned todo updates, the missing audit trail, tickets without an author, last-Admin removal, full email-directory reads, a contract that marks session routes public | Permission gates, ownership, audit trail. |
 | `auth-config` | Auth Secrets & Session Policy | the shipped signing secret, the fixed Admin seed password, distinguishable reset errors, untrimmed origin lists, an unvalidated cookie domain, the ungated API reference, the always-on Google provider, unpinned session lifetime, a non-boundary auth path match, verification not required, unpinned cookie attributes | Better Auth config, seeds, secrets. |
 | `abuse` | Rate Limiting, Idempotency & Limits | client-controlled rate-limit keys, global idempotency keys, unbounded request bodies, process-local limits, RBAC writes without idempotency | The throttle/idempotency spine. |
-| `webclient` | Web Client Cache & PWA | the shared browser cache, paused-mutation replay, cached token URLs, offline fallback on authenticated routes, mid-session service-worker takeover, the third-party connectivity probe | TanStack persistence + Serwist. |
+| `webclient` | Web Client Cache & PWA | the shared browser cache, paused-mutation replay, cached token URLs, offline fallback on authenticated routes, mid-session service-worker claim, the third-party connectivity probe | TanStack persistence + Serwist. |
 | `logging` | Log Redaction & Disclosure | credential logging, a verbose health response, verbatim request ids | Three log paths + response leaks. |
 | `edge` | Security Headers, TLS & Nginx | missing security headers, the commented-out TLS block, a framable admin UI | The reverse-proxy layer. |
 | `mobile` | Flutter Mobile Hardening | the duplicated mobile cookie, cleartext mobile traffic, the bundled mobile env file, a cookie jar kept after sign-out, debug signing on release, raw mobile error text, the mismatched password minimum, unused mobile permissions | Shipped app — 30-day wave. |
@@ -57,7 +57,7 @@
 **Wave 3 — hardening backlog (batched):**
 29. **auth config hygiene** — Auth config hygiene batch (untrimmed origin lists, the ungated API reference, the always-on Google provider, a non-boundary auth path match)
 30. **health and request-id hygiene** — Health & request-id disclosure hygiene (a verbose health response, verbatim request ids)
-31. **the PWA update flow** — PWA update flow & connectivity probe (mid-session service-worker takeover, the third-party connectivity probe)
+31. **the PWA update flow** — PWA update flow & connectivity probe (mid-session service-worker claim, the third-party connectivity probe)
 32. **the finer directory permission** — Finer-grained directory-PII permission (full email-directory reads)
 33. **schema hygiene** — Repo & schema hygiene batch (the unbounded concern field, unpruned verification rows, the example database credential, the unused root Dockerfile, the beta ORM in production, credential-shaped placeholders, the mock ticket form)
 
@@ -104,7 +104,7 @@
 
 **Title:** [the CI workflow pin] Pin the external CI workflow to a SHA and scope secrets
 **Epic:** `cicd`
-**Problem / context:** the unpinned CI workflow (High, Medium confidence). `.github/workflows/ci.yml:13-14` delegates the entire quality gate to an external reusable workflow referenced at `@main` with `secrets: inherit`. The audit could not read that workflow — the CI gate's contents are unverifiable, and a compromise of the external repo exfiltrates every inherited secret.
+**Problem / context:** the unpinned CI workflow (High, Medium confidence). `.github/workflows/ci.yml:13-14` delegates the entire quality gate to an external reusable workflow referenced at `@main` with `secrets: inherit`. The audit could not read that workflow — the CI gate's contents are unverifiable, and a compromise of the external repo is handed every inherited secret.
 **User story:** As a release engineer *(persona)*, I want the CI gate pinned to an immutable ref with an explicit secret allowlist so that an external repository change can neither alter our gate nor read our secrets.
 **Acceptance criteria:**
 - *Given* the reusable workflow reference, *when* CI runs, *then* it targets a full commit SHA (with a version comment), not a branch ref.
@@ -154,7 +154,7 @@
 **Title:** [action pinning and workflow permissions] Supply-chain pinning batch — action SHAs, workflow permissions, cache scoping, postinstall
 **Epic:** `cicd`
 **Problem / context:** unpinned actions + a broad build-cache restore + the unpinned postinstall (Medium). No action is SHA-pinned and CI + both deploys declare no `permissions:`; buildx `restore-keys` are broad enough to restore caches across refs; `package.json:30-31` `postinstall` shells out to `pnpm dlx sherif@latest` — unpinned remote code execution on every install.
-**User story:** As a release engineer *(persona)*, I want every executable pulled by the pipeline pinned and least-privileged so that neither a tag hijack, a poisoned cache, nor a package publish can inject code.
+**User story:** As a release engineer *(persona)*, I want every executable pulled by the pipeline pinned and least-privileged so that a moved tag, a cache from another ref, or a package publish cannot change what the pipeline runs.
 **Acceptance criteria:**
 - *Given* all five workflows, *when* reviewed, *then* every `uses:` targets a full commit SHA with a version comment, and each workflow declares a least-privilege `permissions:` block (`contents: read` baseline).
 - *Given* the buildx cache config, *when* a build runs on a different ref, *then* it cannot restore another ref's cache (content-hash keys, narrowed `restore-keys`).
@@ -190,13 +190,13 @@
 
 **Title:** [the admin-grant guard] Admin-grant guard + last-Admin protection in one transaction
 **Epic:** `authz`
-**Problem / context:** the Admin self-grant (Medium — privilege tier collapse: any `users:manage` holder can grant *themselves* Admin via `rbac.controller.ts:78-85`) + last-Admin removal (Low — no last-Admin protection on role removal, with a TOCTOU on concurrent removals in `rbac.service.ts:106-118`). Same service, same transaction — one slice.
+**Problem / context:** the Admin self-grant (Medium — privilege tier collapse: any `users:manage` holder can grant *themselves* Admin via `rbac.controller.ts:78-85`) + last-Admin removal (Low — no last-Admin protection on role removal, with a check-then-write race between concurrent requests in `rbac.service.ts:106-118`). Same service, same transaction — one slice.
 **User story:** As a user with `users:manage` permission, I want privileged grants checked against my own privilege tier and the system's Admin count so that role management can neither self-escalate nor lock everyone out.
 **Acceptance criteria:**
 - *Given* a caller with `users:manage` but not Admin, *when* they attempt to grant the Admin role (to anyone, including themselves), *then* the grant is rejected with 403 and the attempt is audited.
 - *Given* a caller who holds Admin, *when* they grant Admin, *then* it succeeds and is audited.
 - *Given* a removal that would leave zero Admin holders, *when* attempted, *then* it is rejected with 409, with the count taken **inside the same transaction** as the removal.
-- *Given* two concurrent removals of the last two Admins, *when* both run, *then* at most one succeeds (TOCTOU closed).
+- *Given* two concurrent removals of the last two Admins, *when* both run, *then* at most one succeeds.
 - *Given* the regression tests, *when* CI runs, *then* self-escalation and last-Admin cases are covered.
 **In scope:** Tier check on Admin grants; in-transaction Admin count guard; audited denials; concurrency test.
 **Out of scope:** The audit-trail table itself (the append-only audit trail — this ticket calls its helper once it exists, or logs via Pino until then); idempotency on RBAC writes (the idempotency key model).
@@ -474,10 +474,10 @@
 
 **Title:** [the PWA update flow] PWA update flow & connectivity probe hygiene
 **Epic:** `webclient`
-**Problem / context:** mid-session service-worker takeover + the third-party connectivity probe (Low). `skipWaiting`+`clientsClaim` performs a mid-session SW takeover with a dev-only unregister path — no production recovery from a bad SW; and the online-status hook probes `gstatic.com` every 15s, leaking IP + session duration to a third party.
+**Problem / context:** mid-session service-worker claim + the third-party connectivity probe (Low). `skipWaiting`+`clientsClaim` performs a mid-session service-worker claim with a dev-only unregister path — no production recovery from a bad SW; and the online-status hook probes `gstatic.com` every 15s, leaking IP + session duration to a third party.
 **User story:** As an authenticated user *(persona)*, I want app updates to apply predictably and connectivity checks to stay first-party so that a bad deploy is recoverable and no third party observes my usage.
 **Acceptance criteria:**
-- *Given* a new SW version, *when* detected mid-session, *then* the user is prompted to reload (or update applies on next navigation) instead of silent takeover — documented choice in the PR.
+- *Given* a new SW version, *when* detected mid-session, *then* the user is prompted to reload (or update applies on next navigation) instead of applying the update with no prompt — documented choice in the PR.
 - *Given* a broken SW in production, *when* the recovery path is triggered, *then* unregistration + cache reset works with `NODE_ENV === "production"` (the current path returns early there).
 - *Given* the online-status hook, *when* it probes, *then* it targets `/api/v1/health` — zero third-party requests.
 **In scope:** Prompted/deferred update strategy; production recovery path; probe retarget in `use-online-status.ts`.
@@ -606,7 +606,7 @@
 **Title:** [mobile release hardening] Mobile release hardening batch
 **Epic:** `mobile`
 **Problem / context:** debug signing on release + raw mobile error text + the mismatched password minimum + unused mobile permissions (Low). Release builds are signed with the **debug keystore** under `com.example.mobile`; non-Dio exceptions render `error.toString()` and Dio messages embed host/port; the login screen enforces a 6-char password minimum vs the server's 8; the manifest requests unused `SCHEDULE_EXACT_ALARM`/`RECEIVE_BOOT_COMPLETED` permissions and leaves `allowBackup` defaulting to true.
-**User story:** As a mobile app user *(persona)*, I want the released app properly signed, minimally permissioned, and honest in its errors so that it is updatable, un-impersonatable, and leaks nothing through messages or backups.
+**User story:** As a mobile app user *(persona)*, I want the released app properly signed, minimally permissioned, and honest in its errors so that it is updatable, cannot be replaced by a build signed with someone else's key, and leaks nothing through messages or backups.
 **Acceptance criteria:**
 - *Given* `build.gradle.kts`, *when* a release is built, *then* it uses a real signing config (keys via env/local properties, never committed) and a unique application id — with a documented note that the id **cannot change after first store publish**.
 - *Given* an error on the login screen, *when* rendered, *then* the user sees a mapped, fixed string — never `toString()` output or host/port detail.

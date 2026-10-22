@@ -13,7 +13,7 @@ interface QueryLoadingSource {
 /**
  * Returns a predicate for "this query has nothing to show yet".
  *
- * Why this exists rather than reading `query.isLoading` directly (WC-1):
+ * Why this exists rather than reading `query.isLoading` directly:
  * `isLoading` is `isPending && isFetching`. While `PersistQueryClientProvider`
  * restores the IndexedDB snapshot it holds every observer in the `isRestoring`
  * state, where `fetchStatus` is pinned to `idle` — so `isLoading` is **false**

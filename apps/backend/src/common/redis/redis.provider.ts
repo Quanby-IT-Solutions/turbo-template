@@ -11,16 +11,16 @@ export type RedisClient = Redis | null
 const logger = new Logger("Redis")
 
 /**
- * Shared Redis connection for the throttler and the RBAC permission cache (AB-2).
+ * Shared Redis connection for the throttler and the RBAC permission cache.
  *
  * ## Why this exists
  *
  * Both consumers were process-local. In the ASG topology that means rate limits
  * multiply by instance count — a "10 per minute" limit becomes 10×N — and a
  * revoked permission keeps working on every instance except the one that
- * revoked it, until its TTL lapses. F-02 was masking this: while the throttle
- * key was client-controlled, per-instance counters were not the binding
- * problem. They are now.
+ * revoked it, until its TTL lapses. Client-controlled throttle keys were
+ * masking this: while anyone could pick their own key, per-instance
+ * counters were not the binding problem. They are now.
  *
  * ## Degradation, deliberately different per consumer
  *

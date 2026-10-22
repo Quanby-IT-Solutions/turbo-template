@@ -11,11 +11,11 @@ const ServiceCheckSchema = z.object({
 export const HealthCheckSchema = z.object({
 	status: z.string(),
 	timestamp: z.string(),
-	// LG-2 / F-36: optional because the unauthenticated endpoint omits them.
+	// These fields are optional because the unauthenticated endpoint omits them.
 	// Uptime dates the last deploy, version identifies which published
 	// vulnerabilities apply, and environment confirms a probe reached
 	// production. None serve a liveness check. `status` and
-	// `checks.database.status` are unchanged — Compose healthchecks and WC-4's
+	// `checks.database.status` are unchanged — Compose healthchecks and the
 	// probe depend on them.
 	uptime: z.number().optional(),
 	version: z.string().optional(),

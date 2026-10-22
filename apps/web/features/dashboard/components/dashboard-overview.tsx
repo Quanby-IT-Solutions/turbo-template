@@ -52,7 +52,7 @@ export function DashboardOverview({ user, access }: DashboardOverviewProps) {
 	const users = useUsersQuery()
 	const roles = useRolesQuery()
 
-	// WC-1: the persisted-cache restore pins `fetchStatus` to `idle`, so raw
+	// The persisted-cache restore pins `fetchStatus` to `idle`, so raw
 	// `isLoading` disagrees with the server render. See `useIsQueryLoading`.
 	const isQueryLoading = useIsQueryLoading()
 

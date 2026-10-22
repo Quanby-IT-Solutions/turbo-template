@@ -5,7 +5,7 @@ import request from "supertest"
 import { buildPinoHttpOptions } from "@/config/pino-logger.config"
 
 /**
- * Log-scan test for LG-1 / F-05.
+ * Log-scan test.
  *
  * Runs a full auth cycle — sign-up, sign-in, password-reset request, and the
  * emailed reset link — through the **real** pino-http options this app ships,

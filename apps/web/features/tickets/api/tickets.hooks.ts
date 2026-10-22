@@ -10,13 +10,13 @@ import { env } from "@/env"
 const API_BASE = `${env.NEXT_PUBLIC_API_BASE_URL}/${env.NEXT_PUBLIC_API_VERSION}`
 
 /**
- * Submit a support ticket (HY-2 / F-62).
+ * Submit a support ticket.
  *
- * Submission is deliberately open to anonymous callers — AZ-1 gates ticket
- * *reads* on `users:read`, not writes, because a support form nobody can reach
+ * Submission is deliberately open to anonymous callers. Ticket
+ * reads stay gated on `users:read`, not writes, because a support form nobody can reach
  * without an account is not a support form. `credentials: "include"` is still
- * sent so that a signed-in submitter gets `authorId` recorded server-side
- * (AZ-3); the client never sends an author itself.
+ * sent so that a signed-in submitter gets `authorId` recorded server-side.
+ * The client never sends an author itself.
  *
  * No cache invalidation on success: the submitter cannot read the ticket list
  * (that needs `users:read`), so there is no query of theirs to refresh.

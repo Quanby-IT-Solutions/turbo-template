@@ -24,7 +24,7 @@ import { useIsQueryLoading } from "@/services/tanstack-query/use-query-loading"
 import { useAuditLogQuery } from "@/features/user-management/api/rbac.hooks"
 
 /**
- * Read-only view of the RBAC audit trail (AZ-4 / F-17).
+ * Read-only view of the RBAC audit trail.
  *
  * Deliberately offers no way to edit or delete an entry: the table is
  * append-only, and a UI affordance suggesting otherwise would misrepresent it.

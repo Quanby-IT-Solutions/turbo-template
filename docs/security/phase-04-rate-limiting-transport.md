@@ -79,10 +79,10 @@ Severity: Low · Confidence: High (shared root cause with trustedOrigins parsed 
 
 split(",").map(trim) without .filter(Boolean). Trailing comma yields [""] with credentials: true. Fails safe. Consolidate with trustedOrigins parsed without trimming or empty-entry filtering.
 
-### Unauthenticated attacker controls the correlation ID used in logs
+### Inbound correlation IDs used in logs are not validated
 Severity: Low · Confidence: High
 
-Inbound X-Request-Id accepted verbatim, logged and echoed. Log-injection / correlation-ID collision risk.
+Inbound X-Request-Id accepted verbatim, logged and echoed. Request ids must be validated (format and length) before they are logged or echoed.
 
 Remediation. Validate UUID pattern or cap length.
 

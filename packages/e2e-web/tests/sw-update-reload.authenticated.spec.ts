@@ -8,7 +8,7 @@ test.beforeEach(async ({ page }) => {
 })
 
 /**
- * BUG-006: a first visit must not reload when the worker claims.
+ * A first visit must not reload when the worker claims.
  *
  * Fresh context per test, so no worker is installed yet. Admin storage is the
  * setup project's session; this test does not sign in again. The accepted

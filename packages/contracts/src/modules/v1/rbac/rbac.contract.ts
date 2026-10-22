@@ -128,7 +128,7 @@ export const rbacContract = {
 	},
 
 	/**
-	 * Append-only audit trail (AZ-4 / F-17). Read-only by design: there is no
+	 * Append-only audit trail. Read-only by design: there is no
 	 * update or delete route here, and none may be added — a log the
 	 * application can rewrite is not evidence.
 	 */

@@ -20,7 +20,7 @@ const TTL_SECONDS = 60
 const USER_KEY = "rbac:user:"
 
 /**
- * Cache of each user's resolved roles and permissions (AB-2 / F-38).
+ * Cache of each user's resolved roles and permissions.
  *
  * Previously an in-process LRU, which in the ASG topology meant a revoked role
  * kept working on every instance except the one that revoked it until its TTL
@@ -87,7 +87,7 @@ export class RbacCacheService {
 	 * Drop one user's entry, after a change to their role assignments.
 	 *
 	 * Throws when the store is reachable but rejects the delete. Callers invoke
-	 * this **after** the mutation has committed (RF5), so a silent failure would
+	 * this **after** the mutation has committed, so a silent failure would
 	 * leave the old permission set answering for up to a full TTL — the exact
 	 * window this ticket exists to close. Letting it surface is the honest
 	 * outcome: the change did land, and the caller can report that the cache did

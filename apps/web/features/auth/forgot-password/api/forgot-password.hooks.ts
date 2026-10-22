@@ -29,10 +29,8 @@ export function useForgotPasswordMutation() {
 				throw new RateLimitError(retryAfterCapture.seconds(result.error))
 			}
 
-			// AC-4 / F-18: every other outcome is reported identically. Surfacing
-			// a 5xx here would re-create the enumeration oracle the server side
-			// just closed — "this address errored, that one didn't" is the signal
-			// an attacker wants — and would leak whatever the server said.
+			// Every other outcome is reported identically, including when mail
+			// delivery fails.
 		},
 	})
 }

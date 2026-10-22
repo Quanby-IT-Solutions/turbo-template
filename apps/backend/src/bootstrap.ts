@@ -32,7 +32,7 @@ function setupVersioning(app: INestApplication, logger: Logger): void {
  * Exported so the e2e suite boots the app exactly as production does. It used
  * to re-derive the setup itself and silently drifted: it missed the Better Auth
  * middleware entirely and declared a `defaultVersion` this function does not,
- * so every route 404'd and every authenticated call 401'd (HY-1 / F-54).
+ * so every route 404'd and every authenticated call 401'd.
  *
  * Returns the app without listening — the caller decides.
  */
@@ -60,7 +60,7 @@ export async function createApplication(options?: {
 	const apiDocsEnabled =
 		options?.apiDocsEnabled ?? isApiDocsEnabled(env.NODE_ENV, env.ENABLE_API_DOCS)
 
-	// ED-1: security headers first, so they cover EVERY response — including
+	// Security headers come first, so they cover EVERY response — including
 	// the auth routes Better Auth short-circuits before Nest sees them, and
 	// error responses produced by later middleware.
 	// When docs are off this is the same `helmet(buildHelmetOptions())` registration

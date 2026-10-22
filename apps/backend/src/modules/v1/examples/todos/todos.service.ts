@@ -44,15 +44,16 @@ export class TodosService {
 	/**
 	 * Update a todo the caller owns.
 	 *
-	 * AZ-3 / F-11: the `where` matched on `id` alone, so `posts:edit` — a
+	 * The `where` matched on `id` alone, so `posts:edit` — a
 	 * permission every signed-in user effectively has — let anyone rewrite
 	 * anyone's row. Ownership is identity-scoped, not permission-scoped:
 	 * holding the permission means you may edit *your* todos.
 	 *
 	 * This two-term `where` is the template's canonical ownership check.
 	 * Filtering in the query rather than fetching-then-comparing matters: a
-	 * read followed by a check is a TOCTOU, and it also leaks existence, since
-	 * a "forbidden" response confirms the row is there.
+	 * read followed by a check can race with a concurrent write, and a
+	 * forbidden response would confirm that the row exists; filtering in the
+	 * query answers 'not found' either way.
 	 */
 	async update({ payload, authorId }: { payload: UpdateTodoRequest; authorId: string }) {
 		const id = payload.id as number

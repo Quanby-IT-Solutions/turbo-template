@@ -71,7 +71,7 @@ export const verifications = createTable(
 	t => [
 		// Composite primary key on identifier and value
 		primaryKey({ columns: [t.identifier, t.value] }),
-		// HY-2 / F-40. Rows here are short-lived tokens, but nothing deleted them,
+		// Rows here are short-lived tokens, but nothing deleted them,
 		// so the table only ever grew — every unverified signup and every password
 		// reset, kept forever. The sweeper deletes by expiry; without this index it
 		// seq-scans a table whose whole problem is that it is large.
@@ -125,7 +125,7 @@ export const tickets = createTable("tickets", t => ({
 // ============================================================================
 
 /**
- * Replay cache for mutating requests (AB-3 / F-13).
+ * Replay cache for mutating requests.
  *
  * The primary key is composite on `(authorId, key)`. It used to be `key`
  * alone, which made the keyspace global: whoever sent a value first owned it,
@@ -208,7 +208,7 @@ export const rolePermissions = createTable(
 // ============================================================================
 
 /**
- * Append-only record of privileged mutations (AZ-4 / F-17).
+ * Append-only record of privileged mutations.
  *
  * Owned by the `authz` epic. Rows are written **in the same transaction** as
  * the mutation they describe, so a failed insert rolls the mutation back and

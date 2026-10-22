@@ -7,7 +7,7 @@ import { env } from "@/config/env.config"
 import { SCALAR_BUNDLE } from "@/config/scalar-bundle"
 
 /**
- * Browser-level defences for API responses (ED-1 / F-12, F-21).
+ * Browser-level defences for API responses.
  *
  * ## Ownership between layers
  *
@@ -28,9 +28,9 @@ import { SCALAR_BUNDLE } from "@/config/scalar-bundle"
  * ## HSTS
  *
  * Gated behind `ENABLE_HSTS` because it is a promise the browser remembers.
- * Sending it before TLS terminates (ED-2) would pin clients to HTTPS on a
+ * Sending it before TLS terminates would pin clients to HTTPS on a
  * deployment that cannot serve it, and `max-age` cannot be taken back quickly.
- * Turn it on once ED-2 is live in the target environment.
+ * Turn it on once TLS termination is live in the target environment.
  *
  * ## Docs page
  *
@@ -60,7 +60,7 @@ const DOCS_PAGE_PATH = /^\/api\/[^/]+\/docs$/
 function sharedHelmetOptions(): HelmetOptions {
 	return {
 		// Legacy header, still honoured by older browsers that ignore
-		// frame-ancestors. Belt and braces on the clickjacking path (F-21).
+		// frame-ancestors. Belt and braces on the clickjacking path.
 		frameguard: { action: "deny" },
 		// Stops a JSON response being re-interpreted as HTML or a script.
 		noSniff: true,

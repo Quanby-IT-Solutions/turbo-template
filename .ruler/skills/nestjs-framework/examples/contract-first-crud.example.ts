@@ -46,7 +46,7 @@ export class TodosService {
   }
 
   // Ownership is scoped IN the where clause (id AND authorId). A fetch-then-check
-  // would be a TOCTOU and would leak existence. 0 rows -> 404 either way.
+  // would be a check-then-write race between concurrent requests. 0 rows -> 404 either way.
   async update({ payload, authorId }: { payload: UpdateTodoRequest; authorId: string }) {
     const id = payload.id as number
     const [todo] = await db

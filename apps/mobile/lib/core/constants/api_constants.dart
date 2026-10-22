@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart';
 
 /// Backend endpoints, resolved from build-time configuration.
 ///
-/// MB-2 / F-24 + F-42: `API_BASE_URL` used to come from a bundled `.env` asset
+/// The `API_BASE_URL` value used to come from a bundled `.env` asset
 /// with a hard-coded `http://10.0.2.2:3000/api` fallback. Two problems: the
 /// `.env` shipped inside every APK in cleartext, and a release built without
 /// configuration silently pointed at a non-TLS address instead of failing.

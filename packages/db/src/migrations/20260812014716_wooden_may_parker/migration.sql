@@ -1,4 +1,4 @@
--- AB-3 / F-13: idempotency keys become identity-scoped and expiring.
+-- Idempotency keys become identity-scoped and expiring.
 --
 -- The table is a replay cache, not a record, so it is emptied rather than
 -- migrated. Two reasons, both from the ticket's own guidance:

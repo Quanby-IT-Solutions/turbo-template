@@ -1,5 +1,5 @@
 /**
- * Decide when a `controllerchange` should reload the tab (BUG-006).
+ * Decide when a `controllerchange` should reload the tab.
  *
  * The first worker on a visit activates immediately and `clientsClaim` fires
  * `controllerchange`. That is not an update: reloading here drops whatever the

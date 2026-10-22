@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import { CreateTicketSchema, TicketIdSchema, TicketSchema } from "./tickets.schema.js"
 
-/** HY-2 / F-29 — the last unbounded string in the contract set. */
+/** The last unbounded string in the contract set. */
 describe("CreateTicketSchema concern bound", () => {
 	const valid = {
 		name: "Jane Doe",

@@ -19,7 +19,7 @@ export type {
 	UpdateTodoRequest,
 } from "./modules/v1/examples/todos/todos.schema.js"
 
-// Ticket schemas + inferred types (HY-2 / F-62 wires the web form to these)
+// Ticket schemas + inferred types (the web form is wired to these)
 export {
 	TicketSchema,
 	CreateTicketSchema,

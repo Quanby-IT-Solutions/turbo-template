@@ -12,7 +12,7 @@ import {
 import { pageShowsFailedSessionRead } from "./session-read-recovery.ts"
 
 /**
- * Shared multi-user session fixtures for the security suite (HY-1 / F-54).
+ * Shared multi-user session fixtures for the security suite.
  *
  * Every security spec needs the same thing: put a known identity into the
  * browser and assert what it may and may not do. Before this, each spec

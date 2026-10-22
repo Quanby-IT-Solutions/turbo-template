@@ -12,7 +12,7 @@ jest.mock("@repo/auth", () => ({
 }))
 
 /**
- * AB-4 / F-14 — request bodies are bounded.
+ * Request bodies are bounded.
  *
  * Both parsers were unbounded, so any mutation endpoint would buffer an
  * arbitrarily large body into memory before application code ran. These

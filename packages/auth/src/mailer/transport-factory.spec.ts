@@ -27,7 +27,7 @@ describe("createTransport", () => {
 		).resolves.toBeUndefined()
 	})
 
-	// LG-1 / RF3. The dev transport serializes and discards, so a production
+	// The dev transport serializes and discards, so a production
 	// boot that silently fell back to it would look healthy while no user could
 	// verify an address or reset a password — and every link went to stdout.
 	it("refuses to boot in production without SMTP_HOST", () => {

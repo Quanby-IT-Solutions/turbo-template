@@ -9,9 +9,9 @@ test.beforeEach(async ({ page }) => {
 })
 
 /**
- * ED-1 / F-12 + F-21 — browser-level defences, and the clickjacking path.
+ * This suite covers browser-level defences and the clickjacking path.
  *
- * The framing assertion is the one that retires F-21: the RBAC admin UI was
+ * The framing assertion is the one that retires that path: the RBAC admin UI was
  * framable, so a framed click could reach role assignment. Asserting the
  * header alone would not prove the browser acts on it, so this loads the page
  * in a real iframe and checks nothing renders.
@@ -48,7 +48,7 @@ test("security headers are present and the RBAC UI cannot be framed", async ({ p
 	expect(h["x-frame-options"]).toBe("DENY")
 	expect(h["x-content-type-options"]).toBe("nosniff")
 	expect(h["referrer-policy"]).toBe("strict-origin-when-cross-origin")
-	// HSTS must NOT be sent before TLS is live (ED-2).
+	// HSTS must NOT be sent before TLS is live.
 	expect(h["strict-transport-security"]).toBeUndefined()
 
 	// Exactly one CSP header — duplicates get intersected by the browser.
@@ -66,7 +66,7 @@ test("security headers are present and the RBAC UI cannot be framed", async ({ p
 		await expect(page).toHaveURL(/\/dashboard/)
 	}
 
-	// F-21: framing /user-management must fail. Done on a SEPARATE page —
+	// Framing /user-management must fail. Done on a SEPARATE page —
 	// `setContent` on the live page tears the document out from under React and
 	// produces DOM errors that have nothing to do with the headers under test.
 	const framer = await page.context().newPage()

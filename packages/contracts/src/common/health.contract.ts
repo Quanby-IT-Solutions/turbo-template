@@ -5,7 +5,7 @@ import { z } from "zod"
 // SCHEMAS
 // ============================================================================
 /**
- * Health response (LG-2 / F-36).
+ * Health response.
  *
  * `uptime`, `version` and `environment` are OPTIONAL because the
  * unauthenticated endpoint omits them. They used to be sent to anyone who
@@ -13,7 +13,7 @@ import { z } from "zod"
  * vulnerabilities apply, and environment confirms a probe reached production.
  * None help a liveness check; all three help someone deciding what to try.
  *
- * The shape deploy healthchecks and WC-4's probe depend on — `status` plus
+ * The shape deploy healthchecks and the probe depend on — `status` plus
  * `checks.database.status` — is unchanged.
  */
 export const HealthCheckSchema = z.object({

@@ -59,7 +59,7 @@ describe("Health (e2e)", () => {
 	})
 
 	it("leaks no build or runtime metadata to an anonymous prober", async () => {
-		// LG-2 / F-36 deliberately removed uptime, version and environment: they
+		// The health response deliberately removed uptime, version and environment: they
 		// tell an unauthenticated caller when the app last deployed and which
 		// published vulnerabilities apply to this build. This asserts their
 		// ABSENCE, so re-adding them fails the suite rather than passing quietly.

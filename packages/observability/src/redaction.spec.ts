@@ -9,7 +9,7 @@ import {
 	sanitizeLogUrl,
 } from "./redaction.js"
 
-// LG-1 / F-05: verification and password-reset links are `?token=…` URLs, and
+// Verification and password-reset links are `?token=…` URLs, and
 // every request log line carries `req.url`. Pino's `redact` cannot reach the
 // query string, so the value has to be stripped before it is ever emitted.
 

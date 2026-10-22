@@ -50,7 +50,7 @@ class SignOutRequestError extends Error {
  *
  * Purges every trace of the session's cached data, then redirects home.
  *
- * WC-1 / Risky Flow **RF1** — the order is normative: memory first
+ * The order is normative: memory first
  * (`queryClient.clear()`), then disk (`purgePersistedCache()`), then navigate.
  * Clearing memory first stops the persister from re-writing a snapshot after
  * the delete; navigating last means a purge failure surfaces as a failed

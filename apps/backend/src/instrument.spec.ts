@@ -238,7 +238,7 @@ describe("instrument (Sentry bootstrap)", () => {
 			return mockInit.mock.calls[0]?.[0] as InitOptions
 		}
 
-		// LG-1 / F-05 extended to the error sink: what pino refuses to log, Sentry
+		// Log redaction extended to the error sink: what pino refuses to log, Sentry
 		// must refuse to send. Both read the same deny-list from @repo/observability.
 		it("strips deny-listed headers, cookies and body fields from an event", () => {
 			const scrubbed = initOptions().beforeSend({

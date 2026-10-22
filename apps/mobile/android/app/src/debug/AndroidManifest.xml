@@ -7,7 +7,7 @@
     <uses-permission android:name="android.permission.INTERNET"/>
 
     <!--
-        MB-2 / F-24: cleartext HTTP is permitted in DEBUG BUILDS ONLY.
+        Cleartext HTTP is permitted in DEBUG BUILDS ONLY.
 
         `usesCleartextTraffic="true"` used to sit in the main manifest, which
         applies to release too, so production traffic could travel in plaintext.

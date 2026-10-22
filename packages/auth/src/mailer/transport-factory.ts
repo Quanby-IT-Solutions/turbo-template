@@ -17,7 +17,7 @@ export type MailTransportOptions = {
 /**
  * Thrown when production boots without SMTP configured.
  *
- * Risky Flow **RF3** (fail-closed boot): the previous behaviour silently swapped
+ * Fail-closed boot: the previous behaviour silently swapped
  * in `jsonTransport`, which never sends and never throws. Verification and
  * password-reset mail was therefore accepted, serialized, printed, and dropped —
  * so a production deployment could look healthy while no user could ever verify

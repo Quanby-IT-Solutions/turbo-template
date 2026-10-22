@@ -58,7 +58,7 @@ export function TodosView({ access }: TodosViewProps) {
 	const todosQuery = useTodosQuery()
 	const { data: todos, isError, error } = todosQuery
 
-	// WC-1: the persisted-cache restore pins `fetchStatus` to `idle`, so raw
+	// The persisted-cache restore pins `fetchStatus` to `idle`, so raw
 	// `isLoading` disagrees with the server render. See `useIsQueryLoading`.
 	const isQueryLoading = useIsQueryLoading()
 

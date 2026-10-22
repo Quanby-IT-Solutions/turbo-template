@@ -3,7 +3,7 @@ import { Logger } from "@nestjs/common"
 import { RbacCacheService, type ResolvedPermissionSet } from "@/common/rbac/rbac-cache.service"
 
 /**
- * AB-2 / F-38 — the RBAC permission cache on shared storage.
+ * The RBAC permission cache on shared storage.
  *
  * The behaviour that matters is what happens when Redis misbehaves. A cache
  * that keeps answering from a store it can no longer invalidate is how a
@@ -91,7 +91,7 @@ describe("with Redis available", () => {
 	})
 
 	it("an invalidation on one instance is visible to another", async () => {
-		// Two service instances over one store — the multi-instance case F-38 is
+		// Two service instances over one store — what the multi-instance case is
 		// about. Previously each had its own LRU and a revocation reached only one.
 		const redis = fakeRedis()
 		const instanceA = new RbacCacheService(redis as never)

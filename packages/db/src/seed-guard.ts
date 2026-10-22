@@ -1,14 +1,14 @@
 import { randomBytes } from "node:crypto"
 
 /**
- * Boot guards for the database seeder (AC-2 / F-06).
+ * Boot guards for the database seeder.
  *
  * The seeder provisions a pre-verified Admin account. Historically it used a
  * fixed password, printed it, reset it on every re-run, and had no environment
  * guard — a known-credential Admin one command away from any database,
  * production included.
  *
- * Risky Flow **RF3** (fail-closed boot): these checks run BEFORE any write and
+ * Fail-closed boot: these checks run BEFORE any write and
  * throw, so `seed.ts` exits non-zero rather than relying on operator care.
  *
  * Pure functions, no DB access — directly unit-testable.

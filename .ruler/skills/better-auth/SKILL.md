@@ -121,7 +121,7 @@ export function createAuth(): ReturnType<typeof betterAuth> {
       updateAge: 60 * 60 * 24, // sliding renewal, once/day
       cookieCache: { enabled: false }, // OFF: a signed-cookie cache outlives revocation
     },
-    // Trusted, address-verifying providers only — auto-linking an unverified email is takeover.
+    // Only trusted, address-verifying providers are registered — an unverified email is not linked automatically.
     account: {
       accountLinking: { enabled: true, trustedProviders: ["google"], allowDifferentEmails: false },
     },

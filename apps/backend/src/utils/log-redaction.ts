@@ -1,5 +1,5 @@
 /**
- * Request-id sanitisation for the log path (LG-2 / F-37).
+ * Request-id sanitisation for the log path.
  *
  * The redaction policy itself — query-string and structured-field stripping —
  * lives in `@repo/observability`, which is shared with non-backend clients.
@@ -8,13 +8,11 @@
  */
 
 /**
- * Longest correlation id accepted from a client (LG-2 / F-37).
+ * Longest correlation id accepted from a client.
  *
  * An inbound `X-Request-Id` was taken verbatim: unbounded, logged, and echoed
- * back on the response. That is two problems. A newline or control character
- * forges log lines, since the id is written into structured output that a log
- * reader parses. And an unbounded value reflected in a response header is a
- * cache-poisoning and header-injection surface.
+ * back on the response. Request ids must be validated (format and length)
+ * before they are logged or echoed.
  */
 export const MAX_REQUEST_ID_LENGTH = 64
 
@@ -28,7 +26,7 @@ const REQUEST_ID_PATTERN = /^[A-Za-z0-9_.:-]+$/
 /**
  * The inbound id if it is safe to reuse, otherwise null so the caller mints a
  * fresh one. Reusing a client value is what makes distributed tracing work, so
- * it is kept — but only when it cannot forge a log line.
+ * it is kept — but only when it is safe to put in a log line.
  */
 export function sanitizeRequestId(value: unknown): string | null {
 	const raw = Array.isArray(value) ? value[0] : value

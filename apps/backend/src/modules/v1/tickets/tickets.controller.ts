@@ -30,8 +30,8 @@ export class TicketsController {
 	}
 
 	@StrictThrottle()
-	// Submission is open to anonymous callers, and must stay that way: AZ-1 gates
-	// ticket *reads* on `users:read`, not writes. The global AuthGuard protects
+	// Submission is open to anonymous callers, and must stay that way: the reads-only
+	// RBAC rule gates ticket *reads* on `users:read`, not writes. The global AuthGuard protects
 	// every route by default, so without this the support form 401s for exactly
 	// the people most likely to need it. The contract already declares the route
 	// unauthenticated (`security: []`); that is OpenAPI metadata and does not
@@ -40,12 +40,12 @@ export class TicketsController {
 	// `OptionalAuth` rather than `AllowAnonymous`: both leave the session
 	// resolved (the guard populates it before either check), but this one states
 	// the actual rule — authentication is optional here, not absent — so a signed
-	// -in reporter still gets `authorId` recorded per AZ-3.
+	// -in reporter still gets `authorId` recorded server-side.
 	@OptionalAuth()
 	@Implement(v1.ticket.submit)
 	async submitTicket(@Session() session?: UserSession) {
 		return implement(v1.ticket.submit).handler(async ({ input }) => {
-			// AZ-3 / F-30: attribute the submission. Optional so the route keeps
+			// The handler attributes the submission. Optional so the route keeps
 			// working if it is ever opened to anonymous reporters.
 			return this.ticketsService.submit({
 				payload: input,

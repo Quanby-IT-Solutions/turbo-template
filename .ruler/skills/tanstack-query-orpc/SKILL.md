@@ -114,7 +114,7 @@ queryClient.setMutationDefaults(["todos", "create"], {
 })
 ```
 
-Hook wrapper stamps identity so a device handover cannot replay one user's writes as another (WC-3):
+Hook wrapper stamps identity so a device handover cannot replay one user's writes as another:
 
 ```typescript
 export function useCreateTodoMutation() {
@@ -178,7 +178,7 @@ export const createQueryClient = () =>
   }}
   onSuccess={() => {
     registerTodosMutationDefaults(queryClient)          // restore fns before replay
-    discardForeignPausedMutations(queryClient)          // WC-3: drop other identities' queued writes…
+    discardForeignPausedMutations(queryClient) // drop other identities' queued writes…
     void queryClient.resumePausedMutations()            // …THEN resume — order is the guarantee
   }}
 >
@@ -186,7 +186,7 @@ export const createQueryClient = () =>
 
 **Security exclusion — `NON_PERSISTED_QUERY_ROOTS = ["session", "rbac"]`** (query-client.ts). These roots carry the signed-in identity and the full user/email directory; persisting them would hand the next person on a shared browser profile a readable copy from DevTools. `shouldPersistQuery` denies any key whose first-segment labels intersect that set, then falls through to the SSR predicate. It is an **exclusion list, not an allowlist** — add new sensitive roots here.
 
-**Identity scoping** (`cache-persistence.ts`): every IndexedDB bucket key is suffixed with an FNV-1a hash of the user id (`readCacheIdentity()` / `writeCacheIdentity()`); anonymous bucket is `"anon"`. `purgePersistedCache()` deletes every owned bucket (including the legacy `REACT_QUERY_OFFLINE_CACHE` key) on sign-out, retried up to 3x (RF1). `cache-identity.tsx` resolves the session server-side and renders `<CacheIdentityStamp userId>` — mount it per authenticated subtree, never in the root layout (a cookie read there makes every route dynamic, including `/login` and `/~offline`).
+**Identity scoping** (`cache-persistence.ts`): every IndexedDB bucket key is suffixed with an FNV-1a hash of the user id (`readCacheIdentity()` / `writeCacheIdentity()`); anonymous bucket is `"anon"`. `purgePersistedCache()` deletes every owned bucket (including the legacy `REACT_QUERY_OFFLINE_CACHE` key) on sign-out, retried up to 3x. `cache-identity.tsx` resolves the session server-side and renders `<CacheIdentityStamp userId>` — mount it per authenticated subtree, never in the root layout (a cookie read there makes every route dynamic, including `/login` and `/~offline`).
 
 **Paused-mutation identity** (`paused-mutation-identity.ts`): `stampIdentity()` writes the hashed identity onto mutation vars under `__identity`; `discardForeignPausedMutations()` removes paused mutations whose stamp differs from the current identity before resume. Unstamped (pre-upgrade) mutations are treated as belonging to the current identity.
 

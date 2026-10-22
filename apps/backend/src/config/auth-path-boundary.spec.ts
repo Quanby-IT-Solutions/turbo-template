@@ -1,5 +1,5 @@
 /**
- * AC-5 / F-57 — the auth-path bypass must match on a prefix BOUNDARY.
+ * The auth-path bypass must match on a prefix BOUNDARY.
  *
  * `startsWith("/api/v1/auth")` also matched `/api/v1/authx/...` and
  * `/api/v1/authorize`, so any route whose name merely begins with "auth" was

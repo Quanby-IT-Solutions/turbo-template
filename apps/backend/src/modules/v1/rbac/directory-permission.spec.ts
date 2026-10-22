@@ -15,10 +15,10 @@ const PERMISSION_NAMES: string[] = Array.from(
 ).map(match => match[1] as string)
 
 /**
- * AZ-5 / F-51 — directory PII is split from operational reads.
+ * Directory PII is split from operational reads.
  *
  * `users:read` yielded the complete email directory, so granting someone
- * support-ticket triage (AZ-1, also gated on `users:read`) handed them every
+ * support-ticket triage (also gated on `users:read`) handed them every
  * address as a side effect.
  */
 
@@ -27,7 +27,7 @@ describe("permission catalog", () => {
 		expect(PERMISSION_NAMES).toContain("users:read-directory")
 	})
 
-	it("keeps users:read, so AZ-1's ticket gate is unaffected", () => {
+	it("keeps users:read, so the ticket gate is unaffected", () => {
 		expect(PERMISSION_NAMES).toContain("users:read")
 	})
 

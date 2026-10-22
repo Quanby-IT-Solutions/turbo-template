@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# MB-2 / F-42 — prove no env file rides inside the APK.
+# Prove no env file rides inside the APK.
 #
 # `.env` used to be declared as a Flutter asset, so every build packaged it in
 # cleartext. The unit suite asserts the pubspec no longer declares it, which is
@@ -74,7 +74,7 @@ done
 
 if [ "$fail" -ne 0 ]; then
   echo
-  echo "$fail APK(s) carry files that must not ship. See MB-2 / F-42:"
+  echo "$fail APK(s) carry files that must not ship."
   echo "config belongs in --dart-define, secrets belong on the server."
   echo
   echo "If the APK predates the fix it is simply stale — build/ is gitignored and"

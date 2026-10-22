@@ -32,7 +32,7 @@ import { deserializeQueryData, getQueryClient } from "./query-client"
 // IndexedDB-backed AsyncStorage adapter for the persister. Wrapped in a
 // `typeof window` guard so it is never constructed on the server.
 //
-// WC-1: the key is explicit and identity-scoped (the adapter appends the
+// The key is explicit and identity-scoped (the adapter appends the
 // current identity), so one browser profile keeps one bucket per user instead
 // of a single shared one.
 function createIdbPersister() {
@@ -49,7 +49,7 @@ function createIdbPersister() {
 }
 
 /**
- * Records which user owns the persisted cache (WC-1).
+ * Records which user owns the persisted cache.
  *
  * Mounted by `CacheIdentity` inside the authenticated subtrees rather than by
  * `QueryProvider` itself, because resolving the session is a cookie read and
@@ -128,7 +128,7 @@ export function QueryProvider({ children }: Readonly<{ children: React.ReactNode
 			client={queryClient}
 			persistOptions={{
 				persister,
-				// WC-1: a restored snapshot expires well before the in-memory
+				// A restored snapshot expires well before the in-memory
 				// 24h gcTime, and the buster discards every snapshot whenever
 				// the persisted shape changes.
 				maxAge: PERSISTED_CACHE_MAX_AGE,
@@ -158,7 +158,7 @@ export function QueryProvider({ children }: Readonly<{ children: React.ReactNode
 			// with connectivity already back — they'd only replay on a future
 			// offline→online transition.
 			// After the persisted state is restored, discard anything queued by a
-			// different identity, THEN resume the rest (WC-3 / F-19). The order is
+			// different identity, THEN resume the rest. The order is
 			// the whole guarantee: once `resumePausedMutations()` starts there is
 			// no interception point, and a mutation that has begun replaying has
 			// already been sent.

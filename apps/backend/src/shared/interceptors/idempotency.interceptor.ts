@@ -42,7 +42,7 @@ function isOrpcProcedure(value: unknown): value is OrpcProcedure {
 }
 
 /**
- * Idempotency for mutating endpoints (AB-3 / F-13, F-39).
+ * Idempotency for mutating endpoints.
  *
  * ## Where the work happens, and why it moved
  *

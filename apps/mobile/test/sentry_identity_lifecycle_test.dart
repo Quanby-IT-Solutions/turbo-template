@@ -7,7 +7,7 @@ import 'package:mobile/features/auth/data/models/session_model.dart';
 import 'package:mobile/features/auth/data/models/user_model.dart';
 import 'package:mobile/features/auth/presentation/providers/auth_provider.dart';
 
-/// MB-2 — the crash-reporting identity lifecycle.
+/// The crash-reporting identity lifecycle.
 ///
 /// The companion to `cookie_jar_purge_test.dart`: that one proves sign-out
 /// leaves no session bytes on disk, this one proves it leaves no *attribution*

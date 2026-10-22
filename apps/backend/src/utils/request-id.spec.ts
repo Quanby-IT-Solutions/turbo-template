@@ -1,12 +1,11 @@
 import { MAX_REQUEST_ID_LENGTH, sanitizeRequestId } from "@/utils/log-redaction"
 
 /**
- * LG-2 / F-37 — an inbound X-Request-Id is validated before it is trusted.
+ * An inbound X-Request-Id is validated before it is trusted.
  *
  * It used to be taken verbatim: unbounded, written into structured logs, and
- * echoed back on the response. A newline forges log lines, since the id lands
- * in structured output a log reader parses; an unbounded reflected value is a
- * header-injection and cache-poisoning surface.
+ * echoed back on the response. Request ids must be validated (format and length)
+ * before they are logged or echoed.
  */
 
 /** Built from char codes so the spec file contains no literal control bytes. */
@@ -25,7 +24,7 @@ describe("sanitizeRequestId", () => {
 	})
 
 	it.each([
-		["a newline (log forging)", `abc${LF}info: forged log line`],
+		["a newline", `abc${LF}info: forged log line`],
 		["a CRLF (header injection)", `abc${CR}${LF}Set-Cookie: evil=1`],
 		["a null byte", `abc${NUL}def`],
 		["a space", "abc def"],

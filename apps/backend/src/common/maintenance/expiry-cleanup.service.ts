@@ -7,13 +7,13 @@ import { idempotencyKeys, verifications } from "@repo/db/schema"
 import { db } from "@/common/database/database.client"
 
 /**
- * Scheduled removal of rows that have outlived their purpose (AB-3 / F-13).
+ * Scheduled removal of rows that have outlived their purpose.
  *
  * The idempotency table is a replay cache, not a record: without a sweeper it
  * grows by one row per mutating request forever, and every row is a response
  * body held indefinitely.
  *
- * Deliberately generic. HY-2 added the expired-`verifications` sweep (F-40)
+ * Deliberately generic. The expired-`verifications` sweep was added
  * here rather than standing up a second scheduler — one cron, one place to
  * reason about what the app deletes on a timer.
  */
@@ -63,7 +63,7 @@ export class ExpiryCleanupService {
 	}
 
 	/**
-	 * Delete verification tokens past their expiry (HY-2 / F-40).
+	 * Delete verification tokens past their expiry.
 	 *
 	 * Better Auth writes a row here for every email verification and password
 	 * reset and never removes them, so the table grew without bound — each row an

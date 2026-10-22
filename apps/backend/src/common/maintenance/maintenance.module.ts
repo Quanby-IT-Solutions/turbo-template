@@ -4,9 +4,9 @@ import { ScheduleModule } from "@nestjs/schedule"
 import { ExpiryCleanupService } from "./expiry-cleanup.service"
 
 /**
- * Scheduled housekeeping (AB-3).
+ * Scheduled housekeeping.
  *
- * Owns the single cron registration. HY-2's expired-`verifications` sweep
+ * Owns the single cron registration. The expired-`verifications` sweep
  * belongs in {@link ExpiryCleanupService}, not in a second scheduler.
  */
 @Module({

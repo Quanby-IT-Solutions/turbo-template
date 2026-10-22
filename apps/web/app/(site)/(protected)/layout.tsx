@@ -28,7 +28,7 @@ export default async function SiteLayout({
 
 	return (
 		<SidebarProvider>
-			{/* WC-1: scope the persisted cache to this user before anything reads it. */}
+			{/* Scope the persisted cache to this user before anything reads it. */}
 			<CacheIdentity />
 			<AppSidebar user={user} access={access} />
 			<SidebarInset>

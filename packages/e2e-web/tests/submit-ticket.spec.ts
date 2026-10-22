@@ -3,7 +3,7 @@ import { expect, test, type BrowserContext } from "@playwright/test"
 import { installSessionReadRecovery, signInAs } from "../fixtures"
 
 /**
- * HY-2 / F-62 — the submit form calls the real endpoint.
+ * The submit form calls the real endpoint.
  *
  * The page sits inside the `(site)` shell, which requires a session. userA is
  * the pre-verified ordinary user from `pnpm db:seed:e2e`. One sign-in for the
@@ -40,7 +40,7 @@ test.beforeEach(async ({ page }) => {
 test("submit-ticket form persists a real ticket", async ({ page }) => {
 	const consoleErrors: string[] = []
 	const failedRequests: string[] = []
-	// WC-4 polls GET /health with `mode: "no-cors"`. A 429 is an opaque
+	// The online-status hook polls GET /health with `mode: "no-cors"`. A 429 is an opaque
 	// response (the app stays online) but Chrome still logs it. Parallel
 	// pages share the API's default per-IP throttle, so the probe can 429
 	// while POST /tickets is accepted. Count those probes and ignore only

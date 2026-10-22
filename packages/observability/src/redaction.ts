@@ -1,5 +1,5 @@
 /**
- * Redaction helpers for the request log path (LG-1 / F-05).
+ * Redaction helpers for the request log path.
  *
  * Pino's `redact` option only reaches structured fields. Single-use credentials
  * also travel in the **query string** — Better Auth's verification and

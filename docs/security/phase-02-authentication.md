@@ -172,7 +172,7 @@ Affected lines — packages/auth/src/config.ts:28 (.optional(), no format valida
 
 Evidence. Setting any value flips crossSubDomainCookies.enabled = true and passes the string straight through as the cookie Domain. There is no validation that it is a hostname, no leading-dot normalization, and no check that it is not overly broad. The example ships a populated value, so the cross-subdomain path is the default-followed configuration.
 
-Security impact. An operator who sets a broad apex domain (e.g. .example.com) scopes session cookies to every subdomain. Any subdomain takeover or XSS on an unrelated subdomain then reaches the session cookie. Better Auth also adjusts SameSite when cross-subdomain cookies are enabled, which interacts with CSRF posture.
+Security impact. An operator who sets a broad apex domain (e.g. .example.com) scopes session cookies to every subdomain. That cookie is then sent on requests to every subdomain. Better Auth also adjusts SameSite when cross-subdomain cookies are enabled, which interacts with CSRF posture.
 
 Confidence note. The exact SameSite/Secure values Better Auth emits under crossSubDomainCookies were not verifiable from tracked files (node_modules absent). Confidence is Medium and the finding is scoped to the unvalidated widening, not a specific cookie-attribute claim.
 
@@ -204,7 +204,7 @@ Severity: Low · Confidence: Low
 
 apps/backend/.env.example:63 sets EMAIL_VERIFICATION_REQUIRED=false, and packages/auth/src/config.ts defaults it to false, so requireEmailVerification (line 149) is off in the default posture — users sign in with unverified addresses. Separately, no account.accountLinking configuration exists, so linking behavior is the library default.
 
-The classic risk is pre-verified-email takeover: registering with a victim's address, then the victim signing in with Google and being auto-linked. Whether this repository is exposed depends on Better Auth's default accountLinking.enabled and trustedProviders, which could not be confirmed from tracked files. Per the audit rules I am lowering confidence rather than speculating. Recommend explicitly configuring accountLinking and shipping EMAIL_VERIFICATION_REQUIRED=true in the example.
+The rule is that an unverified email is not linked automatically. Whether this repository is exposed depends on Better Auth's default accountLinking.enabled and trustedProviders, which could not be confirmed from tracked files. Per the audit rules I am lowering confidence rather than speculating. Recommend explicitly configuring accountLinking and shipping EMAIL_VERIFICATION_REQUIRED=true in the example.
 
 ## Positive Assurance
 

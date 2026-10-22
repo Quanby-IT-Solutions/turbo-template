@@ -1,5 +1,5 @@
 /**
- * Validation rules for the `Idempotency-Key` header (AB-3 / F-13).
+ * Validation rules for the `Idempotency-Key` header.
  *
  * The header was previously taken verbatim: any length, any bytes. That value
  * became a primary key and was fed to `hashtext()` for an advisory lock, so an

@@ -6,7 +6,7 @@ import { db } from "@/common/database/database.client"
 import { ExpiryCleanupService } from "@/common/maintenance/expiry-cleanup.service"
 
 /**
- * HY-2 / F-40 — expired verification tokens are swept.
+ * Expired verification tokens are swept.
  *
  * Hits the real database: the whole point is that a DELETE with a timestamp
  * predicate removes the right rows and leaves the rest, which a mocked query
@@ -17,7 +17,7 @@ import { ExpiryCleanupService } from "@/common/maintenance/expiry-cleanup.servic
  * database — reporting a broken sweeper when the real state is "could not be
  * checked here", which is the kind of red that gets a suite muted.
  */
-describe("ExpiryCleanupService — verifications (HY-2 / F-40)", () => {
+describe("ExpiryCleanupService — verifications", () => {
 	const service = new ExpiryCleanupService()
 	const marker = `hy2-test-${process.pid}`
 

@@ -1,4 +1,4 @@
-/// Client-side auth field rules (MB-3 / F-46).
+/// Client-side auth field rules.
 ///
 /// The login and register forms enforced a 6-character password minimum while
 /// the server requires 8 (`register.schema.ts`). A user could satisfy the form

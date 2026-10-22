@@ -11,7 +11,7 @@ export class HealthService {
 	private readonly logger = new Logger(HealthService.name)
 
 	/**
-	 * Liveness for an anonymous caller (LG-2 / F-36).
+	 * Liveness for an anonymous caller.
 	 *
 	 * The response deliberately carries no build or runtime metadata. It used
 	 * to include uptime, version and environment, which tell an unauthenticated
@@ -20,7 +20,7 @@ export class HealthService {
 	 * serves a liveness check.
 	 *
 	 * `status` and `checks.database.status` are unchanged, because the Compose
-	 * healthchecks and WC-4's connectivity probe depend on them.
+	 * healthchecks and the connectivity probe depend on them.
 	 */
 	async check(): Promise<HealthCheck> {
 		const database = await this.checkDatabase()

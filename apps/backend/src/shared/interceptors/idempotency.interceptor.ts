@@ -125,7 +125,11 @@ export class IdempotencyInterceptor implements NestInterceptor {
 			throw new BadRequestException(describeIdempotencyKeyProblem(problem))
 		}
 
-		// Mirror RbacGuard's resolution: session first, direct user reference as fallback.
+		// The interceptor reads the session the guards already verified through
+		// resolveRequestSession, because interceptors run after guards and the
+		// global SessionAuthGuard resolves every HTTP request. Moving that
+		// guard, or making it non-global, needs this read changed to call the
+		// helper.
 		const authorId = request.session?.user?.id ?? request.user?.id
 
 		// No authenticated user → bypass; the auth guard handles rejection.

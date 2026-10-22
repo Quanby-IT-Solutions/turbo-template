@@ -42,6 +42,7 @@
 		"generate": "pnpm build && drizzle-kit generate",
 		"migrate": "pnpm build && drizzle-kit migrate",
 		"seed": "pnpm --filter @repo/contracts build && pnpm push && tsx src/seed.ts",
+		"seed:e2e": "tsx src/seed-e2e-users.ts",
 		"test": "vitest run",
 		"test:watch": "vitest"
 	},
@@ -56,14 +57,14 @@
 		"@repo/tsconfig": "workspace:*",
 		"@types/node": "catalog:",
 		"@types/pg": "catalog:",
-		"@vitest/coverage-v8": "^4.1.2",
+		"@vitest/coverage-v8": "^4.1.12",
 		"dotenv": "catalog:",
 		"drizzle-kit": "1.0.0-beta.20",
 		"eslint": "catalog:",
 		"prettier": "catalog:",
 		"tsx": "catalog:",
 		"typescript": "catalog:",
-		"vitest": "^4.1.2"
+		"vitest": "^4.1.12"
 	},
 	"prettier": "@repo/prettier-config"
 }

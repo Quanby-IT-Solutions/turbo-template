@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test"
 
+import { gotoAndSettle, settleServiceWorker } from "../service-worker"
+
 /**
  * WC-2 / F-20 + F-48 — the service worker must not cache token URLs, and must
  * not fake authenticated pages offline.
@@ -12,37 +14,16 @@ import { expect, test, type Page } from "@playwright/test"
 const RESET_TOKEN = "wc2-reset-token-abc123"
 const VERIFY_TOKEN = "wc2-verify-token-def456"
 
-/** Wait for the service worker to control the page, or report that it never did. */
+/**
+ * Wait until the worker controls this page. The first claim does not reload,
+ * and this does not wait for a load event after that controllerchange.
+ * `settleServiceWorker` throws when a served worker never takes control, and
+ * that failure must fail the test. Dev never serves the script, so the helper
+ * returns immediately and this stays false.
+ */
 async function serviceWorkerReady(page: Page): Promise<boolean> {
-	// `serviceWorker.ready` never rejects — it simply never settles when no
-	// worker takes control, which hangs the whole test instead of reporting a
-	// skip. Race it against a deadline so the answer is always "yes" or "no".
-	//
-	// `ready` alone is NOT enough. It resolves once a worker is *activated*,
-	// which on a first visit happens before `clientsClaim` has actually claimed
-	// this page: `navigator.serviceWorker.controller` is still null. Navigating
-	// in that window races the claim, and Chrome aborts the in-flight navigation
-	// (`net::ERR_ABORTED`) when the worker takes over mid-request. CI hits this
-	// every run, since each run installs the worker for the first time.
-	//
-	// Waiting for `controller` is also what makes the assertions mean anything:
-	// an uncontrolled page never reaches the service worker, so its caches would
-	// be empty for reasons that have nothing to do with WC-2.
-	return page.evaluate(async () => {
-		if (!("serviceWorker" in navigator)) return false
-
-		const controlled = navigator.serviceWorker.ready.then(async () => {
-			if (navigator.serviceWorker.controller) return true
-			await new Promise<void>(resolve =>
-				navigator.serviceWorker.addEventListener("controllerchange", () => resolve(), {
-					once: true,
-				})
-			)
-			return true
-		})
-		const timeout = new Promise<boolean>(resolve => setTimeout(() => resolve(false), 10_000))
-		return Promise.race([controlled, timeout])
-	})
+	await settleServiceWorker(page)
+	return page.evaluate(() => navigator.serviceWorker?.controller != null)
 }
 
 /** Every URL held in every Cache Storage bucket for this origin. */
@@ -60,7 +41,7 @@ async function cachedUrls(page: Page): Promise<string[]> {
 }
 
 test("no token-bearing URL is ever written to a cache", async ({ page }) => {
-	await page.goto("/")
+	await gotoAndSettle(page, "/")
 	const swActive = await serviceWorkerReady(page)
 	test.skip(!swActive, "service worker not registered (needs a production build)")
 
@@ -89,12 +70,15 @@ test("no token-bearing URL is ever written to a cache", async ({ page }) => {
 })
 
 test("the offline fallback does not impersonate an authenticated page", async ({ page }) => {
-	await page.goto("/")
+	await gotoAndSettle(page, "/")
 	const swActive = await serviceWorkerReady(page)
 	test.skip(!swActive, "service worker not registered (needs a production build)")
 
-	// Warm the fallback so it is genuinely available to be served.
-	await page.goto("/~offline")
+	// Warm the fallback so it is genuinely available to be served. The worker
+	// already controls the page. The first claim does not reload it, so this
+	// navigation is not racing `location.reload()`.
+	const offline = await page.goto("/~offline")
+	expect(offline?.ok(), "GET /~offline").toBe(true)
 	await page.waitForLoadState("networkidle")
 
 	await page.context().setOffline(true)

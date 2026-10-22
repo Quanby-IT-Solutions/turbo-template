@@ -1,8 +1,14 @@
-import express from "express"
+import express, { type Express, type NextFunction, type Request, type Response } from "express"
 import helmet from "helmet"
 import request from "supertest"
 
-import { buildHelmetOptions } from "@/config/security-headers.config"
+import { SCALAR_BUNDLE } from "@/config/scalar-bundle"
+import {
+	buildHelmetOptions,
+	createDocsSecurityHeadersMiddleware,
+	isApiDocsPageRequest,
+	readCspNonce,
+} from "@/config/security-headers.config"
 
 /**
  * ED-1 / F-12 + F-21 — browser defences on API responses.
@@ -67,6 +73,14 @@ describe("API security headers", () => {
 		expect(response.headers["x-frame-options"]).toBe("DENY")
 	})
 
+	it("keeps the API policy to the four deny directives", async () => {
+		const response = await request(appWithHeaders()).get("/json")
+
+		expect(response.headers["content-security-policy"]).toBe(
+			"default-src 'none';frame-ancestors 'none';base-uri 'none';form-action 'none'"
+		)
+	})
+
 	describe("HSTS is gated on TLS actually being live", () => {
 		const original = process.env.ENABLE_HSTS
 
@@ -82,5 +96,129 @@ describe("API security headers", () => {
 			// deployment cannot serve, and max-age cannot be withdrawn quickly.
 			expect(response.headers["strict-transport-security"]).toBeUndefined()
 		})
+	})
+})
+
+const API_CSP = "default-src 'none';frame-ancestors 'none';base-uri 'none';form-action 'none'"
+
+function cspOf(headers: Record<string, string | string[] | undefined>): string {
+	const value = headers["content-security-policy"]
+	if (typeof value !== "string") {
+		throw new Error("expected a single content-security-policy header")
+	}
+	return value
+}
+
+function directiveSources(csp: string, name: string): string[] {
+	const part = csp
+		.split(";")
+		.map(entry => entry.trim())
+		.find(entry => entry === name || entry.startsWith(`${name} `))
+	expect(part).toBeDefined()
+	return (part ?? "")
+		.slice(name.length)
+		.trim()
+		.split(/\s+/)
+		.filter(source => source.length > 0)
+}
+
+function docsAwareApp(): Express {
+	const app = express()
+	app.use(createDocsSecurityHeadersMiddleware())
+	app.use("/api/v1/docs", (req: Request, res: Response, next: NextFunction) => {
+		if (!isApiDocsPageRequest(req)) {
+			next()
+			return
+		}
+		res.type("html").send(readCspNonce(res) ?? "")
+	})
+	app.get("/api/v1/spec.json", (_req, res) => res.json({ ok: true }))
+	app.get("/api/v1/health", (_req, res) => res.json({ ok: true }))
+	app.get("/api/v1/example/todos", (_req, res) => res.json([]))
+	app.get("/api/v1/auth/get-session", (_req, res) => res.json(null))
+	app.get("/boom", () => {
+		throw new Error("handler failure")
+	})
+	return app
+}
+
+describe("docs route CSP", () => {
+	it.each(["/api/v1/docs", "/api/v1/docs/", "/api/v1/docs?spec=1", "/api/v2/docs/"])(
+		"treats %s as the docs page",
+		path => {
+			expect(isApiDocsPageRequest({ method: "GET", path, originalUrl: path })).toBe(true)
+		}
+	)
+
+	it.each([
+		{ method: "POST", path: "/api/v1/docs" },
+		{ method: "GET", path: "/api/v1/docs/extra" },
+		{ method: "GET", path: "/api/v1/spec.json" },
+		{ method: "GET", path: "/api/v1/docs.json" },
+		{ method: "GET", path: "/api/docs" },
+	])("leaves $method $path on the API policy", ({ method, path }) => {
+		expect(isApiDocsPageRequest({ method, path, originalUrl: path })).toBe(false)
+	})
+
+	it("allows the nonce and the pinned file, and nothing else, on script-src", async () => {
+		const first = await request(docsAwareApp()).get("/api/v1/docs")
+		const second = await request(docsAwareApp()).get("/api/v1/docs")
+		const csp = cspOf(first.headers)
+		const sources = directiveSources(csp, "script-src")
+
+		expect(first.status).toBe(200)
+		expect(sources).toHaveLength(2)
+		expect(sources[0]).toMatch(/^'nonce-[A-Za-z0-9+/]+=*'$/)
+		expect(sources[1]).toBe(SCALAR_BUNDLE.url)
+		expect(sources.join(" ")).not.toContain("'self'")
+		expect(sources.join(" ")).not.toContain("'unsafe-inline'")
+		expect(sources.join(" ")).not.toContain("'unsafe-eval'")
+		expect(directiveSources(csp, "default-src")).toEqual(["'none'"])
+		expect(directiveSources(csp, "connect-src")).toEqual(["'self'"])
+		expect(directiveSources(csp, "frame-ancestors")).toEqual(["'none'"])
+		expect(directiveSources(csp, "base-uri")).toEqual(["'none'"])
+		expect(directiveSources(csp, "form-action")).toEqual(["'none'"])
+		expect(directiveSources(csp, "img-src")).toEqual(["'self'", "data:"])
+		expect(directiveSources(csp, "font-src")).toEqual(["'self'", "data:"])
+
+		const nonce = sources[0]?.slice("'nonce-".length, -1) ?? ""
+		expect(Buffer.from(nonce, "base64")).toHaveLength(16)
+		expect(first.text).toBe(nonce)
+		expect(directiveSources(csp, "style-src")).toEqual(["'unsafe-inline'"])
+		expect(cspOf(second.headers)).not.toBe(csp)
+	})
+
+	it("keeps the other helmet headers on the docs response", async () => {
+		const app = docsAwareApp()
+		const docs = await request(app).get("/api/v1/docs")
+		const api = await request(app).get("/api/v1/health")
+
+		for (const name of ["x-frame-options", "x-content-type-options", "referrer-policy"]) {
+			expect(docs.headers[name]).toBe(api.headers[name])
+		}
+		expect(docs.headers["x-frame-options"]).toBe("DENY")
+		expect(docs.headers["strict-transport-security"]).toBeUndefined()
+		expect(cspOf(docs.headers)).not.toBe(cspOf(api.headers))
+	})
+
+	it.each([
+		"/api/v1/spec.json",
+		"/api/v1/health",
+		"/api/v1/example/todos",
+		"/api/v1/auth/get-session",
+	])("keeps the API policy on %s while docs are enabled", async path => {
+		const response = await request(docsAwareApp()).get(path)
+		expect(cspOf(response.headers)).toBe(API_CSP)
+		expect(cspOf(response.headers)).not.toContain("'unsafe-inline'")
+	})
+
+	it("serves the trailing-slash docs path through the mounted handler", async () => {
+		const response = await request(docsAwareApp()).get("/api/v1/docs/")
+		const sources = directiveSources(cspOf(response.headers), "script-src")
+		const nonce = sources[0]?.slice("'nonce-".length, -1)
+
+		expect(response.status).toBe(200)
+		expect(response.text).toBe(nonce)
+		expect(sources[1]).toBe(SCALAR_BUNDLE.url)
 	})
 })

@@ -51,6 +51,13 @@ describe("service-worker update flow (F-49)", () => {
 	it("reloads once the new worker takes control, so tabs agree", () => {
 		expect(provider).toContain("controllerchange")
 	})
+
+	it("uses the first-claim guard and flushes before an update reload", () => {
+		expect(provider).toContain("createControllerChangeHandler")
+		expect(provider).toContain("navigator.serviceWorker.controller !== null")
+		expect(provider).toContain("markAccepted()")
+		expect(provider).toContain("flushPersistedQueryCache")
+	})
 })
 
 describe("production recovery path (F-49)", () => {

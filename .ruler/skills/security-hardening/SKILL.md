@@ -1,6 +1,6 @@
 ---
 name: security-hardening
-description: Security patterns and hardening practices for this monorepo. Use when implementing authentication, configuring CORS, validating input, handling secrets, securing API endpoints, or reviewing code for vulnerabilities. Triggers on tasks involving security, auth guards, env validation, CORS, CSP, rate limiting, or OWASP compliance.
+description: Security patterns and hardening practices for this monorepo. Use when implementing authentication, configuring CORS, validating input, handling secrets, securing API endpoints, or reviewing code for security best practices. Triggers on tasks involving security, auth guards, env validation, CORS, CSP, rate limiting, or OWASP compliance.
 frameworks:
   - nestjs
   - nextjs
@@ -332,19 +332,22 @@ hsts: env.ENABLE_HSTS ? { maxAge: 31_536_000, includeSubDomains: true, preload: 
 ## Proxy Trust (TRUST_PROXY)
 
 `TRUST_PROXY` (default `1`) is the number of trusted reverse-proxy hops.
-`ThrottlerProxyGuard` keys rate limits on the resulting client IP. It MUST match
-the real topology and stay in lockstep with `nginx.conf`:
-- `1` = the shipped single-Nginx setup (Nginx overwrites `X-Forwarded-For`).
-- `0` = backend directly internet-exposed (socket peer used).
-- Setting it HIGHER than reality lets a caller mint a fresh rate-limit bucket per
-  request by writing `X-Forwarded-For`.
+`ThrottlerProxyGuard` keys rate limits on the resulting client IP. It MUST equal
+the real hop count:
+- `1` = one hop. Local / dev: nginx sets `X-Forwarded-For` to `$remote_addr`.
+  Production: the load balancer appends the address it saw, and Express keeps
+  that rightmost entry. Staging is EC2 plus an Elastic IP, and host Nginx on
+  the instance is the single trusted hop (`TRUST_PROXY=1`). Health is checked
+  on the host over SSH.
+- `0` = no trusted hop (socket peer used).
+- Raising `TRUST_PROXY` alone does not move `ThrottlerProxyGuard`'s key.
+  An extra hop needs `TRUST_PROXY` and `getTracker` updated together.
 
 ## Request Body Size
 
 `MAX_REQUEST_BODY_SIZE = "100kb"` (`config/app.config.ts`) caps both JSON and
-urlencoded parsers. Both were unbounded — a memory-exhaustion path on every
-mutation route. Nginx caps at `1m` (it counts the whole request) so oversized
-junk dies at the edge while borderline bodies get a coherent 413 from the app.
+urlencoded parsers. Nginx caps at `1m` (it counts the whole request) so oversized
+requests stop at the edge while borderline bodies get a coherent 413 from the app.
 
 ## Error Monitoring (Sentry)
 
@@ -358,25 +361,27 @@ env config. See the error-handling-logging skill.
 
 ### Security Group Rules
 
+Guidance only. The rules live in the infrastructure repo, not in this one.
+
+Production is EC2 instances behind a load balancer, in an Auto Scaling Group.
+The load balancer security group is open to 80 and 443. Instance ports 3000
+and 3001 are open only from the load balancer security group.
+
 ```
-ALB SG:
-  Inbound: 80 (HTTP), 443 (HTTPS) from 0.0.0.0/0
+Load balancer SG:
+  Inbound: 80 (HTTP), 443 (HTTPS) from the internet
   Outbound: All
 
-Web ECS SG:
-  Inbound: 3001 from ALB SG only
-  Outbound: All
-
-Backend ECS SG:
-  Inbound: 3000 from ALB SG only
+Instance SG:
+  Inbound: 3000 and 3001 from the load balancer SG only
   Outbound: All
 ```
 
-**Rules:**
+Staging in this repo is one EC2 instance with an Elastic IP and no load
+balancer. Host Nginx on the instance is the single front hop.
 
-- ECS tasks are in private subnets (no public IP)
-- Only ALB can reach ECS services (SG-to-SG reference)
-- Outbound allowed for external API calls and database connections
+`BACKEND_BIND_ADDRESS` is not this control. It is production-only defense in
+depth and stays unset on staging.
 
 ## Secret Management
 
@@ -387,7 +392,7 @@ Backend ECS SG:
 | Public     | GitHub Variables     | `NEXT_PUBLIC_APP_URL`, `AWS_REGION`, `PROJECT_NAME`           |
 | Secret     | GitHub Secrets       | `DATABASE_URL`, `BETTER_AUTH_SECRET`, `REDIS_PASSWORD`        |
 | Build-time | Docker ARG           | `NEXT_PUBLIC_API_BASE_URL` (baked into JS bundle)             |
-| Runtime    | ECS env / Docker env | `DATABASE_URL`, `CORS_ORIGINS`, `REDIS_URL`                   |
+| Runtime    | compose env (SSM / .env) | `DATABASE_URL`, `CORS_ORIGINS`, `REDIS_URL`               |
 
 ### Security-Relevant Env Reference
 
@@ -397,7 +402,7 @@ Backend ECS SG:
 | `BETTER_AUTH_COOKIE_DOMAIN` | unset (host-only cookie) | any set value widens cookie scope to subdomains — validated by `cookie-domain-schema` |
 | `THROTTLE_TTL` / `THROTTLE_LIMIT` | `60000` / `100` | default limiter window/limit |
 | `THROTTLE_STRICT_TTL` / `THROTTLE_STRICT_LIMIT` | `60000` / `10` | strict limiter (opt-in via `@StrictThrottle()`) |
-| `TRUST_PROXY` | `1` | trusted proxy hops; too high re-opens rate-limit bypass (RF2) |
+| `TRUST_PROXY` | `1` | trusted proxy hops; must equal the real proxy hop count |
 | `ENABLE_HSTS` | `false` | keep off until TLS terminates in target env |
 | `REDIS_URL` | unset | throttle counters + RBAC cache; optional single-instance, required multi-instance |
 | `REDIS_KEY_PREFIX` | `turbo-template` | isolates environments sharing one Redis |

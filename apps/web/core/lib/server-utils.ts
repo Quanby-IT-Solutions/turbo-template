@@ -1,6 +1,7 @@
 import "server-only"
 
 import { cache } from "react"
+import { headers } from "next/headers"
 
 import { env } from "@/env"
 
@@ -30,3 +31,19 @@ export const getServerApiUrl = cache(() => {
 export const getServerAuthUrl = cache(() => {
 	return `${getServerApiUrl()}/auth`
 })
+
+/**
+ * Inbound `x-forwarded-for` for server-side calls to the API.
+ *
+ * Returns the header exactly as this request received it, or nothing when
+ * it is absent. On those calls the web process is the trusted hop in front
+ * of the backend (see DOMAIN-MODEL.md): Express keeps the rightmost entry.
+ */
+export async function getForwardedForHeader(): Promise<string | undefined> {
+	const headerList = await headers()
+	const value = headerList.get("x-forwarded-for")
+	if (value === null || value.length === 0) {
+		return undefined
+	}
+	return value
+}

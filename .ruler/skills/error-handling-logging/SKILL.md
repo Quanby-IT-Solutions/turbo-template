@@ -138,7 +138,7 @@ logger; `LoggerModule` runs with `autoLogging: false` to avoid double lines).
   via `sanitizeLogUrl` / `sanitizeLogQuery`.
 - **Request-id correlation:** `genReqId` reuses an existing `req.id`, else honours
   a sanitized inbound `X-Request-Id` (`sanitizeRequestId`: allowlist charset, max
-  64 chars — a newline/control char would forge log lines), else a fresh UUID.
+  64 chars; a newline or control character is rejected), else a fresh UUID.
   The id is echoed back on the `X-Request-Id` response header.
 
 ## Frontend Error Handling
@@ -229,7 +229,6 @@ TanStack Form surfaces validation errors per field:
 
 The `/api/v1/health` endpoint is critical for:
 - Docker HEALTHCHECK directives
-- ECS task health monitoring
 - ALB target group health checks
 
 **Actual response** (`modules/v1/health/health.service.ts`) — deliberately
@@ -252,7 +251,6 @@ message (host/port/user) is logged, never returned. The endpoint is public via
 | Platform | Endpoint | Interval | Timeout | Retries | Start Period |
 |----------|----------|----------|---------|---------|-------------|
 | Docker | `localhost:3000/api/v1/health` | 30s | 10s | 3 | 40s |
-| ECS | Same | 30s | 10s | 3 | 40s |
 | ALB | `/api/v1/health` (200 OK) | 30s | 10s | — | — |
 
 ## Error Monitoring (Sentry)

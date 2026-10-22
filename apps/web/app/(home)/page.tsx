@@ -1,16 +1,21 @@
-import { getSession } from "@/services/better-auth/auth-server"
+import { getSession, SessionUnavailableError } from "@/services/better-auth/auth-server"
 import { HomeCtaButton } from "@/features/home/home-cta-button"
 import { NavigationLinks } from "@/features/home/navigation-links"
 
 export default async function Home() {
-	const session = await getSession()
-	const isLoggedIn = !!session
+	let session: Awaited<ReturnType<typeof getSession>> = null
+	try {
+		session = await getSession()
+	} catch (error) {
+		if (!(error instanceof SessionUnavailableError)) throw error
+	}
+	const isLoggedIn = session !== null
 
 	return (
 		<div className="flex w-full flex-col items-center gap-12 pt-24 text-center">
 			<div className="flex flex-col items-center gap-3">
 				<p className="text-lg text-zinc-700 md:text-xl dark:text-zinc-300">
-					{isLoggedIn ? (
+					{session ? (
 						<>
 							Hello <span className="font-semibold">{session.user.name}</span>
 						</>

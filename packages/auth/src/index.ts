@@ -1,3 +1,4 @@
+export { AUTH_CLIENT_ADDRESS_HEADER } from "./client-address.js"
 export {
 	createAuth,
 	getAuth,

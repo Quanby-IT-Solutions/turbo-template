@@ -1,18 +1,26 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/core/components/ui/card"
 import { Separator } from "@/core/components/ui/separator"
-import { getSession } from "@/services/better-auth/auth-server"
+import { getSession, SessionUnavailableError } from "@/services/better-auth/auth-server"
 import { CacheIdentity } from "@/services/tanstack-query/cache-identity"
 import { ClientSession } from "@/features/auth/components/client-session"
 
 export default async function SessionPage() {
-	const session = await getSession()
+	let session = null
+	let unavailable = false
+	try {
+		session = await getSession()
+	} catch (error) {
+		if (!(error instanceof SessionUnavailableError)) throw error
+		unavailable = true
+	}
 
 	return (
 		<section className="flex flex-1 flex-col gap-6">
 			{/* WC-1: scope the persisted cache to this user before anything reads it.
 			    Placed on the page, never on `(auth)/layout.tsx` — that layout also
-			    serves /login, /register and /forgot-password, which stay static. */}
-			<CacheIdentity />
+			    serves /login, /register and /forgot-password, which stay static.
+			    Skipped when the read failed: there is no user to scope the cache to. */}
+			{unavailable ? null : <CacheIdentity />}
 			<Card>
 				<CardHeader>
 					<CardTitle>Server Session</CardTitle>

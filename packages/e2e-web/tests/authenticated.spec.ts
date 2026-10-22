@@ -1,9 +1,14 @@
 import { expect, test, type Page } from "@playwright/test"
 
 import { ADMIN_AUTH_FILE } from "../constants"
-import { signInAs } from "../fixtures"
+import { installSessionReadRecovery, signInAs, signOutToLogin } from "../fixtures"
+import { gotoAndSettle, settleServiceWorker } from "../service-worker"
 
-// All tests in this file run with stored auth session (chromium-authenticated project)
+// All tests in this file run with stored auth session (chromium-authenticated project).
+
+test.beforeEach(async ({ page }) => {
+	installSessionReadRecovery(page)
+})
 
 test.describe("authenticated home page", () => {
 	test.beforeEach(async ({ page }) => {
@@ -100,8 +105,8 @@ test.describe("authenticated todos", () => {
 	test.use({ storageState: ADMIN_AUTH_FILE })
 
 	/**
-	 * Open /todos and confirm this identity may create, skipping where no admin
-	 * is seeded to hold the permission.
+	 * Open /todos and confirm this identity may create. The admin session comes
+	 * from setup; a page that still hides the create field fails this test.
 	 *
 	 * Leaves the page on /todos deliberately: navigating here and again in the
 	 * test raced the first render, and the second `goto` could cut it off before
@@ -109,14 +114,18 @@ test.describe("authenticated todos", () => {
 	 * below is the hydration barrier.
 	 */
 	const openTodosWithCreatePermission = async (page: Page) => {
-		await page.goto("/todos")
+		// Wait until the worker controls the page. The first claim does not reload.
+		// Creating before the document is settled can still drop the throttled
+		// persist if a later navigation cuts the page off.
+		await gotoAndSettle(page, "/todos")
+		await expect(page.getByRole("heading", { name: /todos \/ posts/i })).toBeVisible()
+		await settleServiceWorker(page)
 		await expect(page.getByRole("heading", { name: /todos \/ posts/i })).toBeVisible()
 
-		const canCreate = await page
-			.getByPlaceholder("New todo title")
-			.isVisible()
-			.catch(() => false)
-		test.skip(!canCreate, "creating todos needs posts:create; no admin in this environment")
+		// Admin storage is already applied. A missing create field here is a
+		// failed permission load, not an environment without an admin, so it
+		// fails the test instead of skipping it.
+		await expect(page.getByPlaceholder("New todo title")).toBeVisible()
 	}
 
 	test("can create, complete, and delete a todo", async ({ page }, testInfo) => {
@@ -172,8 +181,12 @@ test.describe("authenticated todos", () => {
 								open.onerror = () => resolve("")
 								open.onsuccess = () => {
 									const db = open.result
+									const finish = (value: string) => {
+										db.close()
+										resolve(value)
+									}
 									const stores = Array.from(db.objectStoreNames)
-									if (!stores.length) return resolve("")
+									if (!stores.length) return finish("")
 									const tx = db.transaction(stores, "readonly")
 									const all = stores.map(
 										store =>
@@ -183,7 +196,7 @@ test.describe("authenticated todos", () => {
 												req.onsuccess = () => done(JSON.stringify(req.result))
 											})
 									)
-									void Promise.all(all).then(parts => resolve(parts.join("")))
+									void Promise.all(all).then(parts => finish(parts.join("")))
 								}
 							})
 							if (dump.includes(persistedTitle)) return true
@@ -204,11 +217,19 @@ test.describe("authenticated todos", () => {
 	test("a todo count survives a reload without duplicating", async ({ page }) => {
 		// Guards the AB-3 idempotency path from the UI side: a retry must not
 		// create a second row.
-		await page.goto("/todos")
+		await gotoAndSettle(page, "/todos")
 		await expect(page.getByRole("heading", { name: /todos \/ posts/i })).toBeVisible()
+		// The heading paints while the list is still a skeleton. Counting then
+		// records 0, and the reload's resolved list looks like a duplicate.
+		const settledList = page
+			.getByRole("checkbox", { name: /^Toggle / })
+			.first()
+			.or(page.getByText("No todos yet"))
+		await expect(settledList).toBeVisible()
 		const before = await todoRows(page).count()
 
 		await page.reload()
+		await settleServiceWorker(page)
 		await expect(page.getByRole("heading", { name: /todos \/ posts/i })).toBeVisible()
 
 		await expect.poll(async () => todoRows(page).count(), { timeout: 15_000 }).toBe(before)
@@ -232,15 +253,19 @@ test.describe("sign-out", () => {
 	test.use({ storageState: { cookies: [], origins: [] } })
 
 	test("returns to the logged-out state and re-guards protected routes", async ({ page }) => {
+		// Sign-out shares one address. A 429 waits for `x-retry-after` (at most 61s, twice).
+		// The default 30s test timeout kills that wait. Assertion timeouts are unchanged.
+		test.setTimeout(180_000)
 		// HY-1: the shared fixture, so this sign-in gets the same 429 retry as
 		// every other. Better Auth rate-limits `sign-in/email` per path, and a
 		// full serial run makes enough sign-ins to trip it — which used to fail
 		// this test for a reason unrelated to sign-out.
 		await signInAs(page, "userB")
 
-		await page.goto("/")
-		await page.getByRole("button", { name: /logout/i }).click()
-		await expect(page.getByRole("link", { name: /^login$/i })).toBeVisible()
+		// Settle before the click. A click that lands before hydration leaves this
+		// button on screen and the session intact. The first claim does not reload.
+		await gotoAndSettle(page, "/")
+		await signOutToLogin(page)
 
 		// A protected route must send the now-signed-out visitor to login.
 		await page.goto("/dashboard")

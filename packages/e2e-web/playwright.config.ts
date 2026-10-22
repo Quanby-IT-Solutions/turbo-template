@@ -6,6 +6,7 @@ const hasBackend = !!process.env.E2E_AUTH_API_URL
 
 export default defineConfig({
 	globalSetup: "./global-setup.ts",
+	globalTeardown: "./global-teardown.ts",
 	testDir: "./tests",
 	fullyParallel: true,
 	forbidOnly: !!process.env.CI,
@@ -41,6 +42,10 @@ export default defineConfig({
 						name: "setup",
 						testDir: ".",
 						testMatch: /global\.setup\.ts/,
+						// userA, admin, then userB, one after the other. Two workers would
+						// spend the sign-in budget in the same instant.
+						fullyParallel: false,
+						workers: 1,
 					},
 				]
 			: []),
@@ -49,7 +54,8 @@ export default defineConfig({
 		{
 			name: "chromium",
 			use: { ...devices["Desktop Chrome"] },
-			testIgnore: /authenticated\.spec\.ts/,
+			// auth-negative signs in on purpose and must not run beside setup.
+			testIgnore: [/authenticated\.spec\.ts/, /auth-negative\.spec\.ts/],
 		},
 
 		// ── Authenticated tests (only when backend is available) ───────────────
@@ -62,6 +68,12 @@ export default defineConfig({
 							storageState: AUTH_FILE,
 						},
 						testMatch: /authenticated\.spec\.ts/,
+						dependencies: ["setup"],
+					},
+					{
+						name: "chromium-auth-negative",
+						use: { ...devices["Desktop Chrome"] },
+						testMatch: /auth-negative\.spec\.ts/,
 						dependencies: ["setup"],
 					},
 				]

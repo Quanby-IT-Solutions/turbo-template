@@ -1,16 +1,39 @@
 # ==========================================================
-# PRODUCTION DEPLOYMENT - EC2 behind ALB (ASG)
+# PRODUCTION DEPLOYMENT - EC2 behind a load balancer (ASG)
 # ==========================================================
 # Runs web (port 3001) and backend (port 3000) containers.
-# ALB handles subdomain routing + SSL termination.
-# Containers bind to 0.0.0.0 so ALB health checks can reach them.
+# The load balancer handles subdomain routing and SSL termination.
+# It appends the address it saw onto X-Forwarded-For. TRUST_PROXY=1
+# matches that one hop. Nginx is the local / dev proxy only and is
+# not part of this file.
 #
-# Each app gets its own subdomain via ALB host-header rules:
+# Backend publish address: ${BACKEND_BIND_ADDRESS:-0.0.0.0}:3000:3000.
+# Set BACKEND_BIND_ADDRESS to the instance's private IPv4 in the
+# environment that launches compose. On EC2 the Elastic IP is translated
+# 1:1 to the private IPv4, so binding to the private address only limits
+# the host-side publish to that one interface. Direct access must be blocked
+# by a security group that allows port 3000 only from the load balancer's
+# security group, and that group is managed outside this repo. Leave it
+# unset and the default stays 0.0.0.0, so a deploy does not fail for a
+# missing variable.
+# Do not bind this port to 127.0.0.1 and do not drop the host mapping.
+# Web stays on 0.0.0.0:3001. The web port, like 3000, must be reachable
+# only from the load balancer's security group (managed outside this
+# repo), because the web container is the trusted hop for the client
+# address. The web container reaches the backend over the compose
+# network (INTERNAL_API_BASE_URL=http://backend:3000/api).
+# The target group that calls the health check is provisioned outside
+# this repo.
+#
+# Each app gets its own subdomain via load-balancer host-header rules:
 #   - turbo.quanbyit.com      → web:3001
 #   - turbo-be.quanbyit.com   → backend:3000
 #
-# This file is stored in SSM Parameter Store (base64) and
-# pulled by EC2 instances on boot via the deploy script.
+# This file is stored in SSM Parameter Store (base64) and pulled by
+# EC2 instances on boot. The boot script, and the place that would set
+# BACKEND_BIND_ADDRESS to each instance's private IPv4, live outside
+# this repo. The production workflow publishes this file and a shared
+# env payload; that payload has no per-instance private address.
 # ==========================================================
 
 services:
@@ -54,7 +77,7 @@ services:
     image: ${ECR_REGISTRY}/${ECR_REPOSITORY_BACKEND}:${IMAGE_TAG:-latest}
     container_name: production-backend
     ports:
-      - "0.0.0.0:3000:3000"
+      - "${BACKEND_BIND_ADDRESS:-0.0.0.0}:3000:3000"
     environment:
       - NODE_ENV=production
       - PORT=3000

@@ -29,6 +29,22 @@ function hasPermission(access: AccessProfile, requiredPermission: PermissionName
 	return access.permissions.includes(`${resource}:*` as PermissionName)
 }
 
+export type PermissionAvailability = "allowed" | "denied" | "unavailable"
+
+/**
+ * A failed permission lookup is not the same as a loaded profile that lacks
+ * the permission. Callers use `unavailable` to say the check did not finish.
+ */
+export function permissionAvailability(
+	access: AccessProfile & { status?: "loaded" | "error" },
+	item: AccessRequirement
+): PermissionAvailability {
+	if (access.status === "error") {
+		return "unavailable"
+	}
+	return canAccess(access, item) ? "allowed" : "denied"
+}
+
 export function canAccess(access: AccessProfile, item: AccessRequirement): boolean {
 	const requiredPermissions = toArray(item.requiredPermission)
 	const requiredRoles = toArray(item.requiredRole)

@@ -16,6 +16,7 @@ import { buildPinoHttpOptions } from "@/config/pino-logger.config"
 import { V1Module } from "@/modules/v1/v1.module"
 import { skipStrictThrottle } from "@/shared/decorators/strict-throttle.decorator"
 import { RbacGuard } from "@/shared/guards/rbac.guard"
+import { SessionAuthGuard } from "@/shared/guards/session-auth.guard"
 import { ThrottlerProxyGuard } from "@/shared/guards/throttler-proxy.guard"
 
 import { AuditModule } from "./common/audit/audit.module"
@@ -93,8 +94,14 @@ import { env } from "./config/env.config"
 					: {}),
 			}),
 		}),
-		// Authentication (controllers disabled - we register versioned routes in setupBetterAuth)
-		AuthModule.forRoot({ auth: getAuth(), disableControllers: true }),
+		// Authentication. Controllers stay off; versioned auth routes are registered
+		// in setupBetterAuth. The library global guard is disabled so
+		// SessionAuthGuard can reuse the session already resolved for this request.
+		AuthModule.forRoot({
+			auth: getAuth(),
+			disableControllers: true,
+			disableGlobalAuthGuard: true,
+		}),
 		// oRPC setup
 		ORPCCommonModule,
 		// Shared Redis connection for the throttler and the RBAC cache (AB-2).
@@ -123,7 +130,8 @@ import { env } from "./config/env.config"
 		//   - HttpException (deliberate, typed)  -> HttpExceptionFilter, which
 		//     renders the real status/message and captures only 5xx.
 		//   - anything else (bugs, driver faults) -> SentryExceptionFilter, which
-		//     captures unconditionally and renders a generic 500 in the same shape.
+		//     captures it and renders a generic 500 in the same shape. A client
+		//     request-parsing error is returned as that 4xx and is not captured.
 		// Neither can see the other's exceptions, so nothing is reported twice.
 		// The catch-all is registered first, per Sentry's Nest setup guidance.
 		{
@@ -141,6 +149,12 @@ import { env } from "./config/env.config"
 		{
 			provide: APP_GUARD,
 			useClass: RbacGuard,
+		},
+		// After the throttler and the permission guard. Root-module guards run
+		// in this order, so auth stays last and reads the stored session.
+		{
+			provide: APP_GUARD,
+			useClass: SessionAuthGuard,
 		},
 	],
 })

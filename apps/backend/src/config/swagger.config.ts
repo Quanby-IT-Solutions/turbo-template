@@ -1,9 +1,11 @@
 import { Logger, type INestApplication } from "@nestjs/common"
 import { OpenAPIGenerator } from "@orpc/openapi"
 import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4"
-import { apiReference } from "@scalar/nestjs-api-reference"
+import type { NextFunction, Request, Response } from "express"
 
 import { API_VERSIONS, getVersionKeys, type VersionKey } from "@/config/api-versions.config"
+import { renderDocsHtml } from "@/config/docs-page"
+import { isApiDocsPageRequest, readCspNonce } from "@/config/security-headers.config"
 import { mergeBetterAuthSchema } from "@/utils/openapi"
 
 const logger = new Logger("SwaggerConfig")
@@ -42,6 +44,23 @@ async function generateOpenAPIDocument(version: VersionKey) {
 	})
 }
 
+function serveDocsPage(specUrl: string) {
+	return (req: Request, res: Response, next: NextFunction) => {
+		if (!isApiDocsPageRequest(req)) {
+			next()
+			return
+		}
+
+		const nonce = readCspNonce(res)
+		if (!nonce) {
+			res.status(500).type("text/plain").send("API docs page is unavailable")
+			return
+		}
+
+		res.status(200).type("html").send(renderDocsHtml({ specUrl, nonce }))
+	}
+}
+
 /**
  * Set up Scalar docs for a specific version
  */
@@ -55,8 +74,8 @@ async function setupVersionedDocs(app: INestApplication, version: VersionKey): P
 		res.json(mergedDoc)
 	})
 
-	// Serve Scalar API reference
-	app.use(`/${basePath}/docs`, apiReference({ url: `/${basePath}/spec.json`, theme: "none" }))
+	// Own HTML shell. The integration middleware cannot set integrity, CORS mode, or a nonce.
+	app.use(`/${basePath}/docs`, serveDocsPage(`/${basePath}/spec.json`))
 
 	logger.log(`Documentation available at /${basePath}/spec.json and /${basePath}/docs`)
 }

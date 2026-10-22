@@ -145,8 +145,12 @@ changes are needed; if it splits web/api across different domains, update
 | `DATABASE_URL`                | ✅       | Backend, DB | PostgreSQL connection string. Use the same value in `apps/backend/.env` and `packages/db/.env` |
 | `SEED_ADMIN_PASSWORD`         | ✅ seed / e2e | DB   | Admin password for `pnpm db:seed`, set only in `packages/db/.env`. Backend e2e reads it from that file. Web e2e reads the same variable from the process environment. No default |
 | `E2E_ADMIN_PASSWORD`          | ❌       | Web e2e, backend e2e | Optional override of `SEED_ADMIN_PASSWORD` when a test signs in as the seeded admin. No default |
-| `E2E_TEST_PASSWORD`           | ❌       | Web e2e     | Password for the userA web e2e account. Required when that account signs in. No default |
-| `E2E_TEST_PASSWORD_B`         | ❌       | Web e2e     | Password for the userB web e2e account. Required when that account signs in. No default |
+| `E2E_AUTH_API_URL`            | ❌       | Web e2e     | Auth API base, including the trailing slash. When set, Playwright runs setup, authenticated, and auth-negative projects. Local: `http://localhost:3000/api/v1/auth/` |
+| `E2E_TEST_EMAIL`              | ❌       | Web e2e     | userA address for `pnpm db:seed:e2e` and sign-in. Default `test@gmail.com` |
+| `E2E_TEST_NAME`               | ❌       | Web e2e     | userA display name. Default `E2E Test User` |
+| `E2E_TEST_EMAIL_B`            | ❌       | Web e2e     | userB address. Default `e2e-user-b@turbo-template.local` |
+| `E2E_TEST_PASSWORD`           | ❌       | Web e2e     | Password for userA. Required by `pnpm db:seed:e2e` and by sign-in. No default |
+| `E2E_TEST_PASSWORD_B`         | ❌       | Web e2e     | Password for userB. Required by `pnpm db:seed:e2e` and by sign-in. No default |
 | `BETTER_AUTH_SECRET`          | ✅       | Backend     | Session signing secret. Must be >= 32 chars and NOT a placeholder — backend fails to boot otherwise. Generate: `openssl rand -base64 32` (see [Generating BETTER_AUTH_SECRET](#generating-better_auth_secret)) |
 | `BETTER_AUTH_TRUSTED_ORIGINS` | ✅       | Backend     | Comma-separated trusted origins                           |
 | `CORS_ORIGINS`                | ✅       | Backend     | Comma-separated CORS origins                              |
@@ -199,16 +203,13 @@ placeholder**:
 BETTER_AUTH_SECRET=<replace-me-run-openssl-rand-base64-32>
 ```
 
-The backend **refuses to boot** with this value. Its shared validator
+The backend **refuses to boot** with a placeholder or a secret shorter than
+**32 characters**. Its shared validator
 (`packages/auth/src/secret-schema.ts`) rejects a secret that is shorter than
 **32 characters** or that starts with a known template prefix (`replace-me`,
 `change-me`, `your-secret`, `default-secret`, `<`, …). This is deliberate
-fail-closed behaviour: a published/guessable secret means every session — Admin
-included — is forgeable. Startup aborts with:
-
-```
-BETTER_AUTH_SECRET is still the template placeholder — sessions signed with a published secret are forgeable. Generate one with: openssl rand -base64 32
-```
+fail-closed behaviour: a known secret makes sessions untrustworthy. Startup
+aborts with an error naming the variable and the command to generate one.
 
 Generate a real value and paste it into `apps/backend/.env`:
 
@@ -305,6 +306,70 @@ Re-running `pnpm db:seed` does not change an admin password that is already
 stored. If the database was seeded with a different or random password, set
 `SEED_ADMIN_PASSWORD` and run `pnpm db:seed -- --force-password`.
 
+## Web e2e (Playwright)
+
+Authenticated projects stay off until `E2E_AUTH_API_URL` is set. Leave
+`EMAIL_VERIFICATION_REQUIRED=true`. The suite does not turn verification off
+and does not register accounts. `pnpm db:seed:e2e` creates or updates userA
+and userB as pre-verified ordinary users (no role) and stores this run's
+passwords. It refuses `NODE_ENV=production` and a non-local `DATABASE_URL`,
+the same way `pnpm db:seed` does. Re-run it when a reused database still has
+an older password for those two users.
+
+From the repo root, with Postgres up. The suite's database is set up with
+`pnpm db:push` (as in Quick Start), `pnpm db:migrate` must not be run on a
+pushed database, and each database uses one method (to switch to migrations,
+start from an empty database). Start the backend with the e2e limiter
+and leave that process running across repeated suite runs. Production defaults
+stay 100 requests per 60000 ms.
+
+```bash
+THROTTLE_LIMIT=5000 THROTTLE_TTL=60000 pnpm --filter @repo/backend start
+```
+
+Then:
+
+```bash
+export EMAIL_VERIFICATION_REQUIRED=true
+export E2E_AUTH_API_URL=http://localhost:3000/api/v1/auth/
+export E2E_ADMIN_EMAIL=<admin-email>
+# Set SEED_ADMIN_PASSWORD in this shell to the value in packages/db/.env.
+export E2E_ADMIN_PASSWORD="$SEED_ADMIN_PASSWORD"
+export E2E_TEST_EMAIL=<user-a-email>
+export E2E_TEST_NAME=<user-a-name>
+export E2E_TEST_PASSWORD='<choose-a-local-password-for-userA>'
+export E2E_TEST_EMAIL_B=<user-b-email>
+export E2E_TEST_PASSWORD_B='<choose-a-local-password-for-userB>'
+# Set to 1 when a web server is already running. Playwright then does not
+# start `next start` itself.
+# export E2E_NO_WEBSERVER=1
+pnpm db:seed
+pnpm db:seed:e2e
+# Needed once per machine. --with-deps installs OS packages and may prompt for sudo on Linux.
+pnpm --filter @repo/e2e-web exec playwright install --with-deps chromium
+pnpm test:e2e:web
+```
+
+`E2E_ADMIN_PASSWORD` is the admin password from `pnpm db:seed`.
+`E2E_TEST_PASSWORD` and `E2E_TEST_PASSWORD_B` have no defaults; export them in
+the shell. Do not commit them. `E2E_TEST_EMAIL` defaults to a local test
+address when unset, and `E2E_TEST_EMAIL_B` defaults to the second local test
+address. `E2E_NO_WEBSERVER` skips Playwright's web server so the suite talks
+to one you already started. `E2E_ALLOW_DEFAULT_THROTTLE=1` is only for a
+diagnostic run against the code-default limiter: setup warns once with the
+advertised limit and continues, and backend-throttler 429s are expected.
+Leave it unset for a normal run. A local run that starts within 61 seconds
+of the previous one waits out the rest of that gap so the auth limiter can
+idle. `E2E_SKIP_IDLE_GAP=1` skips that wait.
+
+`apps/web/.env` (from `apps/web/.env.example`) must set
+`NEXT_PUBLIC_API_BASE_URL` before the web build. Playwright starts that build
+unless `E2E_NO_WEBSERVER` is set. When the variable is unset, the page CSP
+stays `connect-src 'self'` only.
+
+Re-running `pnpm db:seed:e2e` stores the current `E2E_TEST_PASSWORD` and
+`E2E_TEST_PASSWORD_B` and marks both users verified.
+
 ## Scripts
 
 | Command                            | Description                                                                 |
@@ -316,6 +381,7 @@ stored. If the database was seeded with a different or random password, set
 | `pnpm format:fix`                  | Format code with Prettier                                                   |
 | `pnpm db:push`                     | Push schema to database (may prompt; needs an interactive terminal to answer prompts, non-interactive runs apply only changes that need no confirmation) |
 | `pnpm db:seed`                     | Seed local roles, users, and sample data (`SEED_ADMIN_PASSWORD` in `packages/db/.env`) |
+| `pnpm db:seed:e2e`                 | Upsert pre-verified userA and userB for web e2e (`E2E_TEST_PASSWORD` and `E2E_TEST_PASSWORD_B`, no defaults) |
 | `pnpm -F @repo/backend test:e2e`   | Run backend e2e against the seeded database                                 |
 | `pnpm db:studio`                   | Open Drizzle Studio                                                         |
 
@@ -626,7 +692,7 @@ the issue to **In QA**, where QA verifies the acceptance criteria before Done.
 
 ## Backend: Production-like Local Run
 
-To mirror Docker/ECS behavior for backend startup, build workspace dependencies first, then run backend start:
+To mirror the container entrypoint for backend startup, build workspace dependencies first, then run backend start:
 
 ```bash
 pnpm build
@@ -651,14 +717,65 @@ import { todos, users } from "@repo/db/schema"
 
 ### How It Works
 
-| Branch       | Environment | Strategy                            |
-| ------------ | ----------- | ----------------------------------- |
-| `staging`    | Staging     | Single EC2 + Docker Compose + Nginx |
-| `production` | Production  | ECS Fargate + ALB (auto-scaling)    |
+| Branch       | Environment | Strategy                                              |
+| ------------ | ----------- | ----------------------------------------------------- |
+| `staging`    | Staging     | EC2 + Elastic IP, host Nginx on 80/443                |
+| `production` | Production  | EC2 + load balancer + ASG (auto-scaling)              |
+
+Staging is one EC2 instance with an Elastic IP. Host Nginx listens on 80 and 443 and proxies to `127.0.0.1:3000` (backend) and `127.0.0.1:3001` (web). The app ports are not opened in the security group. The deploy checks health on the host.
 
 Merge to the branch → CI runs → Docker images build → deploy automatically.
 
 Infrastructure is managed separately via [turbo-infrastructure](https://github.com/Quanby-IT-Solutions/turbo-infrastructure) (Terraform).
+
+### Proxy hop and backend bind
+
+Local / dev and production are different hops. `TRUST_PROXY` stays `1` for
+one hop:
+
+- **Local / dev** uses nginx. `nginx/nginx.conf` and `nginx/nginx.dev.conf`
+  set `X-Forwarded-For` to `$remote_addr` (they do not append). The local
+  compose file publishes web and backend on `127.0.0.1` so a host nginx can
+  reach them.
+- **Production** uses the load balancer. It terminates TLS, routes by host
+  header to `web:3001` and `backend:3000`, and appends the address it saw
+  onto `X-Forwarded-For`. There is no nginx service in
+  `docker-compose.production.yml`.
+- **Staging** is one EC2 instance with an Elastic IP. Host Nginx on the
+  instance, outside compose, is the single front hop. It listens on 80 and
+  443 and proxies to `127.0.0.1:3000` and `127.0.0.1:3001`. The app ports are
+  not opened in the security group. The deploy checks health over SSH at
+  those addresses. Nginx is not part of `docker-compose.staging.yml`. The
+  local docker-proxy nginx stays for local/dev.
+
+The web container still calls the backend on the compose network
+(`INTERNAL_API_BASE_URL=http://backend:3000/api`). That path does not use the
+published host port.
+
+The backend's published port in both deploy compose files is
+`${BACKEND_BIND_ADDRESS:-0.0.0.0}:3000:3000`.
+
+On production, set `BACKEND_BIND_ADDRESS` to the instance's private IPv4
+where compose is launched. On EC2 the Elastic IP is translated 1:1 to the
+private IPv4, so binding to the private address only limits the host-side
+publish to that one interface. Direct access must be blocked by a security group
+that allows port 3000 only from the load balancer's security group, and that
+group is managed outside this repo. The default `0.0.0.0` keeps a deploy
+working when the variable is unset. Do not bind the port to `127.0.0.1` and
+do not remove the host mapping: the load balancer's health checks must reach
+port 3000. Web stays on `0.0.0.0:3001`. Redis stays unpublished.
+
+`BACKEND_BIND_ADDRESS` stays unset on staging. Health is checked on the host
+at `127.0.0.1:3000` and `127.0.0.1:3001`.
+
+This repo does not set `BACKEND_BIND_ADDRESS`. Production publishes the compose
+file and a shared env payload to SSM; that payload has no per-instance private
+address, and the instance boot script lives in turbo-infrastructure. Staging's
+workflow writes `/opt/staging/.env` and does not include the variable. The
+production target groups are provisioned outside this repo; the workflow
+checks both the web group and the backend group. The in-repo container
+healthcheck calls `GET /api/v1/health` on `localhost:3000` inside the backend
+container, which does not depend on the publish address.
 
 ### Deploy
 
@@ -682,20 +799,16 @@ Before your first deploy, go to **Settings → Environments** and create `stagin
 | --------------------------- | ------------------------- | ----------------------------------- | ----------------------------------- |
 | `AWS_REGION`                | AWS region                | `ap-southeast-1`                    | `ap-southeast-1`                    |
 | `PROJECT_NAME`              | Project identifier        | `turbo-template`                    | `turbo-template`                    |
-| `ECR_REGISTRY`              | ECR registry host         | `123...dkr.ecr.ap-southeast-1.amazonaws.com` | `123...dkr.ecr.ap-southeast-1.amazonaws.com` |
-| `STG_EC2_HOST`              | Staging EC2 IP / hostname | `54.123.45.67`                      |                                     |
-| `STG_EC2_HOST_KEY`          | Pinned SSH host key (see below) | `54.123.45.67 ssh-ed25519 AAAAC3...` |                                |
+| `ECR_REGISTRY`              | ECR registry host (staging only; production uses the ECR login output) | `123...dkr.ecr.ap-southeast-1.amazonaws.com` |                                     |
+| `STG_EC2_HOST`              | Staging EC2 IP / hostname | `203.0.113.10`                      |                                     |
+| `STG_EC2_HOST_KEY`          | Pinned SSH host key (see below) | `203.0.113.10 ssh-ed25519 AAAAC3...` |                                |
 | `ECR_REPOSITORY_WEB`        | ECR repo name for web     | `turbo-template-web-staging`        | `turbo-template-web-production`     |
 | `ECR_REPOSITORY_BACKEND`    | ECR repo name for backend | `turbo-template-backend-staging`    | `turbo-template-backend-production` |
-| `DOMAIN_WEB`                | Web domain                | `stg-turbo.quanbyit.com`            | `turbo.quanbyit.com`                |
-| `DOMAIN_API`                | API domain                | `stg-turbo-be.quanbyit.com`         | `turbo-be.quanbyit.com`             |
-| `ECS_CLUSTER`               | ECS cluster name          |                                     | `turbo-template-production`         |
-| `ECS_SERVICE_WEB`           | ECS web service name      |                                     | `turbo-template-web-production`     |
-| `ECS_SERVICE_BACKEND`       | ECS backend service name  |                                     | `turbo-template-backend-production` |
-| `ECS_EXECUTION_ROLE_ARN`    | ECS execution role ARN    |                                     | `arn:aws:iam::123...:role/...`      |
-| `ECS_TASK_ROLE_ARN`         | ECS task role ARN         |                                     | `arn:aws:iam::123...:role/...`      |
+| `ASG_NAME`                  | Auto Scaling Group name   |                                     | `<asg-name>`                        |
+| `LAUNCH_TEMPLATE_ID`        | Launch template id        |                                     | `<launch-template-id>`              |
 | `NEXT_PUBLIC_APP_URL`       | Public web URL            | `https://stg-turbo.quanbyit.com`    | `https://turbo.quanbyit.com`        |
 | `NEXT_PUBLIC_API_BASE_URL`  | Public API URL            | `https://stg-turbo-be.quanbyit.com` | `https://turbo-be.quanbyit.com`     |
+| `NEXT_PUBLIC_API_VERSION`   | API version path segment (production deploy requires it; staging defaults to `v1`) | `v1` | `v1` |
 | `BETTER_AUTH_COOKIE_DOMAIN` | Cookie domain for auth    |                                     | `.quanbyit.com`                     |
 | `SENTRY_ORG`                | Sentry org slug (source-map upload) |                           | `<org-slug>`                        |
 | `SENTRY_PROJECT`            | Sentry project slug (source-map upload) |                       | `<project-slug>`                    |
@@ -745,7 +858,7 @@ rebuilt, since a new instance gets a new key):
 ssh-keyscan -t ed25519 <STG_EC2_HOST>
 ```
 
-Copy the output line — it looks like `54.123.45.67 ssh-ed25519 AAAAC3Nza...` —
+Copy the output line — it looks like `203.0.113.10 ssh-ed25519 AAAAC3Nza...` —
 into the `STG_EC2_HOST_KEY` **variable** (not a secret: it is public key
 material, and keeping it readable means a change shows up in review).
 
@@ -781,20 +894,24 @@ NGINX_CONF=./nginx/nginx.conf docker compose --profile docker-proxy up -d
 
 Baseline: TLS 1.2 and 1.3 only, forward-secret cipher suites, HTTP 301s to
 HTTPS, and the ACME challenge path stays on HTTP so renewal keeps working.
-Once this is live, enable `ENABLE_HSTS=true` (ED-1 keeps it off until TLS
-actually terminates, because `max-age` cannot be withdrawn quickly).
+Once this is live, enable `ENABLE_HSTS=true`. It stays off by default until TLS
+actually terminates, because `max-age` cannot be withdrawn quickly.
+
+### TLS on the deployed hosts
+
+Production terminates TLS on the load balancer (AWS ACM). Neither deploy compose file runs nginx.
 
 ### First-Time Staging SSL
 
-After the first staging deployment, SSH into EC2 to set up HTTPS:
+Staging uses host Nginx plus certbot. After the first staging deployment, SSH into the instance and issue the certificate:
 
 ```bash
-ssh -i your-key.pem ubuntu@EC2_HOST
-sudo certbot --nginx -d stg-turbo.quanbyit.com -d stg-turbo-be.quanbyit.com
+ssh -i <your-key> ec2-user@<staging-host>
+cd /opt/staging
+sudo certbot --nginx -d <staging-web-domain> -d <staging-api-domain>
 sudo certbot renew --dry-run
+sudo nginx -t && sudo systemctl status nginx
 ```
-
-Production uses AWS ACM certificates via the ALB — no manual SSL needed.
 
 ### Docker (Local) — single-port reverse proxy
 
@@ -831,12 +948,18 @@ certbot/ACM cert. Same path routing — no second domain or cert needed.
 <details>
 <summary>Staging</summary>
 
+Staging is one EC2 instance with an Elastic IP. Host Nginx and certbot run on that instance, outside Compose. Nginx listens on 80 and 443 and proxies to `127.0.0.1:3000` (backend) and `127.0.0.1:3001` (web). The app ports are not opened in the security group. The deploy checks those URLs over SSH.
+
 ```bash
-ssh -i your-key.pem ubuntu@EC2_HOST
-cd /opt/staging && docker compose -f docker-compose.staging.yml ps
-docker compose -f docker-compose.staging.yml logs web
-docker compose -f docker-compose.staging.yml logs backend
+ssh -i <your-key> ec2-user@<staging-host>
+cd /opt/staging
+docker compose ps
+docker compose logs web
+docker compose logs backend
+curl -sf http://127.0.0.1:3000/api/v1/health
+curl -sf http://127.0.0.1:3001/
 sudo nginx -t && sudo systemctl status nginx
+sudo certbot certificates
 ```
 
 </details>
@@ -845,9 +968,17 @@ sudo nginx -t && sudo systemctl status nginx
 <summary>Production</summary>
 
 ```bash
-aws ecs describe-services --cluster CLUSTER --services SERVICE --query 'services[0].events[:5]'
-aws logs tail /ecs/PROJECT_NAME-web-production --follow
-aws logs tail /ecs/PROJECT_NAME-backend-production --follow
+aws autoscaling describe-auto-scaling-groups --auto-scaling-group-names <ASG_NAME>
+aws autoscaling describe-instance-refreshes --auto-scaling-group-name <ASG_NAME>
+aws elbv2 describe-target-groups --names <TARGET_GROUP_NAME>
+aws elbv2 describe-target-health --target-group-arn <TARGET_GROUP_ARN>
+
+# The launch template writes the compose file from SSM to /opt/app.
+# This repo defines no log group.
+cd /opt/app
+docker compose ps
+docker compose logs web
+docker compose logs backend
 ```
 
 </details>

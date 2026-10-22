@@ -316,7 +316,10 @@ passwords. It refuses `NODE_ENV=production` and a non-local `DATABASE_URL`,
 the same way `pnpm db:seed` does. Re-run it when a reused database still has
 an older password for those two users.
 
-From the repo root, with Postgres up. Start the backend with the e2e limiter
+From the repo root, with Postgres up. The suite's database is set up with
+`pnpm db:push` (as in Quick Start), `pnpm db:migrate` must not be run on a
+pushed database, and each database uses one method (to switch to migrations,
+start from an empty database). Start the backend with the e2e limiter
 and leave that process running across repeated suite runs. Production defaults
 stay 100 requests per 60000 ms.
 
@@ -330,17 +333,20 @@ Then:
 export EMAIL_VERIFICATION_REQUIRED=true
 export E2E_AUTH_API_URL=http://localhost:3000/api/v1/auth/
 export E2E_ADMIN_EMAIL=<admin-email>
-export E2E_ADMIN_PASSWORD=<seed-admin-password>
+# Set SEED_ADMIN_PASSWORD in this shell to the value in packages/db/.env.
+export E2E_ADMIN_PASSWORD="$SEED_ADMIN_PASSWORD"
 export E2E_TEST_EMAIL=<user-a-email>
 export E2E_TEST_NAME=<user-a-name>
-export E2E_TEST_PASSWORD=<user-a-password>
+export E2E_TEST_PASSWORD='<choose-a-local-password-for-userA>'
 export E2E_TEST_EMAIL_B=<user-b-email>
-export E2E_TEST_PASSWORD_B=<user-b-password>
+export E2E_TEST_PASSWORD_B='<choose-a-local-password-for-userB>'
 # Set to 1 when a web server is already running. Playwright then does not
 # start `next start` itself.
 # export E2E_NO_WEBSERVER=1
 pnpm db:seed
 pnpm db:seed:e2e
+# Needed once per machine. --with-deps installs OS packages and may prompt for sudo on Linux.
+pnpm --filter @repo/e2e-web exec playwright install --with-deps chromium
 pnpm test:e2e:web
 ```
 

@@ -14,6 +14,9 @@
  *                              are not included.
  * - Token-bearing URLs      => NetworkOnly. Single-use credentials must not be
  * written to any cache.
+ * - RSC page data           => NetworkFirst (`pages-rsc`, `pages-rsc-prefetch`),
+ * ahead of defaultCache. An error flight is not written. A successful flight
+ * keeps those cache names and the same expiration.
  * - Authenticated routes    => excluded from the offline fallback, so the app
  * never fakes a signed-in page.
  * - Static assets           => defaultCache (CacheFirst / StaleWhileRevalidate).
@@ -21,8 +24,22 @@
  */
 
 import { defaultCache } from "@serwist/turbopack/worker"
-import { NetworkOnly, Serwist, type PrecacheEntry, type SerwistGlobalConfig } from "serwist"
+import {
+	ExpirationPlugin,
+	NetworkFirst,
+	NetworkOnly,
+	Serwist,
+	type PrecacheEntry,
+	type SerwistGlobalConfig,
+} from "serwist"
 
+import {
+	isRscPrefetchRequest,
+	isRscRequest,
+	RSC_EXPIRATION,
+	RSC_RUNTIME_CACHE,
+	rscCacheWillUpdate,
+} from "@/features/pwa/lib/rsc-cache"
 import {
 	bypassesServiceWorker,
 	carriesToken,
@@ -72,6 +89,29 @@ const serwist = new Serwist({
 		{
 			matcher: ({ url }) => carriesToken(url),
 			handler: new NetworkOnly(),
+		},
+		// Ahead of defaultCache. Same match, cache names, and expiration as its
+		// RSC routes. `cacheWillUpdate` reads a clone and drops an error flight.
+		// Serwist returns the network response before that write is scheduled.
+		{
+			matcher: isRscPrefetchRequest,
+			handler: new NetworkFirst({
+				cacheName: RSC_RUNTIME_CACHE.prefetch,
+				plugins: [
+					{ cacheWillUpdate: rscCacheWillUpdate },
+					new ExpirationPlugin({ ...RSC_EXPIRATION }),
+				],
+			}),
+		},
+		{
+			matcher: isRscRequest,
+			handler: new NetworkFirst({
+				cacheName: RSC_RUNTIME_CACHE.page,
+				plugins: [
+					{ cacheWillUpdate: rscCacheWillUpdate },
+					new ExpirationPlugin({ ...RSC_EXPIRATION }),
+				],
+			}),
 		},
 		...defaultCache,
 	],

@@ -14,9 +14,10 @@
  *                              are not included.
  * - Token-bearing URLs      => NetworkOnly. Single-use credentials must not be
  * written to any cache.
- * - RSC page data           => NetworkFirst (`pages-rsc`, `pages-rsc-prefetch`),
- * ahead of defaultCache. An error flight is not written. A successful flight
- * keeps those cache names and the same expiration.
+ * - RSC page data           => production only. NetworkFirst
+ * (`pages-rsc-prefetch`, then `pages-rsc`), ahead of defaultCache. An error
+ * flight is not written. A successful flight keeps those cache names and the
+ * same expiration. Development follows serwist's NetworkOnly catch-all.
  * - Authenticated routes    => excluded from the offline fallback, so the app
  * never fakes a signed-in page.
  * - Static assets           => defaultCache (CacheFirst / StaleWhileRevalidate).
@@ -30,6 +31,7 @@ import {
 	NetworkOnly,
 	Serwist,
 	type PrecacheEntry,
+	type RuntimeCaching,
 	type SerwistGlobalConfig,
 } from "serwist"
 
@@ -54,6 +56,47 @@ declare global {
 }
 
 declare const self: ServiceWorkerGlobalScope
+
+/**
+ * Same-origin RSC flights, ahead of `defaultCache`.
+ *
+ * Serwist's `defaultCache` is a NetworkOnly catch-all unless this is a
+ * production build. These two routes mirror that production list (prefetch,
+ * then page) and must not start caching flights in development. `NODE_ENV`
+ * is the same build marker `defaultCache` reads. The worker bundle replaces
+ * it, and `env.ts` is the Next app's validated env — importing it here would
+ * pull that module into the worker.
+ */
+const rscPageDataRoutes: RuntimeCaching[] =
+	// eslint-disable-next-line no-restricted-properties
+	process.env.NODE_ENV === "production"
+		? [
+				// Same match, cache names, and expiration as the production RSC
+				// routes. `cacheWillUpdate` reads a clone and drops an error
+				// flight. Serwist returns the network response before that
+				// write is scheduled.
+				{
+					matcher: isRscPrefetchRequest,
+					handler: new NetworkFirst({
+						cacheName: RSC_RUNTIME_CACHE.prefetch,
+						plugins: [
+							{ cacheWillUpdate: rscCacheWillUpdate },
+							new ExpirationPlugin({ ...RSC_EXPIRATION }),
+						],
+					}),
+				},
+				{
+					matcher: isRscRequest,
+					handler: new NetworkFirst({
+						cacheName: RSC_RUNTIME_CACHE.page,
+						plugins: [
+							{ cacheWillUpdate: rscCacheWillUpdate },
+							new ExpirationPlugin({ ...RSC_EXPIRATION }),
+						],
+					}),
+				},
+			]
+		: []
 
 const serwist = new Serwist({
 	precacheEntries: self.__SW_MANIFEST,
@@ -90,29 +133,7 @@ const serwist = new Serwist({
 			matcher: ({ url }) => carriesToken(url),
 			handler: new NetworkOnly(),
 		},
-		// Ahead of defaultCache. Same match, cache names, and expiration as its
-		// RSC routes. `cacheWillUpdate` reads a clone and drops an error flight.
-		// Serwist returns the network response before that write is scheduled.
-		{
-			matcher: isRscPrefetchRequest,
-			handler: new NetworkFirst({
-				cacheName: RSC_RUNTIME_CACHE.prefetch,
-				plugins: [
-					{ cacheWillUpdate: rscCacheWillUpdate },
-					new ExpirationPlugin({ ...RSC_EXPIRATION }),
-				],
-			}),
-		},
-		{
-			matcher: isRscRequest,
-			handler: new NetworkFirst({
-				cacheName: RSC_RUNTIME_CACHE.page,
-				plugins: [
-					{ cacheWillUpdate: rscCacheWillUpdate },
-					new ExpirationPlugin({ ...RSC_EXPIRATION }),
-				],
-			}),
-		},
+		...rscPageDataRoutes,
 		...defaultCache,
 	],
 	fallbacks: {

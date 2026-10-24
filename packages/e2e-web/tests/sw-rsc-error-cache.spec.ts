@@ -20,17 +20,12 @@ const FLIGHT_ERROR_ROW = /(?:^E\{|(?:^|\n)[0-9a-fA-F]+:E\{)/
 /**
  * Console lines this page already emits.
  *
- * The document failure is a 500 and React's minified #441. Every page also
- * mounts the connectivity probe, which fetches the client default
- * `http://localhost:3000/api/v1/health`. The page policy adds that origin to
- * connect-src only when NEXT_PUBLIC_API_BASE_URL is set. The unauthenticated
- * production e2e job leaves it unset, so the browser blocks the probe.
- * Chromium reports that block as one of the two sentences below. The probe,
- * the policy, and the root layout that mounts them are outside this cache
- * change.
+ * The document failure is a 500 and React's minified #441. The connectivity
+ * probe does not run when `NEXT_PUBLIC_API_BASE_URL` is unset, which is how
+ * this unauthenticated production build is configured, so a `connect-src`
+ * block for the health URL is not an expected line.
  */
-const KNOWN_PAGE_CONSOLE =
-	/500 \(Internal Server Error\)|Minified React error #441|Connecting to 'http:\/\/localhost:3000\/api\/v1\/health\?t=\d+' violates the following Content Security Policy directive: "connect-src 'self'"\. The action has been blocked\.|Fetch API cannot load http:\/\/localhost:3000\/api\/v1\/health\?t=\d+\. Refused to connect because it violates the document's Content Security Policy\./
+const KNOWN_PAGE_CONSOLE = /500 \(Internal Server Error\)|Minified React error #441/
 
 function trackWorkerErrors(page: Page): string[] {
 	const errors: string[] = []

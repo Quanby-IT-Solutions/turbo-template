@@ -17,32 +17,68 @@ import { env } from "@/env"
  * fails, which is what made it look like flakiness.
  *
  * `/health` is `@AllowAnonymous`, so the probe works signed-out, and it is on
- * the API origin the CSP already allows.
+ * the API origin the page CSP already allows. That policy adds the origin to
+ * `connect-src` only when raw `process.env.NEXT_PUBLIC_API_BASE_URL` is a
+ * non-empty string — the same check as `apiOrigin` in `next.config.ts`. The
+ * zod default on `env.NEXT_PUBLIC_API_BASE_URL` (`http://localhost:3000/api`)
+ * is a fallback for other call sites when the variable was never set. It is
+ * not a deployment API, and fetching it from a page whose `connect-src` is
+ * `'self'` is blocked on every load.
+ *
+ * When no API origin is configured, subscribers still receive updates, but
+ * nothing is fetched. The source follows `navigator.onLine` (and stays
+ * optimistic `true` where `navigator` is absent, matching the server render)
+ * so a machine that is actually offline still flips.
  */
-const PROBE_URL = `${env.NEXT_PUBLIC_API_BASE_URL}/${env.NEXT_PUBLIC_API_VERSION}/health`
+
+/**
+ * Whether this build was given an API origin.
+ *
+ * Read the raw `NEXT_PUBLIC_*` variable, not `env.NEXT_PUBLIC_API_BASE_URL`.
+ * Next inlines a direct `process.env.NEXT_PUBLIC_*` access at build time, which
+ * is the value `headers()` in `next.config.ts` uses for `connect-src`. The
+ * validated env substitutes the localhost default when the variable is absent,
+ * so it cannot decide whether a probe is allowed.
+ */
+function isApiOriginConfigured(): boolean {
+	// eslint-disable-next-line no-restricted-properties -- must match the CSP's raw env check
+	const raw = process.env.NEXT_PUBLIC_API_BASE_URL
+	return typeof raw === "string" && raw.trim() !== ""
+}
+
+function healthProbeUrl(): string {
+	return `${env.NEXT_PUBLIC_API_BASE_URL}/${env.NEXT_PUBLIC_API_VERSION}/health`
+}
 
 // --- Shared, module-scoped connectivity source -----------------------------
 //
-// `navigator.onLine` alone is unreliable: it only reports whether the machine
-// has *a* network interface, not whether the app's own API health endpoint can
-// be reached (localhost dev server, LAN/VPN/ethernet with no uplink all read
-// `true`). So we combine it with an active probe to that endpoint, driven by
+// `navigator.onLine` alone is unreliable when an API origin is configured: it
+// only reports whether the machine has *a* network interface, not whether the
+// app's own API health endpoint can be reached (localhost dev server,
+// LAN/VPN/ethernet with no uplink all read `true`). So when an origin is
+// configured we combine it with an active probe to that endpoint, driven by
 // the `online`/`offline` events plus a periodic poll. "offline" means the API
 // can't be reached, which is when mutations pause.
 //
-// The probe machinery is module-scoped and shared across all subscribers: a
-// single probe loop runs while at least one subscriber is registered, and every
-// update fans out to all of them. This guarantees there is never more than one
-// active probe (no doubled background traffic, no inconsistent notifications).
+// When no origin is configured there is no health endpoint the page CSP would
+// allow. The loop then reports `navigator.onLine` on the `online`/`offline`
+// events and does not call `fetch` or poll.
+//
+// The machinery is module-scoped and shared across all subscribers: a single
+// loop runs while at least one subscriber is registered, and every update fans
+// out to all of them. This guarantees there is never more than one active
+// probe (no doubled background traffic, no inconsistent notifications).
 
 const listeners = new Set<(online: boolean) => void>()
 
 // Last known connectivity state. Starts optimistic (`true`) so SSR/first render
-// matches, then reconciles on the first probe.
+// matches, then reconciles on the first probe — or on `navigator.onLine` when
+// no API origin is configured.
 let currentOnline = true
 
 // Loop state. `cancelled` gates in-flight probes; `interval`/`handleProbe` are
 // the shared timer and event-listener reference, non-null only while running.
+// `interval` stays null when the loop is following `navigator.onLine`.
 let cancelled = false
 let interval: ReturnType<typeof setInterval> | null = null
 let handleProbe: (() => void) | null = null
@@ -50,6 +86,11 @@ let handleProbe: (() => void) | null = null
 function emit(online: boolean) {
 	currentOnline = online
 	for (const listener of listeners) listener(online)
+}
+
+function reportNavigatorOnline() {
+	if (cancelled) return
+	emit(typeof navigator === "undefined" ? true : navigator.onLine)
 }
 
 async function probe() {
@@ -62,7 +103,7 @@ async function probe() {
 	const timeout = setTimeout(() => controller.abort(), 5000)
 
 	try {
-		await fetch(`${PROBE_URL}?t=${Date.now()}`, {
+		await fetch(`${healthProbeUrl()}?t=${Date.now()}`, {
 			method: "GET",
 			mode: "no-cors",
 			cache: "no-store",
@@ -76,8 +117,18 @@ async function probe() {
 	}
 }
 
-function startProbeLoop() {
+function startConnectivityLoop() {
 	cancelled = false
+
+	if (!isApiOriginConfigured()) {
+		// No `fetch`, no poll. `online`/`offline` are how `navigator.onLine` changes.
+		handleProbe = () => reportNavigatorOnline()
+		handleProbe()
+		window.addEventListener("online", handleProbe)
+		window.addEventListener("offline", handleProbe)
+		return
+	}
+
 	// Stable non-async handler so add/removeEventListener share one reference
 	// and no floating promise leaks to the event system.
 	handleProbe = () => void probe()
@@ -89,7 +140,7 @@ function startProbeLoop() {
 	window.addEventListener("offline", handleProbe)
 }
 
-function stopProbeLoop() {
+function stopConnectivityLoop() {
 	cancelled = true
 
 	if (interval !== null) {
@@ -109,12 +160,14 @@ function stopProbeLoop() {
  * current online state and on every subsequent change. The subscriber receives
  * the last known state immediately.
  *
- * The single shared probe loop (initial probe, periodic poll, `online`/`offline`
- * listeners) starts when the first subscriber arrives and is torn down when the
- * last one leaves. Returns an unsubscribe function.
+ * When an API origin is configured, the single shared probe loop (initial
+ * probe, periodic poll, `online`/`offline` listeners) starts when the first
+ * subscriber arrives and is torn down when the last one leaves. When no origin
+ * is configured, that loop follows `navigator.onLine` and does not fetch.
+ * Returns an unsubscribe function.
  *
- * Shared by `useOnlineStatus` and the TanStack Query `onlineManager` bridge so a
- * single probe drives both.
+ * Shared by `useOnlineStatus` and the TanStack Query `onlineManager` bridge so
+ * one source drives both.
  */
 export function subscribeOnlineStatus(callback: (online: boolean) => void): () => void {
 	listeners.add(callback)
@@ -123,13 +176,13 @@ export function subscribeOnlineStatus(callback: (online: boolean) => void): () =
 	callback(currentOnline)
 
 	// Start the shared loop only when the first subscriber arrives.
-	if (listeners.size === 1) startProbeLoop()
+	if (listeners.size === 1) startConnectivityLoop()
 
 	return () => {
 		listeners.delete(callback)
 
 		// Tear the shared loop down once nobody is listening.
-		if (listeners.size === 0) stopProbeLoop()
+		if (listeners.size === 0) stopConnectivityLoop()
 	}
 }
 

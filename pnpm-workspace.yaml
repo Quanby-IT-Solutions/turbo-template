@@ -11,7 +11,7 @@ catalog:
   "@orpc/contract": ^1.15.7
   "@orpc/nest": ^1.15.7
   "@sentry/nestjs": ^10.70.0
-  "@sentry/nextjs": ^10.70.0
+  "@sentry/nextjs": 10.75.2
   "@tailwindcss/postcss": ^4.3.3
   "@tanstack/eslint-plugin-query": ^5.91.2
   "@tanstack/react-form": ^1.27.7

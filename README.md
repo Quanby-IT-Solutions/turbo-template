@@ -13,6 +13,22 @@ A TypeScript-first monorepo template using **Turborepo** and **pnpm** for full-s
 | Auth      | Better Auth                         |
 | Contracts | Zod schemas + DTOs                  |
 
+## Create a repo from this template
+
+The new repository's default branch follows this template's default branch, `dev`.
+
+On GitHub, open this repository and choose **Use this template**, then **Create a new repository**. Pick the owner, repository name, and visibility. Leave **Include all branches** unchecked.
+
+From the CLI, create a private repository:
+
+```bash
+gh repo create <org>/<name> --template Quanby-IT-Solutions/turbo-template --private
+```
+
+Pass `--public` instead of `--private` when the new repository should be public. Do not pass `--include-all-branches`. Leaving that flag off is the default, and it is the right choice for a normal app repository: only `dev` should copy, while leftover scratch branches such as `scratch/ci-workflow-call-check` and environment branches stay on the template remote.
+
+When the repository exists, continue with [Quick Start](#quick-start).
+
 ## Quick Start
 
 ```bash
@@ -60,6 +76,10 @@ After `pnpm dev`:
 | Web           | http://localhost:3001             |
 | Backend API   | http://localhost:3000/api/v1      |
 | API reference | http://localhost:3000/api/v1/docs |
+
+## Contributing
+
+Develop from [Quick Start](#quick-start). Open pull requests against `dev`. Keep commit messages and pull request text factual. This is a public template.
 
 ## Coverage thresholds are a floor
 
@@ -389,12 +409,13 @@ Re-running `pnpm db:seed:e2e` stores the current `E2E_TEST_PASSWORD` and
 
 > Using Linear instead? See **[From tickets to pull requests (Linear)](#from-tickets-to-pull-requests-linear)** below.
 
-This repository can turn the Markdown tickets in `docs/TICKETS.md` into GitHub
-issues and project items. Work on each issue in an issue-linked branch; the
-first push then opens a draft pull request to `dev` automatically.
+This repository can turn Markdown tickets from a file you supply (for example
+`path/to/tickets.md`) into GitHub issues and project items. This template does
+not ship that file. Work on each issue in an issue-linked branch; the first
+push then opens a draft pull request to `dev` automatically.
 
 ```text
-docs/TICKETS.md -> GitHub issues -> GitHub Project -> issue branches -> draft PRs to dev
+path/to/tickets.md -> GitHub issues -> GitHub Project -> issue branches -> draft PRs to dev
 ```
 
 ### One-time setup
@@ -436,8 +457,9 @@ an environment.
 
 ### 1. Write the tickets
 
-Use `docs/TICKETS.md` as a template. Separate ticket blocks with a line that is
-exactly `---`. Every ticket needs a title with an uppercase key; `Epic` and
+Create your own markdown file, for example `path/to/tickets.md`. This template
+does not ship that file. Separate ticket blocks with a line that is exactly
+`---`. Every ticket needs a title with an uppercase key; `Epic` and
 `Also touches` add labels when present.
 
 ```markdown
@@ -453,10 +475,10 @@ exactly `---`. Every ticket needs a title with an uppercase key; `Epic` and
 - Describe an observable result.
 ```
 
-The required title format is `**Title:** [UPPERCASE-KEY] Name`. See the full
-[sample ticket file](docs/TICKETS.md) for the recommended fields and build
-order. Build order and dependency fields are documentation only; the script
-does not enforce them.
+The required title format is `**Title:** [UPPERCASE-KEY] Name`. The block above
+is the format the script accepts. Build order and dependency fields are
+documentation only; the script does not enforce them. If you omit the file
+argument, the script reads `docs/TICKETS.md`, which you must create yourself.
 
 ### 2. Preview the issues
 
@@ -464,13 +486,13 @@ Run the script from the repository root. Keep the ticket file as the first
 argument and always provide the GitHub Project number and owner.
 
 ```bash
-node scripts/tickets-to-issues.mjs docs/TICKETS.md --project <PROJECT_NUMBER> --project-owner <PROJECT_OWNER> --repo <REPOSITORY_OWNER/REPOSITORY> --dry-run
+node scripts/tickets-to-issues.mjs path/to/tickets.md --project <PROJECT_NUMBER> --project-owner <PROJECT_OWNER> --repo <REPOSITORY_OWNER/REPOSITORY> --dry-run
 ```
 
 For example:
 
 ```bash
-node scripts/tickets-to-issues.mjs docs/TICKETS.md --project 71 --project-owner Quanby-IT-Solutions --repo Quanby-IT-Solutions/turbo-template --dry-run
+node scripts/tickets-to-issues.mjs path/to/tickets.md --project 71 --project-owner Quanby-IT-Solutions --repo Quanby-IT-Solutions/turbo-template --dry-run
 ```
 
 The preview parses the tickets and lists the labels and issues it would create.
@@ -484,7 +506,7 @@ preview cannot identify tickets that already exist.
 After checking the preview, rerun the same command without `--dry-run`:
 
 ```bash
-node scripts/tickets-to-issues.mjs docs/TICKETS.md --project <PROJECT_NUMBER> --project-owner <PROJECT_OWNER> --repo <REPOSITORY_OWNER/REPOSITORY>
+node scripts/tickets-to-issues.mjs path/to/tickets.md --project <PROJECT_NUMBER> --project-owner <PROJECT_OWNER> --repo <REPOSITORY_OWNER/REPOSITORY>
 ```
 
 For every new ticket, the script:
@@ -539,7 +561,7 @@ this template expects `dev` to be the default branch.
 
 ### Troubleshooting
 
-- **`File not found: 71`:** Put `docs/TICKETS.md` before all flags.
+- **`File not found: 71`:** Put `path/to/tickets.md` before all flags.
 - **`Missing required flags`:** Supply both `--project` and `--project-owner`,
   including during a dry run.
 - **Could not fetch existing issues:** Stop before a non-dry run and fix GitHub
@@ -562,13 +584,14 @@ this template expects `dev` to be the default branch.
 
 > Prefer GitHub Issues? See **[From tickets to pull requests (GitHub Issues)](#from-tickets-to-pull-requests-github-issues)** above.
 
-Same `docs/TICKETS.md` file, routed to **Linear** instead of GitHub Issues.
+Same caller-supplied markdown file (for example `path/to/tickets.md`), routed
+to **Linear** instead of GitHub Issues. This template does not ship that file.
 `scripts/tickets-to-linear.mjs` creates Linear issues; you branch with the name
 Linear gives you, and the first push opens a draft pull request to `dev`
 automatically.
 
 ```text
-docs/TICKETS.md -> Linear issues -> Linear branch names -> draft PRs to dev
+path/to/tickets.md -> Linear issues -> Linear branch names -> draft PRs to dev
 ```
 
 ### One-time setup
@@ -605,15 +628,16 @@ docs/TICKETS.md -> Linear issues -> Linear branch names -> draft PRs to dev
 
 Use the exact same format as the GitHub flow — `**Title:** [KEY] Name` with
 optional `**Epic:**` and `**Also touches:**`. See
-[1. Write the tickets](#1-write-the-tickets) above and the sample
-[docs/TICKETS.md](docs/TICKETS.md). The parser is identical.
+[1. Write the tickets](#1-write-the-tickets) above. The parser is identical.
+This template does not ship a sample tickets file. If you omit the file
+argument, the script reads `docs/TICKETS.md`, which you must create yourself.
 
 ### 2. Preview the issues
 
 Run the script from the repository root with `--dry-run`:
 
 ```bash
-LINEAR_API_KEY=lin_api_xxx node scripts/tickets-to-linear.mjs docs/TICKETS.md --team BID --dry-run
+LINEAR_API_KEY=lin_api_xxx node scripts/tickets-to-linear.mjs path/to/tickets.md --team BID --dry-run
 ```
 
 The preview lists the labels and issues it would create. It queries Linear for
@@ -624,7 +648,7 @@ existing issue titles (for duplicate detection) but creates or changes nothing.
 After checking the preview, rerun without `--dry-run`:
 
 ```bash
-LINEAR_API_KEY=lin_api_xxx node scripts/tickets-to-linear.mjs docs/TICKETS.md --team BID
+LINEAR_API_KEY=lin_api_xxx node scripts/tickets-to-linear.mjs path/to/tickets.md --team BID
 ```
 
 Optionally set the initial workflow state with `--state <name>` (default
@@ -632,7 +656,7 @@ Optionally set the initial workflow state with `--state <name>` (default
 backlog-type state):
 
 ```bash
-LINEAR_API_KEY=lin_api_xxx node scripts/tickets-to-linear.mjs docs/TICKETS.md --team BID --state Backlog
+LINEAR_API_KEY=lin_api_xxx node scripts/tickets-to-linear.mjs path/to/tickets.md --team BID --state Backlog
 ```
 
 For every new ticket, the script:

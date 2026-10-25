@@ -38,7 +38,7 @@ catalog:
   turbo: ^2.11.9
   typescript: ^5.9.3
   typescript-eslint: ^8.52.0
-  zod: ^4.3.5
+  zod: 4.6.6
 
 catalogs:
   react19:
@@ -77,7 +77,10 @@ overrides:
   "lodash@>=4 <4.18.0": ">=4.18.0 <5"
   "js-yaml@>=5 <5.4.1": ">=5.4.1 <5.5.0"
   "http-cache-semantics@<4.3.0": ">=4.3.0 <5"
-  "drizzle-orm>zod": "4.3.5"
+  # @serwist/build and @serwist/turbopack 9.5.13 (latest) depend on zod 4.6.5.
+  # @better-auth/core and eslint-plugin-react-hooks accept zod 4.x below 4.6.6,
+  # and no current parent release raises that floor. Replaces drizzle-orm>zod 4.3.5.
+  "zod@>=4.0.0 <4.6.6": "4.6.6"
   # The override below replaces @next/eslint-plugin-next's fast-glob with
   # tinyglobby. While it is in place, settings.next.rootDir must be a wildcard
   # pattern (e.g. "apps/*/"): a literal path makes the replacement scan the

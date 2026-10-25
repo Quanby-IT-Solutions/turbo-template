@@ -6,9 +6,12 @@
  * as the removal, and the check-then-write race this closes only exists between concurrent
  * database transactions. A mocked db cannot exhibit it, so a mocked test could
  * not catch its return.
+ *
+ * Skips when Postgres is unreachable, and when it is up but `pnpm db:push` has
+ * not created the relations this file uses. A table that exists still runs.
  */
 
-import { and, eq, sql } from "drizzle-orm"
+import { and, eq } from "drizzle-orm"
 
 import { auditLog, roles, userRoles, users } from "@repo/db/schema"
 
@@ -16,6 +19,7 @@ import { AuditService } from "@/common/audit/audit.service"
 import { db } from "@/common/database/database.client"
 import { RbacCacheService } from "@/common/rbac/rbac-cache.service"
 import { RbacService } from "@/common/rbac/rbac.service"
+import { bindDbBackedTests } from "@/testing/db-ready"
 
 jest.mock("@repo/contracts", () => ({
 	ADMIN_ROLE: "Admin",
@@ -44,7 +48,12 @@ const ADMIN_B = "az2-admin-b"
 const SUBJECT = "az2-subject"
 const ALL_USERS = [MANAGER, ADMIN_A, ADMIN_B, SUBJECT]
 
-let dbReachable = false
+const dbTests = bindDbBackedTests({
+	label: "az-2",
+	relations: ["users", "roles", "user_roles", "audit_log"],
+	database: db,
+})
+const itDb = dbTests.itDb
 let adminRoleId: number
 /** Real Admin memberships, set aside for the duration of this suite. */
 let preexistingAdmins: { userId: string; roleId: number }[] = []
@@ -88,12 +97,8 @@ async function denialsFor(actorId: string) {
 }
 
 beforeAll(async () => {
-	try {
-		await db.execute(sql`select 1`)
-		dbReachable = true
-	} catch {
-		return
-	}
+	await dbTests.probe()
+	if (!dbTests.ready) return
 
 	await cleanup()
 
@@ -120,7 +125,14 @@ beforeAll(async () => {
 })
 
 afterAll(async () => {
-	if (!dbReachable) return
+	if (!dbTests.connected) return
+	if (!dbTests.ready) {
+		// select 1 succeeded, so the pool is open, but the relations are not
+		// there. Close it without touching tables.
+		await db.$client.end()
+		return
+	}
+
 	await cleanup()
 
 	// Restore what was here before, exactly.
@@ -132,22 +144,9 @@ afterAll(async () => {
 	await db.$client.end()
 })
 
-const itDb: jest.It = ((name: string, fn: jest.ProvidesCallback, timeout?: number) =>
-	it(
-		name,
-		async (...args: unknown[]) => {
-			if (!dbReachable) {
-				console.warn(`[az-2] skipped "${name}": no database reachable`)
-				return
-			}
-			return (fn as (...a: unknown[]) => unknown)(...args)
-		},
-		timeout
-	)) as jest.It
-
 describe("Admin grants require Admin", () => {
 	beforeEach(async () => {
-		if (!dbReachable) return
+		if (!dbTests.ready) return
 		await db.delete(auditLog).where(eq(auditLog.actorId, MANAGER))
 		await setAdmins([ADMIN_A])
 	})
@@ -214,7 +213,7 @@ describe("Admin grants require Admin", () => {
 
 describe("last Admin cannot be removed", () => {
 	beforeEach(async () => {
-		if (!dbReachable) return
+		if (!dbTests.ready) return
 		await db.delete(auditLog).where(eq(auditLog.actorId, ADMIN_A))
 	})
 

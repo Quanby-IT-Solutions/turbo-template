@@ -1,9 +1,10 @@
-import { like, sql } from "drizzle-orm"
+import { like } from "drizzle-orm"
 
 import { verifications } from "@repo/db/schema"
 
 import { db } from "@/common/database/database.client"
 import { ExpiryCleanupService } from "@/common/maintenance/expiry-cleanup.service"
+import { bindDbBackedTests } from "@/testing/db-ready"
 
 /**
  * Expired verification tokens are swept.
@@ -12,10 +13,11 @@ import { ExpiryCleanupService } from "@/common/maintenance/expiry-cleanup.servic
  * predicate removes the right rows and leaves the rest, which a mocked query
  * builder cannot demonstrate.
  *
- * Skips the database-backed cases when no Postgres is reachable, the same way
- * az-2, az-3 and az-4 do. Without that guard all five fail on a runner with no
- * database — reporting a broken sweeper when the real state is "could not be
- * checked here", which is the kind of red that gets a suite muted.
+ * Skips the database-backed cases when no Postgres is reachable, and when it is
+ * up but `pnpm db:push` has not created `verifications`. A table that exists
+ * still runs. Without that guard the cases fail on a runner with no database
+ * — reporting a broken sweeper when the real state is "could not be checked
+ * here", which is the kind of red that gets a suite muted.
  */
 describe("ExpiryCleanupService — verifications", () => {
 	const service = new ExpiryCleanupService()
@@ -23,43 +25,29 @@ describe("ExpiryCleanupService — verifications", () => {
 
 	const hoursFromNow = (hours: number) => new Date(Date.now() + hours * 3_600_000)
 
-	let dbReachable = false
+	const dbTests = bindDbBackedTests({
+		label: "hy2",
+		relations: ["verifications"],
+		database: db,
+	})
+	const itDb = dbTests.itDb
 
 	beforeAll(async () => {
-		try {
-			await db.execute(sql`select 1`)
-			dbReachable = true
-		} catch {
-			// Left false; every database-backed case below skips itself.
-		}
+		await dbTests.probe()
 	})
 
 	// Scoped to this run's own rows. A broad "delete everything expired" would
 	// also wipe unrelated rows in a shared dev database.
 	afterEach(async () => {
-		if (!dbReachable) return
+		if (!dbTests.ready) return
 		await db.delete(verifications).where(like(verifications.identifier, `${marker}%`))
 	})
 
 	// The pool otherwise keeps the event loop alive and jest reports that it
-	// could not exit after the run.
+	// could not exit after the run. select 1 opens it even when the schema is missing.
 	afterAll(async () => {
-		if (!dbReachable) return
-		await db.$client.end()
+		if (dbTests.connected) await db.$client.end()
 	})
-
-	const itDb: jest.It = ((name: string, fn: jest.ProvidesCallback, timeout?: number) =>
-		it(
-			name,
-			async (...args: unknown[]) => {
-				if (!dbReachable) {
-					console.warn(`[hy2] skipped "${name}": no database reachable`)
-					return
-				}
-				return (fn as (...a: unknown[]) => unknown)(...args)
-			},
-			timeout
-		)) as jest.It
 
 	itDb("deletes rows whose expiry has passed", async () => {
 		await db.insert(verifications).values({

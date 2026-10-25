@@ -13,6 +13,22 @@ A TypeScript-first monorepo template using **Turborepo** and **pnpm** for full-s
 | Auth      | Better Auth                         |
 | Contracts | Zod schemas + DTOs                  |
 
+## Create a repo from this template
+
+The new repository's default branch follows this template's default branch, `dev`.
+
+On GitHub, open this repository and choose **Use this template**, then **Create a new repository**. Pick the owner, repository name, and visibility. Leave **Include all branches** unchecked.
+
+From the CLI, create a private repository:
+
+```bash
+gh repo create <org>/<name> --template Quanby-IT-Solutions/turbo-template --private
+```
+
+Pass `--public` instead of `--private` when the new repository should be public. Do not pass `--include-all-branches`. Leaving that flag off is the default, and it is the right choice for a normal app repository: only `dev` should copy, while leftover scratch branches such as `scratch/ci-workflow-call-check` and environment branches stay on the template remote.
+
+When the repository exists, continue with [Quick Start](#quick-start).
+
 ## Quick Start
 
 ```bash
@@ -60,6 +76,10 @@ After `pnpm dev`:
 | Web           | http://localhost:3001             |
 | Backend API   | http://localhost:3000/api/v1      |
 | API reference | http://localhost:3000/api/v1/docs |
+
+## Contributing
+
+Develop from [Quick Start](#quick-start). Open pull requests against `dev`. Keep commit messages and pull request text factual. This is a public template.
 
 ## Coverage thresholds are a floor
 

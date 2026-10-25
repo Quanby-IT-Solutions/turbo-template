@@ -5,14 +5,18 @@
  * zero rows for a non-owner, which is a property of the query, not of the
  * service's control flow. A mocked db would assert only that we *called* it a
  * certain way.
+ *
+ * Skips when Postgres is unreachable, and when it is up but `pnpm db:push` has
+ * not created the relations this file uses. A table that exists still runs.
  */
 
-import { and, eq, sql } from "drizzle-orm"
+import { and, eq } from "drizzle-orm"
 
 import { tickets, todos, users } from "@repo/db/schema"
 
 import { db } from "@/common/database/database.client"
 import { TicketsService } from "@/modules/v1/tickets/tickets.service"
+import { bindDbBackedTests } from "@/testing/db-ready"
 
 import { TodosService } from "./todos.service"
 
@@ -31,7 +35,12 @@ jest.mock("@orpc/server", () => ({
 const USER_A = "az3-user-a"
 const USER_B = "az3-user-b"
 
-let dbReachable = false
+const dbTests = bindDbBackedTests({
+	label: "az-3",
+	relations: ["users", "todos", "tickets"],
+	database: db,
+})
+const itDb = dbTests.itDb
 
 async function cleanup() {
 	for (const id of [USER_A, USER_B]) {
@@ -42,12 +51,8 @@ async function cleanup() {
 }
 
 beforeAll(async () => {
-	try {
-		await db.execute(sql`select 1`)
-		dbReachable = true
-	} catch {
-		return
-	}
+	await dbTests.probe()
+	if (!dbTests.ready) return
 
 	await cleanup()
 	const now = new Date()
@@ -63,23 +68,9 @@ beforeAll(async () => {
 })
 
 afterAll(async () => {
-	if (!dbReachable) return
-	await cleanup()
-	await db.$client.end()
+	if (dbTests.ready) await cleanup()
+	if (dbTests.connected) await db.$client.end()
 })
-
-const itDb: jest.It = ((name: string, fn: jest.ProvidesCallback, timeout?: number) =>
-	it(
-		name,
-		async (...args: unknown[]) => {
-			if (!dbReachable) {
-				console.warn(`[az-3] skipped "${name}": no database reachable`)
-				return
-			}
-			return (fn as (...a: unknown[]) => unknown)(...args)
-		},
-		timeout
-	)) as jest.It
 
 const service = new TodosService()
 
@@ -90,7 +81,7 @@ async function todoOwnedByA(title = "A's todo") {
 
 describe("todo mutations are scoped to the owner", () => {
 	beforeEach(async () => {
-		if (!dbReachable) return
+		if (!dbTests.ready) return
 		await db.delete(todos).where(eq(todos.authorId, USER_A))
 		await db.delete(todos).where(eq(todos.authorId, USER_B))
 	})

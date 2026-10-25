@@ -7,11 +7,12 @@
  * implementation pass by construction, since the rollback is the database's
  * behaviour, not ours.
  *
- * Skips itself when no database is reachable so the unit suite stays runnable
- * offline; CI provides Postgres (the workflow wires the compose service).
+ * Skips itself when no database is reachable, and when Postgres is up but
+ * `pnpm db:push` has not created the relations this file uses. A table that
+ * exists still runs. CI provides Postgres (the workflow wires the compose service).
  */
 
-import { and, eq, sql } from "drizzle-orm"
+import { and, eq } from "drizzle-orm"
 
 import { auditLog, roles, userRoles, users } from "@repo/db/schema"
 
@@ -20,6 +21,7 @@ import { db } from "@/common/database/database.client"
 import { RbacCacheService } from "@/common/rbac/rbac-cache.service"
 import { RbacService } from "@/common/rbac/rbac.service"
 import { RbacAdminService } from "@/modules/v1/rbac/rbac-admin.service"
+import { bindDbBackedTests } from "@/testing/db-ready"
 
 // The database, the schema and the transaction are all real — that is the
 // point. Only `@repo/contracts` is stubbed, matching the convention in the
@@ -50,7 +52,12 @@ const TEST_USER = "az4-test-subject"
 const TEST_ACTOR = "az4-test-actor"
 const TEST_ROLE = "AZ4TestRole"
 
-let dbReachable = false
+const dbTests = bindDbBackedTests({
+	label: "az-4",
+	relations: ["users", "roles", "user_roles", "audit_log"],
+	database: db,
+})
+const itDb = dbTests.itDb
 
 async function cleanup() {
 	await db.delete(auditLog).where(eq(auditLog.actorId, TEST_ACTOR))
@@ -62,13 +69,8 @@ async function cleanup() {
 }
 
 beforeAll(async () => {
-	try {
-		await db.execute(sql`select 1`)
-		dbReachable = true
-	} catch {
-		dbReachable = false
-		return
-	}
+	await dbTests.probe()
+	if (!dbTests.ready) return
 
 	await cleanup()
 
@@ -93,25 +95,11 @@ beforeAll(async () => {
 })
 
 afterAll(async () => {
-	if (!dbReachable) return
-	await cleanup()
-	// Drizzle keeps a pool open; without this jest hangs after the run rather
-	// than exiting, which in CI reads as a stuck job.
-	await db.$client.end()
+	if (dbTests.ready) await cleanup()
+	// Drizzle keeps a pool open once select 1 has succeeded, including when the
+	// schema is missing and the cases below only warn. Without end(), jest hangs.
+	if (dbTests.connected) await db.$client.end()
 })
-
-const itDb: jest.It = ((name: string, fn: jest.ProvidesCallback, timeout?: number) =>
-	it(
-		name,
-		async (...args: unknown[]) => {
-			if (!dbReachable) {
-				console.warn(`[az-4] skipped "${name}": no database reachable`)
-				return
-			}
-			return (fn as (...a: unknown[]) => unknown)(...args)
-		},
-		timeout
-	)) as jest.It
 
 function makeRbacService() {
 	return new RbacService(new RbacCacheService(null), new AuditService())
@@ -129,7 +117,7 @@ async function entriesFor(targetId: string) {
 
 describe("audit trail is written in the same transaction as the mutation", () => {
 	beforeEach(async () => {
-		if (!dbReachable) return
+		if (!dbTests.ready) return
 		await db.delete(auditLog).where(eq(auditLog.targetId, TEST_USER))
 		await db.delete(userRoles).where(eq(userRoles.userId, TEST_USER))
 	})
@@ -214,13 +202,13 @@ describe("refused privileged attempts are recorded", () => {
 	let adminRoleId: number
 
 	beforeAll(async () => {
-		if (!dbReachable) return
+		if (!dbTests.ready) return
 		const [admin] = await db.select().from(roles).where(eq(roles.name, "Admin"))
 		adminRoleId = admin!.id
 	})
 
 	beforeEach(async () => {
-		if (!dbReachable) return
+		if (!dbTests.ready) return
 		await db.delete(auditLog).where(eq(auditLog.actorId, TEST_ACTOR))
 	})
 

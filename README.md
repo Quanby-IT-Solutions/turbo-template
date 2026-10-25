@@ -51,8 +51,9 @@ openssl rand -base64 32
 # the API use one local database. The examples ship <user>:<password>
 # placeholders, not a working credential.
 
-# Push the schema, then seed the admin, roles, and sample data
-# Non-interactive db:push applies only changes that need no confirmation; run it in a terminal to answer prompts.
+# Push the schema before seed, dev, and pnpm test. With Postgres configured,
+# pnpm test needs this schema. Non-interactive db:push applies only changes
+# that need no confirmation; run it in a terminal to answer prompts.
 pnpm db:push
 pnpm db:seed
 
@@ -70,6 +71,8 @@ pnpm dev
 ```
 
 Flutter is required only for mobile tests. Web and backend adopters can run `pnpm test` without Flutter on `PATH`. `@repo/mobile` skips those tests and prints `Flutter is required for mobile tests and was skipped.` When Flutter is installed, `pnpm test` and `pnpm test:cov` both run `flutter test --coverage`. CI runs `pnpm turbo test:cov`, which calls the same mobile script, so a Node-only clone and CI stay aligned.
+
+When Postgres is configured, run `pnpm db:push` before `pnpm test`. Database-backed tests soft-skip until that schema is present, and the skip message names `pnpm db:push`.
 
 After `pnpm dev`:
 
@@ -400,7 +403,7 @@ Re-running `pnpm db:seed:e2e` stores the current `E2E_TEST_PASSWORD` and
 | `pnpm build`                     | Build all apps                                                                                                                                           |
 | `pnpm lint`                      | Run ESLint                                                                                                                                               |
 | `pnpm typecheck`                 | Run TypeScript checks                                                                                                                                    |
-| `pnpm test`                      | Run unit tests. Flutter is only required for mobile; without it, `@repo/mobile` skips and other packages still run.                                      |
+| `pnpm test`                      | Unit tests. Run `pnpm db:push` before this when using a database. Flutter is required only for mobile.                                                   |
 | `pnpm test:cov`                  | Same tests with coverage. Without Flutter, mobile skips; with it, `flutter test --coverage` runs. CI calls this through `pnpm turbo test:cov`.           |
 | `pnpm format:fix`                | Format code with Prettier                                                                                                                                |
 | `pnpm db:push`                   | Push schema to database (may prompt; needs an interactive terminal to answer prompts, non-interactive runs apply only changes that need no confirmation) |

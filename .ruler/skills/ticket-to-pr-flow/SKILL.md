@@ -1,15 +1,15 @@
 ---
 name: ticket-to-pr-flow
-description: Turning docs/TICKETS.md entries into tracked issues and auto-drafted pull requests, via either GitHub Issues or Linear. Use when importing tickets, setting up the PR-bot GitHub App, or wiring the auto-draft-PR workflows. Triggers on tickets, TICKETS.md, Linear, GitHub Issues, draft PR, tickets-to-issues, tickets-to-linear.
+description: Turning a caller-supplied tickets markdown file (for example path/to/tickets.md) into tracked issues and auto-drafted pull requests, via either GitHub Issues or Linear. Use when importing tickets, setting up the PR-bot GitHub App, or wiring the auto-draft-PR workflows. Triggers on tickets, TICKETS.md, Linear, GitHub Issues, draft PR, tickets-to-issues, tickets-to-linear.
 category: workflow
 updated: 2026-08-15
 ---
 
 # Ticket → PR Flow
 
-Two parallel flows, one shared source file. Pick GitHub Issues **or** Linear; both import from the same `docs/TICKETS.md` and both end by auto-drafting a PR to `dev` on first push of a matching branch.
+Two parallel flows, one shared source file. Pick GitHub Issues **or** Linear; both import from the same caller-supplied markdown file (for example `path/to/tickets.md`) and both end by auto-drafting a PR to `dev` on first push of a matching branch. This template does not ship that file; the caller creates it. If the file argument is omitted, both scripts default to `docs/TICKETS.md`, which the caller must create.
 
-## Shared ticket format (`docs/TICKETS.md`)
+## Shared ticket format (`path/to/tickets.md`)
 
 Blocks are separated by `---`. A ticket block is parsed by both scripts identically:
 
@@ -21,13 +21,13 @@ Blocks are separated by `---`. A ticket block is parsed by both scripts identica
 ```
 
 - `**Title:** [KEY] …` is required (regex `\[([A-Z0-9-]+)\]\s+(.+)`). KEY becomes the issue key.
-- Labels applied = `ticket` + the epic + each "Also touches" area. Issue/description title = `[KEY] Title`; body/description is prefixed `> Generated from docs/TICKETS.md`.
+- Labels applied = `ticket` + the epic + each "Also touches" area. Issue/description title = `[KEY] Title`; body/description is prefixed `> Generated from` plus the file path that was passed.
 - Both scripts are **idempotent**: they skip a ticket whose `[KEY] Title` already exists.
 
 ## Flow A — GitHub Issues (`scripts/tickets-to-issues.mjs`)
 
 ```bash
-node scripts/tickets-to-issues.mjs docs/TICKETS.md \
+node scripts/tickets-to-issues.mjs path/to/tickets.md \
   --project <number> --project-owner <owner> --repo <owner/name> [--dry-run]
 ```
 
@@ -38,7 +38,7 @@ node scripts/tickets-to-issues.mjs docs/TICKETS.md \
 ## Flow B — Linear (`scripts/tickets-to-linear.mjs`)
 
 ```bash
-LINEAR_API_KEY=lin_api_xxx node scripts/tickets-to-linear.mjs docs/TICKETS.md \
+LINEAR_API_KEY=lin_api_xxx node scripts/tickets-to-linear.mjs path/to/tickets.md \
   --team <TEAM_KEY> [--dry-run] [--state <name>]
 ```
 

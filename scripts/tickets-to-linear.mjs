@@ -7,8 +7,12 @@
  *   LINEAR_API_KEY=lin_api_xxx node scripts/tickets-to-linear.mjs [file] --team <TEAM_KEY> [--dry-run] [--state <name>]
  *
  * Example:
- *   LINEAR_API_KEY=lin_api_xxx node scripts/tickets-to-linear.mjs docs/TICKETS.md --team BID
- *   LINEAR_API_KEY=lin_api_xxx node scripts/tickets-to-linear.mjs docs/TICKETS.md --team BID --dry-run
+ *   LINEAR_API_KEY=lin_api_xxx node scripts/tickets-to-linear.mjs path/to/tickets.md --team BID
+ *   LINEAR_API_KEY=lin_api_xxx node scripts/tickets-to-linear.mjs path/to/tickets.md --team BID --dry-run
+ *
+ * Pass a markdown file you create (for example path/to/tickets.md). This
+ * template does not ship that file. If you omit the file argument, the script
+ * reads docs/TICKETS.md, which you must create yourself.
  *
  * Notes:
  *   - Idempotent: skips tickets whose "[KEY] Title" already exists in the team.
@@ -21,6 +25,8 @@ const API = 'https://api.linear.app/graphql';
 const KEY = process.env.LINEAR_API_KEY;
 
 const args = process.argv.slice(2);
+// Default only when the caller omits the file argument. The template does not
+// ship that file; the adopter creates it.
 const filePath = args.find(a => !a.startsWith('--') && !isFlagValue(a)) ?? 'docs/TICKETS.md';
 const dryRun = args.includes('--dry-run');
 
@@ -52,7 +58,7 @@ Usage:
   LINEAR_API_KEY=lin_api_xxx node scripts/tickets-to-linear.mjs [file] --team <TEAM_KEY> [--dry-run] [--state <name>]
 
 Example:
-  LINEAR_API_KEY=lin_api_xxx node scripts/tickets-to-linear.mjs docs/TICKETS.md --team BID
+  LINEAR_API_KEY=lin_api_xxx node scripts/tickets-to-linear.mjs path/to/tickets.md --team BID
 `);
   process.exit(1);
 }

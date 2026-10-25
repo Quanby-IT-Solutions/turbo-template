@@ -3,6 +3,10 @@
  * tickets-to-issues.mjs
  * Usage:
  *   node scripts/tickets-to-issues.mjs [file] --project <number> --project-owner <owner> [--dry-run] [--repo owner/name]
+ *
+ * Pass a markdown file you create (for example path/to/tickets.md). This
+ * template does not ship that file. If you omit the file argument, the script
+ * reads docs/TICKETS.md, which you must create yourself.
  */
 import { readFileSync, writeFileSync, unlinkSync } from 'node:fs';
 import { execSync } from 'node:child_process';
@@ -10,6 +14,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const args = process.argv.slice(2);
+// Default only when the caller omits the file argument. The template does not
+// ship that file; the adopter creates it.
 const filePath = args.find(a => !a.startsWith('--')) ?? 'docs/TICKETS.md';
 const dryRun = args.includes('--dry-run');
 
@@ -28,7 +34,7 @@ Usage:
   node scripts/tickets-to-issues.mjs [file] --project <number> --project-owner <owner> [--dry-run]
 
 Example:
-  node scripts/tickets-to-issues.mjs docs/TICKETS.md --project 71 --project-owner Quanby-IT-Solutions
+  node scripts/tickets-to-issues.mjs path/to/tickets.md --project 71 --project-owner Quanby-IT-Solutions
 `);
   process.exit(1);
 }
@@ -72,7 +78,7 @@ function parseTicket(block) {
     .flatMap(m => [...m[1].matchAll(/`([^`]+)`/g)].map(x => x[1]));
   const labels = ['ticket', ...(epic ? [epic] : []), ...alsoTouches];
   const issueTitle = `[${key}] ${title}`;
-  const body = `> Generated from \`docs/TICKETS.md\`\n\n${block}`;
+  const body = `> Generated from \`${filePath}\`\n\n${block}`;
   return { key, title, epic, alsoTouches, labels, body, issueTitle };
 }
 

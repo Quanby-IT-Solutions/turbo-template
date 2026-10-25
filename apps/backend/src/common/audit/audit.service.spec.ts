@@ -9,7 +9,10 @@
  *
  * Skips itself when no database is reachable, and when Postgres is up but
  * `pnpm db:push` has not created the relations this file uses. A table that
- * exists still runs. CI provides Postgres (the workflow wires the compose service).
+ * exists still runs. Cases that read the seeded Admin role also skip when that
+ * row is absent; the message names `pnpm db:seed`. The other cases insert their
+ * own role and still run. CI provides Postgres (the workflow wires the compose
+ * service).
  */
 
 import { and, eq } from "drizzle-orm"
@@ -21,7 +24,7 @@ import { db } from "@/common/database/database.client"
 import { RbacCacheService } from "@/common/rbac/rbac-cache.service"
 import { RbacService } from "@/common/rbac/rbac.service"
 import { RbacAdminService } from "@/modules/v1/rbac/rbac-admin.service"
-import { bindDbBackedTests } from "@/testing/db-ready"
+import { bindDbBackedTests, bindSeededCases } from "@/testing/db-ready"
 
 // The database, the schema and the transaction are all real — that is the
 // point. Only `@repo/contracts` is stubbed, matching the convention in the
@@ -58,6 +61,11 @@ const dbTests = bindDbBackedTests({
 	database: db,
 })
 const itDb = dbTests.itDb
+const adminSeed = bindSeededCases({
+	label: "az-4",
+	rows: ["Admin"],
+	itDb,
+})
 
 async function cleanup() {
 	await db.delete(auditLog).where(eq(auditLog.actorId, TEST_ACTOR))
@@ -204,15 +212,22 @@ describe("refused privileged attempts are recorded", () => {
 	beforeAll(async () => {
 		if (!dbTests.ready) return
 		const [admin] = await db.select().from(roles).where(eq(roles.name, "Admin"))
-		adminRoleId = admin!.id
+		// Admin is inserted by `pnpm db:seed`, not by `pnpm db:push`.
+		if (!admin) {
+			adminSeed.markMissing()
+			return
+		}
+		adminRoleId = admin.id
 	})
 
 	beforeEach(async () => {
-		if (!dbTests.ready) return
+		if (!dbTests.ready || adminSeed.missing) return
 		await db.delete(auditLog).where(eq(auditLog.actorId, TEST_ACTOR))
 	})
 
-	itDb("records the refusal to rename the Admin role", async () => {
+	const itAdmin = adminSeed.itDb
+
+	itAdmin("records the refusal to rename the Admin role", async () => {
 		await expect(
 			makeAdminService().updateRole({ id: adminRoleId, name: "NotAdmin" }, TEST_ACTOR)
 		).rejects.toThrow(/cannot be renamed/)
@@ -231,7 +246,7 @@ describe("refused privileged attempts are recorded", () => {
 		expect(entry!.newValue).toEqual({ name: "NotAdmin" })
 	})
 
-	itDb("records the refusal to delete the Admin role", async () => {
+	itAdmin("records the refusal to delete the Admin role", async () => {
 		await expect(makeAdminService().deleteRole(adminRoleId, TEST_ACTOR)).rejects.toThrow(
 			/cannot be deleted/
 		)
@@ -243,14 +258,14 @@ describe("refused privileged attempts are recorded", () => {
 		expect(entry!.reason).toMatch(/cannot be deleted/)
 	})
 
-	itDb("leaves the Admin role untouched after a refused attempt", async () => {
+	itAdmin("leaves the Admin role untouched after a refused attempt", async () => {
 		await expect(makeAdminService().deleteRole(adminRoleId, TEST_ACTOR)).rejects.toThrow()
 
 		const [admin] = await db.select().from(roles).where(eq(roles.id, adminRoleId))
 		expect(admin?.name).toBe("Admin")
 	})
 
-	itDb("surfaces denials through the read API alongside successes", async () => {
+	itAdmin("surfaces denials through the read API alongside successes", async () => {
 		await expect(makeAdminService().deleteRole(adminRoleId, TEST_ACTOR)).rejects.toThrow()
 
 		const { entries } = await new AuditService().list({ limit: 50 })

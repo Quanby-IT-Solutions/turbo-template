@@ -74,6 +74,8 @@ Flutter is required only for mobile tests. Web and backend adopters can run `pnp
 
 When Postgres is configured, run `pnpm db:push` before `pnpm test`. Database-backed tests soft-skip until that schema is present, and the skip message names `pnpm db:push`.
 
+Audit and privilege-guard database unit specs expect seed data after `pnpm db:push`; full coverage of those specs needs `pnpm db:seed`.
+
 After `pnpm dev`:
 
 | Service       | URL                               |

@@ -10,11 +10,15 @@ import { sql, type SQL } from "drizzle-orm"
  *
  * Presence is `to_regclass` for the tables the spec names. A table that exists
  * is not a skip: a missing column or a bad row still fails the test.
+ *
+ * A present schema with a missing seed row is a separate skip. Only cases that
+ * opt in through `bindSeededCases` use it, and that message names `pnpm db:seed`.
+ * `resolveDbReadiness` never reports a missing row as a missing relation.
  */
 
 const RELATION_NAME = /^[a-z_][a-z0-9_]*$/
 
-export type DbSkipReason = "unreachable" | "schema"
+export type DbSkipReason = "unreachable" | "schema" | "seed"
 
 export type DbExecutor = {
 	execute: (query: SQL) => Promise<unknown>
@@ -31,9 +35,12 @@ export function dbSkipMessage(
 	reason: DbSkipReason,
 	missing: readonly string[] = []
 ): string {
+	const listed = missing.length > 0 ? ` (${missing.join(", ")})` : ""
 	if (reason === "schema") {
-		const listed = missing.length > 0 ? ` (${missing.join(", ")})` : ""
 		return `[${label}] skipped "${testName}": Postgres is up but required relations are missing${listed}. Run pnpm db:push.`
+	}
+	if (reason === "seed") {
+		return `[${label}] skipped "${testName}": schema is present but required seed data is missing${listed}. Run pnpm db:seed for full coverage.`
 	}
 	return `[${label}] skipped "${testName}": no database reachable`
 }
@@ -139,5 +146,45 @@ export function bindDbBackedTests(options: {
 			readiness = await resolveDbReadiness(options.database, options.relations)
 		},
 		itDb,
+	}
+}
+
+/**
+ * Cases that need a seeded row after the schema probe has succeeded.
+ *
+ * Pass `bindDbBackedTests().itDb`. Unreachable and missing-schema skips stay
+ * on that inner gate and still name no database or `pnpm db:push`. Call
+ * `markMissing()` only when the schema is ready and the row is absent. Those
+ * cases then name `pnpm db:seed` and do not run. A present row leaves
+ * `missing` false, so the cases run unchanged.
+ */
+export function bindSeededCases(options: {
+	label: string
+	rows: readonly string[]
+	itDb: jest.It
+}) {
+	let missing = false
+
+	const itSeeded: jest.It = ((name: string, fn: jest.ProvidesCallback, timeout?: number) =>
+		options.itDb(
+			name,
+			async (...args: unknown[]) => {
+				if (missing) {
+					process.stdout.write(`${dbSkipMessage(options.label, name, "seed", options.rows)}\n`)
+					return
+				}
+				return (fn as (...a: unknown[]) => unknown)(...args)
+			},
+			timeout
+		)) as jest.It
+
+	return {
+		get missing() {
+			return missing
+		},
+		markMissing() {
+			missing = true
+		},
+		itDb: itSeeded,
 	}
 }

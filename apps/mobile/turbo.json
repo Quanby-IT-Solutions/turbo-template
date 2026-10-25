@@ -14,6 +14,13 @@
 			"cache": false
 		},
 		"test": {
+			"cache": false,
+			"outputLogs": "full",
+			"outputs": ["coverage/**"]
+		},
+		"test:cov": {
+			"cache": false,
+			"outputLogs": "full",
 			"outputs": ["coverage/**"]
 		},
 		"lint": {

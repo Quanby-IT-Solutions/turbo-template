@@ -9,7 +9,8 @@
 		"build:ios": "flutter build ios",
 		"build:all": "flutter build apk && flutter build ios",
 		"dev:mobile": "flutter run",
-		"test": "flutter test --coverage",
+		"test": "node ./scripts/flutter-test.mjs",
+		"test:cov": "node ./scripts/flutter-test.mjs",
 		"format:fix": "dart format",
 		"clean": "flutter clean"
 	}

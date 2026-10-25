@@ -9,6 +9,9 @@
  *
  * Skips when Postgres is unreachable, and when it is up but `pnpm db:push` has
  * not created the relations this file uses. A table that exists still runs.
+ * When those relations exist but the seeded Admin role is missing, every case
+ * skips and the message names `pnpm db:seed`. An Admin row that is present
+ * still runs.
  */
 
 import { and, eq } from "drizzle-orm"
@@ -19,7 +22,7 @@ import { AuditService } from "@/common/audit/audit.service"
 import { db } from "@/common/database/database.client"
 import { RbacCacheService } from "@/common/rbac/rbac-cache.service"
 import { RbacService } from "@/common/rbac/rbac.service"
-import { bindDbBackedTests } from "@/testing/db-ready"
+import { bindDbBackedTests, bindSeededCases } from "@/testing/db-ready"
 
 jest.mock("@repo/contracts", () => ({
 	ADMIN_ROLE: "Admin",
@@ -53,7 +56,12 @@ const dbTests = bindDbBackedTests({
 	relations: ["users", "roles", "user_roles", "audit_log"],
 	database: db,
 })
-const itDb = dbTests.itDb
+const adminSeed = bindSeededCases({
+	label: "az-2",
+	rows: ["Admin"],
+	itDb: dbTests.itDb,
+})
+const itDb = adminSeed.itDb
 let adminRoleId: number
 /** Real Admin memberships, set aside for the duration of this suite. */
 let preexistingAdmins: { userId: string; roleId: number }[] = []
@@ -100,6 +108,14 @@ beforeAll(async () => {
 	await dbTests.probe()
 	if (!dbTests.ready) return
 
+	const [admin] = await db.select().from(roles).where(eq(roles.name, "Admin"))
+	// Admin is inserted by `pnpm db:seed`, not by `pnpm db:push`.
+	if (!admin) {
+		adminSeed.markMissing()
+		return
+	}
+	adminRoleId = admin.id
+
 	await cleanup()
 
 	const now = new Date()
@@ -113,9 +129,6 @@ beforeAll(async () => {
 		}))
 	)
 
-	const [admin] = await db.select().from(roles).where(eq(roles.name, "Admin"))
-	adminRoleId = admin!.id
-
 	// "Last Admin" is a global condition, so the fixtures have to be the only
 	// holders while these tests run. Real memberships are set aside and put
 	// back in afterAll — deleting them outright would strip the seeded admin
@@ -126,9 +139,10 @@ beforeAll(async () => {
 
 afterAll(async () => {
 	if (!dbTests.connected) return
-	if (!dbTests.ready) {
-		// select 1 succeeded, so the pool is open, but the relations are not
-		// there. Close it without touching tables.
+	if (!dbTests.ready || adminSeed.missing) {
+		// select 1 succeeded, so the pool is open. The relations are missing,
+		// or the Admin seed row is, and no fixture rows were written. Close
+		// the pool without touching tables.
 		await db.$client.end()
 		return
 	}
@@ -146,7 +160,7 @@ afterAll(async () => {
 
 describe("Admin grants require Admin", () => {
 	beforeEach(async () => {
-		if (!dbTests.ready) return
+		if (!dbTests.ready || adminSeed.missing) return
 		await db.delete(auditLog).where(eq(auditLog.actorId, MANAGER))
 		await setAdmins([ADMIN_A])
 	})
@@ -213,7 +227,7 @@ describe("Admin grants require Admin", () => {
 
 describe("last Admin cannot be removed", () => {
 	beforeEach(async () => {
-		if (!dbTests.ready) return
+		if (!dbTests.ready || adminSeed.missing) return
 		await db.delete(auditLog).where(eq(auditLog.actorId, ADMIN_A))
 	})
 

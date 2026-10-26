@@ -11,7 +11,7 @@ catalog:
   "@orpc/contract": ^1.15.7
   "@orpc/nest": ^1.15.7
   "@sentry/nestjs": ^10.70.0
-  "@sentry/nextjs": ^10.70.0
+  "@sentry/nextjs": 10.75.2
   "@tailwindcss/postcss": ^4.3.3
   "@tanstack/eslint-plugin-query": ^5.91.2
   "@tanstack/react-form": ^1.27.7
@@ -28,7 +28,7 @@ catalog:
   drizzle-orm: 1.0.0-beta.20
   eslint: ^9.39.2
   nestjs-zod: ^5.1.1
-  next: 16.3.8
+  next: 16.4.1
   pg: ^8.16.3
   prettier: ^3.7.4
   react: 19.2.3
@@ -38,7 +38,7 @@ catalog:
   turbo: ^2.11.9
   typescript: ^5.9.3
   typescript-eslint: ^8.52.0
-  zod: ^4.3.5
+  zod: 4.6.6
 
 catalogs:
   react19:
@@ -77,7 +77,15 @@ overrides:
   "lodash@>=4 <4.18.0": ">=4.18.0 <5"
   "js-yaml@>=5 <5.4.1": ">=5.4.1 <5.5.0"
   "http-cache-semantics@<4.3.0": ">=4.3.0 <5"
-  "drizzle-orm>zod": "4.3.5"
+  # No @nestjs/platform-express release depends on multer >=2.5.0 (11.2.8 and
+  # 12.2.0 both pin 2.4.0). Express 5.3.0 still accepts body-parser ^2.3.0, so
+  # a parent bump does not force both floors.
+  "body-parser@<2.4.0": ">=2.4.0 <3"
+  "multer@<2.5.0": ">=2.5.0 <3"
+  # @serwist/build and @serwist/turbopack 9.5.13 (latest) depend on zod 4.6.5.
+  # @better-auth/core and eslint-plugin-react-hooks accept zod 4.x below 4.6.6,
+  # and no current parent release raises that floor. Replaces drizzle-orm>zod 4.3.5.
+  "zod@>=4.0.0 <4.6.6": "4.6.6"
   # The override below replaces @next/eslint-plugin-next's fast-glob with
   # tinyglobby. While it is in place, settings.next.rootDir must be a wildcard
   # pattern (e.g. "apps/*/"): a literal path makes the replacement scan the

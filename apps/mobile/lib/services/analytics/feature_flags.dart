@@ -42,7 +42,10 @@ class FeatureFlags {
 }
 
 /// Whether the flag [key] is on for this user. Off on any failure.
-final featureFlagProvider = FutureProvider.family<bool, String>((ref, key) async {
+final featureFlagProvider = FutureProvider.family<bool, String>((
+  ref,
+  key,
+) async {
   try {
     return await FeatureFlags.read(key);
   } catch (_) {

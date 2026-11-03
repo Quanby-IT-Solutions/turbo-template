@@ -8,10 +8,9 @@ import 'package:mobile/services/analytics/analytics_service.dart';
 /// rule: the top level and one level down.
 void main() {
   test('drops deny-listed keys', () {
-    expect(
-      scrubAnalyticsProperties({'email': 'a@b.c', 'screen': 'home'}),
-      {'screen': 'home'},
-    );
+    expect(scrubAnalyticsProperties({'email': 'a@b.c', 'screen': 'home'}), {
+      'screen': 'home',
+    });
   });
 
   test('matches case-insensitively', () {
@@ -39,6 +38,8 @@ void main() {
   });
 
   test('keeps the user id', () {
-    expect(scrubAnalyticsProperties({'distinct_id': 'u1'}), {'distinct_id': 'u1'});
+    expect(scrubAnalyticsProperties({'distinct_id': 'u1'}), {
+      'distinct_id': 'u1',
+    });
   });
 }

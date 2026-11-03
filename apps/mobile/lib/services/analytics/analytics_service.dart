@@ -3,8 +3,9 @@ import 'package:mobile/core/constants/posthog_constants.dart';
 import 'package:mobile/core/constants/redacted_fields.dart';
 import 'package:posthog_flutter/posthog_flutter.dart';
 
-final Set<String> _deniedKeys =
-    kRedactedFieldNames.map((name) => name.toLowerCase()).toSet();
+final Set<String> _deniedKeys = kRedactedFieldNames
+    .map((name) => name.toLowerCase())
+    .toSet();
 
 bool _isDenied(String key) => _deniedKeys.contains(key.trim().toLowerCase());
 

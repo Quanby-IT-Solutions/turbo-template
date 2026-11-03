@@ -14,7 +14,10 @@ void main() {
 
   test('isEnabled needs both defines', () {
     expect(PosthogConstants.resolveEnabled(flag: true, token: ''), isFalse);
-    expect(PosthogConstants.resolveEnabled(flag: false, token: 'phc_x'), isFalse);
+    expect(
+      PosthogConstants.resolveEnabled(flag: false, token: 'phc_x'),
+      isFalse,
+    );
     expect(PosthogConstants.resolveEnabled(flag: true, token: 'phc_x'), isTrue);
   });
 

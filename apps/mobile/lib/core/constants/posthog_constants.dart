@@ -22,13 +22,16 @@ class PosthogConstants {
   PosthogConstants._();
 
   /// Raw compile-time project token. Empty when the define was not supplied.
-  static const String _projectToken =
-      String.fromEnvironment('POSTHOG_PROJECT_TOKEN');
+  static const String _projectToken = String.fromEnvironment(
+    'POSTHOG_PROJECT_TOKEN',
+  );
 
   /// Opt-in switch. Defaults to `false` so the absence of build flags means
   /// "off" rather than "half-configured".
-  static const bool _enabledFlag =
-      bool.fromEnvironment('POSTHOG_ENABLED', defaultValue: false);
+  static const bool _enabledFlag = bool.fromEnvironment(
+    'POSTHOG_ENABLED',
+    defaultValue: false,
+  );
 
   /// Ingestion host: `https://us.i.posthog.com` or `https://eu.i.posthog.com`,
   /// matching the region the PostHog project was created in.

@@ -15,9 +15,9 @@ import 'package:mobile/features/auth/presentation/providers/auth_provider.dart';
 /// into the previous one. [AnalyticsIdentity.apply] is swapped for a recorder
 /// because `PosthogConstants` is compile-time disabled under `flutter test`.
 SessionModel _session(String userId) => SessionModel(
-      session: const SessionData(token: 'session-token'),
-      user: UserModel(id: userId, name: 'Test User', email: 'test@example.com'),
-    );
+  session: const SessionData(token: 'session-token'),
+  user: UserModel(id: userId, name: 'Test User', email: 'test@example.com'),
+);
 
 class _FakeAuthRepository implements AuthRepository {
   _FakeAuthRepository({this.session});
@@ -33,16 +33,14 @@ class _FakeAuthRepository implements AuthRepository {
   Future<SessionModel?> signIn({
     required String email,
     required String password,
-  }) async =>
-      session;
+  }) async => session;
 
   @override
   Future<SessionModel?> signUp({
     required String email,
     required String password,
     required String name,
-  }) async =>
-      session;
+  }) async => session;
 
   @override
   Future<void> signOut() async {}
@@ -77,7 +75,9 @@ void main() {
       .signIn(email: 'test@example.com', password: 'password123');
 
   test('restore identifies', () async {
-    final container = containerFor(_FakeAuthRepository(session: _session('u1')));
+    final container = containerFor(
+      _FakeAuthRepository(session: _session('u1')),
+    );
 
     await container.read(authStateProvider.future);
 

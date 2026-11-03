@@ -18,7 +18,8 @@ class PreviewFeaturesTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final enabled = ref.watch(featureFlagProvider(kPreviewFeaturesFlag)).value ?? false;
+    final enabled =
+        ref.watch(featureFlagProvider(kPreviewFeaturesFlag)).value ?? false;
     if (!enabled) return const SizedBox.shrink();
 
     return const Column(

@@ -5,6 +5,7 @@ import { type App } from "supertest/types"
 
 import { AppModule } from "@/app.module"
 import { db } from "@/common/database/database.client"
+import { env } from "@/config/env.config"
 import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals"
 
 const API_PREFIX = "api"
@@ -46,6 +47,23 @@ describe("Health (e2e)", () => {
 
 	afterEach(async () => {
 		await app.close()
+	})
+
+	it("is never throttled", async () => {
+		// Load balancers poll this continuously. Rebuild the app with a limit of 2
+		// so the default throttler would refuse the third call if it applied.
+		const originalLimit = env.THROTTLE_LIMIT
+		Reflect.set(env, "THROTTLE_LIMIT", 2)
+		await app.close()
+		app = await createTestApp()
+
+		try {
+			for (let call = 0; call < 5; call++) {
+				await getHealth().expect(200)
+			}
+		} finally {
+			Reflect.set(env, "THROTTLE_LIMIT", originalLimit)
+		}
 	})
 
 	it("returns health status with all checks", async () => {

@@ -6,6 +6,9 @@ import {
 	type OnModuleInit,
 } from "@nestjs/common"
 
+import { setAuthRateLimitStorage } from "@repo/auth"
+
+import { createRedisAuthRateLimitStorage } from "./auth-rate-limit.storage"
 import { createRedisClient, REDIS_CLIENT, type RedisClient } from "./redis.provider"
 
 /**
@@ -22,9 +25,10 @@ const REDIS_READY_WAIT_MS = 1_000
 /**
  * Shared Redis connection.
  *
- * Global because two unrelated subsystems need the same connection — the
- * throttler store and the RBAC permission cache — and opening one client per
- * consumer would double the connection count for no benefit.
+ * Global because unrelated subsystems need the same connection (the
+ * throttler store, the RBAC permission cache, and Better Auth's own rate
+ * limiter) and opening one client per consumer would multiply the connection
+ * count for no benefit.
  */
 @Global()
 @Module({
@@ -41,7 +45,15 @@ export class RedisModule implements OnModuleInit, OnApplicationShutdown {
 
 	async onModuleInit(): Promise<void> {
 		const client = this.client
-		if (!client || client.status === "ready" || client.status === "end") return
+		if (!client) return
+
+		// Better Auth's limiter runs outside Nest, so it cannot inject this
+		// client; it is handed over here instead. Registered before the ready
+		// wait and whatever the status: the storage fails open, so a slow
+		// handshake must not leave Better Auth counting per process for good.
+		setAuthRateLimitStorage(createRedisAuthRateLimitStorage(client))
+
+		if (client.status === "ready" || client.status === "end") return
 
 		await new Promise<void>(resolve => {
 			let settled = false
@@ -68,6 +80,10 @@ export class RedisModule implements OnModuleInit, OnApplicationShutdown {
 	 * leaves the reconnect timer running.
 	 */
 	async onApplicationShutdown(): Promise<void> {
+		// Back to the process-local store before the connection closes, so no
+		// auth request is sent to a client that is shutting down.
+		setAuthRateLimitStorage(null)
+
 		const client = this.client
 		if (!client || client.status === "end") return
 

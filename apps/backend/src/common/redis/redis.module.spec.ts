@@ -20,7 +20,7 @@ describe("RedisModule auth rate-limit registration", () => {
 		await new RedisModule(client).onModuleInit()
 
 		expect(register).toHaveBeenCalledTimes(1)
-		expect(register.mock.calls[0][0]).toEqual(
+		expect(register).toHaveBeenCalledWith(
 			expect.objectContaining({ consume: expect.any(Function) })
 		)
 	})

@@ -41,6 +41,9 @@ build
 .DS_Store
 *.pem
 
+# better-auth CLI output (`pnpm auth:generate`), a reference to diff against packages/db
+packages/auth/auth-schema.generated.ts
+
 # debug
 npm-debug.log*
 yarn-debug.log*

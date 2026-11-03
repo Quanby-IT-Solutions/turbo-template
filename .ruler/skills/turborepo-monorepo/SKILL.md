@@ -134,7 +134,7 @@ pnpm db:studio        # Drizzle Studio
 
 ### Auth
 ```bash
-pnpm auth:generate    # regenerate Better Auth types
+pnpm auth:generate    # write packages/auth/auth-schema.generated.ts to diff against packages/db
 ```
 
 ## Turbo Pipeline (`turbo.json`)

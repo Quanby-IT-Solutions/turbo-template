@@ -20,6 +20,10 @@
 		"./api-docs": {
 			"types": "./dist/api-docs.d.ts",
 			"default": "./dist/api-docs.js"
+		},
+		"./rate-limit-storage": {
+			"types": "./dist/rate-limit-storage.d.ts",
+			"default": "./dist/rate-limit-storage.js"
 		}
 	},
 	"scripts": {

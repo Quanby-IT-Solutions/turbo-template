@@ -1,7 +1,9 @@
 import { Logger } from "@nestjs/common"
 import type Redis from "ioredis"
 
-import type { AuthRateLimitStorage } from "@repo/auth"
+// The subpath, not the package root: the root also loads the whole Better Auth
+// config, which this module has no use for.
+import { createMemoryRateLimitStorage, type AuthRateLimitStorage } from "@repo/auth/rate-limit-storage"
 
 /**
  * Better Auth's own rate limiter, counted in the shared Redis.
@@ -25,12 +27,16 @@ import type { AuthRateLimitStorage } from "@repo/auth"
  * client out until someone deleted it by hand. `EVAL` works on every Redis
  * from 2.6; `EXPIRE ... NX` would need 7.0.
  *
- * ## Degradation: fail open
+ * ## Degradation: back to counting per process
  *
- * Same choice, and the same reasoning, as the Nest throttler (see
- * redis.provider.ts): a Redis outage lets requests through rather than turning
- * a counter outage into a sign-in outage. Logged once on loss and once on
- * recovery, never per request.
+ * While Redis is unreachable, each instance counts in its own memory store,
+ * which is exactly how Better Auth counted before this file existed. That
+ * differs from the Nest throttler, which fails fully open (see
+ * redis.provider.ts) because its only alternative is refusing all traffic.
+ * Here a per-process count costs nothing in availability, and letting every
+ * sign-in attempt through during an outage would hand a password-guessing
+ * client the very window it needs. Logged once on loss and once on recovery,
+ * never per request.
  */
 
 /** KEYS[1] is the namespaced key, ARGV[1] the window in seconds. Returns `{ count, ttlMs }`. */
@@ -50,10 +56,9 @@ return { count, ttl }
  */
 const KEY_NAMESPACE = "auth-rate-limit:"
 
-const ALLOWED = { allowed: true, retryAfter: null } as const
-
 export function createRedisAuthRateLimitStorage(client: Redis): AuthRateLimitStorage {
 	const logger = new Logger("AuthRateLimitStorage")
+	const fallback = createMemoryRateLimitStorage()
 	let degraded = false
 
 	return {
@@ -72,21 +77,22 @@ export function createRedisAuthRateLimitStorage(client: Redis): AuthRateLimitSto
 				}
 
 				if (count <= rule.max) {
-					return { ...ALLOWED }
+					return { allowed: true, retryAfter: null }
 				}
 				return { allowed: false, retryAfter: Math.max(1, Math.ceil(ttl / 1000)) }
 			} catch (error) {
 				// Status `end` means the client was closed on purpose (shutdown), not
-				// an outage: no log line, and no recovery line armed.
+				// an outage: no log line, and no recovery line armed. The fallback
+				// still counts either way.
 				if (client.status !== "end" && !degraded) {
 					degraded = true
 					logger.error(
 						`Auth rate-limit store unreachable (${
 							error instanceof Error ? error.message : String(error)
-						}): Better Auth limits are NOT enforced until it returns`
+						}): Better Auth limits are counted per instance until it returns`
 					)
 				}
-				return { ...ALLOWED }
+				return fallback.consume(key, rule)
 			}
 		},
 	}

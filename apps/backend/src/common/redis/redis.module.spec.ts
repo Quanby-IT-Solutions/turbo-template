@@ -1,9 +1,12 @@
-import { setAuthRateLimitStorage } from "@repo/auth"
+import { setAuthRateLimitStorage } from "@repo/auth/rate-limit-storage"
 
 import { RedisModule } from "@/common/redis/redis.module"
 import type { RedisClient } from "@/common/redis/redis.provider"
 
-jest.mock("@repo/auth", () => ({ setAuthRateLimitStorage: jest.fn() }))
+jest.mock("@repo/auth/rate-limit-storage", () => ({
+	...jest.requireActual("@repo/auth/rate-limit-storage"),
+	setAuthRateLimitStorage: jest.fn(),
+}))
 
 const register = setAuthRateLimitStorage as jest.MockedFunction<typeof setAuthRateLimitStorage>
 

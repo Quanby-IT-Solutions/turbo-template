@@ -6,7 +6,7 @@ import {
 	type OnModuleInit,
 } from "@nestjs/common"
 
-import { setAuthRateLimitStorage } from "@repo/auth"
+import { setAuthRateLimitStorage } from "@repo/auth/rate-limit-storage"
 
 import { createRedisAuthRateLimitStorage } from "./auth-rate-limit.storage"
 import { createRedisClient, REDIS_CLIENT, type RedisClient } from "./redis.provider"

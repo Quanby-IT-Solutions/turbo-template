@@ -84,13 +84,20 @@ describe("createRedisAuthRateLimitStorage", () => {
 		expect(AUTH_RATE_LIMIT_SCRIPT).not.toContain("== 1")
 	})
 
-	it("fails open when eval rejects", async () => {
+	it("falls back to per-process limits when eval rejects", async () => {
+		// A Redis outage must not remove the sign-in limit: each instance keeps
+		// counting on its own, which is exactly the behaviour before Redis.
 		const redis = client()
 		redis.eval.mockRejectedValue(new Error("Connection is closed."))
 		const storage = createRedisAuthRateLimitStorage(redis)
 
-		await expect(storage.consume("k", rule)).resolves.toEqual({ allowed: true, retryAfter: null })
-		await expect(storage.consume("k", rule)).resolves.toEqual({ allowed: true, retryAfter: null })
+		for (let hit = 0; hit < 3; hit++) {
+			await expect(storage.consume("k", rule)).resolves.toEqual({
+				allowed: true,
+				retryAfter: null,
+			})
+		}
+		await expect(storage.consume("k", rule)).resolves.toEqual({ allowed: false, retryAfter: 10 })
 		expect(errorSpy).toHaveBeenCalledTimes(1)
 	})
 
@@ -109,7 +116,7 @@ describe("createRedisAuthRateLimitStorage", () => {
 		expect(logSpy).toHaveBeenCalledTimes(1)
 	})
 
-	it("closed client fails open silently", async () => {
+	it("closed client falls back silently", async () => {
 		const redis = client("end")
 		redis.eval.mockRejectedValue(new Error("Connection is closed."))
 

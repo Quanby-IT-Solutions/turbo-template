@@ -95,6 +95,12 @@ overrides:
   # after removing it.
   "@next/eslint-plugin-next>fast-glob": "npm:tinyglobby@^0.2.15"
 
+# Local fixes for advisories with no usable upstream release. Each patch file
+# says what it changes; drop the entry once the dependency ships the fix.
+patchedDependencies:
+  glob@10.5.0: patches/glob@10.5.0.patch
+  glob@13.0.6: patches/glob@13.0.6.patch
+
 publicHoistPattern:
   - "@ianvs/prettier-plugin-sort-imports"
   - prettier-plugin-tailwindcss

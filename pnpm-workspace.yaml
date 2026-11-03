@@ -98,6 +98,7 @@ overrides:
 # Local fixes for advisories with no usable upstream release. Each patch file
 # says what it changes; drop the entry once the dependency ships the fix.
 patchedDependencies:
+  deepmerge@4.3.1: patches/deepmerge@4.3.1.patch
   glob@10.5.0: patches/glob@10.5.0.patch
   glob@13.0.6: patches/glob@13.0.6.patch
 

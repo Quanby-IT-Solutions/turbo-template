@@ -10,6 +10,11 @@ export default defineConfig({
 	plugins: [react()],
 	test: {
 		environment: "jsdom",
+		// Node 25+ defines its own `globalThis.localStorage`, which is undefined
+		// unless Node runs with `--localstorage-file`, and it hides the one jsdom
+		// provides. Turning Node's Web Storage off lets jsdom's through. Node 22
+		// accepts the flag too.
+		execArgv: ["--no-experimental-webstorage"],
 		setupFiles: ["./vitest.setup.ts"],
 		globals: true,
 		passWithNoTests: true,

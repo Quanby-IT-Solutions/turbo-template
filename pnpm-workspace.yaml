@@ -23,7 +23,7 @@ catalog:
   "@types/pg": ^8.16.0
   "@types/react": 19.2.7
   "@types/react-dom": 19.2.3
-  better-auth: 1.6.22
+  better-auth: 1.7.15
   dotenv: ^16.6.1
   drizzle-orm: 1.0.0-beta.20
   eslint: ^9.39.2

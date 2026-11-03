@@ -53,6 +53,22 @@ describe("createMemoryRateLimitStorage", () => {
 		await expect(storage.consume("k", rule)).resolves.toEqual({ allowed: true, retryAfter: null })
 	})
 
+	it("an allowed hit extends the window", async () => {
+		// Better Auth's own memory rule: the window runs from the last allowed
+		// request, so spreading three attempts does not reopen early.
+		const time = clock()
+		const storage = createMemoryRateLimitStorage({ now: time.now })
+		await storage.consume("k", rule)
+		time.advance(5_000)
+		await storage.consume("k", rule)
+		time.advance(4_000)
+		await storage.consume("k", rule)
+
+		time.advance(1_000)
+
+		await expect(storage.consume("k", rule)).resolves.toEqual({ allowed: false, retryAfter: 9 })
+	})
+
 	it("keys are independent", async () => {
 		const storage = createMemoryRateLimitStorage({ now: clock().now })
 		for (let hit = 0; hit < 4; hit++) await storage.consume("a", rule)

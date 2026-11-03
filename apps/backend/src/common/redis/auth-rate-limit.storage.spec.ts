@@ -62,7 +62,7 @@ describe("createRedisAuthRateLimitStorage", () => {
 		})
 	})
 
-	it("namespaces keys and passes the window in seconds", async () => {
+	it("namespaces keys and passes the window in seconds and the max", async () => {
 		const redis = client()
 		redis.eval.mockResolvedValue([1, 10000])
 
@@ -72,15 +72,17 @@ describe("createRedisAuthRateLimitStorage", () => {
 			AUTH_RATE_LIMIT_SCRIPT,
 			1,
 			"auth-rate-limit:1.2.3.4|/sign-in/email",
-			"10"
+			"10",
+			"3"
 		)
 	})
 
 	it("re-arms a key that lost its TTL", () => {
 		// Keyed on "no TTL" rather than "first hit": a key whose EXPIRE never
 		// landed would otherwise lock that client out for good.
+		// Executed against a real Redis in the PAL-212 evidence (walk-lua.txt).
 		expect(AUTH_RATE_LIMIT_SCRIPT).toContain("ttl < 0")
-		expect(AUTH_RATE_LIMIT_SCRIPT).toContain("EXPIRE")
+		expect(AUTH_RATE_LIMIT_SCRIPT).toContain("PEXPIRE")
 		expect(AUTH_RATE_LIMIT_SCRIPT).not.toContain("== 1")
 	})
 

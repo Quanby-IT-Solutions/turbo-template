@@ -20,12 +20,14 @@ import { createMemoryRateLimitStorage, type AuthRateLimitStorage } from "@repo/a
  * ## Why a Lua script
  *
  * Better Auth asks for one atomic check-and-increment per request. The script
- * increments, reads the remaining TTL, and sets the window only when the key
- * has no TTL, all inside Redis, so two instances racing on the same key still
- * count correctly. Keying the EXPIRE on "no TTL" rather than "first hit" also
- * repairs a key whose expiry was somehow lost, which would otherwise lock that
- * client out until someone deleted it by hand. `EVAL` works on every Redis
- * from 2.6; `EXPIRE ... NX` would need 7.0.
+ * increments and sets the expiry inside Redis, so two instances racing on the
+ * same key still count correctly. It keeps Better Auth's own memory rule (the
+ * same one `@repo/auth` falls back to): an allowed request restarts the
+ * window, a refused one does not, and the count resets once a full window
+ * passes with no allowed request. A refused request re-arms the expiry only
+ * when the key has none, which repairs a key whose expiry was somehow lost;
+ * otherwise that client would stay locked out until someone deleted the key by
+ * hand. `EVAL` works on every Redis from 2.6.
  *
  * ## Degradation: back to counting per process
  *
@@ -39,13 +41,21 @@ import { createMemoryRateLimitStorage, type AuthRateLimitStorage } from "@repo/a
  * never per request.
  */
 
-/** KEYS[1] is the namespaced key, ARGV[1] the window in seconds. Returns `{ count, ttlMs }`. */
+/**
+ * KEYS[1] is the namespaced key, ARGV[1] the window in seconds, ARGV[2] the
+ * max. Returns `{ count, ttlMs }`.
+ */
 export const AUTH_RATE_LIMIT_SCRIPT = `
 local count = redis.call('INCR', KEYS[1])
+local window = tonumber(ARGV[1]) * 1000
+if count <= tonumber(ARGV[2]) then
+  redis.call('PEXPIRE', KEYS[1], window)
+  return { count, window }
+end
 local ttl = redis.call('PTTL', KEYS[1])
 if ttl < 0 then
-  redis.call('EXPIRE', KEYS[1], ARGV[1])
-  ttl = tonumber(ARGV[1]) * 1000
+  redis.call('PEXPIRE', KEYS[1], window)
+  ttl = window
 end
 return { count, ttl }
 `
@@ -68,7 +78,8 @@ export function createRedisAuthRateLimitStorage(client: Redis): AuthRateLimitSto
 					AUTH_RATE_LIMIT_SCRIPT,
 					1,
 					`${KEY_NAMESPACE}${key}`,
-					String(rule.window)
+					String(rule.window),
+					String(rule.max)
 				)) as [number, number]
 
 				if (degraded) {

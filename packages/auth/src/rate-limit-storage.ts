@@ -17,10 +17,11 @@
  * Better Auth CLI and the test suites never register anything and get the
  * memory store.
  *
- * Both stores use a fixed window: the first request opens it, and it closes
- * `window` seconds later. That is the same rule Better Auth applies to its own
- * secondary-storage path, so the count means the same thing with or without
- * Redis.
+ * Both stores keep Better Auth's own memory rule: the window runs from the
+ * last allowed request. Each allowed request restarts it, refused requests do
+ * not, and the count resets once a full window passes with no allowed request.
+ * Spreading attempts across a window therefore does not reopen it early, and
+ * the count means the same thing with or without Redis.
  */
 
 /**
@@ -45,12 +46,12 @@ const DEFAULT_MAX_ENTRIES = 100_000
 
 interface WindowEntry {
 	count: number
-	/** Epoch ms at which the window that opened with the first request closes. */
+	/** Epoch ms at which the window closes: `window` seconds after the last allowed request. */
 	expiresAt: number
 }
 
 /**
- * Process-local fixed-window store.
+ * Process-local store.
  *
  * Expired entries are pruned on every call, and the oldest entries are dropped
  * once `maxEntries` is reached, so a flood of distinct keys cannot grow the map
@@ -88,6 +89,7 @@ export function createMemoryRateLimitStorage(options?: {
 					}
 				}
 				current.count += 1
+				current.expiresAt = at + rule.window * 1000
 				return { allowed: true, retryAfter: null }
 			}
 

@@ -94,6 +94,20 @@ void main() {
       expect(gradle, contains('Release signing is not configured'));
     });
 
+    test('MainActivity lives in the Gradle namespace', () {
+      // The manifest names the activity `.MainActivity`, which Android resolves
+      // against `namespace`. When the namespace moved and the Kotlin file did
+      // not, every launch crashed with ClassNotFoundException.
+      final namespace = RegExp(r'namespace = "([^"]+)"')
+          .firstMatch(read('android/app/build.gradle.kts'))!
+          .group(1)!;
+      final activity = File(
+        'android/app/src/main/kotlin/${namespace.replaceAll('.', '/')}/MainActivity.kt',
+      );
+      expect(activity.existsSync(), isTrue, reason: 'expected ${activity.path}');
+      expect(activity.readAsStringSync(), startsWith('package $namespace\n'));
+    });
+
     test('the application-id warning is recorded where it is set', () {
       expect(read('android/app/build.gradle.kts'), contains('CANNOT be changed'));
     });

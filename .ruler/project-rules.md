@@ -106,7 +106,7 @@ pnpm db:studio        # Open Drizzle Studio GUI
 ### Auth
 
 ```bash
-pnpm auth:generate    # Generate Better Auth types
+pnpm auth:generate    # Write packages/auth/auth-schema.generated.ts (needs apps/backend/.env); diff it against packages/db/src/schema.ts
 ```
 
 ## TypeScript Standards

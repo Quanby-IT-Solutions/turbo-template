@@ -32,7 +32,7 @@
 		"test": "vitest run",
 		"test:cov": "vitest run --coverage",
 		"test:watch": "vitest",
-		"generate": "better-auth generate"
+		"generate": "cross-env DOTENV_CONFIG_PATH=../../apps/backend/.env auth generate --config src/auth-cli.config.ts --output auth-schema.generated.ts --yes"
 	},
 	"dependencies": {
 		"@repo/db": "workspace:*",
@@ -47,6 +47,8 @@
 		"@repo/tsconfig": "workspace:*",
 		"@types/node": "catalog:",
 		"@vitest/coverage-v8": "^4.1.12",
+		"auth": "catalog:",
+		"cross-env": "^10.1.0",
 		"eslint": "catalog:",
 		"prettier": "catalog:",
 		"typescript": "catalog:",

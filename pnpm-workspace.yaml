@@ -4,7 +4,8 @@ packages:
   - tooling/*
 
 catalog:
-  auth: 1.6.22
+  # The Better Auth CLI (`pnpm auth:generate`). Keep it on the same version as better-auth.
+  auth: 1.7.15
   "@eslint/js": ^9.39.2
   "@nestjs/common": ^11.2.7
   "@nestjs/core": ^11.2.7

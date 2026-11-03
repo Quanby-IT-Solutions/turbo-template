@@ -322,4 +322,4 @@ These tables are managed by Better Auth and should NOT be modified directly:
 - `accounts` — OAuth accounts (providerId, accountId, userId, tokens)
 - `verifications` — Email/token verifications (id, identifier, value, expiresAt)
 
-To regenerate auth schema: `pnpm auth:generate`
+To check the auth tables after a better-auth upgrade: `pnpm auth:generate` writes `packages/auth/auth-schema.generated.ts` (gitignored, needs `apps/backend/.env`). Diff its columns against `packages/db/src/schema.ts` and change the schema by hand; never copy the file over it.

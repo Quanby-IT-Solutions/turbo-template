@@ -5,6 +5,7 @@ import 'package:toastification/toastification.dart';
 import 'package:mobile/core/widgets/tour_item.dart';
 import 'package:mobile/features/auth/presentation/providers/auth_provider.dart';
 import 'package:mobile/features/home/presentation/providers/tour_provider.dart';
+import 'package:mobile/features/home/presentation/widgets/preview_features_tile.dart';
 import 'package:mobile/features/onboarding/presentation/providers/onboarding_provider.dart';
 import 'package:mobile/core/theme/theme_provider.dart';
 import 'package:mobile/services/storage/tour_storage_service.dart';
@@ -125,6 +126,9 @@ class SettingsTab extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 16),
+
+          // Shown only while the `mobile-preview` PostHog flag is on.
+          const PreviewFeaturesTile(),
 
           // Actions section
           const SectionHeader(title: 'Account'),

@@ -80,7 +80,8 @@ describe("createRedisAuthRateLimitStorage", () => {
 	it("re-arms a key that lost its TTL", () => {
 		// Keyed on "no TTL" rather than "first hit": a key whose EXPIRE never
 		// landed would otherwise lock that client out for good.
-		// Executed against a real Redis in the PAL-212 evidence (walk-lua.txt).
+		// The script itself was also run against a real Redis before merge (see
+		// the pull request), which a mocked client cannot do.
 		expect(AUTH_RATE_LIMIT_SCRIPT).toContain("ttl < 0")
 		expect(AUTH_RATE_LIMIT_SCRIPT).toContain("PEXPIRE")
 		expect(AUTH_RATE_LIMIT_SCRIPT).not.toContain("== 1")

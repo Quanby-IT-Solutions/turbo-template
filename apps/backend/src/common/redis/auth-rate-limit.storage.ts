@@ -3,7 +3,10 @@ import type Redis from "ioredis"
 
 // The subpath, not the package root: the root also loads the whole Better Auth
 // config, which this module has no use for.
-import { createMemoryRateLimitStorage, type AuthRateLimitStorage } from "@repo/auth/rate-limit-storage"
+import {
+	createMemoryRateLimitStorage,
+	type AuthRateLimitStorage,
+} from "@repo/auth/rate-limit-storage"
 
 /**
  * Better Auth's own rate limiter, counted in the shared Redis.

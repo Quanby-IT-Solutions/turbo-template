@@ -127,6 +127,17 @@ overrides:
   zod@>=4.0.0 <4.6.6: 4.6.6
   '@next/eslint-plugin-next>fast-glob': npm:tinyglobby@^0.2.15
 
+patchedDependencies:
+  deepmerge@4.3.1:
+    hash: 7fbc212199877d495282e2c5474e390cbd90dac4e6392d36c408bf9d66d84484
+    path: patches/deepmerge@4.3.1.patch
+  glob@10.5.0:
+    hash: 6345f9c8a66fc5065b99694ccdda2133afbd71740a340f1145e201e7ce56ac74
+    path: patches/glob@10.5.0.patch
+  glob@13.0.6:
+    hash: 1cfc054037452b2cf2a9ffef8f0110896ff8a35631a2b3e3eb64fe28b026bd17
+    path: patches/glob@13.0.6.patch
+
 importers:
 
   .:
@@ -10843,7 +10854,7 @@ snapshots:
       chalk: 4.1.2
       collect-v8-coverage: 1.0.3
       exit-x: 0.2.2
-      glob: 13.0.6
+      glob: 13.0.6(patch_hash=1cfc054037452b2cf2a9ffef8f0110896ff8a35631a2b3e3eb64fe28b026bd17)
       graceful-fs: 4.2.11
       istanbul-lib-coverage: 3.2.2
       istanbul-lib-instrument: 6.0.3
@@ -11078,7 +11089,7 @@ snapshots:
       cli-table3: 0.6.5
       commander: 4.1.1
       fork-ts-checker-webpack-plugin: 9.1.0(typescript@5.9.3)(webpack@5.106.2(@swc/core@1.15.8(@swc/helpers@0.5.23))(esbuild@0.28.1))
-      glob: 13.0.6
+      glob: 13.0.6(patch_hash=1cfc054037452b2cf2a9ffef8f0110896ff8a35631a2b3e3eb64fe28b026bd17)
       node-emoji: 1.11.0
       ora: 5.4.1
       tsconfig-paths: 4.2.0
@@ -11967,7 +11978,7 @@ snapshots:
       '@sentry/cli': 2.58.6
       dotenv: 16.6.1
       find-up: 5.0.0
-      glob: 13.0.6
+      glob: 13.0.6(patch_hash=1cfc054037452b2cf2a9ffef8f0110896ff8a35631a2b3e3eb64fe28b026bd17)
       magic-string: 0.30.21
     transitivePeerDependencies:
       - encoding
@@ -11980,7 +11991,7 @@ snapshots:
       '@sentry/core': 10.70.0
       dotenv: 17.4.2
       find-up: 5.0.0
-      glob: 13.0.6
+      glob: 13.0.6(patch_hash=1cfc054037452b2cf2a9ffef8f0110896ff8a35631a2b3e3eb64fe28b026bd17)
       magic-string: 0.30.21
     optionalDependencies:
       rollup: 4.62.4
@@ -12210,7 +12221,7 @@ snapshots:
     dependencies:
       '@serwist/utils': 9.5.13(browserslist@4.29.3)
       common-tags: 1.8.2
-      glob: 13.0.6
+      glob: 13.0.6(patch_hash=1cfc054037452b2cf2a9ffef8f0110896ff8a35631a2b3e3eb64fe28b026bd17)
       pretty-bytes: 6.1.1
       source-map: 0.8.0
       type-fest: 5.10.0
@@ -14082,7 +14093,7 @@ snapshots:
 
   deep-is@0.1.4: {}
 
-  deepmerge@4.3.1: {}
+  deepmerge@4.3.1(patch_hash=7fbc212199877d495282e2c5474e390cbd90dac4e6392d36c408bf9d66d84484): {}
 
   default-browser-id@5.0.1: {}
 
@@ -14768,7 +14779,7 @@ snapshots:
       chalk: 4.1.2
       chokidar: 4.0.3
       cosmiconfig: 8.3.6(typescript@5.9.3)
-      deepmerge: 4.3.1
+      deepmerge: 4.3.1(patch_hash=7fbc212199877d495282e2c5474e390cbd90dac4e6392d36c408bf9d66d84484)
       fs-extra: 10.1.0
       memfs: 3.5.3
       minimatch: 3.1.5
@@ -14888,7 +14899,7 @@ snapshots:
 
   glob-to-regexp@0.4.1: {}
 
-  glob@10.5.0:
+  glob@10.5.0(patch_hash=6345f9c8a66fc5065b99694ccdda2133afbd71740a340f1145e201e7ce56ac74):
     dependencies:
       foreground-child: 3.3.1
       jackspeak: 3.4.3
@@ -14897,7 +14908,7 @@ snapshots:
       package-json-from-dist: 1.0.1
       path-scurry: 1.11.1
 
-  glob@13.0.6:
+  glob@13.0.6(patch_hash=1cfc054037452b2cf2a9ffef8f0110896ff8a35631a2b3e3eb64fe28b026bd17):
     dependencies:
       minimatch: 10.2.5
       minipass: 7.1.3
@@ -15363,8 +15374,8 @@ snapshots:
       babel-jest: 30.5.2(@babel/core@7.29.7)
       chalk: 4.1.2
       ci-info: 4.3.1
-      deepmerge: 4.3.1
-      glob: 13.0.6
+      deepmerge: 4.3.1(patch_hash=7fbc212199877d495282e2c5474e390cbd90dac4e6392d36c408bf9d66d84484)
+      glob: 13.0.6(patch_hash=1cfc054037452b2cf2a9ffef8f0110896ff8a35631a2b3e3eb64fe28b026bd17)
       graceful-fs: 4.2.11
       jest-circus: 30.5.2
       jest-docblock: 30.5.0
@@ -15522,7 +15533,7 @@ snapshots:
       cjs-module-lexer: 2.2.0
       collect-v8-coverage: 1.0.3
       es-module-lexer: 2.3.1
-      glob: 13.0.6
+      glob: 13.0.6(patch_hash=1cfc054037452b2cf2a9ffef8f0110896ff8a35631a2b3e3eb64fe28b026bd17)
       graceful-fs: 4.2.11
       jest-haste-map: 30.5.1
       jest-message-util: 30.5.1
@@ -15956,7 +15967,7 @@ snapshots:
   nestjs-zod@5.1.1(@nestjs/common@11.2.7(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/swagger@11.4.7(@nestjs/common@11.2.7(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.2.7)(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2))(rxjs@7.8.2)(zod@4.6.6):
     dependencies:
       '@nestjs/common': 11.2.7(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2)
-      deepmerge: 4.3.1
+      deepmerge: 4.3.1(patch_hash=7fbc212199877d495282e2c5474e390cbd90dac4e6392d36c408bf9d66d84484)
       rxjs: 7.8.2
       zod: 4.6.6
     optionalDependencies:
@@ -17267,7 +17278,7 @@ snapshots:
   test-exclude@7.0.2:
     dependencies:
       '@istanbuljs/schema': 0.1.3
-      glob: 10.5.0
+      glob: 10.5.0(patch_hash=6345f9c8a66fc5065b99694ccdda2133afbd71740a340f1145e201e7ce56ac74)
       minimatch: 10.2.5
 
   text-decoder@1.2.3:

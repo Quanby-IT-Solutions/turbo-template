@@ -1,0 +1,51 @@
+diff --git a/dist/cjs.js b/dist/cjs.js
+index 7c36cbdd06cc22c92d590be3f87a08a91ca06b40..538b8e222ba07e63b8324c90fb158a81dc763a29 100644
+--- a/dist/cjs.js
++++ b/dist/cjs.js
+@@ -58,7 +58,11 @@ function getEnumerableOwnPropertySymbols(target) {
+ }
+ 
+ function getKeys(target) {
+-	return Object.keys(target).concat(getEnumerableOwnPropertySymbols(target))
++	return Object.keys(target)
++		// Patched: never copy a `__proto__` key. Assigning one to the result
++		// would replace its prototype (GHSA-gcqx-w48m-w2h4; no upstream fix).
++		.filter(function(key) { return key !== "__proto__" })
++		.concat(getEnumerableOwnPropertySymbols(target))
+ }
+ 
+ function propertyIsOnObject(object, property) {
+diff --git a/dist/umd.js b/dist/umd.js
+index 4071e7c56ec8e5273fe166f6e723ac460fab8b72..132430d03b5a72a5a0e2c8c25e9498efa3e6b96d 100644
+--- a/dist/umd.js
++++ b/dist/umd.js
+@@ -62,7 +62,11 @@
+ 	}
+ 
+ 	function getKeys(target) {
+-		return Object.keys(target).concat(getEnumerableOwnPropertySymbols(target))
++		return Object.keys(target)
++		// Patched: never copy a `__proto__` key. Assigning one to the result
++		// would replace its prototype (GHSA-gcqx-w48m-w2h4; no upstream fix).
++		.filter(function(key) { return key !== "__proto__" })
++		.concat(getEnumerableOwnPropertySymbols(target))
+ 	}
+ 
+ 	function propertyIsOnObject(object, property) {
+diff --git a/index.js b/index.js
+index 77968aed5d456cccc294f60912ef381fa1e52a7b..1f5f63b66b61be4f3d9e1dc35f35769297834d35 100644
+--- a/index.js
++++ b/index.js
+@@ -33,7 +33,11 @@ function getEnumerableOwnPropertySymbols(target) {
+ }
+ 
+ function getKeys(target) {
+-	return Object.keys(target).concat(getEnumerableOwnPropertySymbols(target))
++	return Object.keys(target)
++		// Patched: never copy a `__proto__` key. Assigning one to the result
++		// would replace its prototype (GHSA-gcqx-w48m-w2h4; no upstream fix).
++		.filter(function(key) { return key !== "__proto__" })
++		.concat(getEnumerableOwnPropertySymbols(target))
+ }
+ 
+ function propertyIsOnObject(object, property) {

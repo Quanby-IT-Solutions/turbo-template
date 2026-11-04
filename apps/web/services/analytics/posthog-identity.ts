@@ -51,7 +51,9 @@ export function syncAnalyticsIdentity(
 	const identified = readMarker()
 	if (userId === identified) return
 
-	if (identified) client.reset()
+	// `true` also rotates $device_id; without it two users on one browser
+	// stay linkable through the device id.
+	if (identified) client.reset(true)
 	if (userId) client.identify(userId)
 	writeMarker(userId)
 }
@@ -66,6 +68,6 @@ export function resetAnalyticsIdentity(
 ): void {
 	if (!enabled) return
 
-	client.reset()
+	client.reset(true)
 	writeMarker(null)
 }

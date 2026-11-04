@@ -9,8 +9,8 @@ function fakeClient() {
 		identify: vi.fn((id: string) => {
 			calls.push(`identify:${id}`)
 		}),
-		reset: vi.fn(() => {
-			calls.push("reset")
+		reset: vi.fn((resetDeviceId?: boolean) => {
+			calls.push(resetDeviceId ? "reset+device" : "reset")
 		}),
 	}
 	return { client, calls }
@@ -45,7 +45,7 @@ describe("syncAnalyticsIdentity", () => {
 
 		syncAnalyticsIdentity("u2", client, true)
 
-		expect(calls).toEqual(["identify:u1", "reset", "identify:u2"])
+		expect(calls).toEqual(["identify:u1", "reset+device", "identify:u2"])
 	})
 
 	it("resets once when a signed-in browser is seen signed out", () => {
@@ -55,7 +55,7 @@ describe("syncAnalyticsIdentity", () => {
 		syncAnalyticsIdentity(null, client, true)
 		syncAnalyticsIdentity(null, client, true)
 
-		expect(calls).toEqual(["identify:u1", "reset"])
+		expect(calls).toEqual(["identify:u1", "reset+device"])
 	})
 
 	it("leaves an anonymous visitor alone, so their anonymous id is not rotated", () => {
@@ -90,6 +90,6 @@ describe("resetAnalyticsIdentity", () => {
 		resetAnalyticsIdentity(client, true)
 		syncAnalyticsIdentity(null, client, true)
 
-		expect(calls).toEqual(["identify:u1", "reset"])
+		expect(calls).toEqual(["identify:u1", "reset+device"])
 	})
 })

@@ -126,6 +126,15 @@ class AuthState extends _$AuthState {
   }
 
   Future<void> signOut() async {
+    // Same reasoning as the cookie-jar purge: sign-out must leave no
+    // trace of who was signed in. A stale identity here would attach the
+    // previous user's id to whatever the *next* user crashes on. It runs
+    // first: the router treats the loading state below as signed out and
+    // shows /login at once, and that screen view must not carry the old id.
+    // Sign-out always completes on the device (see finally), so resetting
+    // before the backend call answers is safe.
+    _syncIdentity(null);
+
     state = const AsyncLoading();
     try {
       await ref.read(authRepositoryProvider).signOut();
@@ -133,11 +142,6 @@ class AuthState extends _$AuthState {
       // Always clear local session even if the backend call fails,
       // so the user is logged out on the device.
       state = const AsyncData(null);
-
-      // Same reasoning as the cookie-jar purge: sign-out must leave no
-      // trace of who was signed in. A stale identity here would attach the
-      // previous user's id to whatever the *next* user crashes on.
-      _syncIdentity(null);
     }
   }
 

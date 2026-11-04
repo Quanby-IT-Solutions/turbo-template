@@ -106,6 +106,26 @@ void main() {
     expect(analytics.last, isNull);
   });
 
+  test('sign-out resets before listeners see any state change', () async {
+    // The router listens to authStateProvider and treats the loading state as
+    // signed out, so it redirects to /login on the first change sign-out
+    // makes, and the PostHog observer captures that screen. If the reset came
+    // after that change, the /login view would be recorded under the old user.
+    final repository = _FakeAuthRepository(session: _session('u1'));
+    final container = containerFor(repository);
+    await container.read(authStateProvider.future);
+
+    final identityAtEachChange = <String?>[];
+    container.listen(authStateProvider, (_, _) {
+      identityAtEachChange.add(analytics.last);
+    });
+
+    await container.read(authStateProvider.notifier).signOut();
+
+    expect(identityAtEachChange, isNotEmpty);
+    expect(identityAtEachChange, everyElement(isNull));
+  });
+
   test('failed sign-in after sign-out resets', () async {
     final repository = _FakeAuthRepository(session: _session('u1'));
     final container = containerFor(repository);

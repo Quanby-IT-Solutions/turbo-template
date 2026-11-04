@@ -43,14 +43,40 @@ export type TelemetryHandle = {
  */
 export function setupTelemetry(
 	config: OtelConfig | undefined,
-	sentryClient: Sentry.NodeClient | undefined
+	sentryClient: Sentry.NodeClient | undefined,
+	warn: (message: string) => void = message => console.warn(`[otel] ${message}`)
 ): TelemetryHandle | undefined {
 	if (!config) return undefined
+
+	// Warn, never throw: this runs at import time, before the app exists, and
+	// a telemetry fault must not stop the service it was meant to observe.
+	try {
+		return startProviders(config, sentryClient, warn)
+	} catch (error) {
+		warn(
+			`setup failed (${error instanceof Error ? error.message : String(error)}). ` +
+				"OpenTelemetry export is DISABLED for this process."
+		)
+		return undefined
+	}
+}
+
+function startProviders(
+	config: OtelConfig,
+	sentryClient: Sentry.NodeClient | undefined,
+	warn: (message: string) => void
+): TelemetryHandle {
+	if (sentryClient && sentryClient.getOptions().tracesSampleRate === 0) {
+		warn(
+			"Sentry is on and SENTRY_TRACES_SAMPLE_RATE is 0. Sentry's sampler decides for OTLP too, " +
+				"so no traces will be exported (metrics still are). Raise the rate to export traces."
+		)
+	}
 
 	const resource = resourceFromAttributes({ "service.name": config.serviceName })
 
 	// Metrics first, so the HTTP instrumentation finds the meter provider when it
-	// registers and records `http.server.request.duration`.
+	// registers and records `http.server.duration` (see docs/opentelemetry.md).
 	const meterProvider = new MeterProvider({
 		resource,
 		readers: [

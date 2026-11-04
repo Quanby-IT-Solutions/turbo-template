@@ -14,7 +14,7 @@ const HEALTH_CHECK_PATH = "/api/v1/health"
  * The instrumentations this process registers itself when OpenTelemetry is on.
  *
  * Each library must be patched exactly once. HTTP is always ours (spans and
- * the `http.server.request.duration` metric); Sentry's own HTTP spans are
+ * the `http.server.duration` metric); Sentry's own HTTP spans are
  * turned off in `instrument.ts`, as Sentry documents for a custom setup.
  * Express, pg, Redis and Nest are Sentry's integrations' job when Sentry is
  * on, and ours only when it is off.

@@ -11,7 +11,7 @@ The backend can export traces and HTTP metrics over OTLP to any OpenTelemetry ba
 
 ## Enablement policy
 
-Export needs **both** the switch and an endpoint. The switch without a usable endpoint logs one warning and stays off.
+Export needs **both** the switch and an endpoint. The switch without a usable endpoint logs one warning and stays off, and so does a setup that fails for any other reason: telemetry never stops the process.
 
 | Variable                        | Meaning                                                                                                                                                                                                  |
 | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -34,6 +34,8 @@ Export needs **both** the switch and an endpoint. The switch without a usable en
 
 In every mode each library is instrumented by exactly one instrumentation. With Sentry on, Sentry's `tracesSampler` still decides what is traced (and drops the health check); with Sentry off, the health check is excluded by the HTTP instrumentation.
 
+**With both on, `SENTRY_TRACES_SAMPLE_RATE` is the trace rate for OTLP too.** Its default is `0`, which exports no traces at all (metrics still flow). The backend warns once at boot when both are on and the rate is `0`; set it above `0` (for example `1` locally) to export traces.
+
 ### Where it is wired
 
 - `src/main.ts`: import order `dotenv/config`, `@/instrument`, `@/telemetry`, `reflect-metadata` (load-bearing; see the comment there).
@@ -46,6 +48,7 @@ In every mode each library is instrumented by exactly one instrumentation. With 
 Every exported span passes `ScrubbingSpanExporter` first:
 
 - Attributes for request headers the logger never records (`x-request-id`) are dropped.
+- Span events get the same rules. `recordException` stores the error message and stack there, and query strings quoted inside them are redacted.
 - Any attribute named after a field on the `@repo/observability` deny-list (`authorization`, `cookie`, `password`, `token`, `email`, ...) is dropped.
 - Credential query parameters (`?token=`) in `url.full`, `http.url`, `http.target` and `url.query` are redacted, with the request logger's own `sanitizeLogUrl`.
 - Sentry's `sentry.*` entries are removed from the W3C trace state. Sentry's sampler stores the full request URL there (`sentry.url`), query string included, and the OTLP exporter would otherwise ship it.

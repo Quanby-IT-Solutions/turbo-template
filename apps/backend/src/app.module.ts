@@ -19,6 +19,7 @@ import { RbacGuard } from "@/shared/guards/rbac.guard"
 import { SessionAuthGuard } from "@/shared/guards/session-auth.guard"
 import { ThrottlerProxyGuard } from "@/shared/guards/throttler-proxy.guard"
 
+import { AnalyticsModule } from "./common/analytics/analytics.module"
 import { AuditModule } from "./common/audit/audit.module"
 import { MaintenanceModule } from "./common/maintenance/maintenance.module"
 import { ORPCCommonModule } from "./common/orpc/orpc.module"
@@ -106,6 +107,8 @@ import { env } from "./config/env.config"
 		ORPCCommonModule,
 		// Shared Redis connection for the throttler and the RBAC cache.
 		RedisModule,
+		// PostHog: one shared client, or none when analytics is off.
+		AnalyticsModule,
 		// RBAC services
 		// Global: the audit trail is meant to outgrow RBAC.
 		AuditModule,

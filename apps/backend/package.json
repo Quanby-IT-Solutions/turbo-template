@@ -57,6 +57,7 @@
 		"nestjs-zod": "^5.1.1",
 		"pg": "catalog:",
 		"pino-http": "^11.0.0",
+		"posthog-node": "^5.61.2",
 		"reflect-metadata": "^0.2.2",
 		"rxjs": "^7.8.2",
 		"zod": "catalog:"

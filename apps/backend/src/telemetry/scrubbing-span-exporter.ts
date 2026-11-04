@@ -8,8 +8,11 @@ import { omitUnloggedRequestHeaderAttributes } from "@/utils/unlogged-request-he
 
 const deniedFieldNames = new Set<string>(REDACTED_FIELD_NAMES.map(name => name.toLowerCase()))
 
-/** Attributes whose value is a URL or a path with a query string. */
-const URL_ATTRIBUTES = ["url.full", "http.url", "http.target"] as const
+/** Attributes whose value is a URL or a path, which can carry a credential. */
+const URL_ATTRIBUTES = ["url.full", "http.url", "http.target", "url.path", "http.route"] as const
+
+/** Attributes holding a bare query string (`token=abc&lang=en`); `http.query` is Sentry's. */
+const QUERY_ATTRIBUTES = ["url.query", "http.query"] as const
 
 function isDeniedAttribute(key: string): boolean {
 	const lower = key.toLowerCase()
@@ -18,9 +21,8 @@ function isDeniedAttribute(key: string): boolean {
 }
 
 /**
- * A span's attributes as they may leave the process over OTLP.
- *
- * The same rules Sentry's `beforeSendSpan` applies, from the same shared lists:
+ * A span's attributes as they may leave the process, over OTLP or to Sentry
+ * (`instrument.ts` runs Sentry's span data through this too). From the shared lists:
  * request-header attributes the logger never records (`x-request-id`) are
  * dropped; any attribute named after a deny-listed field (`...authorization`,
  * `...cookie`, `...password`, `...email`) is dropped; credential query
@@ -37,10 +39,10 @@ export function scrubSpanAttributes(attributes: Attributes): Attributes {
 		const value = result[key]
 		if (typeof value === "string") result[key] = sanitizeLogUrl(value)
 	}
-	const query = result["url.query"]
-	if (typeof query === "string") {
+	for (const key of QUERY_ATTRIBUTES) {
+		const query = result[key]
 		// `sanitizeLogUrl` finds the query after a `?`; add one and drop it again.
-		result["url.query"] = sanitizeLogUrl(`?${query}`)?.slice(1) ?? query
+		if (typeof query === "string") result[key] = sanitizeLogUrl(`?${query}`)?.slice(1) ?? query
 	}
 
 	return result
@@ -112,7 +114,8 @@ export function withoutSentryEntries(traceState: TraceState | undefined): TraceS
 }
 
 /**
- * A copy of the span with scrubbed attributes, events and trace state. The prototype
+ * A copy of the span with scrubbed name, attributes, events, links and trace
+ * state. The prototype
  * is kept so other methods still work; the original span is not touched.
  */
 function scrubbedCopy(span: ReadableSpan): ReadableSpan {
@@ -120,10 +123,16 @@ function scrubbedCopy(span: ReadableSpan): ReadableSpan {
 	const scrubbedContext = { ...context, traceState: withoutSentryEntries(context.traceState) }
 	const copy = Object.create(Object.getPrototypeOf(span) as object) as ReadableSpan
 	return Object.assign(copy, span, {
+		// HTTP span names can carry the raw path (`GET /auth/reset-password/<token>`).
+		name: sanitizeLogUrl(span.name) ?? span.name,
 		attributes: scrubSpanAttributes(span.attributes),
 		events: span.events?.map(event => ({
 			...event,
 			attributes: scrubEventAttributes(event.attributes),
+		})),
+		links: span.links?.map(link => ({
+			...link,
+			attributes: link.attributes && scrubSpanAttributes(link.attributes),
 		})),
 		spanContext: () => scrubbedContext,
 	})

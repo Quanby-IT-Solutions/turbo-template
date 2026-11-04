@@ -151,6 +151,37 @@ describe("ScrubbingSpanExporter", () => {
 		expect(span.events[0]?.attributes).toBe(attributes)
 	})
 
+	it("redacts the reset token Better Auth puts in the path, in the span name and path attributes", () => {
+		const { exporter, received } = recordingExporter()
+		const span = {
+			...spanWith({
+				"url.path": "/api/v1/auth/reset-password/live-reset-token",
+				"http.target": "/api/v1/auth/reset-password/live-reset-token?callbackURL=/x",
+			}),
+			name: "GET /api/v1/auth/reset-password/live-reset-token",
+		} as unknown as ReadableSpan
+
+		new ScrubbingSpanExporter(exporter).export([span], jest.fn())
+
+		const [exported] = received[0] ?? []
+		expect(exported?.name).toBe("GET /api/v1/auth/reset-password/[REDACTED]")
+		expect(JSON.stringify(exported?.attributes)).not.toContain("live-reset-token")
+	})
+
+	it("scrubs link attributes", () => {
+		const { exporter, received } = recordingExporter()
+		const link = {
+			context: { traceId: "t".repeat(32), spanId: "l".repeat(16), traceFlags: 1 },
+			attributes: { "http.request.header.cookie": ["sess=x"], "kept": 1 },
+		}
+		const span = { ...spanWith({}), links: [link] } as unknown as ReadableSpan
+
+		new ScrubbingSpanExporter(exporter).export([span], jest.fn())
+
+		const [exported] = received[0] ?? []
+		expect(exported?.links[0]?.attributes).toEqual({ kept: 1 })
+	})
+
 	it("delegates shutdown and forceFlush", async () => {
 		const { exporter } = recordingExporter()
 		const scrubbing = new ScrubbingSpanExporter(exporter)

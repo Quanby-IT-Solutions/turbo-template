@@ -14,6 +14,9 @@ const URL_ATTRIBUTES = ["url.full", "http.url", "http.target", "url.path", "http
 /** Attributes holding a bare query string (`token=abc&lang=en`); `http.query` is Sentry's. */
 const QUERY_ATTRIBUTES = ["url.query", "http.query"] as const
 
+/** A captured request header holding the previous page's URL. */
+const REFERER_HEADER = /\.header\.referr?er$/i
+
 function isDeniedAttribute(key: string): boolean {
 	const lower = key.toLowerCase()
 	const lastSegment = lower.slice(lower.lastIndexOf(".") + 1).replace(/_/g, "-")
@@ -38,6 +41,15 @@ export function scrubSpanAttributes(attributes: Attributes): Attributes {
 	for (const key of URL_ATTRIBUTES) {
 		const value = result[key]
 		if (typeof value === "string") result[key] = sanitizeLogUrl(value)
+	}
+	for (const [key, value] of Object.entries(result)) {
+		// Header attributes are string arrays. A referer is the previous page's
+		// URL, e.g. the web app's `/reset-password?token=`.
+		if (REFERER_HEADER.test(key) && Array.isArray(value)) {
+			result[key] = value.map(item =>
+				typeof item === "string" ? (sanitizeLogUrl(item) ?? item) : item
+			) as typeof value
+		}
 	}
 	for (const key of QUERY_ATTRIBUTES) {
 		const query = result[key]

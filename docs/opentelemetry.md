@@ -69,6 +69,7 @@ The OpenTelemetry packages are pinned to the releases Sentry 10.70 runs on (API 
 
 - The mode check is not part of CI; run it after changing anything in `src/telemetry/`, `src/instrument.ts` or the OpenTelemetry versions.
 - Two copies of `@opentelemetry/core` (2.9.0 via the HTTP instrumentation, 2.10.0 elsewhere) are installed. Core holds no state that must be shared (the context keys live in `@opentelemetry/api`); the mode check confirms the exporter's own requests are not traced.
+- With Sentry on, Sentry's integrations instrument Express, Nest and Postgres, so span names follow Sentry's style (middleware by function name, Nest guards included), the root HTTP span is named by method only (`GET`, with the route in its attributes), and the Postgres connection metrics that OpenTelemetry's own pg instrumentation emits are absent. The HTTP duration metric is present in both modes.
 - Sentry with OTel on uses Sentry's custom setup, which Sentry documents but does not make the default. A Sentry major upgrade (v11) needs this file and `src/telemetry/setup.ts` revisited.
 
 ## Official documentation

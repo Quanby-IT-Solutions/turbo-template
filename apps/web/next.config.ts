@@ -6,7 +6,24 @@ import path from "node:path"
 import { withSentryConfig } from "@sentry/nextjs/config"
 import { withSerwist } from "@serwist/turbopack"
 
+import { resolvePosthogHosts } from "./core/lib/posthog-proxy"
+
 import "./env"
+
+/**
+ * Whether the same-origin `/ingest` proxy to PostHog is live.
+ *
+ * Read raw from `process.env` (like the API origin in `headers()`) through the
+ * same gate the proxy route uses: the flag, a token, and an https PostHog Cloud
+ * host. When it is off, trailing-slash handling stays exactly as it is today.
+ */
+const isPosthogProxyOn = Boolean(
+	resolvePosthogHosts({
+		enabled: ["true", "1"].includes(process.env.NEXT_PUBLIC_POSTHOG_ENABLED?.trim() ?? ""),
+		token: process.env.NEXT_PUBLIC_POSTHOG_TOKEN,
+		host: process.env.NEXT_PUBLIC_POSTHOG_HOST,
+	})
+)
 
 /** @type {import("next").NextConfig} */
 const config: NextConfig = {
@@ -44,6 +61,13 @@ const config: NextConfig = {
 	devIndicators: {
 		position: "bottom-right",
 	},
+
+	/**
+	 * PostHog's API paths end in a slash (`/ingest/e/`), which Next would
+	 * otherwise redirect away before the `/ingest` proxy route sees them. Only
+	 * while that proxy is live.
+	 */
+	...(isPosthogProxyOn ? { skipTrailingSlashRedirect: true } : {}),
 
 	/**
 	 * Give the browser bundle the same Sentry environment the server and edge

@@ -71,6 +71,14 @@ export const env = createEnv({
 		SENTRY_ENVIRONMENT: z.string().optional(),
 		/** 0 = errors only. Tracing costs quota, so it is opt-in per environment. */
 		SENTRY_TRACES_SAMPLE_RATE: z.coerce.number().min(0).max(1).optional().default(0),
+		// PostHog: feature flags (and any server-side events). Same two-part gate
+		// as Sentry: nothing is constructed unless BOTH the flag and a token are
+		// set. See docs/posthog.md.
+		POSTHOG_ENABLED: booleanFromEnv.optional().default(false),
+		POSTHOG_TOKEN: z.string().optional(),
+		POSTHOG_HOST: z.string().default("https://us.i.posthog.com"),
+		/** Project secret key (phs_...). Turns on local flag evaluation; remote evaluation without it. */
+		POSTHOG_FEATURE_FLAGS_SECRET_KEY: z.string().optional(),
 		/** Deploy image tag, injected by the deploy compose file / env; reported as the Sentry release. */
 		IMAGE_TAG: z.string().optional(),
 

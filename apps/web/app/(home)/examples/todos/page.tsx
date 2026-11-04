@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { redirect } from "next/navigation"
 
+import { FeaturePreviewBadge } from "@/core/components/feature-preview-badge"
 import {
 	Card,
 	CardContent,
@@ -43,7 +44,10 @@ export default async function TodosExamplePage() {
 		<section className="flex w-full flex-col gap-6">
 			<Card>
 				<CardHeader>
-					<CardTitle>Todos API Example</CardTitle>
+					<CardTitle className="flex items-center gap-2">
+						Todos API Example
+						<FeaturePreviewBadge />
+					</CardTitle>
 					<CardDescription>
 						This route mirrors the NestJS todos module and is powered by the shared oRPC contract
 						found in <code>packages/contracts</code>.

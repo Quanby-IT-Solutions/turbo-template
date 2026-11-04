@@ -1,3 +1,4 @@
+import { AnalyticsIdentityStamp } from "@/services/analytics/analytics-identity-stamp"
 import { ResetPasswordForm } from "@/features/auth/reset-password/components/reset-password-form"
 
 export default async function ResetPasswordPage({
@@ -9,6 +10,8 @@ export default async function ResetPasswordPage({
 
 	return (
 		<section className="flex flex-1 flex-col items-center justify-center">
+			{/* Signed out: clears a previous user's PostHog identity. */}
+			<AnalyticsIdentityStamp userId={null} />
 			<div className="w-full max-w-md">
 				<ResetPasswordForm token={token ?? null} className="w-full" />
 			</div>

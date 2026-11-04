@@ -1,5 +1,5 @@
 import { Logger } from "@nestjs/common"
-import Redis from "ioredis"
+import Redis, { type RedisOptions } from "ioredis"
 
 import { env } from "@/config/env.config"
 
@@ -9,6 +9,15 @@ export const REDIS_CLIENT = Symbol("REDIS_CLIENT")
 export type RedisClient = Redis | null
 
 const logger = new Logger("Redis")
+
+/**
+ * How long a command may wait for Redis before it fails. Redis answers in
+ * milliseconds; without a limit a Redis that stays connected but stops
+ * answering (a frozen process, a partition) held every request forever,
+ * health check included, and logged nothing (measured 11/4). With it the
+ * command fails and each consumer degrades as documented below.
+ */
+const REDIS_COMMAND_TIMEOUT_MS = 500
 
 /**
  * Shared Redis connection for the throttler and the RBAC permission cache.
@@ -36,6 +45,22 @@ const logger = new Logger("Redis")
  *
  * Neither path crashes the app, and both log once rather than per request.
  */
+/** Connection options for the shared client; exported so a test can hold them to a hung server. */
+export function redisClientOptions(keyPrefix: string): RedisOptions {
+	return {
+		keyPrefix: `${keyPrefix}:`,
+		// Never queue commands while disconnected: a queued permission lookup
+		// that resolves minutes later is worse than an immediate miss that falls
+		// through to the database.
+		enableOfflineQueue: false,
+		maxRetriesPerRequest: 1,
+		commandTimeout: REDIS_COMMAND_TIMEOUT_MS,
+		// Bounded backoff so a long outage does not become a reconnect storm.
+		retryStrategy: attempt => Math.min(attempt * 200, 5_000),
+		lazyConnect: false,
+	}
+}
+
 export function createRedisClient(): RedisClient {
 	if (!env.REDIS_URL) {
 		logger.warn(
@@ -46,17 +71,7 @@ export function createRedisClient(): RedisClient {
 		return null
 	}
 
-	const client = new Redis(env.REDIS_URL, {
-		keyPrefix: `${env.REDIS_KEY_PREFIX}:`,
-		// Never queue commands while disconnected: a queued permission lookup
-		// that resolves minutes later is worse than an immediate miss that falls
-		// through to the database.
-		enableOfflineQueue: false,
-		maxRetriesPerRequest: 1,
-		// Bounded backoff so a long outage does not become a reconnect storm.
-		retryStrategy: attempt => Math.min(attempt * 200, 5_000),
-		lazyConnect: false,
-	})
+	const client = new Redis(env.REDIS_URL, redisClientOptions(env.REDIS_KEY_PREFIX))
 
 	// `error` must have a listener or ioredis raises an unhandled 'error' event
 	// and takes the process down. Logged once per transition, not per failure.

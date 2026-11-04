@@ -1,7 +1,7 @@
 import { metrics, trace } from "@opentelemetry/api"
 import type { NodeClient } from "@sentry/nestjs"
 
-import { setupTelemetry } from "./setup"
+import { settleWithin, setupTelemetry } from "./setup"
 
 const config = { endpoint: "http://127.0.0.1:9", serviceName: "telemetry-spec" }
 
@@ -74,5 +74,26 @@ describe("setupTelemetry with Sentry on", () => {
 		expect(warn).toHaveBeenCalledTimes(1)
 		expect(warn).toHaveBeenCalledWith(expect.stringContaining("SENTRY_TRACES_SAMPLE_RATE"))
 		await handle?.shutdown()
+	})
+})
+
+describe("settleWithin", () => {
+	it("stops waiting at the limit and reports it, for a flush that never settles", async () => {
+		const onTimeout = jest.fn()
+		const started = Date.now()
+
+		await settleWithin(new Promise(() => undefined), 50, onTimeout)
+
+		expect(Date.now() - started).toBeLessThan(1_000)
+		expect(onTimeout).toHaveBeenCalledTimes(1)
+	})
+
+	it("returns as soon as the work settles, without reporting", async () => {
+		const onTimeout = jest.fn()
+
+		await settleWithin(Promise.resolve(), 50, onTimeout)
+		await new Promise(resolve => setTimeout(resolve, 80))
+
+		expect(onTimeout).not.toHaveBeenCalled()
 	})
 })

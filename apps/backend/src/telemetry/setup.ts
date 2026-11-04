@@ -21,6 +21,39 @@ import { ScrubbingSpanExporter } from "./scrubbing-span-exporter"
 /** How often HTTP metrics are pushed to the OTLP endpoint. */
 const METRIC_EXPORT_INTERVAL_MS = 10_000
 
+/**
+ * The longest graceful shutdown waits for a final flush. The exporter's own
+ * timeout is 10 s, measured as 10.04 s from SIGTERM to exit against an endpoint
+ * that never answers, which equals Docker's default stop grace period: the
+ * process would be killed mid-shutdown. Queued data past this is dropped.
+ */
+const SHUTDOWN_FLUSH_LIMIT_MS = 3_000
+
+/**
+ * Waits for `work`, but no longer than `limitMs`; calls `onTimeout` if the
+ * limit is hit. Never rejects: shutdown must go on whatever the flush does.
+ */
+export async function settleWithin(
+	work: Promise<unknown>,
+	limitMs: number,
+	onTimeout: () => void
+): Promise<void> {
+	let timer: NodeJS.Timeout | undefined
+	const limit = new Promise<"timeout">(resolve => {
+		timer = setTimeout(() => resolve("timeout"), limitMs)
+		timer.unref()
+	})
+	const outcome = await Promise.race([
+		work.then(
+			() => "done" as const,
+			() => "done" as const
+		),
+		limit,
+	])
+	clearTimeout(timer)
+	if (outcome === "timeout") onTimeout()
+}
+
 export type TelemetryHandle = {
 	tracerProvider: NodeTracerProvider
 	meterProvider: MeterProvider
@@ -126,8 +159,15 @@ function startProviders(
 	return {
 		tracerProvider,
 		meterProvider,
-		shutdown: async () => {
-			await Promise.all([tracerProvider.shutdown(), meterProvider.shutdown()])
-		},
+		shutdown: () =>
+			settleWithin(
+				Promise.all([tracerProvider.shutdown(), meterProvider.shutdown()]),
+				SHUTDOWN_FLUSH_LIMIT_MS,
+				() =>
+					warn(
+						`shutdown flush did not finish within ${SHUTDOWN_FLUSH_LIMIT_MS} ms; ` +
+							"queued telemetry was dropped. Is OTEL_EXPORTER_OTLP_ENDPOINT reachable?"
+					)
+			),
 	}
 }

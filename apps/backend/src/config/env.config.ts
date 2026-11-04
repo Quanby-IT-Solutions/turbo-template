@@ -79,6 +79,13 @@ export const env = createEnv({
 		POSTHOG_HOST: z.string().default("https://us.i.posthog.com"),
 		/** Project secret key (phs_...). Turns on local flag evaluation; remote evaluation without it. */
 		POSTHOG_FEATURE_FLAGS_SECRET_KEY: z.string().optional(),
+		// OpenTelemetry: OTLP export of traces and HTTP metrics (docs/opentelemetry.md).
+		// Read raw by `src/telemetry.ts` before this module runs (same exemption as
+		// Sentry); declared here so the rest of the app sees typed values. Export
+		// starts only when BOTH the flag and an endpoint are set.
+		OTEL_ENABLED: booleanFromEnv.optional().default(false),
+		OTEL_EXPORTER_OTLP_ENDPOINT: z.string().optional(),
+		OTEL_SERVICE_NAME: z.string().default("turbo-template-api"),
 		/** Deploy image tag, injected by the deploy compose file / env; reported as the Sentry release. */
 		IMAGE_TAG: z.string().optional(),
 

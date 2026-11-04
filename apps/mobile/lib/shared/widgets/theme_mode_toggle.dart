@@ -7,10 +7,7 @@ import 'package:mobile/core/theme/theme_provider.dart';
 /// When in system mode, the switch reflects the current effective theme.
 /// Toggling switches between light and dark mode (not system mode).
 class ThemeModeSwitch extends ConsumerWidget {
-  const ThemeModeSwitch({
-    super.key,
-    this.showLabel = false,
-  });
+  const ThemeModeSwitch({super.key, this.showLabel = false});
 
   /// Whether to show a label next to the switch.
   final bool showLabel;
@@ -29,16 +26,18 @@ class ThemeModeSwitch extends ConsumerWidget {
             size: 18,
             color: !isDark
                 ? Theme.of(context).colorScheme.primary
-                : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+                : Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.5),
           ),
           const SizedBox(width: 8),
         ],
         Switch.adaptive(
           value: isDark,
           onChanged: (value) {
-            ref.read(themeControllerProvider.notifier).setThemeMode(
-                  value ? ThemeMode.dark : ThemeMode.light,
-                );
+            ref
+                .read(themeControllerProvider.notifier)
+                .setThemeMode(value ? ThemeMode.dark : ThemeMode.light);
           },
         ),
         if (showLabel) ...[
@@ -48,7 +47,9 @@ class ThemeModeSwitch extends ConsumerWidget {
             size: 18,
             color: isDark
                 ? Theme.of(context).colorScheme.primary
-                : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+                : Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.5),
           ),
         ],
       ],
@@ -70,11 +71,7 @@ class ThemeModeSwitch extends ConsumerWidget {
 /// - Light: light_mode
 /// - Dark: dark_mode
 class ThemeModeIconButton extends ConsumerWidget {
-  const ThemeModeIconButton({
-    super.key,
-    this.size,
-    this.showTooltip = true,
-  });
+  const ThemeModeIconButton({super.key, this.size, this.showTooltip = true});
 
   /// The size of the icon. Defaults to 24.0.
   final double? size;
@@ -228,10 +225,7 @@ class ThemeModeDropdown extends ConsumerWidget {
 ///
 /// Displays as a single icon that opens a menu with all theme options.
 class ThemeModePopupMenu extends ConsumerWidget {
-  const ThemeModePopupMenu({
-    super.key,
-    this.icon,
-  });
+  const ThemeModePopupMenu({super.key, this.icon});
 
   /// Custom icon for the popup button. Defaults to the current mode icon.
   final Widget? icon;
@@ -244,7 +238,6 @@ class ThemeModePopupMenu extends ConsumerWidget {
       ThemeMode.system => Icons.brightness_auto,
       ThemeMode.light => Icons.light_mode,
       ThemeMode.dark => Icons.dark_mode,
-      _ => Icons.brightness_auto,
     };
 
     return PopupMenuButton<ThemeMode>(
@@ -302,7 +295,6 @@ class ThemeModeListTile extends ConsumerWidget {
       ThemeMode.system => Icons.brightness_auto,
       ThemeMode.light => Icons.light_mode,
       ThemeMode.dark => Icons.dark_mode,
-      _ => Icons.brightness_auto,
     };
 
     return ListTile(
@@ -311,7 +303,7 @@ class ThemeModeListTile extends ConsumerWidget {
       subtitle: Text(displayName),
       trailing: Icon(
         Icons.chevron_right,
-        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3),
+        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
       ),
       onTap: () => _showThemeModeSheet(context, ref, themeMode),
     );
@@ -384,10 +376,7 @@ class ThemeModeListTile extends ConsumerWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     return ListTile(
-      leading: Icon(
-        icon,
-        color: isSelected ? colorScheme.primary : null,
-      ),
+      leading: Icon(icon, color: isSelected ? colorScheme.primary : null),
       title: Text(
         title,
         style: TextStyle(

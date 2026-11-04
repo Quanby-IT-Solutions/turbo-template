@@ -37,49 +37,46 @@ Future<void> main() async {
     return;
   }
 
-  await SentryFlutter.init(
-    (options) {
-      options.dsn = SentryConstants.dsn;
-      options.environment = SentryConstants.environment;
-      options.release = SentryConstants.release;
+  await SentryFlutter.init((options) {
+    options.dsn = SentryConstants.dsn;
+    options.environment = SentryConstants.environment;
+    options.release = SentryConstants.release;
 
-      // Errors only by default. Performance tracing costs event quota and
-      // adds request-shaped spans we have no use for yet.
-      options.tracesSampleRate = 0.0;
+    // Errors only by default. Performance tracing costs event quota and
+    // adds request-shaped spans we have no use for yet.
+    options.tracesSampleRate = 0.0;
 
-      // Release health / crash-free rate. Sends a session ping, not user data.
-      options.enableAutoSessionTracking = true;
+    // Release health / crash-free rate. Sends a session ping, not user data.
+    options.enableAutoSessionTracking = true;
 
-      // Hard requirement: never send personally identifying information.
-      // This also keeps the SDK from attaching the device's IP address.
-      options.sendDefaultPii = false;
+    // Hard requirement: never send personally identifying information.
+    // This also keeps the SDK from attaching the device's IP address.
+    options.sendDefaultPii = false;
 
-      // Deliberately off: a screenshot of the moment of a crash can capture
-      // whatever the user had on screen — a session, an email, a form field.
-      options.attachScreenshot = false;
+    // Deliberately off: a screenshot of the moment of a crash can capture
+    // whatever the user had on screen — a session, an email, a form field.
+    options.attachScreenshot = false;
 
-      // Deliberately off for the same reason: the view hierarchy carries the
-      // text of every rendered widget. Set explicitly rather than left to the
-      // SDK default so the decision survives a dependency bump — the ignore is
-      // only for the option being marked experimental upstream.
-      // ignore: experimental_member_use
-      options.attachViewHierarchy = false;
+    // Deliberately off for the same reason: the view hierarchy carries the
+    // text of every rendered widget. Set explicitly rather than left to the
+    // SDK default so the decision survives a dependency bump — the ignore is
+    // only for the option being marked experimental upstream.
+    // ignore: experimental_member_use
+    options.attachViewHierarchy = false;
 
-      // Native breadcrumbs (app lifecycle, system events) stay at the SDK
-      // default of on: they are timing and state signals, carry no payload,
-      // and are what makes a crash reconstructable.
-      //
-      // HTTP breadcrumbs are a different matter and are deliberately NOT
-      // wired: `sentry_dio` is not a dependency and no SentryDioInterceptor
-      // is added in api_client.dart, so no request URL, header, or body ever
-      // becomes a breadcrumb.
+    // Native breadcrumbs (app lifecycle, system events) stay at the SDK
+    // default of on: they are timing and state signals, carry no payload,
+    // and are what makes a crash reconstructable.
+    //
+    // HTTP breadcrumbs are a different matter and are deliberately NOT
+    // wired: `sentry_dio` is not a dependency and no SentryDioInterceptor
+    // is added in api_client.dart, so no request URL, header, or body ever
+    // becomes a breadcrumb.
 
-      // Defence in depth. Nothing below should ever have anything to strip,
-      // given the options above — which is exactly why it is cheap to run.
-      options.beforeSend = _scrubEvent;
-    },
-    appRunner: _bootstrap,
-  );
+    // Defence in depth. Nothing below should ever have anything to strip,
+    // given the options above — which is exactly why it is cheap to run.
+    options.beforeSend = _scrubEvent;
+  }, appRunner: _bootstrap);
 }
 
 /// The app's real startup sequence.

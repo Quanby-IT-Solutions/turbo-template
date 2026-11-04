@@ -99,16 +99,12 @@ class AuthState extends _$AuthState {
     }
   }
 
-  Future<void> signIn({
-    required String email,
-    required String password,
-  }) async {
+  Future<void> signIn({required String email, required String password}) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(
-      () => ref.read(authRepositoryProvider).signIn(
-            email: email,
-            password: password,
-          ),
+      () => ref
+          .read(authRepositoryProvider)
+          .signIn(email: email, password: password),
     );
 
     _syncIdentity(state.hasValue ? state.value : null);
@@ -121,11 +117,9 @@ class AuthState extends _$AuthState {
   }) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(
-      () => ref.read(authRepositoryProvider).signUp(
-            email: email,
-            password: password,
-            name: name,
-          ),
+      () => ref
+          .read(authRepositoryProvider)
+          .signUp(email: email, password: password, name: name),
     );
 
     // Sign-up returns the same authenticated SessionModel as sign-in, so it is

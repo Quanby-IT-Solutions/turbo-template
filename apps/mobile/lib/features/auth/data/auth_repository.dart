@@ -68,8 +68,10 @@ class AuthRepository {
       data: {'email': email, 'password': password},
     );
 
-    _logDebug('signIn status=${response.statusCode} '
-        'type=${response.data.runtimeType}');
+    _logDebug(
+      'signIn status=${response.statusCode} '
+      'type=${response.data.runtimeType}',
+    );
 
     final body = _parseJsonBody(response);
     if (response.statusCode == 200 && body != null) {
@@ -93,8 +95,10 @@ class AuthRepository {
       data: {'email': email, 'password': password, 'name': name},
     );
 
-    _logDebug('signUp status=${response.statusCode} '
-        'type=${response.data.runtimeType}');
+    _logDebug(
+      'signUp status=${response.statusCode} '
+      'type=${response.data.runtimeType}',
+    );
 
     final body = _parseJsonBody(response);
     if (response.statusCode == 200 && body != null) {
@@ -130,8 +134,10 @@ class AuthRepository {
     try {
       final response = await _dio.get(ApiConstants.getSession);
 
-      _logDebug('getSession status=${response.statusCode} '
-          'type=${response.data.runtimeType}');
+      _logDebug(
+        'getSession status=${response.statusCode} '
+        'type=${response.data.runtimeType}',
+      );
 
       final body = _parseJsonBody(response);
       if (response.statusCode == 200 && body != null) {

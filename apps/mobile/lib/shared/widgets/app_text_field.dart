@@ -59,10 +59,10 @@ class _AppTextFieldState extends State<AppTextField> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     Color dividerColor = theme.colorScheme.outlineVariant;
     double dividerHeight = 0.5;
-    
+
     if (_errorText != null) {
       dividerColor = theme.colorScheme.error;
       dividerHeight = 2.0;
@@ -84,17 +84,21 @@ class _AppTextFieldState extends State<AppTextField> {
           textInputAction: widget.textInputAction,
           autofillHints: widget.autofillHints,
           style: theme.textTheme.bodyLarge?.copyWith(
-            color: theme.colorScheme.onSurface.withOpacity(0.9),
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.9),
           ),
           decoration: InputDecoration(
             labelText: widget.labelText,
             hintText: widget.hintText,
-            prefixIcon: widget.prefixIcon != null ? IconTheme(
-              data: IconThemeData(
-                color: _isFocused ? theme.colorScheme.primary : theme.colorScheme.onSurface.withOpacity(0.6),
-              ),
-              child: widget.prefixIcon!,
-            ) : null,
+            prefixIcon: widget.prefixIcon != null
+                ? IconTheme(
+                    data: IconThemeData(
+                      color: _isFocused
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                    ),
+                    child: widget.prefixIcon!,
+                  )
+                : null,
             suffixIcon: widget.suffixIcon,
             border: InputBorder.none,
             enabledBorder: InputBorder.none,
@@ -103,10 +107,12 @@ class _AppTextFieldState extends State<AppTextField> {
             focusedErrorBorder: InputBorder.none,
             contentPadding: const EdgeInsets.symmetric(vertical: 12),
             floatingLabelStyle: theme.textTheme.labelMedium?.copyWith(
-              color: _errorText != null ? theme.colorScheme.error : theme.colorScheme.primary,
+              color: _errorText != null
+                  ? theme.colorScheme.error
+                  : theme.colorScheme.primary,
             ),
             labelStyle: theme.textTheme.bodyLarge?.copyWith(
-              color: theme.colorScheme.onSurface.withOpacity(0.6),
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
             ),
             errorStyle: const TextStyle(height: 0, fontSize: 0),
           ),

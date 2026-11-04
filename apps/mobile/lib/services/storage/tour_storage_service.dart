@@ -20,8 +20,7 @@ class TourStorageService {
   Future<void> completeTour(String userId) =>
       _prefs.setBool(_keyFor(userId), true);
 
-  Future<void> resetTour(String userId) =>
-      _prefs.remove(_keyFor(userId));
+  Future<void> resetTour(String userId) => _prefs.remove(_keyFor(userId));
 }
 
 /// Provider for [TourStorageService].

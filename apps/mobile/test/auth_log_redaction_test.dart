@@ -20,25 +20,37 @@ void main() {
   late String contents;
 
   setUpAll(() {
-    expect(source.existsSync(), isTrue,
-        reason: 'auth_repository.dart moved — update this guard');
+    expect(
+      source.existsSync(),
+      isTrue,
+      reason: 'auth_repository.dart moved — update this guard',
+    );
     contents = source.readAsStringSync();
   });
 
   group('AuthRepository logging', () {
     test('never interpolates a response body into a log', () {
-      expect(contents, isNot(contains(r'data=${response.data}')),
-          reason: 'response.data carries the session token');
-      expect(contents, isNot(contains(r'$data')),
-          reason: 'an undecoded body is a token carrier too');
+      expect(
+        contents,
+        isNot(contains(r'data=${response.data}')),
+        reason: 'response.data carries the session token',
+      );
+      expect(
+        contents,
+        isNot(contains(r'$data')),
+        reason: 'an undecoded body is a token carrier too',
+      );
     });
 
     test('routes every log through the kDebugMode-guarded helper', () {
       // Exactly one raw `developer.log` call may exist: the one inside the
       // helper. Anything else is an ungated path back into release builds.
       final rawLogCalls = 'developer.log('.allMatches(contents).length;
-      expect(rawLogCalls, 1,
-          reason: 'log() must only be reached through _logDebug');
+      expect(
+        rawLogCalls,
+        1,
+        reason: 'log() must only be reached through _logDebug',
+      );
 
       expect(contents, contains('if (kDebugMode)'));
       expect(contents, contains("import 'package:flutter/foundation.dart';"));
@@ -55,8 +67,11 @@ void main() {
         r'${password}',
         'session.token}',
       ]) {
-        expect(contents, isNot(contains(forbidden)),
-            reason: '$forbidden would put a credential in the log');
+        expect(
+          contents,
+          isNot(contains(forbidden)),
+          reason: '$forbidden would put a credential in the log',
+        );
       }
     });
   });

@@ -39,14 +39,14 @@ class TodosScreen extends ConsumerWidget {
                   Icon(
                     Icons.checklist_rounded,
                     size: 48,
-                    color: theme.colorScheme.onSurface.withOpacity(0.15),
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.15),
                   ),
                   const SizedBox(height: 24),
                   Text(
                     'No tasks yet',
                     style: theme.textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.w600,
-                      color: theme.colorScheme.onSurface.withOpacity(0.6),
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                       letterSpacing: -0.5,
                       height: 1.1,
                     ),
@@ -55,7 +55,9 @@ class TodosScreen extends ConsumerWidget {
                   Text(
                     'Tap + to create one',
                     style: theme.textTheme.bodyLarge?.copyWith(
-                      color: theme.colorScheme.onSurface.withOpacity(0.38),
+                      color: theme.colorScheme.onSurface.withValues(
+                        alpha: 0.38,
+                      ),
                       height: 1.47,
                     ),
                   ),
@@ -92,10 +94,7 @@ class TodosScreen extends ConsumerWidget {
                 color: theme.colorScheme.error,
               ),
               const SizedBox(height: 16),
-              Text(
-                'Failed to load todos',
-                style: theme.textTheme.titleMedium,
-              ),
+              Text('Failed to load todos', style: theme.textTheme.titleMedium),
               const SizedBox(height: 8),
               Text(
                 error.toString(),
@@ -155,7 +154,9 @@ class TodosScreen extends ConsumerWidget {
             onPressed: () => Navigator.of(ctx).pop(),
             child: Text(
               'Cancel',
-              style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.6)),
+              style: TextStyle(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+              ),
             ),
           ),
           AppButton(
@@ -168,9 +169,7 @@ class TodosScreen extends ConsumerWidget {
             child: const Text('Add'),
           ),
         ],
-        shape: RoundedRectangleBorder(
-          borderRadius: AppRadii.mediumRadius,
-        ),
+        shape: RoundedRectangleBorder(borderRadius: AppRadii.mediumRadius),
       ),
     ).then((title) {
       if (title != null && title.isNotEmpty) {
@@ -200,9 +199,7 @@ class _TodoItem extends ConsumerWidget {
       onToggle: (_) {
         ref.read(todosListProvider.notifier).toggleTodo(todo);
         toastification.show(
-          title: Text(
-            todo.completed ? 'Todo uncompleted' : 'Todo completed',
-          ),
+          title: Text(todo.completed ? 'Todo uncompleted' : 'Todo completed'),
           type: todo.completed
               ? ToastificationType.info
               : ToastificationType.success,
@@ -226,9 +223,7 @@ class _TodoItem extends ConsumerWidget {
                 child: const Text('Delete'),
               ),
             ],
-            shape: RoundedRectangleBorder(
-              borderRadius: AppRadii.mediumRadius,
-            ),
+            shape: RoundedRectangleBorder(borderRadius: AppRadii.mediumRadius),
           ),
         );
       },

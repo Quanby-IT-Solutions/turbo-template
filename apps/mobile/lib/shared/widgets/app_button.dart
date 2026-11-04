@@ -18,9 +18,13 @@ class AppButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
-    final color = isSecondary ? theme.colorScheme.surfaceContainerHigh : theme.colorScheme.primary;
-    final onColor = isSecondary ? theme.colorScheme.onSurface : theme.colorScheme.onPrimary;
+
+    final color = isSecondary
+        ? theme.colorScheme.surfaceContainerHigh
+        : theme.colorScheme.primary;
+    final onColor = isSecondary
+        ? theme.colorScheme.onSurface
+        : theme.colorScheme.onPrimary;
 
     return Semantics(
       button: true,
@@ -29,28 +33,24 @@ class AppButton extends StatelessWidget {
         duration: AppMotion.durationFast,
         curve: AppMotion.enterCurve,
         height: 56,
-        decoration: BoxDecoration(
-          borderRadius: AppRadii.smallRadius,
-        ),
+        decoration: BoxDecoration(borderRadius: AppRadii.smallRadius),
         child: FilledButton(
           onPressed: isLoading ? null : onPressed,
           style: FilledButton.styleFrom(
             backgroundColor: color,
             foregroundColor: onColor,
-            disabledBackgroundColor: color.withOpacity(0.5),
-            disabledForegroundColor: onColor.withOpacity(0.5),
-            shape: RoundedRectangleBorder(
-              borderRadius: AppRadii.smallRadius,
-            ),
+            disabledBackgroundColor: color.withValues(alpha: 0.5),
+            disabledForegroundColor: onColor.withValues(alpha: 0.5),
+            shape: RoundedRectangleBorder(borderRadius: AppRadii.smallRadius),
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s24),
             elevation: 0,
           ),
-          child: isLoading 
+          child: isLoading
               ? SizedBox(
-                  height: 24, 
-                  width: 24, 
+                  height: 24,
+                  width: 24,
                   child: CircularProgressIndicator(
-                    strokeWidth: 2, 
+                    strokeWidth: 2,
                     color: onColor,
                   ),
                 )
@@ -80,15 +80,13 @@ class AppTextButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return TextButton(
       onPressed: onPressed,
       style: TextButton.styleFrom(
         foregroundColor: theme.colorScheme.primary,
         minimumSize: const Size(48, 48), // Accessibility minimum
-        shape: RoundedRectangleBorder(
-          borderRadius: AppRadii.smallRadius,
-        ),
+        shape: RoundedRectangleBorder(borderRadius: AppRadii.smallRadius),
         textStyle: theme.textTheme.bodyLarge?.copyWith(
           fontWeight: FontWeight.w600,
         ),

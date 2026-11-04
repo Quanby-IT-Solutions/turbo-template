@@ -9,7 +9,7 @@ part 'secure_storage_service.g.dart';
 /// cookies that must not be accessible to other apps.
 class SecureStorageService {
   SecureStorageService([FlutterSecureStorage? storage])
-      : _storage = storage ?? const FlutterSecureStorage();
+    : _storage = storage ?? const FlutterSecureStorage();
 
   final FlutterSecureStorage _storage;
 

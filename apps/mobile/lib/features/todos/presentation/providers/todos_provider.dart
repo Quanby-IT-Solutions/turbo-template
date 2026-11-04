@@ -33,10 +33,9 @@ class TodosList extends _$TodosList {
     state = AsyncData(todos);
 
     try {
-      await ref.read(todosRepositoryProvider).update(
-            todo.id,
-            completed: !todo.completed,
-          );
+      await ref
+          .read(todosRepositoryProvider)
+          .update(todo.id, completed: !todo.completed);
     } catch (e) {
       // Rollback on failure
       state = previousState;

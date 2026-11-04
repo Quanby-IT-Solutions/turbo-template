@@ -19,9 +19,9 @@ import 'package:mobile/features/auth/presentation/providers/auth_provider.dart';
 /// is compile-time disabled under `flutter test`, so the real sink is a no-op
 /// and asserting on Sentry's own scope is not possible here.
 SessionModel _session(String userId) => SessionModel(
-      session: const SessionData(token: 'session-token'),
-      user: UserModel(id: userId, name: 'Test User', email: 'test@example.com'),
-    );
+  session: const SessionData(token: 'session-token'),
+  user: UserModel(id: userId, name: 'Test User', email: 'test@example.com'),
+);
 
 class _FakeAuthRepository implements AuthRepository {
   _FakeAuthRepository({this.session});
@@ -42,16 +42,14 @@ class _FakeAuthRepository implements AuthRepository {
   Future<SessionModel?> signIn({
     required String email,
     required String password,
-  }) async =>
-      session;
+  }) async => session;
 
   @override
   Future<SessionModel?> signUp({
     required String email,
     required String password,
     required String name,
-  }) async =>
-      session;
+  }) async => session;
 
   @override
   Future<void> signOut() async {
@@ -79,7 +77,9 @@ void main() {
 
   group('authenticated states attach the user id', () {
     test('a restored session identifies the user on launch', () async {
-      final repository = _FakeAuthRepository(session: _session('user-restored'));
+      final repository = _FakeAuthRepository(
+        session: _session('user-restored'),
+      );
       final container = containerFor(repository);
 
       await container.read(authStateProvider.future);
@@ -96,7 +96,9 @@ void main() {
       applied.clear();
 
       repository.session = _session('user-signed-up');
-      await container.read(authStateProvider.notifier).signUp(
+      await container
+          .read(authStateProvider.notifier)
+          .signUp(
             email: 'test@example.com',
             password: 'password123',
             name: 'Test User',
@@ -112,10 +114,9 @@ void main() {
       applied.clear();
 
       repository.session = _session('user-signed-in');
-      await container.read(authStateProvider.notifier).signIn(
-            email: 'test@example.com',
-            password: 'password123',
-          );
+      await container
+          .read(authStateProvider.notifier)
+          .signIn(email: 'test@example.com', password: 'password123');
 
       expect(applied, ['user-signed-in']);
     });
@@ -141,40 +142,43 @@ void main() {
       expect(applied, [null]);
     });
 
-    test('sign-out clears the identity even when the backend call throws',
-        () async {
-      final repository = _FakeAuthRepository(session: _session('user-1'));
-      repository.signOutError = StateError('backend unreachable');
-      final container = containerFor(repository);
-      await container.read(authStateProvider.future);
-      applied.clear();
+    test(
+      'sign-out clears the identity even when the backend call throws',
+      () async {
+        final repository = _FakeAuthRepository(session: _session('user-1'));
+        repository.signOutError = StateError('backend unreachable');
+        final container = containerFor(repository);
+        await container.read(authStateProvider.future);
+        applied.clear();
 
-      await expectLater(
-        container.read(authStateProvider.notifier).signOut(),
-        throwsStateError,
-      );
+        await expectLater(
+          container.read(authStateProvider.notifier).signOut(),
+          throwsStateError,
+        );
 
-      // The `finally` path: the device is signed out regardless, so the
-      // identity has to go with it or the next user inherits it.
-      expect(repository.signOutCalls, 1);
-      expect(applied, [null]);
-    });
+        // The `finally` path: the device is signed out regardless, so the
+        // identity has to go with it or the next user inherits it.
+        expect(repository.signOutCalls, 1);
+        expect(applied, [null]);
+      },
+    );
 
-    test('a rejected sign-in does not leave the previous user attached',
-        () async {
-      final repository = _FakeAuthRepository(session: _session('user-1'));
-      final container = containerFor(repository);
-      await container.read(authStateProvider.future);
-      applied.clear();
+    test(
+      'a rejected sign-in does not leave the previous user attached',
+      () async {
+        final repository = _FakeAuthRepository(session: _session('user-1'));
+        final container = containerFor(repository);
+        await container.read(authStateProvider.future);
+        applied.clear();
 
-      repository.session = null; // bad credentials
-      await container.read(authStateProvider.notifier).signIn(
-            email: 'test@example.com',
-            password: 'wrong-password',
-          );
+        repository.session = null; // bad credentials
+        await container
+            .read(authStateProvider.notifier)
+            .signIn(email: 'test@example.com', password: 'wrong-password');
 
-      expect(applied, [null]);
-    });
+        expect(applied, [null]);
+      },
+    );
   });
 
   group('only the id is ever sent', () {
@@ -188,7 +192,12 @@ void main() {
 
     test('the SentryUser is constructed with an id and nothing else', () {
       expect(source, contains('SentryUser(id: userId)'));
-      for (final field in const ['email:', 'username:', 'ipAddress:', 'name:']) {
+      for (final field in const [
+        'email:',
+        'username:',
+        'ipAddress:',
+        'name:',
+      ]) {
         expect(
           RegExp('SentryUser\\([^)]*$field').hasMatch(source),
           isFalse,

@@ -30,10 +30,7 @@ class TaskTile extends StatelessWidget {
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: AppSpacing.s24),
         color: theme.colorScheme.primary,
-        child: Icon(
-          Icons.delete_outline,
-          color: theme.colorScheme.onPrimary,
-        ),
+        child: Icon(Icons.delete_outline, color: theme.colorScheme.onPrimary),
       ),
       confirmDismiss: (_) => confirmDismiss(),
       onDismissed: (_) => onDismissed(),
@@ -46,7 +43,10 @@ class TaskTile extends StatelessWidget {
           duration: AppMotion.durationFast,
           curve: AppMotion.enterCurve,
           child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.s24, vertical: AppSpacing.s8),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.s24,
+              vertical: AppSpacing.s8,
+            ),
             leading: Checkbox(
               value: isCompleted,
               onChanged: onToggle,
@@ -58,8 +58,8 @@ class TaskTile extends StatelessWidget {
               style: theme.textTheme.bodyLarge!.copyWith(
                 decoration: isCompleted ? TextDecoration.lineThrough : null,
                 color: isCompleted
-                    ? theme.colorScheme.onSurface.withOpacity(0.38)
-                    : theme.colorScheme.onSurface.withOpacity(0.9),
+                    ? theme.colorScheme.onSurface.withValues(alpha: 0.38)
+                    : theme.colorScheme.onSurface.withValues(alpha: 0.9),
                 fontWeight: isCompleted ? FontWeight.w400 : FontWeight.w500,
                 height: 1.47,
               ),

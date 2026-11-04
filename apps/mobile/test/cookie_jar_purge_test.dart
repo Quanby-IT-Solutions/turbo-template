@@ -57,10 +57,14 @@ void main() {
     });
 
     test('a fresh sign-in works after the purge', () async {
-      await jar.saveFromResponse(uri, [Cookie('better-auth.session_token', 'OLD')..path = '/']);
+      await jar.saveFromResponse(uri, [
+        Cookie('better-auth.session_token', 'OLD')..path = '/',
+      ]);
       await jar.deleteAll();
 
-      await jar.saveFromResponse(uri, [Cookie('better-auth.session_token', 'NEW')..path = '/']);
+      await jar.saveFromResponse(uri, [
+        Cookie('better-auth.session_token', 'NEW')..path = '/',
+      ]);
 
       final cookies = await jar.loadForRequest(uri);
       expect(cookies.map((c) => c.value), contains('NEW'));

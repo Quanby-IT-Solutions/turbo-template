@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile/core/theme/flex_theme_config.dart';
 import 'package:mobile/services/storage/theme_storage_service.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -8,25 +7,19 @@ part 'theme_provider.g.dart';
 
 /// State class holding the current theme configuration.
 class ThemeState {
-  const ThemeState({
-    required this.themeMode,
-    required this.colorScheme,
-  });
+  const ThemeState({required this.themeMode, required this.colorScheme});
 
   final ThemeMode themeMode;
   final AppColorScheme colorScheme;
 
   /// Creates a default theme state.
   factory ThemeState.defaults() => const ThemeState(
-        themeMode: FlexThemeConfig.defaultThemeMode,
-        colorScheme: FlexThemeConfig.defaultColorScheme,
-      );
+    themeMode: FlexThemeConfig.defaultThemeMode,
+    colorScheme: FlexThemeConfig.defaultColorScheme,
+  );
 
   /// Creates a copy with the given fields replaced.
-  ThemeState copyWith({
-    ThemeMode? themeMode,
-    AppColorScheme? colorScheme,
-  }) {
+  ThemeState copyWith({ThemeMode? themeMode, AppColorScheme? colorScheme}) {
     return ThemeState(
       themeMode: themeMode ?? this.themeMode,
       colorScheme: colorScheme ?? this.colorScheme,
@@ -117,6 +110,5 @@ String themeModeDisplayName(Ref ref) {
     ThemeMode.system => 'System',
     ThemeMode.light => 'Light',
     ThemeMode.dark => 'Dark',
-    _ => 'System',
   };
 }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import { scrubEventProperties } from "./analytics-scrub.js"
+import { REDACTED_VALUE } from "./redaction.js"
 
 // The scrub every analytics event passes through before it leaves the app, on
 // web and on the backend. Mobile has its own Dart twin over the same manifest.
@@ -32,6 +33,26 @@ describe("scrubEventProperties", () => {
 		const input = { form: { email: "a", step: 2 } }
 		scrubEventProperties(input)
 		expect(input).toEqual({ form: { email: "a", step: 2 } })
+	})
+
+	it("redacts credential query parameters in URL-shaped properties", () => {
+		// The verify-email and reset-password pages carry ?token= in the URL, and
+		// every pageview sends that URL as $current_url (and later $referrer).
+		expect(
+			scrubEventProperties({
+				$current_url: "https://app.example.com/reset-password?token=abc&lang=en",
+				$referrer: "/verify-email?token=xyz",
+				$set: { $initial_current_url: "/verify-email?token=xyz" },
+			})
+		).toEqual({
+			$current_url: `https://app.example.com/reset-password?token=${REDACTED_VALUE}&lang=en`,
+			$referrer: `/verify-email?token=${REDACTED_VALUE}`,
+			$set: { $initial_current_url: `/verify-email?token=${REDACTED_VALUE}` },
+		})
+	})
+
+	it("leaves strings under other keys alone, even with a question mark", () => {
+		expect(scrubEventProperties({ question: "why?token=x" })).toEqual({ question: "why?token=x" })
 	})
 
 	it("keeps distinct_id", () => {

@@ -37,6 +37,30 @@ describe("authLogger", () => {
 		expect(output).toContain("connect ECONNREFUSED")
 	})
 
+	// Better Auth's default line, so operators' greps keep working
+	// (AC2 walk 11/4: the first version printed "[Better Auth]: User not found").
+	it("prints the timestamp and level the default logger prints", () => {
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined)
+
+		authLogger.log?.("warn", "User not found")
+
+		expect(warn.mock.calls[0]?.[0]).toMatch(
+			/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z WARN \[Better Auth\]: User not found$/
+		)
+	})
+
+	it("writes info and debug through console.log, as the default logger does", () => {
+		const log = vi.spyOn(console, "log").mockImplementation(() => undefined)
+
+		authLogger.log?.("info", "ready")
+		authLogger.log?.("debug", "detail")
+
+		expect(log.mock.calls.map(call => String(call[0]))).toEqual([
+			expect.stringMatching(/ INFO \[Better Auth\]: ready$/),
+			expect.stringMatching(/ DEBUG \[Better Auth\]: detail$/),
+		])
+	})
+
 	it("redacts SQL params in a plain message and string arguments", () => {
 		const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined)
 

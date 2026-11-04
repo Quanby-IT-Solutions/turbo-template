@@ -203,6 +203,15 @@ jobs:
       - name: Backend e2e
         run: pnpm -F @repo/backend test:e2e
 
+      # The telemetry mode check boots the built backend once per
+      # OpenTelemetry/Sentry mode against a local OTLP receiver. Jest cannot
+      # observe module patching, so it is a script over dist/ (docs/opentelemetry.md).
+      - name: Build backend
+        run: pnpm turbo run build --filter=@repo/backend
+
+      - name: Telemetry modes
+        run: pnpm -F @repo/backend verify:telemetry
+
   # Authenticated Playwright. Runs when `web`, `backend`, or `deps` changes.
   # The pinned quality gate has no Postgres and starts no backend, and that
   # repository is out of scope, so the gate's e2e job stays the unauthenticated

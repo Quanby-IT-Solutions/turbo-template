@@ -29,7 +29,11 @@ type Span = {
 type Metric = { name: string; histogram?: { dataPoints: { count?: string | number }[] } }
 
 const SPAN_KIND_SERVER = 2
-const SECRETS = ["secret-bearer-x", "cookie-secret-y", "rid-secret-z", "tok-abc"]
+// reset-secret-w rides in the path: Better Auth's reset link is /reset-password/<token>.
+const SECRETS = ["secret-bearer-x", "cookie-secret-y", "rid-secret-z", "tok-abc", "reset-secret-w"]
+// The log adopts and echoes a well-formed inbound x-request-id on purpose
+// (request-id.spec.ts), so only the credentials are checked there.
+const LOG_SECRETS = SECRETS.filter(secret => secret !== "rid-secret-z")
 const BACKEND_DIR = join(__dirname, "..")
 const SENTRY_DUMMY_DSN = "https://public@127.0.0.1:9/1"
 
@@ -122,6 +126,7 @@ async function exercise(port: number) {
 		},
 	})
 	const todosMs = Date.now() - started
+	await fetch(`${base}/auth/reset-password/reset-secret-w?callbackURL=/x`, { redirect: "manual" })
 	await fetch(`${base}/health`)
 	return { todosStatus: todos.status, todosMs }
 }
@@ -314,7 +319,12 @@ async function main() {
 			todosMs,
 			aliveAfterRequest,
 		}
-		const failures = mode.check(run)
+		const failures = [
+			...mode.check(run),
+			...LOG_SECRETS.filter(secret => run.output.includes(secret)).map(
+				secret => `the log contains ${secret}`
+			),
+		]
 		if (process.env.VERIFY_TELEMETRY_DEBUG) debugDump(run)
 		failed ||= failures.length > 0
 		console.log(

@@ -160,7 +160,7 @@ export function createAuth() {
 	const verificationEnabled = authEnv.EMAIL_VERIFICATION_ENABLED || verificationRequired
 
 	return betterAuth({
-		// Failed queries leave the adapter without their bound values (PAL-220).
+		// Failed queries leave the adapter without their bound values.
 		database: (options: Parameters<ReturnType<typeof drizzleAdapter>>[0]) =>
 			withSafeDatabaseErrors(
 				drizzleAdapter(db, {

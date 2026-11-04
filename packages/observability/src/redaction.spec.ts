@@ -5,8 +5,8 @@ import {
 	PINO_REDACT_PATHS,
 	REDACTED_FIELD_NAMES,
 	REDACTED_VALUE,
-	sanitizeLogQuery,
 	redactSqlParams,
+	sanitizeLogQuery,
 	sanitizeLogUrl,
 } from "./redaction.js"
 

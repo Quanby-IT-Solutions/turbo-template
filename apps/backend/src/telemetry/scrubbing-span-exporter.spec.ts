@@ -53,6 +53,12 @@ describe("scrubSpanAttributes", () => {
 		})
 	})
 
+	it("drops a cookie Sentry split out by name (http.request.header.cookie.<name>)", () => {
+		expect(
+			scrubSpanAttributes({ "http.request.header.cookie.sess": "live-session", "keep": 1 })
+		).toEqual({ keep: 1 })
+	})
+
 	it("drops any attribute whose last segment is a deny-listed field", () => {
 		expect(
 			scrubSpanAttributes({ "db.params.password": "x", "app.user.email": "a@b.c", "keep": 1 })

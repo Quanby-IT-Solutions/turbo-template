@@ -30,6 +30,7 @@ import {
 	REDACTED_FIELD_NAMES,
 	REDACTED_QUERY_PARAMS,
 	REDACTED_VALUE,
+	redactSqlParams,
 	sanitizeLogQuery,
 	sanitizeLogUrl,
 } from "@repo/observability"
@@ -141,6 +142,46 @@ function stripDeniedQuery(queryString: unknown): unknown {
  * list). It is dropped because the only id that may be stored is the one this
  * server assigned, which is sent as the `request_id` tag rather than as a header.
  */
+/**
+ * A request body as Sentry may keep it. The SDK records a JSON body as the raw
+ * string (captured 11/4: a sign-in password arrived that way), so a string is
+ * parsed and scrubbed like an object; one that is not JSON is dropped, because
+ * nothing can say which part of it is the credential.
+ */
+function scrubRequestData(data: unknown): unknown {
+	if (typeof data !== "string") return stripDeniedKeys(data, true)
+	try {
+		return JSON.stringify(stripDeniedKeys(JSON.parse(data) as unknown, true))
+	} catch {
+		return FILTERED_BODY
+	}
+}
+
+/** What a request body string that is not JSON becomes. */
+const FILTERED_BODY = "[Filtered]"
+
+/** How deep `redactSqlParamsDeep` walks; Sentry events are shallow JSON. */
+const MAX_SQL_SCRUB_DEPTH = 12
+
+/**
+ * Every string in a value with SQL params redacted (`redactSqlParams`).
+ *
+ * A failed query's message, bound values included, travels in the exception
+ * value, the console breadcrumb Better Auth's logger leaves, extra data and
+ * stack strings, so the whole outbound event is walked instead of naming each
+ * place. Returns a copy.
+ */
+function redactSqlParamsDeep<T>(value: T, depth = 0): T {
+	if (typeof value === "string") return redactSqlParams(value) as T
+	if (value === null || typeof value !== "object" || depth >= MAX_SQL_SCRUB_DEPTH) return value
+	if (Array.isArray(value)) return value.map(item => redactSqlParamsDeep(item, depth + 1)) as T
+	const result: Record<string, unknown> = {}
+	for (const [key, entry] of Object.entries(value)) {
+		result[key] = redactSqlParamsDeep(entry, depth + 1)
+	}
+	return result as T
+}
+
 function scrubSentryRequest<T extends Sentry.Event>(event: T): T {
 	const request = event.request
 	if (!request) {
@@ -165,7 +206,7 @@ function scrubSentryRequest<T extends Sentry.Event>(event: T): T {
 	}
 
 	if (request.data !== undefined) {
-		scrubbed.data = stripDeniedKeys(request.data, true)
+		scrubbed.data = scrubRequestData(request.data)
 	}
 
 	return { ...event, request: scrubbed as typeof request }
@@ -210,7 +251,7 @@ function scrubSpanData<T extends Sentry.Event>(event: T): T {
  * inferred.
  */
 export function scrubSentryEvent<T extends Sentry.Event>(event: T): T {
-	return scrubSpanData(scrubSentryRequest(event))
+	return redactSqlParamsDeep(scrubSpanData(scrubSentryRequest(event)))
 }
 
 /** `beforeSendSpan` sees the span on its own, before it is folded into a transaction. */
@@ -241,7 +282,7 @@ const BREADCRUMB_QUERY_KEYS = ["query", "query_string", "http.query", "params"] 
  */
 export function scrubSentryBreadcrumb(breadcrumb: Sentry.Breadcrumb): Sentry.Breadcrumb {
 	if (!breadcrumb.data) {
-		return breadcrumb
+		return redactSqlParamsDeep(breadcrumb)
 	}
 
 	const data = stripDeniedKeys(breadcrumb.data, true)
@@ -256,7 +297,7 @@ export function scrubSentryBreadcrumb(breadcrumb: Sentry.Breadcrumb): Sentry.Bre
 		}
 	}
 
-	return { ...breadcrumb, data }
+	return redactSqlParamsDeep({ ...breadcrumb, data })
 }
 
 /**

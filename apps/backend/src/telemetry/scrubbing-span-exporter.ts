@@ -9,7 +9,14 @@ import { omitUnloggedRequestHeaderAttributes } from "@/utils/unlogged-request-he
 const deniedFieldNames = new Set<string>(REDACTED_FIELD_NAMES.map(name => name.toLowerCase()))
 
 /** Attributes whose value is a URL or a path, which can carry a credential. */
-const URL_ATTRIBUTES = ["url.full", "http.url", "http.target", "url.path", "http.route"] as const
+const URL_ATTRIBUTES = [
+	"url.full",
+	"http.url",
+	"http.target",
+	"url.path",
+	"http.route",
+	"url",
+] as const
 
 /** Attributes holding a bare query string (`token=abc&lang=en`); `http.query` is Sentry's. */
 const QUERY_ATTRIBUTES = ["url.query", "http.query"] as const
@@ -17,10 +24,24 @@ const QUERY_ATTRIBUTES = ["url.query", "http.query"] as const
 /** A captured request header holding the previous page's URL. */
 const REFERER_HEADER = /\.header\.referr?er$/i
 
+function isDeniedName(segment: string): boolean {
+	const name = segment.replace(/_/g, "-")
+	return deniedFieldNames.has(name) || deniedFieldNames.has(name.replace(/-/g, ""))
+}
+
+/**
+ * Whether an attribute is named after a deny-listed field: by its last segment
+ * (`...authorization`), or by the header it records. Sentry splits the cookie
+ * header into one attribute per cookie (`http.request.header.cookie.<name>`),
+ * so the last segment is the cookie's name and the value is the session token.
+ */
 function isDeniedAttribute(key: string): boolean {
 	const lower = key.toLowerCase()
-	const lastSegment = lower.slice(lower.lastIndexOf(".") + 1).replace(/_/g, "-")
-	return deniedFieldNames.has(lastSegment) || deniedFieldNames.has(lastSegment.replace(/-/g, ""))
+	const header = /\.header\.([^.]+)/.exec(lower)?.[1]
+	return (
+		isDeniedName(lower.slice(lower.lastIndexOf(".") + 1)) ||
+		(header !== undefined && isDeniedName(header))
+	)
 }
 
 /**

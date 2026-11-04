@@ -9,6 +9,9 @@ const deniedKeys = new Set<string>(REDACTED_FIELD_NAMES.map(name => name.toLower
  */
 const MAX_SCRUB_DEPTH = 4
 
+/** What a nested object or array past `MAX_SCRUB_DEPTH` becomes. */
+const TRUNCATED = "[Truncated]"
+
 function isDenied(key: string): boolean {
 	return deniedKeys.has(key.trim().toLowerCase())
 }
@@ -23,7 +26,10 @@ const URL_KEY = /url|referr?er|href|pathname|location/i
 
 function scrubValue(value: unknown, depth: number, key?: string): unknown {
 	if (typeof value === "string" && key && URL_KEY.test(key)) return sanitizeLogUrl(value)
-	if (depth >= MAX_SCRUB_DEPTH || value === null || typeof value !== "object") return value
+	if (value === null || typeof value !== "object") return value
+	// Past the bound an object or array is replaced, never passed through
+	// unread: an unread value is exactly where a deny-listed key would hide.
+	if (depth >= MAX_SCRUB_DEPTH) return TRUNCATED
 	if (Array.isArray(value)) return value.map(item => scrubValue(item, depth + 1))
 
 	const result: Record<string, unknown> = {}

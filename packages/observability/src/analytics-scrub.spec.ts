@@ -55,6 +55,13 @@ describe("scrubEventProperties", () => {
 		expect(scrubEventProperties({ question: "why?token=x" })).toEqual({ question: "why?token=x" })
 	})
 
+	it("never passes a deny-listed key through below the depth bound", () => {
+		// Past the bound the value is replaced, not returned untouched.
+		const deep = { a: { b: { c: { d: { password: "x" } } } }, list: [[[[{ token: "t" }]]]] }
+
+		expect(JSON.stringify(scrubEventProperties(deep))).not.toMatch(/password|"token"/)
+	})
+
 	it("keeps distinct_id", () => {
 		expect(scrubEventProperties({ distinct_id: "u1" })).toEqual({ distinct_id: "u1" })
 	})

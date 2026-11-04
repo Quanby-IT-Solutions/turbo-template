@@ -17,6 +17,7 @@ import { buildResetPasswordEmail } from "./mailer/templates/reset-password-email
 import { buildVerificationEmail } from "./mailer/templates/verification-email.js"
 import { createTransport } from "./mailer/transport-factory.js"
 import { parseOriginList } from "./origin-list.js"
+import { rateLimitStorage } from "./rate-limit-storage.js"
 import { authSecretSchema } from "./secret-schema.js"
 
 /**
@@ -172,6 +173,9 @@ export function createAuth() {
 		secret: authEnv.BETTER_AUTH_SECRET,
 		rateLimit: {
 			enabled: true,
+			// Counts in the host's shared store when one is registered (the backend
+			// registers Redis), otherwise in this process. See rate-limit-storage.ts.
+			customStorage: rateLimitStorage,
 			window: authEnv.AUTH_RATE_LIMIT_WINDOW,
 			max: authEnv.AUTH_RATE_LIMIT_MAX,
 			customRules: {

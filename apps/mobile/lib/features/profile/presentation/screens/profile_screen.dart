@@ -62,7 +62,7 @@ class ProfileScreen extends ConsumerWidget {
                     user?.name ?? 'Unknown',
                     style: theme.textTheme.headlineMedium?.copyWith(
                       fontWeight: FontWeight.w600,
-                      color: theme.colorScheme.onSurface.withOpacity(0.9),
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.9),
                       letterSpacing: -0.5,
                       height: 1.1,
                     ),
@@ -71,7 +71,7 @@ class ProfileScreen extends ConsumerWidget {
                   Text(
                     user?.email ?? '',
                     style: theme.textTheme.bodyLarge?.copyWith(
-                      color: theme.colorScheme.onSurface.withOpacity(0.6),
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                       height: 1.47,
                     ),
                   ),

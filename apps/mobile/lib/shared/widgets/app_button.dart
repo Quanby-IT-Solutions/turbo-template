@@ -39,8 +39,8 @@ class AppButton extends StatelessWidget {
           style: FilledButton.styleFrom(
             backgroundColor: color,
             foregroundColor: onColor,
-            disabledBackgroundColor: color.withOpacity(0.5),
-            disabledForegroundColor: onColor.withOpacity(0.5),
+            disabledBackgroundColor: color.withValues(alpha: 0.5),
+            disabledForegroundColor: onColor.withValues(alpha: 0.5),
             shape: RoundedRectangleBorder(borderRadius: AppRadii.smallRadius),
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s24),
             elevation: 0,

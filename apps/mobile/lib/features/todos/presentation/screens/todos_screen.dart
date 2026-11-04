@@ -39,14 +39,14 @@ class TodosScreen extends ConsumerWidget {
                   Icon(
                     Icons.checklist_rounded,
                     size: 48,
-                    color: theme.colorScheme.onSurface.withOpacity(0.15),
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.15),
                   ),
                   const SizedBox(height: 24),
                   Text(
                     'No tasks yet',
                     style: theme.textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.w600,
-                      color: theme.colorScheme.onSurface.withOpacity(0.6),
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                       letterSpacing: -0.5,
                       height: 1.1,
                     ),
@@ -55,7 +55,9 @@ class TodosScreen extends ConsumerWidget {
                   Text(
                     'Tap + to create one',
                     style: theme.textTheme.bodyLarge?.copyWith(
-                      color: theme.colorScheme.onSurface.withOpacity(0.38),
+                      color: theme.colorScheme.onSurface.withValues(
+                        alpha: 0.38,
+                      ),
                       height: 1.47,
                     ),
                   ),
@@ -153,7 +155,7 @@ class TodosScreen extends ConsumerWidget {
             child: Text(
               'Cancel',
               style: TextStyle(
-                color: theme.colorScheme.onSurface.withOpacity(0.6),
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
               ),
             ),
           ),

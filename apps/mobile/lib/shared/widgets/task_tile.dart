@@ -58,8 +58,8 @@ class TaskTile extends StatelessWidget {
               style: theme.textTheme.bodyLarge!.copyWith(
                 decoration: isCompleted ? TextDecoration.lineThrough : null,
                 color: isCompleted
-                    ? theme.colorScheme.onSurface.withOpacity(0.38)
-                    : theme.colorScheme.onSurface.withOpacity(0.9),
+                    ? theme.colorScheme.onSurface.withValues(alpha: 0.38)
+                    : theme.colorScheme.onSurface.withValues(alpha: 0.9),
                 fontWeight: isCompleted ? FontWeight.w400 : FontWeight.w500,
                 height: 1.47,
               ),

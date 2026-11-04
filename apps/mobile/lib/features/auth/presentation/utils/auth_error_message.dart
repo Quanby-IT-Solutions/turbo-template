@@ -43,12 +43,15 @@ String _fromStatus(int? status) {
     return 'Incorrect email or password.';
   }
   if (status == 409) return 'That email is already registered.';
-  if (status == 422 || status == 400)
+  if (status == 422 || status == 400) {
     return 'Please check the details you entered.';
-  if (status == 429)
+  }
+  if (status == 429) {
     return 'Too many attempts. Please wait a moment and try again.';
-  if (status >= 500)
+  }
+  if (status >= 500) {
     return 'The server is having trouble. Please try again shortly.';
+  }
 
   return 'Something went wrong. Please try again.';
 }

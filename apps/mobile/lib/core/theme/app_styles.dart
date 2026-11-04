@@ -30,7 +30,7 @@ class AppShadows {
     return BoxShadow(
       offset: const Offset(0, 2),
       blurRadius: 20,
-      color: colorScheme.shadow.withOpacity(0.06),
+      color: colorScheme.shadow.withValues(alpha: 0.06),
     );
   }
 }

@@ -66,7 +66,9 @@ class SettingsTab extends ConsumerWidget {
                         Text(
                           user?.email ?? '',
                           style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onSurface.withOpacity(0.6),
+                            color: theme.colorScheme.onSurface.withValues(
+                              alpha: 0.6,
+                            ),
                           ),
                         ),
                       ],
@@ -143,7 +145,7 @@ class SettingsTab extends ConsumerWidget {
                   subtitle: const Text('Replay the feature tour'),
                   trailing: Icon(
                     Icons.chevron_right,
-                    color: theme.colorScheme.onSurface.withOpacity(0.3),
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
                   ),
                   onTap: () {
                     final userId = ref.read(currentUserProvider)?.id;
@@ -160,7 +162,7 @@ class SettingsTab extends ConsumerWidget {
                 subtitle: const Text('Show onboarding screens again'),
                 trailing: Icon(
                   Icons.chevron_right,
-                  color: theme.colorScheme.onSurface.withOpacity(0.3),
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
                 ),
                 onTap: () async {
                   await ref

@@ -111,6 +111,15 @@ export const env = createEnv({
 		// "sample everything", which is a billing incident rather than an error.
 		// Defaults to 0 at the call sites: tracing is opt-in, reporting is not.
 		NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE: z.coerce.number().min(0).max(1).optional(),
+
+		// PostHog: product analytics and feature flags in the browser. Same
+		// two-part gate as Sentry: the flag alone does nothing without a token
+		// (see `core/lib/posthog-config.ts`). The token is a public ingest key.
+		NEXT_PUBLIC_POSTHOG_ENABLED: optionalBooleanFromEnv,
+		NEXT_PUBLIC_POSTHOG_TOKEN: z.string().optional(),
+		// Ingestion host of the project's region, used only by the `/ingest`
+		// rewrite in `next.config.ts`. Defaults to US there.
+		NEXT_PUBLIC_POSTHOG_HOST: z.string().optional(),
 	},
 
 	/**
@@ -149,6 +158,11 @@ export const env = createEnv({
 		NEXT_PUBLIC_SENTRY_ENVIRONMENT:
 			process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT || process.env.SENTRY_ENVIRONMENT,
 		NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE: process.env.NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE,
+
+		// PostHog (browser)
+		NEXT_PUBLIC_POSTHOG_ENABLED: process.env.NEXT_PUBLIC_POSTHOG_ENABLED,
+		NEXT_PUBLIC_POSTHOG_TOKEN: process.env.NEXT_PUBLIC_POSTHOG_TOKEN,
+		NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST,
 	},
 
 	/**

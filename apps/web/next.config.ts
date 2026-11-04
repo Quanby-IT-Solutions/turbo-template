@@ -8,6 +8,25 @@ import { withSerwist } from "@serwist/turbopack"
 
 import "./env"
 
+/**
+ * PostHog ingestion host for the same-origin `/ingest` proxy, or `undefined`
+ * when browser analytics is off.
+ *
+ * Read raw from `process.env` (like the API origin in `headers()`) with the
+ * same gate as `core/lib/posthog-config.ts`: the flag AND a token. When either
+ * is missing no rewrite is added and trailing-slash handling stays untouched,
+ * so a clone without PostHog serves exactly the routes it serves today.
+ */
+const posthogIngestHost = (() => {
+	const flag = process.env.NEXT_PUBLIC_POSTHOG_ENABLED?.trim()
+	const token = process.env.NEXT_PUBLIC_POSTHOG_TOKEN?.trim()
+	if (!(flag === "true" || flag === "1") || !token) return undefined
+	return (process.env.NEXT_PUBLIC_POSTHOG_HOST?.trim() || "https://us.i.posthog.com").replace(
+		/\/+$/,
+		""
+	)
+})()
+
 /** @type {import("next").NextConfig} */
 const config: NextConfig = {
 	typedRoutes: true,
@@ -44,6 +63,31 @@ const config: NextConfig = {
 	devIndicators: {
 		position: "bottom-right",
 	},
+
+	/**
+	 * PostHog's same-origin proxy (only when browser analytics is on).
+	 *
+	 * The browser SDK posts to `/ingest`, which is rewritten to PostHog. That
+	 * keeps `connect-src 'self'` in the CSP below sufficient and stops ad
+	 * blockers dropping events, the same reasons Sentry uses `/monitoring`.
+	 * PostHog's API paths end in a slash, which Next would otherwise redirect
+	 * away, hence `skipTrailingSlashRedirect`. Static assets come from the
+	 * region's `-assets` host.
+	 */
+	...(posthogIngestHost
+		? {
+				skipTrailingSlashRedirect: true,
+				async rewrites() {
+					return [
+						{
+							source: "/ingest/static/:path*",
+							destination: `${posthogIngestHost.replace(".i.posthog.com", "-assets.i.posthog.com")}/static/:path*`,
+						},
+						{ source: "/ingest/:path*", destination: `${posthogIngestHost}/:path*` },
+					]
+				},
+			}
+		: {}),
 
 	/**
 	 * Give the browser bundle the same Sentry environment the server and edge

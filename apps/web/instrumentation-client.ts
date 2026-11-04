@@ -18,7 +18,9 @@
  */
 
 import * as Sentry from "@sentry/nextjs"
+import posthog from "posthog-js"
 
+import { clientPosthogToken, posthogInitOptions } from "@/core/lib/posthog-config"
 import {
 	clientSentryDsn,
 	clientSentryEnvironment,
@@ -49,6 +51,16 @@ if (clientSentryDsn) {
 		beforeSend: scrubSentryEvent,
 		beforeBreadcrumb: scrubSentryBreadcrumb,
 	})
+}
+
+/**
+ * PostHog: pageviews, identify and feature flags. Same gate as Sentry: nothing
+ * initializes unless `NEXT_PUBLIC_POSTHOG_ENABLED` is on AND a token is set,
+ * and a clone without a PostHog project makes no request at all. Privacy
+ * defaults and the `/ingest` proxy are in `core/lib/posthog-config.ts`.
+ */
+if (clientPosthogToken) {
+	posthog.init(clientPosthogToken, posthogInitOptions())
 }
 
 /**

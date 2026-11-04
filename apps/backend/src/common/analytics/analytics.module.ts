@@ -2,6 +2,7 @@ import { Global, Inject, Module, type OnApplicationShutdown } from "@nestjs/comm
 
 import { env } from "@/config/env.config"
 
+import { FeatureFlagsService } from "./feature-flags.service"
 import { createPosthogClient, POSTHOG_CLIENT, type PosthogClient } from "./posthog.provider"
 
 /**
@@ -25,8 +26,9 @@ import { createPosthogClient, POSTHOG_CLIENT, type PosthogClient } from "./posth
 					secretKey: env.POSTHOG_FEATURE_FLAGS_SECRET_KEY,
 				}),
 		},
+		FeatureFlagsService,
 	],
-	exports: [POSTHOG_CLIENT],
+	exports: [POSTHOG_CLIENT, FeatureFlagsService],
 })
 export class AnalyticsModule implements OnApplicationShutdown {
 	constructor(@Inject(POSTHOG_CLIENT) private readonly client: PosthogClient) {}

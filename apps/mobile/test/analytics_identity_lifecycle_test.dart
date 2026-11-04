@@ -156,7 +156,7 @@ void main() {
       'lib/features/auth/presentation/providers/auth_provider.dart',
     ).readAsStringSync();
 
-    expect(source, contains('Posthog().identify(userId: userId)'));
+    expect(source, contains('Posthog().identify(userId: id)'));
     expect(source, isNot(contains('userProperties')));
   });
 }

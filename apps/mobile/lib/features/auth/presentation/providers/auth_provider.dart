@@ -5,6 +5,7 @@ import 'package:mobile/core/constants/sentry_constants.dart';
 import 'package:mobile/features/auth/data/auth_repository.dart';
 import 'package:mobile/features/auth/data/models/session_model.dart';
 import 'package:mobile/features/auth/data/models/user_model.dart';
+import 'package:mobile/services/analytics/analytics_identity_marker.dart';
 import 'package:posthog_flutter/posthog_flutter.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
@@ -55,18 +56,25 @@ class AnalyticsIdentity {
   /// The active sink. Production code never reassigns this; see [reset].
   static AnalyticsIdentitySink apply = posthogSink;
 
-  /// Identifies the signed-in user by id, or resets to a fresh anonymous id.
+  /// Which user PostHog was last identified as. Set in `_bootstrap()` next to
+  /// `AnalyticsService.setup()`, before anything can sign in.
+  static late AnalyticsIdentityMarker marker;
+
+  /// Identifies the signed-in user by id, or resets to a fresh anonymous id
+  /// when this device was identified.
   ///
   /// The id and nothing else: no email or name goes to PostHog as a person
   /// property. Reset matters as much as identify. Without it, the next person
-  /// to sign in on this device would be merged into the previous one.
+  /// to sign in on this device would be merged into the previous one. The
+  /// marker decides which of the two a call needs, so a signed-out launch on
+  /// an anonymous device keeps its anonymous id.
   static void posthogSink(String? userId) {
     if (!PosthogConstants.isEnabled) return;
-    if (userId == null) {
-      Posthog().reset();
-    } else {
-      Posthog().identify(userId: userId);
-    }
+    marker.sync(
+      userId,
+      reset: () => Posthog().reset(),
+      identify: (id) => Posthog().identify(userId: id),
+    );
   }
 
   /// Restores [posthogSink]. Test teardown only.

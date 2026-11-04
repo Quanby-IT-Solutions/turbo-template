@@ -44,6 +44,15 @@ void main() {
     );
   });
 
+  test('the startup screen is never a screen view', () {
+    // It only covers the first session check; recording it would add a
+    // screen nobody chose to visit to every launch.
+    expect(
+      AnalyticsScreens.nameFor(const RouteSettings(name: AppRoutes.startup)),
+      isNull,
+    );
+  });
+
   test('a tab tap records that tab and still switches tabs', () {
     final taps = <int>[];
     final wrapped = AnalyticsScreens.recordTabTaps(

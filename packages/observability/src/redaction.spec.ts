@@ -27,6 +27,24 @@ describe("sanitizeLogUrl", () => {
 	})
 
 	it.each([
+		[
+			"/api/v1/auth/reset-password/live-reset-token?callbackURL=/reset-password",
+			`/api/v1/auth/reset-password/${REDACTED_VALUE}?callbackURL=/reset-password`,
+		],
+		[
+			"https://api.example.com/api/v1/auth/reset-password/live-reset-token",
+			`https://api.example.com/api/v1/auth/reset-password/${REDACTED_VALUE}`,
+		],
+		["/auth/reset-password/live-reset-token/", `/auth/reset-password/${REDACTED_VALUE}/`],
+	])("strips the token Better Auth puts in the reset link's path: %s", (url, expected) => {
+		expect(sanitizeLogUrl(url)).toBe(expected)
+	})
+
+	it("leaves a reset-password page with no path token alone", () => {
+		expect(sanitizeLogUrl("/reset-password")).toBe("/reset-password")
+	})
+
+	it.each([
 		["code", "/cb?code=oauth-code"],
 		["secret", "/x?secret=shh"],
 		["password", "/x?password=hunter2"],

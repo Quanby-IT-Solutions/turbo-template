@@ -1,3 +1,4 @@
+import type { TraceState } from "@opentelemetry/api"
 import { ExportResultCode, type ExportResult } from "@opentelemetry/core"
 import type { ReadableSpan, SpanExporter } from "@opentelemetry/sdk-trace-base"
 
@@ -9,6 +10,21 @@ function spanWith(attributes: Record<string, unknown>): ReadableSpan {
 		attributes,
 		spanContext: () => ({ traceId: "t".repeat(32), spanId: "s".repeat(16), traceFlags: 1 }),
 	} as unknown as ReadableSpan
+}
+
+function mapTraceState(entries: [string, string][]): TraceState {
+	const state = new Map(entries)
+	const make = (next: Map<string, string>): TraceState => ({
+		set: (key, value) => make(new Map(next).set(key, value)),
+		unset: key => {
+			const copy = new Map(next)
+			copy.delete(key)
+			return make(copy)
+		},
+		get: key => next.get(key),
+		serialize: () => [...next].map(([key, value]) => `${key}=${value}`).join(","),
+	})
+	return make(state)
 }
 
 /** An exporter that keeps what it is handed. */
@@ -79,6 +95,36 @@ describe("ScrubbingSpanExporter", () => {
 		expect(exported?.spanContext().spanId).toBe("s".repeat(16))
 		expect(Object.keys(span.attributes)).toContain("http.request.header.authorization")
 		expect(done).toHaveBeenCalledWith({ code: ExportResultCode.SUCCESS })
+	})
+
+	it("drops Sentry's entries from the trace state, which carry the request URL", () => {
+		// Sentry's sampler records the full request URL, query included, as
+		// sentry.url in the W3C trace state; the OTLP exporter ships it with the span.
+		const { exporter, received } = recordingExporter()
+		// A map-backed trace state, like Sentry's own class (the W3C one rejects
+		// dotted keys). sentry.dsc's value contains commas on purpose.
+		const traceState = mapTraceState([
+			["vendor", "keep"],
+			["sentry.sample_rand", "0.5"],
+			["sentry.dsc", "sentry-trace_id=abc,sentry-public_key=k"],
+			["sentry.url", "https://h/reset-password?token=abc"],
+		])
+		const span = {
+			name: "GET",
+			attributes: {},
+			spanContext: () => ({
+				traceId: "t".repeat(32),
+				spanId: "s".repeat(16),
+				traceFlags: 1,
+				traceState,
+			}),
+		} as unknown as ReadableSpan
+
+		new ScrubbingSpanExporter(exporter).export([span], jest.fn())
+
+		const [exported] = received[0] ?? []
+		expect(exported?.spanContext().traceState?.serialize()).toBe("vendor=keep")
+		expect(span.spanContext().traceState?.serialize()).toContain("sentry.url")
 	})
 
 	it("delegates shutdown and forceFlush", async () => {

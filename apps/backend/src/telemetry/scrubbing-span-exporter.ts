@@ -1,4 +1,4 @@
-import type { Attributes } from "@opentelemetry/api"
+import type { Attributes, TraceState } from "@opentelemetry/api"
 import type { ExportResult } from "@opentelemetry/core"
 import type { ReadableSpan, SpanExporter } from "@opentelemetry/sdk-trace-base"
 
@@ -68,11 +68,36 @@ export class ScrubbingSpanExporter implements SpanExporter {
 	}
 }
 
+/** A key Sentry writes into the W3C trace state for its own sampling. */
+const SENTRY_TRACE_STATE_KEY = /(?:^|,)(sentry\.[a-z_]+)=/g
+
 /**
- * A copy of the span with scrubbed attributes. The prototype is kept so methods
- * such as `spanContext()` still work; the original span is not touched.
+ * The trace state without Sentry's entries.
+ *
+ * Sentry's sampler records the full request URL, query string included, as
+ * `sentry.url`, plus sampling bookkeeping (`sentry.dsc`, `sentry.sample_rand`
+ * and others). They mean nothing to an OTLP backend and `sentry.url` can carry
+ * a `?token=`, so none of them is exported. Other vendors' entries stay.
+ */
+export function withoutSentryEntries(traceState: TraceState | undefined): TraceState | undefined {
+	if (!traceState) return traceState
+	let next = traceState
+	for (const [, key] of traceState.serialize().matchAll(SENTRY_TRACE_STATE_KEY)) {
+		if (key) next = next.unset(key)
+	}
+	return next
+}
+
+/**
+ * A copy of the span with scrubbed attributes and trace state. The prototype
+ * is kept so other methods still work; the original span is not touched.
  */
 function scrubbedCopy(span: ReadableSpan): ReadableSpan {
+	const context = span.spanContext()
+	const scrubbedContext = { ...context, traceState: withoutSentryEntries(context.traceState) }
 	const copy = Object.create(Object.getPrototypeOf(span) as object) as ReadableSpan
-	return Object.assign(copy, span, { attributes: scrubSpanAttributes(span.attributes) })
+	return Object.assign(copy, span, {
+		attributes: scrubSpanAttributes(span.attributes),
+		spanContext: () => scrubbedContext,
+	})
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:mobile/core/constants/posthog_constants.dart';
 import 'package:mobile/core/constants/redacted_fields.dart';
+import 'package:mobile/services/analytics/feature_flags.dart';
 import 'package:posthog_flutter/posthog_flutter.dart';
 
 final Set<String> _deniedKeys = kRedactedFieldNames
@@ -56,6 +57,9 @@ class AnalyticsService {
       // here registers a push token with PostHog or reports notification taps.
       ..capturePushNotificationSubscriptions = false
       ..capturePushNotificationOpened = false
+      // Startup reads come from the SDK's cache; when /flags answers, every
+      // flag reads again so a dashboard change shows without a second launch.
+      ..onFeatureFlags = FeatureFlags.notifyLoaded
       ..debug = kDebugMode;
 
     config.beforeSend.add((event) {

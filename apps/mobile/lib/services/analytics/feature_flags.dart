@@ -16,12 +16,21 @@ typedef FeatureFlagReader = Future<bool> Function(String key);
 /// *add* behaviour and an outage can only ever take it away again.
 ///
 /// Flags are fetched when the SDK starts (`preloadFeatureFlags` defaults to
-/// on), so a change made in the PostHog dashboard shows up on the next launch.
+/// on). Until that fetch answers, reads come from the SDK's cache; when it
+/// answers, [notifyLoaded] makes every flag read again. So a change made in
+/// the PostHog dashboard shows up on the next launch, as soon as the fresh
+/// flags arrive.
 class FeatureFlags {
   FeatureFlags._();
 
   /// How long a read may take before it counts as off.
   static const Duration timeout = Duration(seconds: 3);
+
+  /// Bumped each time PostHog finishes loading flags.
+  static final ValueNotifier<int> loads = ValueNotifier<int>(0);
+
+  /// PostHog's `onFeatureFlags` callback: fresh flags are in.
+  static void notifyLoaded() => loads.value++;
 
   /// The active reader. Production code never reassigns this; see [reset].
   static FeatureFlagReader read = posthogReader;
@@ -42,10 +51,17 @@ class FeatureFlags {
 }
 
 /// Whether the flag [key] is on for this user. Off on any failure.
+///
+/// Reads again whenever PostHog finishes loading flags. While it re-reads,
+/// the previous value stays, so the screen does not flicker.
 final featureFlagProvider = FutureProvider.family<bool, String>((
   ref,
   key,
 ) async {
+  void reread() => ref.invalidateSelf();
+  FeatureFlags.loads.addListener(reread);
+  ref.onDispose(() => FeatureFlags.loads.removeListener(reread));
+
   try {
     return await FeatureFlags.read(key);
   } catch (_) {

@@ -26,6 +26,23 @@ void main() {
     );
   });
 
+  test('a flag re-reads when PostHog finishes loading flags', () async {
+    // At launch the SDK answers from its cache while /flags is in flight; a
+    // dashboard change must show once the fresh flags land, not a launch later.
+    var remote = false;
+    FeatureFlags.read = (_) async => remote;
+    final container = ProviderContainer.test();
+    final provider = featureFlagProvider('mobile-preview');
+    container.listen(provider, (_, _) {});
+
+    expect(await container.read(provider.future), isFalse);
+
+    remote = true;
+    FeatureFlags.notifyLoaded();
+
+    expect(await container.read(provider.future), isTrue);
+  });
+
   Future<void> pumpTile(WidgetTester tester, {required bool enabled}) async {
     await tester.pumpWidget(
       ProviderScope(

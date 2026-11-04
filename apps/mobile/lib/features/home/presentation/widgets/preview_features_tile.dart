@@ -10,7 +10,8 @@ const kPreviewFeaturesFlag = 'mobile-preview';
 /// A Settings section that exists only while the `mobile-preview` flag is on.
 ///
 /// It is the template's worked example of a feature flag: flip the flag in
-/// PostHog, relaunch, and the section appears or disappears. While the flag is
+/// PostHog, relaunch, and the section appears or disappears once the fresh
+/// flags arrive. While the flag is
 /// loading, off, or unreadable, nothing is rendered, so the screen is the one
 /// it was before flags existed.
 class PreviewFeaturesTile extends ConsumerWidget {

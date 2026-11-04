@@ -310,7 +310,18 @@ On the **backend**, transaction and span data (`url.full`, `http.target`,
 `http.url`, `http.query`, ...) go through `scrubSpanAttributes`, the rules the
 OpenTelemetry exporter uses, and span descriptions through `sanitizeLogUrl`.
 Sentry's HTTP spans carry the raw URL, query string included, in those
-attributes.
+attributes. Attributes are denied by header name as well as by last segment:
+Sentry splits the cookie header into one attribute per cookie
+(`http.request.header.cookie.<name>`), and the value is the session token.
+
+**Failed database queries.** Drizzle's error message ends in a `params:` line
+holding the query's bound values (a reset token, an email), and the error also
+carries them on `.params`. The auth adapter rethrows a failed query without
+them (`packages/auth/src/safe-database-errors.ts`), Better Auth's logger
+redacts what it prints, and the backend's `beforeSend`, `beforeSendTransaction`
+and `beforeBreadcrumb` walk the whole outbound event through `redactSqlParams`.
+A request body the SDK recorded as a raw JSON string is parsed and scrubbed like
+an object, and dropped if it is not JSON.
 
 On **backend and web**, scrubbing is applied in both `beforeSend` and
 `beforeBreadcrumb`. Breadcrumbs are scrubbed as they are *recorded*, so a

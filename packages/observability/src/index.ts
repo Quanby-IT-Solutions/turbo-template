@@ -4,6 +4,7 @@ export {
 	REDACTED_FIELD_NAMES,
 	REDACTED_QUERY_PARAMS,
 	REDACTED_VALUE,
+	redactSqlParams,
 	sanitizeLogQuery,
 	sanitizeLogUrl,
 	type RedactedFieldName,

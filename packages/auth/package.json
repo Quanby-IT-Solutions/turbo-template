@@ -40,6 +40,7 @@
 	},
 	"dependencies": {
 		"@repo/db": "workspace:*",
+		"@repo/observability": "workspace:*",
 		"@t3-oss/env-core": "catalog:",
 		"better-auth": "catalog:",
 		"nodemailer": "^10.0.6",

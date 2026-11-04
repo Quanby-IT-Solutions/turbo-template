@@ -10,6 +10,10 @@
  * values, shuts it down (which flushes), and checks what arrived. Exits 1 on
  * any failure. Needs the same local database the e2e suite uses.
  */
+// The sign-in probe needs a trusted Origin: CI sets it in the job env, a local
+// run reads apps/backend/.env (pnpm runs this from the package directory).
+import "dotenv/config"
+
 import { spawn, type ChildProcess } from "node:child_process"
 import { once } from "node:events"
 import { createServer, type Server } from "node:http"
@@ -30,7 +34,16 @@ type Metric = { name: string; histogram?: { dataPoints: { count?: string | numbe
 
 const SPAN_KIND_SERVER = 2
 // reset-secret-w rides in the path: Better Auth's reset link is /reset-password/<token>.
-const SECRETS = ["secret-bearer-x", "cookie-secret-y", "rid-secret-z", "tok-abc", "reset-secret-w"]
+// The probe email and password go in a sign-in body.
+const SECRETS = [
+	"secret-bearer-x",
+	"cookie-secret-y",
+	"rid-secret-z",
+	"tok-abc",
+	"reset-secret-w",
+	"probe-email-u@example.com",
+	"probe-password-v",
+]
 // The log adopts and echoes a well-formed inbound x-request-id on purpose
 // (request-id.spec.ts), so only the credentials are checked there.
 const LOG_SECRETS = SECRETS.filter(secret => secret !== "rid-secret-z")
@@ -42,10 +55,13 @@ const SENTRY_DUMMY_DSN = "https://public@127.0.0.1:9/1"
 async function startReceiver() {
 	const spans: Span[] = []
 	const metrics: Metric[] = []
+	// Anything else posted here is a Sentry envelope (newline-delimited JSON).
+	const raw: string[] = []
 	const server: Server = createServer((request, response) => {
 		const chunks: Buffer[] = []
 		request.on("data", chunk => chunks.push(chunk as Buffer))
 		request.on("end", () => {
+			if (!request.url?.startsWith("/v1/")) raw.push(Buffer.concat(chunks).toString("utf8"))
 			try {
 				const body = JSON.parse(Buffer.concat(chunks).toString("utf8")) as Record<string, unknown>
 				if (request.url === "/v1/traces") {
@@ -80,8 +96,10 @@ async function startReceiver() {
 		reset: () => {
 			spans.length = 0
 			metrics.length = 0
+			raw.length = 0
 		},
 		spans: () => [...spans],
+		sentry: () => raw.join("\n"),
 		metrics: () => [...metrics],
 		close: () => new Promise<void>(resolve => server.close(() => resolve())),
 	}
@@ -127,8 +145,18 @@ async function exercise(port: number) {
 	})
 	const todosMs = Date.now() - started
 	await fetch(`${base}/auth/reset-password/reset-secret-w?callbackURL=/x`, { redirect: "manual" })
+	// Node's fetch sends sec-fetch headers, so Better Auth wants a trusted Origin
+	// (403 without one, before any query runs).
+	const signIn = await fetch(`${base}/auth/sign-in/email`, {
+		method: "POST",
+		headers: {
+			"content-type": "application/json",
+			"origin": process.env.BETTER_AUTH_TRUSTED_ORIGINS?.split(",")[0]?.trim() ?? "",
+		},
+		body: JSON.stringify({ email: "probe-email-u@example.com", password: "probe-password-v" }),
+	})
 	await fetch(`${base}/health`)
-	return { todosStatus: todos.status, todosMs }
+	return { todosStatus: todos.status, todosMs, signInStatus: signIn.status }
 }
 
 // ---------------------------------------------------------------- checks
@@ -300,6 +328,23 @@ async function main() {
 				...(run.aliveAfterRequest ? [] : ["the process died"]),
 			],
 		},
+		{
+			// Every query fails, so Drizzle's error messages (bound values included)
+			// reach Better Auth's logger and Sentry; Sentry posts to the receiver.
+			name: "database down",
+			env: {
+				...off,
+				SENTRY_ENABLED: "true",
+				SENTRY_DSN: `http://public@127.0.0.1:${receiver.port}/1`,
+				SENTRY_TRACES_SAMPLE_RATE: "1",
+				DATABASE_URL: `postgresql://postgres@127.0.0.1:${new URL(closedUrl).port}/postgres`,
+			},
+			check: run => [
+				...(run.output.includes("Failed query") ? [] : ["no failed query in the log"]),
+				// It arrives as Better Auth's console breadcrumb on the request's transaction.
+				...(run.sentry.includes("Failed query") ? [] : ["Sentry received no failed query"]),
+			],
+		},
 	]
 
 	let failed = false
@@ -307,22 +352,30 @@ async function main() {
 	for (const mode of modes) {
 		receiver.reset()
 		const { child, output } = await boot(mode.env, ++port)
-		const { todosStatus, todosMs } = await exercise(port)
+		const { todosStatus, todosMs, signInStatus } = await exercise(port)
 		await new Promise(resolve => setTimeout(resolve, 1500))
 		const aliveAfterRequest = child.exitCode === null
 		await stop(child)
 		const run: Run = {
 			spans: receiver.spans(),
 			metrics: receiver.metrics(),
+			sentry: receiver.sentry(),
 			output: output(),
 			todosStatus,
 			todosMs,
+			signInStatus,
 			aliveAfterRequest,
 		}
 		const failures = [
 			...mode.check(run),
+			...(run.signInStatus === 403
+				? ["the sign-in probe was refused (403): check its Origin"]
+				: []),
 			...LOG_SECRETS.filter(secret => run.output.includes(secret)).map(
 				secret => `the log contains ${secret}`
+			),
+			...LOG_SECRETS.filter(secret => run.sentry.includes(secret)).map(
+				secret => `Sentry received ${secret}`
 			),
 		]
 		if (process.env.VERIFY_TELEMETRY_DEBUG) debugDump(run)
@@ -372,9 +425,13 @@ function debugDump(run: Run) {
 type Run = {
 	spans: Span[]
 	metrics: Metric[]
+	/** Raw Sentry envelopes, when the mode points Sentry at the receiver. */
+	sentry: string
 	output: string
 	todosStatus: number
 	todosMs: number
+	/** 401 with the database up (unknown user), 500 with it down; 403 means the probe never ran. */
+	signInStatus: number
 	aliveAfterRequest: boolean
 }
 

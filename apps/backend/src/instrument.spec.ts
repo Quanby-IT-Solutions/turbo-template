@@ -450,6 +450,71 @@ describe("instrument (Sentry bootstrap)", () => {
 			expect((scrubbed as { data: Record<string, string> }).data["http.method"]).toBe("GET")
 		})
 
+		// Captured with the database down (fake ingest, 11/4): Drizzle's failed-query
+		// message carries the bound values, here a reset token and an email.
+		const failedQuery =
+			'Failed query: select "id" from "verifications" where "identifier" = $1\nparams: reset-password:live-token,1'
+
+		it("redacts SQL params anywhere in an error event", () => {
+			const scrubbed = initOptions().beforeSend({
+				exception: {
+					values: [{ type: "DrizzleQueryError", value: failedQuery }],
+				},
+				breadcrumbs: [
+					{
+						category: "console",
+						message: `[Better Auth]: Error ${failedQuery}`,
+						data: { arguments: [{ message: failedQuery, stack: `${failedQuery}\n    at f` }] },
+					},
+				],
+				extra: { cause: failedQuery },
+			})
+
+			expect(JSON.stringify(scrubbed)).not.toContain("live-token")
+			expect(JSON.stringify(scrubbed)).toContain("Failed query")
+		})
+
+		it("strips deny-listed fields from a request body captured as a JSON string", () => {
+			const scrubbed = initOptions().beforeSend({
+				request: {
+					data: JSON.stringify({ email: "a@b.c", password: "live-password", rememberMe: true }),
+				},
+			}) as { request: { data: string } }
+
+			expect(scrubbed.request.data).not.toContain("live-password")
+			expect(scrubbed.request.data).not.toContain("a@b.c")
+			expect(JSON.parse(scrubbed.request.data)).toEqual({ rememberMe: true })
+		})
+
+		it("filters a request body string it cannot parse", () => {
+			const scrubbed = initOptions().beforeSend({
+				request: { data: "email=a%40b.c&password=live-password" },
+			})
+
+			expect(JSON.stringify(scrubbed)).not.toContain("live-password")
+		})
+
+		it("redacts a path token in Sentry's own url span attribute", () => {
+			const scrubbed = initOptions().beforeSendSpan({
+				span_id: "span-1",
+				trace_id: "trace-1",
+				start_timestamp: 0,
+				data: { url: "http://localhost:3000/api/v1/auth/reset-password/live-token" },
+			})
+
+			expect(JSON.stringify(scrubbed)).not.toContain("live-token")
+		})
+
+		it("redacts SQL params in a console breadcrumb as it is recorded", () => {
+			const scrubbed = initOptions().beforeBreadcrumb({
+				category: "console",
+				message: `[Better Auth]: Error ${failedQuery}`,
+				data: { arguments: ["[Better Auth]: Error", { message: failedQuery }] },
+			})
+
+			expect(JSON.stringify(scrubbed)).not.toContain("live-token")
+		})
+
 		it("scrubs breadcrumb data and URLs", () => {
 			const scrubbed = initOptions().beforeBreadcrumb({
 				category: "http",

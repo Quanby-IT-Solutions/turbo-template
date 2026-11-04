@@ -62,7 +62,7 @@ Sentry's `beforeSendSpan` and `beforeSendTransaction` run span data through the 
 
 ## Verification
 
-- `pnpm -F @repo/backend verify:telemetry` (after `pnpm build`, with the local database up): boots the built backend once per mode against a local OTLP receiver, sends a request carrying credential-shaped values plus a password-reset link, and checks span counts, single instrumentation per library, the duration metric, that no credential is exported or logged, that log lines carry the exported trace id, and that a dead endpoint does not slow requests. Exits 1 on any failure. It is a standalone script because jest cannot observe module patching. CI runs it in the backend e2e job, after building `dist/`.
+- `pnpm -F @repo/backend verify:telemetry` (after `pnpm build`, with the local database up): boots the built backend once per mode against a local OTLP receiver, sends a request carrying credential-shaped values, a password-reset link and a sign-in, and checks span counts, single instrumentation per library, the duration metric, that no credential is exported or logged, that log lines carry the exported trace id, and that a dead endpoint does not slow requests. A sixth mode boots with the database unreachable and Sentry pointed at the receiver, and fails if a credential reaches the log or Sentry's payload. Exits 1 on any failure. It is a standalone script because jest cannot observe module patching. CI runs it in the backend e2e job, after building `dist/`.
 - Local viewer: `brew install otel-desktop-viewer`, run `otel-desktop-viewer`, then start the backend with `OTEL_ENABLED=true OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318`. Traces and metrics appear in the browser UI it opens.
 
 ## Versions

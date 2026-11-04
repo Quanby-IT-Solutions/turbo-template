@@ -31,7 +31,8 @@ export function readOtelConfig(
 ): OtelConfig | undefined {
 	if (env.OTEL_ENABLED !== "true") return undefined
 
-	const endpoint = env.OTEL_EXPORTER_OTLP_ENDPOINT?.trim()
+	// Signal paths are appended (`/v1/traces`), so a trailing slash would give `//v1/traces`.
+	const endpoint = env.OTEL_EXPORTER_OTLP_ENDPOINT?.trim().replace(/\/+$/, "")
 	let usable = false
 	if (endpoint) {
 		try {

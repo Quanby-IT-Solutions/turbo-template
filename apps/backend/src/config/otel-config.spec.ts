@@ -31,6 +31,15 @@ describe("readOtelConfig", () => {
 		).toEqual({ endpoint: "http://localhost:4318", serviceName: "turbo-template-api" })
 	})
 
+	it.each(["http://collector:4318/", "http://collector:4318//"])(
+		"drops trailing slashes from %p so paths do not become //v1/traces",
+		endpoint => {
+			expect(
+				readOtelConfig({ OTEL_ENABLED: "true", OTEL_EXPORTER_OTLP_ENDPOINT: endpoint })?.endpoint
+			).toBe("http://collector:4318")
+		}
+	)
+
 	it("keeps a custom service name", () => {
 		expect(
 			readOtelConfig({

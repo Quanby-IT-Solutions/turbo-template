@@ -117,8 +117,8 @@ export const env = createEnv({
 		// (see `core/lib/posthog-config.ts`). The token is a public ingest key.
 		NEXT_PUBLIC_POSTHOG_ENABLED: optionalBooleanFromEnv,
 		NEXT_PUBLIC_POSTHOG_TOKEN: z.string().optional(),
-		// Ingestion host of the project's region, used only by the `/ingest`
-		// rewrite in `next.config.ts`. Defaults to US there.
+		// Ingestion host of the project's region (https, *.i.posthog.com), used only by the `/ingest`
+		// proxy route in `app/ingest`. Defaults to US.
 		NEXT_PUBLIC_POSTHOG_HOST: z.string().optional(),
 	},
 

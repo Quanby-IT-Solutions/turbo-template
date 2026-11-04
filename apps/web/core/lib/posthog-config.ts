@@ -48,7 +48,7 @@ export const isPosthogClientEnabled = Boolean(clientPosthogToken)
 /**
  * `posthog.init` options.
  *
- * - Events go to `/ingest`, a same-origin rewrite in `next.config.ts`, so the
+ * - Events go to `/ingest`, a same-origin proxy route (`app/ingest`), so the
  *   CSP's `connect-src 'self'` already covers them and ad blockers do not drop
  *   them (the same reason Sentry uses its `/monitoring` tunnel).
  * - Person profiles only for signed-in users; replay and surveys off; no

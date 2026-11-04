@@ -33,6 +33,8 @@ import {
 	sanitizeLogUrl,
 } from "@repo/observability"
 
+import { readOtelConfig } from "@/config/otel-config"
+import { pinoTraceIds } from "@/telemetry/pino-trace-ids"
 import {
 	omitUnloggedRequestHeaderAttributes,
 	omitUnloggedRequestHeaders,
@@ -322,6 +324,30 @@ function parseSampleRate(raw: string | undefined): number {
 	return Math.min(1, Math.max(0, parsed))
 }
 
+/**
+ * How Sentry shares OpenTelemetry with `src/telemetry.ts`.
+ *
+ * OTel export on: `telemetry.ts` owns the one provider (Sentry's documented v10
+ * custom setup), so Sentry skips its own, and its HTTP spans are turned off
+ * because `telemetry.ts` instruments HTTP itself; Sentry keeps request
+ * isolation. Read silently here: `telemetry.ts` gives the one warning.
+ *
+ * OTel export off: Sentry keeps its own setup, plus the pino instrumentation
+ * so log lines carry trace ids whenever Sentry traces.
+ */
+function openTelemetryOptions(): Partial<Sentry.NodeOptions> {
+	if (readOtelConfig(process.env, () => {})) {
+		return {
+			skipOpenTelemetrySetup: true,
+			integrations: defaults => [
+				...defaults.filter(integration => integration.name !== "Http"),
+				Sentry.httpIntegration({ spans: false, tracePropagation: false }),
+			],
+		}
+	}
+	return { openTelemetryInstrumentations: [pinoTraceIds()] }
+}
+
 function initializeSentry(): SentryDiagnostics {
 	const dsn = process.env.SENTRY_DSN?.trim()
 	const environment = process.env.SENTRY_ENVIRONMENT ?? process.env.NODE_ENV ?? "development"
@@ -392,6 +418,7 @@ function initializeSentry(): SentryDiagnostics {
 		beforeSendTransaction: event => scrubSentryEvent(event),
 		beforeSendSpan: span => scrubSentrySpan(span),
 		beforeBreadcrumb: breadcrumb => scrubSentryBreadcrumb(breadcrumb),
+		...openTelemetryOptions(),
 	})
 
 	// Development convenience: one line confirming monitoring is actually on,

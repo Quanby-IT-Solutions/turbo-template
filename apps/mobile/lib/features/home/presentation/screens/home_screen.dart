@@ -29,6 +29,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   /// [AnalyticsScreens.tabs].
   static const _tabCount = 4;
 
+  /// The slide between tabs. The tour waits for it before its first step.
+  static const _tabTransition = ScreenTransitionAnimation(
+    curve: Curves.ease,
+    duration: Duration(milliseconds: 200),
+  );
+
   @override
   void initState() {
     super.initState();
@@ -73,6 +79,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     // Return to first tab before the tour begins.
     _tabController.jumpToTab(0);
     ref.read(navigationControllerProvider.notifier).setTab(0);
+    // Wait out the tab slide: the first step measures its target's position
+    // when the tour starts, and mid-slide that position is still moving, so
+    // the highlight landed clipped beside the Home title.
+    await Future<void>.delayed(_tabTransition.duration);
     await WidgetsBinding.instance.endOfFrame;
 
     if (!mounted) return;
@@ -174,10 +184,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       backgroundColor: theme.colorScheme.surface,
       handleAndroidBackButtonPress: true,
       stateManagement: true,
-      screenTransitionAnimation: const ScreenTransitionAnimation(
-        curve: Curves.ease,
-        duration: Duration(milliseconds: 200),
-      ),
+      screenTransitionAnimation: _tabTransition,
     );
   }
 }

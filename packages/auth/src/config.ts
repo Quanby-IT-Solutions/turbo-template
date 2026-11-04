@@ -8,6 +8,7 @@ import { createDBClient } from "@repo/db/client"
 import { accounts, sessions, users, verifications } from "@repo/db/schema"
 
 import { isApiDocsEnabled } from "./api-docs.js"
+import { authLogger } from "./auth-logger.js"
 import { buildAuthPlugins } from "./auth-plugins.js"
 import { AUTH_CLIENT_ADDRESS_HEADER } from "./client-address.js"
 import { cookieDomainSchema } from "./cookie-domain-schema.js"
@@ -18,6 +19,7 @@ import { buildVerificationEmail } from "./mailer/templates/verification-email.js
 import { createTransport } from "./mailer/transport-factory.js"
 import { parseOriginList } from "./origin-list.js"
 import { rateLimitStorage } from "./rate-limit-storage.js"
+import { withSafeDatabaseErrors } from "./safe-database-errors.js"
 import { authSecretSchema } from "./secret-schema.js"
 
 /**
@@ -158,17 +160,22 @@ export function createAuth() {
 	const verificationEnabled = authEnv.EMAIL_VERIFICATION_ENABLED || verificationRequired
 
 	return betterAuth({
-		database: drizzleAdapter(db, {
-			provider: "pg",
-			schema: {
-				users,
-				sessions,
-				accounts,
-				verifications,
-			},
-			usePlural: true,
-		}),
+		// Failed queries leave the adapter without their bound values (PAL-220).
+		database: (options: Parameters<ReturnType<typeof drizzleAdapter>>[0]) =>
+			withSafeDatabaseErrors(
+				drizzleAdapter(db, {
+					provider: "pg",
+					schema: {
+						users,
+						sessions,
+						accounts,
+						verifications,
+					},
+					usePlural: true,
+				})(options)
+			),
 		basePath: AUTH_BASE_PATH,
+		logger: authLogger,
 		baseURL: resolveAuthBaseURL(),
 		secret: authEnv.BETTER_AUTH_SECRET,
 		rateLimit: {

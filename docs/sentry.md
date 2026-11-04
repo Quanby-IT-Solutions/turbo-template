@@ -295,10 +295,22 @@ the two cannot drift).
 **Query parameters redacted** (`REDACTED_QUERY_PARAMS`, via `sanitizeLogUrl` /
 `sanitizeLogQuery`): `token`, `code`, `secret`, `password`, `access_token`,
 `refresh_token`, `id_token`, `state`. These cover Better Auth's
-verification and password-reset links, which are `?token=…` URLs. Names are
+verification link and the web reset page, which are `?token=…` URLs. Names are
 matched case-insensitively wherever the parameter appears — not exempted by
 route, because a path-based rule stops covering a route the moment someone adds
 one.
+
+**Path tokens redacted** (`REDACTED_PATH_SEGMENTS`, also in `sanitizeLogUrl`):
+the segment after `reset-password`. Better Auth emails the reset link as
+`/api/v1/auth/reset-password/<token>?callbackURL=…`, so that token travels in
+the path, where no query rule sees it. Matched by segment name, for the same
+reason.
+
+On the **backend**, transaction and span data (`url.full`, `http.target`,
+`http.url`, `http.query`, ...) go through `scrubSpanAttributes`, the rules the
+OpenTelemetry exporter uses, and span descriptions through `sanitizeLogUrl`.
+Sentry's HTTP spans carry the raw URL, query string included, in those
+attributes.
 
 On **backend and web**, scrubbing is applied in both `beforeSend` and
 `beforeBreadcrumb`. Breadcrumbs are scrubbed as they are *recorded*, so a

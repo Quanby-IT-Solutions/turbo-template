@@ -32,7 +32,7 @@ Export needs **both** the switch and an endpoint. The switch without a usable en
 | on   | off    | Our tracer provider with an always-on sampler; we instrument http, express, nest, pg, ioredis and pino                                                                                                                                                                            |
 | on   | on     | One provider following Sentry's documented v10 custom setup: Sentry's sampler, span processor, propagator and context manager, plus our OTLP exporter. We instrument http and pino; Sentry's integrations instrument express, nest, pg and Redis; Sentry's own HTTP spans are off |
 
-In every mode each library is instrumented by exactly one instrumentation. With Sentry on, Sentry's `tracesSampler` still decides what is traced (and drops the health check); with Sentry off, the health check is excluded by the HTTP instrumentation.
+In every mode each library is instrumented by exactly one instrumentation. With Sentry on, Sentry's `tracesSampler` still decides what is traced (and drops the health check); with Sentry off, the health check is excluded by the HTTP instrumentation. Both use `isHealthCheckPath` (`src/utils/health-check.ts`): `/api/v1/health` and paths under it, not every path that starts with those characters.
 
 **With both on, `SENTRY_TRACES_SAMPLE_RATE` is the trace rate for OTLP too.** Its default is `0`, which exports no traces at all (metrics still flow). The backend warns once at boot when both are on and the rate is `0`; set it above `0` (for example `1` locally) to export traces.
 
@@ -50,10 +50,11 @@ Every exported span passes `ScrubbingSpanExporter` first:
 - Attributes for request headers the logger never records (`x-request-id`) are dropped.
 - Span events get the same rules. `recordException` stores the error message and stack there, and query strings quoted inside them are redacted.
 - Any attribute named after a field on the `@repo/observability` deny-list (`authorization`, `cookie`, `password`, `token`, `email`, ...) is dropped.
-- Credential query parameters (`?token=`) in `url.full`, `http.url`, `http.target` and `url.query` are redacted, with the request logger's own `sanitizeLogUrl`.
+- Credentials in URLs are redacted with the request logger's own `sanitizeLogUrl`: query parameters (`?token=`) and the reset token Better Auth puts in the path (`/reset-password/<token>`). This covers `url.full`, `http.url`, `http.target`, `url.path`, `http.route`, `url.query`, a captured `referer` header, and the span name.
+- Link attributes get the same rules as span attributes.
 - Sentry's `sentry.*` entries are removed from the W3C trace state. Sentry's sampler stores the full request URL there (`sentry.url`), query string included, and the OTLP exporter would otherwise ship it.
 
-Sentry's own path keeps its existing `beforeSendSpan` scrubbing. Export is batched (spans) and periodic (metrics, every 10 s), so an OTLP endpoint that is down or slow never holds up a request. Queued data is flushed on graceful shutdown (`app.close()` on SIGTERM or SIGINT).
+Sentry's `beforeSendSpan` and `beforeSendTransaction` run span data through the same `scrubSpanAttributes`, so both destinations follow one rule set. Export is batched (spans) and periodic (metrics, every 10 s), so an OTLP endpoint that is down or slow never holds up a request. Queued data is flushed on graceful shutdown (`app.close()` on SIGTERM or SIGINT), for at most 3 s: against an endpoint that never answers, the exporter's own 10 s timeout equals Docker's default stop grace period. Past the limit the queue is dropped with one warning.
 
 ## Log lines
 
@@ -61,7 +62,7 @@ Sentry's own path keeps its existing `beforeSendSpan` scrubbing. Export is batch
 
 ## Verification
 
-- `pnpm -F @repo/backend verify:telemetry` (after `pnpm build`, with the local database up): boots the built backend once per mode against a local OTLP receiver, sends one request carrying credential-shaped values, and checks span counts, single instrumentation per library, the duration metric, that no credential is exported, that log lines carry the exported trace id, and that a dead endpoint does not slow requests. Exits 1 on any failure. It is a standalone script because jest cannot observe module patching and CI's e2e job does not build `dist/`.
+- `pnpm -F @repo/backend verify:telemetry` (after `pnpm build`, with the local database up): boots the built backend once per mode against a local OTLP receiver, sends a request carrying credential-shaped values plus a password-reset link, and checks span counts, single instrumentation per library, the duration metric, that no credential is exported or logged, that log lines carry the exported trace id, and that a dead endpoint does not slow requests. Exits 1 on any failure. It is a standalone script because jest cannot observe module patching. CI runs it in the backend e2e job, after building `dist/`.
 - Local viewer: `brew install otel-desktop-viewer`, run `otel-desktop-viewer`, then start the backend with `OTEL_ENABLED=true OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318`. Traces and metrics appear in the browser UI it opens.
 
 ## Versions
@@ -70,7 +71,6 @@ The OpenTelemetry packages are pinned to the releases Sentry 10.70 runs on (API 
 
 ## Residual risks and accepted trade-offs
 
-- The mode check is not part of CI; run it after changing anything in `src/telemetry/`, `src/instrument.ts` or the OpenTelemetry versions.
 - Two copies of `@opentelemetry/core` (2.9.0 via the HTTP instrumentation, 2.10.0 elsewhere) are installed. Core holds no state that must be shared (the context keys live in `@opentelemetry/api`); the mode check confirms the exporter's own requests are not traced.
 - With Sentry on, Sentry's integrations instrument Express, Nest and Postgres, so span names follow Sentry's style (middleware by function name, Nest guards included), the root HTTP span is named by method only (`GET`, with the route in its attributes), and the Postgres connection metrics that OpenTelemetry's own pg instrumentation emits are absent. The HTTP duration metric is present in both modes.
 - Sentry with OTel on uses Sentry's custom setup, which Sentry documents but does not make the default. A Sentry major upgrade (v11) needs this file and `src/telemetry/setup.ts` revisited.

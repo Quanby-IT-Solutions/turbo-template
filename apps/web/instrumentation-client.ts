@@ -18,9 +18,8 @@
  */
 
 import * as Sentry from "@sentry/nextjs"
-import posthog from "posthog-js"
 
-import { clientPosthogToken, posthogInitOptions } from "@/core/lib/posthog-config"
+import { loadPosthog } from "@/core/lib/posthog-client"
 import {
 	clientSentryDsn,
 	clientSentryEnvironment,
@@ -56,12 +55,11 @@ if (clientSentryDsn) {
 /**
  * PostHog: pageviews, identify and feature flags. Same gate as Sentry: nothing
  * initializes unless `NEXT_PUBLIC_POSTHOG_ENABLED` is on AND a token is set,
- * and a clone without a PostHog project makes no request at all. Privacy
- * defaults and the `/ingest` proxy are in `core/lib/posthog-config.ts`.
+ * and a clone without a PostHog project makes no request at all, not even for
+ * the SDK's own code (`core/lib/posthog-client.ts` imports it on demand).
+ * Privacy defaults and the `/ingest` proxy are in `core/lib/posthog-config.ts`.
  */
-if (clientPosthogToken) {
-	posthog.init(clientPosthogToken, posthogInitOptions())
-}
+void loadPosthog()
 
 /**
  * App Router navigation instrumentation.

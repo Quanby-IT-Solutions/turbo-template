@@ -1,5 +1,6 @@
-import posthog, { type PostHog } from "posthog-js"
+import type { PostHog } from "posthog-js"
 
+import { loadedPosthog, loadPosthog } from "@/core/lib/posthog-client"
 import { isPosthogClientEnabled } from "@/core/lib/posthog-config"
 
 /** The two PostHog calls identity needs; tests pass a stand-in. */
@@ -14,6 +15,21 @@ export type PosthogLike = Pick<PostHog, "identify" | "reset">
  * id on every page load.
  */
 const IDENTIFIED_KEY = "analytics-identified"
+
+/**
+ * Runs `action` with the given client, else the loaded one at once, else once
+ * PostHog has loaded. The middle case keeps sign-out's reset synchronous.
+ */
+function withClient(client: PosthogLike | undefined, action: (client: PosthogLike) => void): void {
+	const ready = client ?? loadedPosthog()
+	if (ready) {
+		action(ready)
+		return
+	}
+	void loadPosthog().then(lazy => {
+		if (lazy) action(lazy)
+	})
+}
 
 function readMarker(): string | null {
 	try {
@@ -43,7 +59,7 @@ function writeMarker(userId: string | null): void {
  */
 export function syncAnalyticsIdentity(
 	userId: string | null,
-	client: PosthogLike = posthog,
+	client?: PosthogLike,
 	enabled: boolean = isPosthogClientEnabled
 ): void {
 	if (!enabled) return
@@ -51,11 +67,13 @@ export function syncAnalyticsIdentity(
 	const identified = readMarker()
 	if (userId === identified) return
 
-	// `true` also rotates $device_id; without it two users on one browser
-	// stay linkable through the device id.
-	if (identified) client.reset(true)
-	if (userId) client.identify(userId)
-	writeMarker(userId)
+	withClient(client, ready => {
+		// `true` also rotates $device_id; without it two users on one browser
+		// stay linkable through the device id.
+		if (identified) ready.reset(true)
+		if (userId) ready.identify(userId)
+		writeMarker(userId)
+	})
 }
 
 /**
@@ -63,11 +81,13 @@ export function syncAnalyticsIdentity(
  * pageview of the page it lands on is already anonymous.
  */
 export function resetAnalyticsIdentity(
-	client: PosthogLike = posthog,
+	client?: PosthogLike,
 	enabled: boolean = isPosthogClientEnabled
 ): void {
 	if (!enabled) return
 
-	client.reset(true)
-	writeMarker(null)
+	withClient(client, ready => {
+		ready.reset(true)
+		writeMarker(null)
+	})
 }

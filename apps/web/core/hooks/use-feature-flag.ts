@@ -1,8 +1,8 @@
 "use client"
 
 import * as React from "react"
-import posthog from "posthog-js"
 
+import { loadedPosthog, loadPosthog } from "@/core/lib/posthog-client"
 import { isPosthogClientEnabled } from "@/core/lib/posthog-config"
 
 /**
@@ -27,14 +27,29 @@ const noopSubscribe = () => () => {}
  */
 export function useFeatureFlag(
 	key: string,
-	client: FlagClient = posthog,
+	client?: FlagClient,
 	enabled: boolean = isPosthogClientEnabled
 ): boolean {
+	// The lazily loaded SDK when no client is passed; re-renders once it arrives.
+	const [lazy, setLazy] = React.useState<FlagClient | undefined>(() => loadedPosthog())
+	React.useEffect(() => {
+		if (client || lazy || !enabled) return
+		let live = true
+		void loadPosthog().then(loaded => {
+			if (live && loaded) setLazy(loaded)
+		})
+		return () => {
+			live = false
+		}
+	}, [client, lazy, enabled])
+	const active = client ?? lazy
+
 	const subscribe = React.useCallback(
-		(onChange: () => void) => (enabled ? client.onFeatureFlags(() => onChange()) : noopSubscribe()),
-		[client, enabled]
+		(onChange: () => void) =>
+			enabled && active ? active.onFeatureFlags(() => onChange()) : noopSubscribe(),
+		[active, enabled]
 	)
-	const read = () => enabled && client.isFeatureEnabled(key) === true
+	const read = () => enabled && active?.isFeatureEnabled(key) === true
 
 	return React.useSyncExternalStore(subscribe, read, () => false)
 }

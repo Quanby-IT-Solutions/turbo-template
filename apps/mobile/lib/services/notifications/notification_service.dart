@@ -14,7 +14,8 @@ class NotificationService {
 
   // ── Initialisation ────────────────────────────────────────────────────────
 
-  /// Registers the default notification channel and requests permission.
+  /// Registers the default notification channel. Asks for nothing: see
+  /// [requestPermissionIfNeeded].
   Future<void> initialize() async {
     await AwesomeNotifications().initialize(
       null, // use default app icon
@@ -36,8 +37,15 @@ class NotificationService {
         ),
       ],
     );
+  }
 
-    // Request permission if not already granted
+  /// Asks for notification permission if it is not granted yet.
+  ///
+  /// Call after `runApp`, without awaiting it. When the permission was
+  /// denied before, the plugin opens Android's settings page instead of a
+  /// dialog; awaited before `runApp`, dismissing that page left the app on a
+  /// blank screen.
+  Future<void> requestPermissionIfNeeded() async {
     final isAllowed = await AwesomeNotifications().isNotificationAllowed();
     if (!isAllowed) {
       await AwesomeNotifications().requestPermissionToSendNotifications();

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -114,6 +116,10 @@ Future<void> _bootstrap() async {
   await NotificationService.instance.setListeners(
     onAction: _handleNotificationAction,
   );
+
+  // Ask for permission only now, with the app on screen, and never wait on
+  // it: the answer can take as long as the user spends in the settings page.
+  unawaited(NotificationService.instance.requestPermissionIfNeeded());
 }
 
 /// Strips anything the backend logger would redact before an event leaves

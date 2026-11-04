@@ -30,7 +30,16 @@ type Metric = { name: string; histogram?: { dataPoints: { count?: string | numbe
 
 const SPAN_KIND_SERVER = 2
 // reset-secret-w rides in the path: Better Auth's reset link is /reset-password/<token>.
-const SECRETS = ["secret-bearer-x", "cookie-secret-y", "rid-secret-z", "tok-abc", "reset-secret-w"]
+// The probe email and password go in a sign-in body.
+const SECRETS = [
+	"secret-bearer-x",
+	"cookie-secret-y",
+	"rid-secret-z",
+	"tok-abc",
+	"reset-secret-w",
+	"probe-email-u@example.com",
+	"probe-password-v",
+]
 // The log adopts and echoes a well-formed inbound x-request-id on purpose
 // (request-id.spec.ts), so only the credentials are checked there.
 const LOG_SECRETS = SECRETS.filter(secret => secret !== "rid-secret-z")
@@ -42,10 +51,13 @@ const SENTRY_DUMMY_DSN = "https://public@127.0.0.1:9/1"
 async function startReceiver() {
 	const spans: Span[] = []
 	const metrics: Metric[] = []
+	// Anything else posted here is a Sentry envelope (newline-delimited JSON).
+	const raw: string[] = []
 	const server: Server = createServer((request, response) => {
 		const chunks: Buffer[] = []
 		request.on("data", chunk => chunks.push(chunk as Buffer))
 		request.on("end", () => {
+			if (!request.url?.startsWith("/v1/")) raw.push(Buffer.concat(chunks).toString("utf8"))
 			try {
 				const body = JSON.parse(Buffer.concat(chunks).toString("utf8")) as Record<string, unknown>
 				if (request.url === "/v1/traces") {
@@ -80,8 +92,10 @@ async function startReceiver() {
 		reset: () => {
 			spans.length = 0
 			metrics.length = 0
+			raw.length = 0
 		},
 		spans: () => [...spans],
+		sentry: () => raw.join("\n"),
 		metrics: () => [...metrics],
 		close: () => new Promise<void>(resolve => server.close(() => resolve())),
 	}
@@ -127,6 +141,11 @@ async function exercise(port: number) {
 	})
 	const todosMs = Date.now() - started
 	await fetch(`${base}/auth/reset-password/reset-secret-w?callbackURL=/x`, { redirect: "manual" })
+	await fetch(`${base}/auth/sign-in/email`, {
+		method: "POST",
+		headers: { "content-type": "application/json" },
+		body: JSON.stringify({ email: "probe-email-u@example.com", password: "probe-password-v" }),
+	})
 	await fetch(`${base}/health`)
 	return { todosStatus: todos.status, todosMs }
 }
@@ -300,6 +319,23 @@ async function main() {
 				...(run.aliveAfterRequest ? [] : ["the process died"]),
 			],
 		},
+		{
+			// Every query fails, so Drizzle's error messages (bound values included)
+			// reach Better Auth's logger and Sentry; Sentry posts to the receiver.
+			name: "database down",
+			env: {
+				...off,
+				SENTRY_ENABLED: "true",
+				SENTRY_DSN: `http://public@127.0.0.1:${receiver.port}/1`,
+				SENTRY_TRACES_SAMPLE_RATE: "1",
+				DATABASE_URL: `postgresql://postgres@127.0.0.1:${new URL(closedUrl).port}/postgres`,
+			},
+			check: run => [
+				...(run.output.includes("Failed query") ? [] : ["no failed query in the log"]),
+				// It arrives as Better Auth's console breadcrumb on the request's transaction.
+				...(run.sentry.includes("Failed query") ? [] : ["Sentry received no failed query"]),
+			],
+		},
 	]
 
 	let failed = false
@@ -314,6 +350,7 @@ async function main() {
 		const run: Run = {
 			spans: receiver.spans(),
 			metrics: receiver.metrics(),
+			sentry: receiver.sentry(),
 			output: output(),
 			todosStatus,
 			todosMs,
@@ -323,6 +360,9 @@ async function main() {
 			...mode.check(run),
 			...LOG_SECRETS.filter(secret => run.output.includes(secret)).map(
 				secret => `the log contains ${secret}`
+			),
+			...LOG_SECRETS.filter(secret => run.sentry.includes(secret)).map(
+				secret => `Sentry received ${secret}`
 			),
 		]
 		if (process.env.VERIFY_TELEMETRY_DEBUG) debugDump(run)
@@ -372,6 +412,8 @@ function debugDump(run: Run) {
 type Run = {
 	spans: Span[]
 	metrics: Metric[]
+	/** Raw Sentry envelopes, when the mode points Sentry at the receiver. */
+	sentry: string
 	output: string
 	todosStatus: number
 	todosMs: number

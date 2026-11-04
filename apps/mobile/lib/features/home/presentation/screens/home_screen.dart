@@ -22,7 +22,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool _checkedFirstRun = false;
-  final _showcaseKey = GlobalKey<ShowCaseWidgetState>();
+  late final ShowcaseView _showcase;
   final _tabController = PersistentTabController(initialIndex: 0);
 
   /// Number of tabs in the bottom nav. Keep in sync with [_buildBody] and
@@ -30,7 +30,31 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   static const _tabCount = 4;
 
   @override
+  void initState() {
+    super.initState();
+    // The feature tour's controller. Registered for this screen's lifetime,
+    // which is what the deprecated ShowCaseWidget wrapper did internally.
+    _showcase = ShowcaseView.register(
+      onStart: (index, key) {
+        // Auto-navigate to the tab that owns the next showcase target.
+        final tabIndex = TourRegistry.instance.tabForKey(key);
+        if (tabIndex != null && _tabController.index != tabIndex) {
+          _tabController.jumpToTab(tabIndex);
+          ref.read(navigationControllerProvider.notifier).setTab(tabIndex);
+        }
+      },
+      onFinish: () {
+        final userId = ref.read(currentUserProvider)?.id;
+        if (userId != null) {
+          ref.read(tourStorageServiceProvider).completeTour(userId);
+        }
+      },
+    );
+  }
+
+  @override
   void dispose() {
+    _showcase.unregister();
     _tabController.dispose();
     super.dispose();
   }
@@ -51,7 +75,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     ref.read(navigationControllerProvider.notifier).setTab(0);
     await WidgetsBinding.instance.endOfFrame;
 
-    _showcaseKey.currentState?.startShowCase(TourRegistry.instance.orderedKeys);
+    if (!mounted) return;
+    _showcase.startShowCase(TourRegistry.instance.orderedKeys);
   }
 
   @override
@@ -64,24 +89,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       }
     });
 
-    return ShowCaseWidget(
-      key: _showcaseKey,
-      onStart: (index, key) {
-        // Auto-navigate to the tab that owns the next showcase target.
-        final tabIndex = TourRegistry.instance.tabForKey(key);
-        if (tabIndex != null && _tabController.index != tabIndex) {
-          _tabController.jumpToTab(tabIndex);
-          ref.read(navigationControllerProvider.notifier).setTab(tabIndex);
-        }
-      },
-      onFinish: () {
-        final userId = ref.read(currentUserProvider)?.id;
-        if (userId != null) {
-          ref.read(tourStorageServiceProvider).completeTour(userId);
-        }
-      },
-      builder: (showcaseContext) => _buildBody(),
-    );
+    return _buildBody();
   }
 
   Widget _buildBody() {

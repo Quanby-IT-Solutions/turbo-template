@@ -5,10 +5,11 @@ import { IORedisInstrumentation } from "@opentelemetry/instrumentation-ioredis"
 import { NestInstrumentation } from "@opentelemetry/instrumentation-nestjs-core"
 import { PgInstrumentation } from "@opentelemetry/instrumentation-pg"
 
+import { isHealthCheckPath } from "@/utils/health-check"
+
 import { pinoTraceIds } from "./pino-trace-ids"
 
 /** Load balancers poll it continuously; it would dominate traces and metrics. */
-const HEALTH_CHECK_PATH = "/api/v1/health"
 
 /**
  * The instrumentations this process registers itself when OpenTelemetry is on.
@@ -22,7 +23,7 @@ const HEALTH_CHECK_PATH = "/api/v1/health"
 export function ownInstrumentations(sentryOn: boolean): Instrumentation[] {
 	const always: Instrumentation[] = [
 		new HttpInstrumentation({
-			ignoreIncomingRequestHook: request => request.url?.startsWith(HEALTH_CHECK_PATH) ?? false,
+			ignoreIncomingRequestHook: request => isHealthCheckPath(request.url ?? ""),
 		}),
 		pinoTraceIds(),
 	]

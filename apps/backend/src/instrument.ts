@@ -37,6 +37,7 @@ import {
 import { readOtelConfig } from "@/config/otel-config"
 import { pinoTraceIds } from "@/telemetry/pino-trace-ids"
 import { scrubSpanAttributes } from "@/telemetry/scrubbing-span-exporter"
+import { isHealthCheckPath } from "@/utils/health-check"
 import { omitUnloggedRequestHeaders } from "@/utils/unlogged-request-headers"
 
 /** Shape returned by the development-only diagnostics endpoint (Flow 4). */
@@ -59,7 +60,6 @@ export interface SentryDiagnostics {
  * Load balancers poll it continuously, so it would dominate the trace quota
  * while carrying no diagnostic value.
  */
-const HEALTH_CHECK_PATH = "/api/v1/health"
 
 const deniedFieldNames = new Set<string>(REDACTED_FIELD_NAMES.map(name => name.toLowerCase()))
 const deniedQueryParams = new Set<string>(REDACTED_QUERY_PARAMS.map(name => name.toLowerCase()))
@@ -274,7 +274,7 @@ export function isHealthCheckSpan(name: string, attributes?: Record<string, unkn
 		attributes?.["http.target"],
 	]
 
-	return candidates.some(value => typeof value === "string" && value.includes(HEALTH_CHECK_PATH))
+	return candidates.some(value => typeof value === "string" && isHealthCheckPath(value))
 }
 
 /**

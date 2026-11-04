@@ -577,6 +577,12 @@ describe("instrument (Sentry bootstrap)", () => {
 			expect(sampler()({ ...context, inheritOrSampleWith: fallback => fallback })).toBe(0)
 		})
 
+		it("samples a route that only starts like the health check", () => {
+			expect(
+				sampler()({ name: "GET /api/v1/health-report", inheritOrSampleWith: fallback => fallback })
+			).toBe(0.5)
+		})
+
 		it("samples everything else at the configured rate", () => {
 			expect(
 				sampler()({ name: "GET /api/v1/tickets", inheritOrSampleWith: fallback => fallback })

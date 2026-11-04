@@ -57,6 +57,8 @@ jobs:
       # `backend` filter. Paths are apps/backend plus the workspace packages
       # @repo/web and @repo/backend build from that `web` does not already list.
       backend: ${{ steps.filter.outputs.backend }}
+      # This repository only. The Flutter app; the pinned gate cannot test it.
+      mobile: ${{ steps.filter.outputs.mobile }}
     steps:
       - name: Checkout
         # Same pin as backend-e2e. Full history so a push diff has a parent.
@@ -93,6 +95,10 @@ jobs:
               - 'apps/backend/**'
               - 'packages/observability/**'
               - 'tooling/**'
+            # This repository only. The Flutter app and this workflow.
+            mobile:
+              - 'apps/mobile/**'
+              - '.github/workflows/ci.yml'
 
   quality:
     needs: changes
@@ -333,6 +339,49 @@ jobs:
           path: packages/e2e-web/playwright-report/
           if-no-files-found: ignore
           retention-days: 7
+
+  # The quality gate's `pnpm turbo test:cov` reaches apps/mobile, but its
+  # runner has no Flutter SDK, so apps/mobile/scripts/flutter-test.mjs skips
+  # the package ("Flutter is required for mobile tests and was skipped.") and
+  # the mobile tests never ran in CI. This job installs Flutter and runs the
+  # mobile checks when apps/mobile or this workflow changes. No Android or
+  # iOS build here.
+  mobile:
+    name: Mobile
+    needs: changes
+    if: ${{ needs.changes.outputs.mobile == 'true' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Setup Flutter
+        # Commit the `subosito/flutter-action` v2.23.0 tag resolves to
+        # (released 2026-03-25).
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          # The version the app is developed and tested on.
+          flutter-version: 3.47.1
+          channel: stable
+          cache: true
+
+      - name: Install packages
+        run: flutter pub get
+
+      - name: Format
+        run: dart format --output=none --set-exit-if-changed lib test
+
+      - name: Analyze
+        run: flutter analyze lib test
+
+      - name: Test
+        run: flutter test
 
   public-ids:
     name: Public ids

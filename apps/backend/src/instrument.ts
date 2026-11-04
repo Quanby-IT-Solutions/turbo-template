@@ -23,6 +23,7 @@
  * of the app — see the matching note there. The duplication is deliberate and
  * bounded to these keys.
  */
+import type { Attributes } from "@opentelemetry/api"
 import * as Sentry from "@sentry/nestjs"
 
 import {
@@ -33,10 +34,11 @@ import {
 	sanitizeLogUrl,
 } from "@repo/observability"
 
-import {
-	omitUnloggedRequestHeaderAttributes,
-	omitUnloggedRequestHeaders,
-} from "@/utils/unlogged-request-headers"
+import { readOtelConfig } from "@/config/otel-config"
+import { pinoTraceIds } from "@/telemetry/pino-trace-ids"
+import { scrubSpanAttributes } from "@/telemetry/scrubbing-span-exporter"
+import { isHealthCheckPath } from "@/utils/health-check"
+import { omitUnloggedRequestHeaders } from "@/utils/unlogged-request-headers"
 
 /** Shape returned by the development-only diagnostics endpoint (Flow 4). */
 export interface SentryDiagnostics {
@@ -58,7 +60,6 @@ export interface SentryDiagnostics {
  * Load balancers poll it continuously, so it would dominate the trace quota
  * while carrying no diagnostic value.
  */
-const HEALTH_CHECK_PATH = "/api/v1/health"
 
 const deniedFieldNames = new Set<string>(REDACTED_FIELD_NAMES.map(name => name.toLowerCase()))
 const deniedQueryParams = new Set<string>(REDACTED_QUERY_PARAMS.map(name => name.toLowerCase()))
@@ -171,42 +172,30 @@ function scrubSentryRequest<T extends Sentry.Event>(event: T): T {
 }
 
 /**
- * The same header also rides on span attributes as `http.request.header.x_request_id`.
- * `sendDefaultPii: false` does not remove it: that deny-list is PII snippets plus
- * sensitive key snippets, and this name matches neither. Response-header
- * attributes are kept — that value is the id the server echoed.
+ * A transaction's span data, scrubbed by the same rules as OTLP export
+ * (`scrubSpanAttributes`).
+ *
+ * The inbound request id rides on span attributes as
+ * `http.request.header.x_request_id`; `sendDefaultPii: false` does not remove
+ * it (that deny-list is PII snippets plus sensitive key snippets, and this name
+ * matches neither). Response-header attributes are kept: that value is the id
+ * the server echoed. Sentry's HTTP spans also carry the raw URL, query included,
+ * in `url.full`, `http.target`, `http.url` and `http.query`.
  */
-function stripUnloggedHeaderAttributes<T extends Sentry.Event>(event: T): T {
+function scrubSpanData<T extends Sentry.Event>(event: T): T {
 	const trace = event.contexts?.trace
 	const traceData = trace && typeof trace.data === "object" && trace.data ? trace.data : undefined
 	let next = event
 
 	if (traceData) {
-		const data = omitUnloggedRequestHeaderAttributes(traceData)
-		if (data !== traceData) {
-			next = {
-				...next,
-				contexts: {
-					...next.contexts,
-					trace: { ...trace, data },
-				},
-			}
+		next = {
+			...next,
+			contexts: { ...next.contexts, trace: { ...trace, data: scrubSpanAttributes(traceData) } },
 		}
 	}
 
 	if (next.spans) {
-		let changed = false
-		const spans = next.spans.map(span => {
-			const data = omitUnloggedRequestHeaderAttributes(span.data)
-			if (data === span.data) {
-				return span
-			}
-			changed = true
-			return { ...span, data }
-		})
-		if (changed) {
-			next = { ...next, spans }
-		}
+		next = { ...next, spans: next.spans.map(span => scrubSentrySpan(span)) }
 	}
 
 	return next
@@ -221,16 +210,17 @@ function stripUnloggedHeaderAttributes<T extends Sentry.Event>(event: T): T {
  * inferred.
  */
 export function scrubSentryEvent<T extends Sentry.Event>(event: T): T {
-	return stripUnloggedHeaderAttributes(scrubSentryRequest(event))
+	return scrubSpanData(scrubSentryRequest(event))
 }
 
 /** `beforeSendSpan` sees the span on its own, before it is folded into a transaction. */
-export function scrubSentrySpan<T extends { data: object }>(span: T): T {
-	const data = omitUnloggedRequestHeaderAttributes(span.data)
-	if (data === span.data) {
-		return span
+export function scrubSentrySpan<T extends { data?: object; description?: string }>(span: T): T {
+	return {
+		...span,
+		...(span.data && { data: scrubSpanAttributes(span.data as Attributes) }),
+		// HTTP client span descriptions carry the full URL (`GET http://host/x?token=`).
+		...(span.description && { description: sanitizeLogUrl(span.description) }),
 	}
-	return { ...span, data }
 }
 
 /**
@@ -284,7 +274,7 @@ export function isHealthCheckSpan(name: string, attributes?: Record<string, unkn
 		attributes?.["http.target"],
 	]
 
-	return candidates.some(value => typeof value === "string" && value.includes(HEALTH_CHECK_PATH))
+	return candidates.some(value => typeof value === "string" && isHealthCheckPath(value))
 }
 
 /**
@@ -320,6 +310,30 @@ function parseSampleRate(raw: string | undefined): number {
 	}
 
 	return Math.min(1, Math.max(0, parsed))
+}
+
+/**
+ * How Sentry shares OpenTelemetry with `src/telemetry.ts`.
+ *
+ * OTel export on: `telemetry.ts` owns the one provider (Sentry's documented v10
+ * custom setup), so Sentry skips its own, and its HTTP spans are turned off
+ * because `telemetry.ts` instruments HTTP itself; Sentry keeps request
+ * isolation. Read silently here: `telemetry.ts` gives the one warning.
+ *
+ * OTel export off: Sentry keeps its own setup, plus the pino instrumentation
+ * so log lines carry trace ids whenever Sentry traces.
+ */
+function openTelemetryOptions(): Partial<Sentry.NodeOptions> {
+	if (readOtelConfig(process.env, () => {})) {
+		return {
+			skipOpenTelemetrySetup: true,
+			integrations: defaults => [
+				...defaults.filter(integration => integration.name !== "Http"),
+				Sentry.httpIntegration({ spans: false, tracePropagation: false }),
+			],
+		}
+	}
+	return { openTelemetryInstrumentations: [pinoTraceIds()] }
 }
 
 function initializeSentry(): SentryDiagnostics {
@@ -392,6 +406,7 @@ function initializeSentry(): SentryDiagnostics {
 		beforeSendTransaction: event => scrubSentryEvent(event),
 		beforeSendSpan: span => scrubSentrySpan(span),
 		beforeBreadcrumb: breadcrumb => scrubSentryBreadcrumb(breadcrumb),
+		...openTelemetryOptions(),
 	})
 
 	// Development convenience: one line confirming monitoring is actually on,

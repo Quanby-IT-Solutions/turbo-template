@@ -403,6 +403,53 @@ describe("instrument (Sentry bootstrap)", () => {
 			})
 		})
 
+		// Captured from a real transaction (fake ingest, 11/4): Sentry's HTTP spans
+		// carry the raw URL, query included, in four attributes.
+		it("redacts credential query params in a transaction's span data and descriptions", () => {
+			const urlData = {
+				"url.full": "http://localhost:3000/api/v1/example/todos?token=live-token",
+				"http.target": "/api/v1/example/todos?token=live-token",
+				"http.url": "/api/v1/example/todos?token=live-token",
+				"http.query": "token=live-token",
+			}
+			const scrubbed = initOptions().beforeSendTransaction({
+				type: "transaction",
+				contexts: { trace: { data: urlData } },
+				spans: [
+					{
+						span_id: "span-1",
+						trace_id: "trace-1",
+						start_timestamp: 0,
+						description: "GET http://upstream/x?token=live-token",
+						data: urlData,
+					},
+				],
+			})
+
+			const event = scrubbed as {
+				contexts: { trace: { data: Record<string, string> } }
+				spans: Array<{ data: Record<string, string> }>
+			}
+			expect(event.contexts.trace.data["http.query"]).toBe("token=[REDACTED]")
+			expect(event.spans[0]?.data["url.full"]).toBe(
+				"http://localhost:3000/api/v1/example/todos?token=[REDACTED]"
+			)
+			expect(JSON.stringify(scrubbed)).not.toContain("live-token")
+		})
+
+		it("redacts credential query params in a span on its own", () => {
+			const scrubbed = initOptions().beforeSendSpan({
+				span_id: "span-1",
+				trace_id: "trace-1",
+				start_timestamp: 0,
+				description: "GET /x?token=live-token",
+				data: { "http.target": "/x?token=live-token", "http.method": "GET" },
+			})
+
+			expect(JSON.stringify(scrubbed)).not.toContain("live-token")
+			expect((scrubbed as { data: Record<string, string> }).data["http.method"]).toBe("GET")
+		})
+
 		it("scrubs breadcrumb data and URLs", () => {
 			const scrubbed = initOptions().beforeBreadcrumb({
 				category: "http",
@@ -528,6 +575,12 @@ describe("instrument (Sentry bootstrap)", () => {
 
 		it.each(healthCases)("drops the health check by %s", (_label, context) => {
 			expect(sampler()({ ...context, inheritOrSampleWith: fallback => fallback })).toBe(0)
+		})
+
+		it("samples a route that only starts like the health check", () => {
+			expect(
+				sampler()({ name: "GET /api/v1/health-report", inheritOrSampleWith: fallback => fallback })
+			).toBe(0.5)
 		})
 
 		it("samples everything else at the configured rate", () => {

@@ -18,6 +18,7 @@ import { skipStrictThrottle } from "@/shared/decorators/strict-throttle.decorato
 import { RbacGuard } from "@/shared/guards/rbac.guard"
 import { SessionAuthGuard } from "@/shared/guards/session-auth.guard"
 import { ThrottlerProxyGuard } from "@/shared/guards/throttler-proxy.guard"
+import { TelemetryLifecycle } from "@/telemetry/telemetry.lifecycle"
 
 import { AnalyticsModule } from "./common/analytics/analytics.module"
 import { AuditModule } from "./common/audit/audit.module"
@@ -119,6 +120,8 @@ import { env } from "./config/env.config"
 		V1Module,
 	],
 	providers: [
+		// Flushes OpenTelemetry spans and metrics on shutdown (a no-op when off).
+		TelemetryLifecycle,
 		// Global providers
 		{
 			provide: APP_PIPE,

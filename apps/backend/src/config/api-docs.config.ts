@@ -26,3 +26,14 @@ export const booleanFromEnv = z.union([
 	z.boolean(),
 	z.enum(["true", "false", "1", "0"]).transform(v => v === "true" || v === "1"),
 ])
+
+/**
+ * On only for the exact string `"true"`, anything else (`1`, `yes`, unset) off,
+ * never a validation error. The rule `instrument.ts` and `telemetry.ts` boot
+ * with: they read `process.env` before this schema runs, and an observability
+ * typo must not stop the service.
+ */
+export const exactlyTrueFromEnv = z
+	.string()
+	.optional()
+	.transform(value => value === "true")

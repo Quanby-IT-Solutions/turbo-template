@@ -114,7 +114,22 @@ export const REDACTED_VALUE = "[REDACTED]"
 const redactedParams = new Set<string>(REDACTED_QUERY_PARAMS.map(name => name.toLowerCase()))
 
 /**
- * Replace the value of every credential-bearing query parameter in a URL.
+ * Path segments whose NEXT segment is a credential. Better Auth emails reset
+ * links as `.../reset-password/<token>?callbackURL=...`, so the token travels
+ * in the path where no query rule can see it. Matched by segment name wherever
+ * it appears, for the same reason the query rules are name-based.
+ */
+export const REDACTED_PATH_SEGMENTS = ["reset-password"] as const
+
+const pathTokenPattern = new RegExp(`(/(?:${REDACTED_PATH_SEGMENTS.join("|")})/)[^/?#]+`, "gi")
+
+function sanitizePath(path: string): string {
+	return path.replace(pathTokenPattern, `$1${REDACTED_VALUE}`)
+}
+
+/**
+ * Replace the value of every credential-bearing query parameter in a URL, and
+ * any credential carried as a path segment (`REDACTED_PATH_SEGMENTS`).
  *
  * Accepts the path-relative form Node hands to request loggers (`/a/b?c=d`) as
  * well as absolute URLs. Anything unparseable is reduced to its path prefix
@@ -125,9 +140,9 @@ export function sanitizeLogUrl(url: string | undefined): string | undefined {
 	if (!url) return url
 
 	const queryStart = url.indexOf("?")
-	if (queryStart === -1) return url
+	if (queryStart === -1) return sanitizePath(url)
 
-	const path = url.slice(0, queryStart)
+	const path = sanitizePath(url.slice(0, queryStart))
 	const rawQuery = url.slice(queryStart + 1)
 
 	// Hand-parse rather than using URLSearchParams: it re-encodes the whole

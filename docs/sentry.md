@@ -91,6 +91,10 @@ Mobile also has no diagnostics page and no test-error button — see
 | Production | Wired end to end — `.github/workflows/deploy-production.yml` passes build args and writes the runtime payload to SSM. Still inert until the GitHub Environment values are populated. |
 | Staging | **Deliberately untouched.** `docker-compose.staging.yml` and `.github/workflows/deploy-staging.yml` carry no Sentry configuration. Wire it manually if you want it — mirror the production workflow's build args and env payload. |
 
+### With OpenTelemetry export on
+
+When `OTEL_ENABLED` and an OTLP endpoint are set on the backend, Sentry runs in its documented v10 custom OpenTelemetry setup: `src/telemetry.ts` owns the one tracer provider, Sentry plugs in its sampler, span processor, propagator and context manager, and Sentry's own HTTP spans are turned off because HTTP is instrumented there. Sentry's sampling (including the health-check exclusion) and its `beforeSend*` scrubbing are unchanged. See [`opentelemetry.md`](./opentelemetry.md).
+
 ## Configuration
 
 ### Backend (`apps/backend`)
@@ -291,10 +295,22 @@ the two cannot drift).
 **Query parameters redacted** (`REDACTED_QUERY_PARAMS`, via `sanitizeLogUrl` /
 `sanitizeLogQuery`): `token`, `code`, `secret`, `password`, `access_token`,
 `refresh_token`, `id_token`, `state`. These cover Better Auth's
-verification and password-reset links, which are `?token=…` URLs. Names are
+verification link and the web reset page, which are `?token=…` URLs. Names are
 matched case-insensitively wherever the parameter appears — not exempted by
 route, because a path-based rule stops covering a route the moment someone adds
 one.
+
+**Path tokens redacted** (`REDACTED_PATH_SEGMENTS`, also in `sanitizeLogUrl`):
+the segment after `reset-password`. Better Auth emails the reset link as
+`/api/v1/auth/reset-password/<token>?callbackURL=…`, so that token travels in
+the path, where no query rule sees it. Matched by segment name, for the same
+reason.
+
+On the **backend**, transaction and span data (`url.full`, `http.target`,
+`http.url`, `http.query`, ...) go through `scrubSpanAttributes`, the rules the
+OpenTelemetry exporter uses, and span descriptions through `sanitizeLogUrl`.
+Sentry's HTTP spans carry the raw URL, query string included, in those
+attributes.
 
 On **backend and web**, scrubbing is applied in both `beforeSend` and
 `beforeBreadcrumb`. Breadcrumbs are scrubbed as they are *recorded*, so a

@@ -3,7 +3,7 @@ import { z } from "zod"
 
 import { authSecretSchema } from "@repo/auth/secret-schema"
 
-import { booleanFromEnv, isApiDocsEnabled } from "@/config/api-docs.config"
+import { booleanFromEnv, exactlyTrueFromEnv, isApiDocsEnabled } from "@/config/api-docs.config"
 
 export { isApiDocsEnabled }
 
@@ -65,7 +65,7 @@ export const env = createEnv({
 		// Reporting stays OFF unless BOTH the flag and a DSN are supplied: a flag
 		// with no DSN is an unfinished deployment, a DSN with no flag is a value
 		// parked for later, and neither is consent to start shipping events.
-		SENTRY_ENABLED: booleanFromEnv.optional().default(false),
+		SENTRY_ENABLED: exactlyTrueFromEnv,
 		SENTRY_DSN: z.string().optional(),
 		/** Falls back to NODE_ENV when unset, so environments are never merged by accident. */
 		SENTRY_ENVIRONMENT: z.string().optional(),
@@ -79,6 +79,13 @@ export const env = createEnv({
 		POSTHOG_HOST: z.string().default("https://us.i.posthog.com"),
 		/** Project secret key (phs_...). Turns on local flag evaluation; remote evaluation without it. */
 		POSTHOG_FEATURE_FLAGS_SECRET_KEY: z.string().optional(),
+		// OpenTelemetry: OTLP export of traces and HTTP metrics (docs/opentelemetry.md).
+		// Read raw by `src/telemetry.ts` before this module runs (same exemption as
+		// Sentry); declared here so the rest of the app sees typed values. Export
+		// starts only when BOTH the flag and an endpoint are set.
+		OTEL_ENABLED: exactlyTrueFromEnv,
+		OTEL_EXPORTER_OTLP_ENDPOINT: z.string().optional(),
+		OTEL_SERVICE_NAME: z.string().default("turbo-template-api"),
 		/** Deploy image tag, injected by the deploy compose file / env; reported as the Sentry release. */
 		IMAGE_TAG: z.string().optional(),
 

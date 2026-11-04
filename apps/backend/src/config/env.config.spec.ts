@@ -3,7 +3,7 @@ import { join } from "node:path"
 
 import { isApiDocsEnabled as sharedIsApiDocsEnabled } from "@repo/auth/api-docs"
 
-import { booleanFromEnv, isApiDocsEnabled } from "@/config/api-docs.config"
+import { booleanFromEnv, exactlyTrueFromEnv, isApiDocsEnabled } from "@/config/api-docs.config"
 
 describe("isApiDocsEnabled", () => {
 	it("defaults to false in production when no flag is set", () => {
@@ -153,5 +153,33 @@ describe(".env.example", () => {
 		// The mobile app sends its API host as Origin; on the Android emulator
 		// that host is 10.0.2.2. Without it Better Auth answers 403.
 		expect(trustedOrigins).toContain("http://10.0.2.2:3000")
+	})
+})
+
+describe("exactlyTrueFromEnv", () => {
+	it.each([
+		["true", true],
+		["1", false],
+		["yes", false],
+		["TRUE", false],
+		[undefined, false],
+	])("reads %p as %p, the rule instrument.ts and telemetry.ts boot with", (raw, expected) => {
+		expect(exactlyTrueFromEnv.parse(raw)).toBe(expected)
+	})
+})
+
+describe("env SENTRY_ENABLED and OTEL_ENABLED", () => {
+	it("agree with the boot-time gates and never stop the process on a typo", () => {
+		const original = process.env
+		process.env = { ...original, SENTRY_ENABLED: "1", OTEL_ENABLED: "yes" }
+		try {
+			jest.isolateModules(() => {
+				const { env } = require("@/config/env.config") as typeof import("@/config/env.config")
+				expect(env.SENTRY_ENABLED).toBe(false)
+				expect(env.OTEL_ENABLED).toBe(false)
+			})
+		} finally {
+			process.env = original
+		}
 	})
 })

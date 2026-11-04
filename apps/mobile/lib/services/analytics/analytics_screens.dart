@@ -17,9 +17,14 @@ abstract final class AnalyticsScreens {
   /// One name per tab, in bottom-bar order. Keep in sync with HomeScreen.
   static const tabs = ['/home', '/todos', '/profile', '/settings'];
 
-  /// The observer's name for a route: the root route is the Home tab.
-  static String? nameFor(RouteSettings settings) =>
-      settings.name == AppRoutes.home ? tabs.first : settings.name;
+  /// The observer's name for a route: the root route is the Home tab, and the
+  /// startup screen has none, so the observer skips it (it only covers the
+  /// launch's first session check).
+  static String? nameFor(RouteSettings settings) => switch (settings.name) {
+    AppRoutes.home => tabs.first,
+    AppRoutes.startup => null,
+    final name => name,
+  };
 
   /// The active sink. Production code never reassigns this; see [reset].
   static AnalyticsScreenSink apply = posthogSink;

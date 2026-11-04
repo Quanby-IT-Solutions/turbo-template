@@ -1,5 +1,4 @@
 import { metrics, trace } from "@opentelemetry/api"
-
 import type { NodeClient } from "@sentry/nestjs"
 
 import { setupTelemetry } from "./setup"

@@ -121,7 +121,10 @@ function scrubbedCopy(span: ReadableSpan): ReadableSpan {
 	const copy = Object.create(Object.getPrototypeOf(span) as object) as ReadableSpan
 	return Object.assign(copy, span, {
 		attributes: scrubSpanAttributes(span.attributes),
-		events: span.events?.map(event => ({ ...event, attributes: scrubEventAttributes(event.attributes) })),
+		events: span.events?.map(event => ({
+			...event,
+			attributes: scrubEventAttributes(event.attributes),
+		})),
 		spanContext: () => scrubbedContext,
 	})
 }

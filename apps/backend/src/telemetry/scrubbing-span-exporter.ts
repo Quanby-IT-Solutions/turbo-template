@@ -46,6 +46,29 @@ export function scrubSpanAttributes(attributes: Attributes): Attributes {
 	return result
 }
 
+/** Event attributes that hold free text which can quote a request URL. */
+const TEXT_ATTRIBUTES = ["exception.message", "exception.stacktrace"] as const
+
+/** Every URL or path with a query string inside free text. */
+const URL_WITH_QUERY = /[^\s"'<>]*\?[^\s"'<>]+/g
+
+/**
+ * An event's attributes as they may leave the process. `recordException`
+ * stores the error message and stack here, and either can quote a request URL
+ * (`?token=`), so their query strings are redacted in place.
+ */
+function scrubEventAttributes(attributes: Attributes | undefined): Attributes | undefined {
+	if (!attributes) return attributes
+	const result = scrubSpanAttributes(attributes)
+	for (const key of TEXT_ATTRIBUTES) {
+		const value = result[key]
+		if (typeof value === "string") {
+			result[key] = value.replace(URL_WITH_QUERY, match => sanitizeLogUrl(match) ?? match)
+		}
+	}
+	return result
+}
+
 /**
  * Wraps the OTLP span exporter so every exported span is scrubbed first.
  *
@@ -89,7 +112,7 @@ export function withoutSentryEntries(traceState: TraceState | undefined): TraceS
 }
 
 /**
- * A copy of the span with scrubbed attributes and trace state. The prototype
+ * A copy of the span with scrubbed attributes, events and trace state. The prototype
  * is kept so other methods still work; the original span is not touched.
  */
 function scrubbedCopy(span: ReadableSpan): ReadableSpan {
@@ -98,6 +121,7 @@ function scrubbedCopy(span: ReadableSpan): ReadableSpan {
 	const copy = Object.create(Object.getPrototypeOf(span) as object) as ReadableSpan
 	return Object.assign(copy, span, {
 		attributes: scrubSpanAttributes(span.attributes),
+		events: span.events?.map(event => ({ ...event, attributes: scrubEventAttributes(event.attributes) })),
 		spanContext: () => scrubbedContext,
 	})
 }

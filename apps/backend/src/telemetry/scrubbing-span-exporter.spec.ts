@@ -127,6 +127,30 @@ describe("ScrubbingSpanExporter", () => {
 		expect(span.spanContext().traceState?.serialize()).toContain("sentry.url")
 	})
 
+	it("scrubs span events, where recordException puts the error message and stack", () => {
+		const { exporter, received } = recordingExporter()
+		const attributes = {
+			"exception.type": "Error",
+			"exception.message": "fetch https://h/reset-password?token=abc&lang=en failed",
+			"exception.stacktrace": "Error: GET /verify-email?token=xyz\n    at f (file.ts:1:1)",
+			"app.user.email": "a@b.c",
+		}
+		const span = {
+			...spanWith({}),
+			events: [{ name: "exception", time: [0, 0], attributes }],
+		} as unknown as ReadableSpan
+
+		new ScrubbingSpanExporter(exporter).export([span], jest.fn())
+
+		const [exported] = received[0] ?? []
+		expect(exported?.events[0]?.attributes).toEqual({
+			"exception.type": "Error",
+			"exception.message": "fetch https://h/reset-password?token=[REDACTED]&lang=en failed",
+			"exception.stacktrace": "Error: GET /verify-email?token=[REDACTED]\n    at f (file.ts:1:1)",
+		})
+		expect(span.events[0]?.attributes).toBe(attributes)
+	})
+
 	it("delegates shutdown and forceFlush", async () => {
 		const { exporter } = recordingExporter()
 		const scrubbing = new ScrubbingSpanExporter(exporter)

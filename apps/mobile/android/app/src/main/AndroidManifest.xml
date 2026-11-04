@@ -39,6 +39,13 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- PostHog: the native SDK must not start itself from this manifest.
+             It is set up from Dart only when the build supplies the
+             POSTHOG_* defines (see lib/core/constants/posthog_constants.dart),
+             so a build without them makes no PostHog call at all. -->
+        <meta-data
+            android:name="com.posthog.posthog.AUTO_INIT"
+            android:value="false" />
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

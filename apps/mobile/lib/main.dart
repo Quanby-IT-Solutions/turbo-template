@@ -4,8 +4,10 @@ import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile/app.dart';
+import 'package:mobile/core/constants/posthog_constants.dart';
 import 'package:mobile/core/constants/redacted_fields.dart';
 import 'package:mobile/core/constants/sentry_constants.dart';
+import 'package:mobile/services/analytics/analytics_service.dart';
 import 'package:mobile/services/api/api_client.dart';
 import 'package:mobile/services/notifications/notification_service.dart';
 import 'package:mobile/services/storage/secure_storage_service.dart';
@@ -97,6 +99,11 @@ Future<void> _bootstrap() async {
   final sharedPreferences = results[0] as SharedPreferences;
   final storage = results[1] as SecureStorageService;
   final apiClient = await createApiClient(storage);
+
+  // Product analytics is opt-in at build time, like Sentry. Without the
+  // POSTHOG_* defines this line is skipped and the SDK is never set up.
+  // Before runApp so the first screen view is not lost.
+  if (PosthogConstants.isEnabled) await AnalyticsService.setup();
 
   runApp(
     ProviderScope(

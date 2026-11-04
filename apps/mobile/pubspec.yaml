@@ -39,6 +39,11 @@ dependencies:
   # DSN is never bundled as an asset and never logged.
   sentry_flutter: ^9.26.0
 
+  # Product analytics and feature flags
+  # Same rule as Sentry: configured only from --dart-define values (see
+  # PosthogConstants), off unless a build supplies them.
+  posthog_flutter: ^5.58.4
+
   # Secure storage
   flutter_secure_storage: ^10.0.0
 

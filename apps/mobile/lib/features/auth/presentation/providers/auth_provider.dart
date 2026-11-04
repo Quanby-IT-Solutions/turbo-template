@@ -1,9 +1,11 @@
 import 'package:flutter/foundation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:mobile/core/constants/posthog_constants.dart';
 import 'package:mobile/core/constants/sentry_constants.dart';
 import 'package:mobile/features/auth/data/auth_repository.dart';
 import 'package:mobile/features/auth/data/models/session_model.dart';
 import 'package:mobile/features/auth/data/models/user_model.dart';
+import 'package:posthog_flutter/posthog_flutter.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
 part 'auth_provider.g.dart';
@@ -41,6 +43,37 @@ class CrashReportingIdentity {
   static void reset() => apply = sentrySink;
 }
 
+/// Receives the analytics identity: a user id, or `null` to reset it.
+typedef AnalyticsIdentitySink = void Function(String? userId);
+
+/// The seam between [AuthState] and PostHog's identity, shaped exactly like
+/// [CrashReportingIdentity] and for the same reason: [PosthogConstants] is
+/// compile-time disabled under `flutter test`, so tests swap [apply].
+class AnalyticsIdentity {
+  AnalyticsIdentity._();
+
+  /// The active sink. Production code never reassigns this; see [reset].
+  static AnalyticsIdentitySink apply = posthogSink;
+
+  /// Identifies the signed-in user by id, or resets to a fresh anonymous id.
+  ///
+  /// The id and nothing else: no email or name goes to PostHog as a person
+  /// property. Reset matters as much as identify. Without it, the next person
+  /// to sign in on this device would be merged into the previous one.
+  static void posthogSink(String? userId) {
+    if (!PosthogConstants.isEnabled) return;
+    if (userId == null) {
+      Posthog().reset();
+    } else {
+      Posthog().identify(userId: userId);
+    }
+  }
+
+  /// Restores [posthogSink]. Test teardown only.
+  @visibleForTesting
+  static void reset() => apply = posthogSink;
+}
+
 @Riverpod(keepAlive: true)
 class AuthState extends _$AuthState {
   @override
@@ -50,10 +83,10 @@ class AuthState extends _$AuthState {
     // warm launch — reporting crashes anonymously.
     try {
       final session = await ref.read(authRepositoryProvider).getSession();
-      _syncCrashReportingIdentity(session);
+      _syncIdentity(session);
       return session;
     } catch (_) {
-      _syncCrashReportingIdentity(null);
+      _syncIdentity(null);
       rethrow;
     }
   }
@@ -70,7 +103,7 @@ class AuthState extends _$AuthState {
           ),
     );
 
-    _syncCrashReportingIdentity(state.hasValue ? state.value : null);
+    _syncIdentity(state.hasValue ? state.value : null);
   }
 
   Future<void> signUp({
@@ -89,10 +122,19 @@ class AuthState extends _$AuthState {
 
     // Sign-up returns the same authenticated SessionModel as sign-in, so it is
     // the same identity transition.
-    _syncCrashReportingIdentity(state.hasValue ? state.value : null);
+    _syncIdentity(state.hasValue ? state.value : null);
   }
 
   Future<void> signOut() async {
+    // Same reasoning as the cookie-jar purge: sign-out must leave no
+    // trace of who was signed in. A stale identity here would attach the
+    // previous user's id to whatever the *next* user crashes on. It runs
+    // first: the router treats the loading state below as signed out and
+    // shows /login at once, and that screen view must not carry the old id.
+    // Sign-out always completes on the device (see finally), so resetting
+    // before the backend call answers is safe.
+    _syncIdentity(null);
+
     state = const AsyncLoading();
     try {
       await ref.read(authRepositoryProvider).signOut();
@@ -100,21 +142,19 @@ class AuthState extends _$AuthState {
       // Always clear local session even if the backend call fails,
       // so the user is logged out on the device.
       state = const AsyncData(null);
-
-      // Same reasoning as the cookie-jar purge: sign-out must leave no
-      // trace of who was signed in. A stale identity here would attach the
-      // previous user's id to whatever the *next* user crashes on.
-      _syncCrashReportingIdentity(null);
     }
   }
 
-  /// Mirrors the current authenticated state into the crash reporter.
+  /// Mirrors the current authenticated state into the crash reporter and
+  /// into analytics.
   ///
   /// Every transition routes through here — restore, sign-in, sign-up, sign-out
   /// and the failure paths of each — so an unauthenticated outcome clears the
   /// identity rather than leaving the previous user's id attached.
-  void _syncCrashReportingIdentity(SessionModel? session) {
-    CrashReportingIdentity.apply(session?.user.id);
+  void _syncIdentity(SessionModel? session) {
+    final userId = session?.user.id;
+    CrashReportingIdentity.apply(userId);
+    AnalyticsIdentity.apply(userId);
   }
 }
 

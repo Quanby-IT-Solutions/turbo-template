@@ -6,6 +6,7 @@ import {
 	REDACTED_FIELD_NAMES,
 	REDACTED_VALUE,
 	sanitizeLogQuery,
+	redactSqlParams,
 	sanitizeLogUrl,
 } from "./redaction.js"
 
@@ -218,5 +219,28 @@ describe("PINO_REDACT_PATHS", () => {
 		// `res.headers.set-cookie` is not a path pino can parse.
 		expect(PINO_REDACT_PATHS).toContain("res.headers['set-cookie']")
 		expect(PINO_REDACT_PATHS).not.toContain("res.headers.set-cookie")
+	})
+})
+
+describe("redactSqlParams", () => {
+	it("redacts the params line Drizzle puts in a failed-query message", () => {
+		const message =
+			'Failed query: select "id" from "verifications" where "identifier" = $1 limit $2\nparams: reset-password:live-token,1'
+		expect(redactSqlParams(message)).toBe(
+			`Failed query: select "id" from "verifications" where "identifier" = $1 limit $2\nparams: ${REDACTED_VALUE}`
+		)
+	})
+
+	it("keeps the stack trace that follows the params line", () => {
+		const stack = "DrizzleQueryError: Failed query: select 1\nparams: a@b.c\n    at f (file.js:1:1)"
+		expect(redactSqlParams(stack)).toBe(
+			`DrizzleQueryError: Failed query: select 1\nparams: ${REDACTED_VALUE}\n    at f (file.js:1:1)`
+		)
+	})
+
+	it("leaves text without a params line alone", () => {
+		expect(redactSqlParams("connect ECONNREFUSED 127.0.0.1:5432")).toBe(
+			"connect ECONNREFUSED 127.0.0.1:5432"
+		)
 	})
 })

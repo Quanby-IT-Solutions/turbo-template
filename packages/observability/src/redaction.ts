@@ -196,3 +196,17 @@ function decodeName(name: string): string {
 		return name.trim().toLowerCase()
 	}
 }
+
+/**
+ * A failed database query's message without its bound values.
+ *
+ * Drizzle builds `DrizzleQueryError` messages as `Failed query: <sql>` plus a
+ * `params: <values>` line, and the values are whatever the query bound: a
+ * password-reset token, an email. The message reaches every error sink (Better
+ * Auth's logger, Sentry's exception value, console breadcrumbs, a stack trace),
+ * so each sink runs it through here. The SQL itself stays; it holds `$1`
+ * placeholders, not values.
+ */
+export function redactSqlParams(text: string): string {
+	return text.replace(/^params: .*$/gm, `params: ${REDACTED_VALUE}`)
+}

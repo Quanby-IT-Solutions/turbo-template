@@ -12,6 +12,7 @@ const writeCacheIdentity = vi.fn()
 const routerPush = vi.fn()
 const routerRefresh = vi.fn()
 const toastError = vi.fn()
+const resetAnalyticsIdentity = vi.fn()
 
 vi.mock("next/navigation", () => ({
 	useRouter: () => ({ push: routerPush, refresh: routerRefresh }),
@@ -28,6 +29,10 @@ vi.mock("@/services/better-auth/auth-client", () => ({
 vi.mock("@/services/tanstack-query/cache-persistence", () => ({
 	purgePersistedCache: () => purgePersistedCache(),
 	writeCacheIdentity: (id: string | null) => writeCacheIdentity(id),
+}))
+
+vi.mock("@/services/analytics/posthog-identity", () => ({
+	resetAnalyticsIdentity: () => resetAnalyticsIdentity(),
 }))
 
 const { useSignOutMutation } = await import("./session.hooks")
@@ -74,6 +79,20 @@ describe("useSignOutMutation", () => {
 		expect(writeCacheIdentity).toHaveBeenCalledWith(null)
 		expect(routerRefresh).toHaveBeenCalled()
 		expect(toastError).not.toHaveBeenCalled()
+	})
+
+	it("resets the analytics identity before navigating", async () => {
+		// The page sign-out lands on records a pageview. If the reset came after
+		// the navigation, that pageview would carry the user who just left.
+		const order: string[] = []
+		resetAnalyticsIdentity.mockImplementation(() => order.push("analytics-reset"))
+		routerPush.mockImplementation(() => order.push("navigate"))
+
+		const { result } = renderSignOut()
+		result.current.mutate()
+
+		await waitFor(() => expect(result.current.isSuccess).toBe(true))
+		expect(order).toEqual(["analytics-reset", "navigate"])
 	})
 
 	it("reports a failed purge instead of navigating away", async () => {

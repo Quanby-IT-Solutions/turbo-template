@@ -1,3 +1,4 @@
+import { AnalyticsIdentityStamp } from "@/services/analytics/analytics-identity-stamp"
 import { getSession, SessionUnavailableError } from "@/services/better-auth/auth-server"
 import { CacheIdentityStamp } from "@/services/tanstack-query/provider"
 
@@ -31,5 +32,14 @@ export async function CacheIdentity() {
 		if (!(error instanceof SessionUnavailableError)) throw error
 	}
 
-	return <CacheIdentityStamp userId={session?.user?.id ?? null} />
+	const userId = session?.user?.id ?? null
+
+	// PostHog's identity follows the same session read, so the two can never
+	// disagree about who is signed in.
+	return (
+		<>
+			<CacheIdentityStamp userId={userId} />
+			<AnalyticsIdentityStamp userId={userId} />
+		</>
+	)
 }

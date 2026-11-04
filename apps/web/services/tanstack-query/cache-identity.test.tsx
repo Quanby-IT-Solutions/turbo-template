@@ -1,3 +1,4 @@
+import type * as React from "react"
 import { describe, expect, it, vi } from "vitest"
 
 import { CacheIdentity } from "./cache-identity"
@@ -27,13 +28,27 @@ vi.mock("@/services/tanstack-query/provider", () => ({
 	CacheIdentityStamp: () => null,
 }))
 
+vi.mock("@/services/analytics/analytics-identity-stamp", () => ({
+	AnalyticsIdentityStamp: () => null,
+}))
+
+/**
+ * The user id each stamp was handed. The cache stamp and the analytics stamp
+ * read the same session, so they must always receive the same id.
+ */
+function stampedIds(
+	element: React.ReactElement<{ children: React.ReactElement<{ userId: string | null }>[] }>
+) {
+	return element.props.children.map(child => child.props.userId)
+}
+
 describe("CacheIdentity", () => {
 	it("stamps the signed-in user", async () => {
 		getSession.mockResolvedValue({ user: { id: "user-1" } })
 
 		const element = await CacheIdentity()
 
-		expect(element.props.userId).toBe("user-1")
+		expect(stampedIds(element)).toEqual(["user-1", "user-1"])
 	})
 
 	it("stamps anonymous when the session read is unavailable", async () => {
@@ -41,7 +56,7 @@ describe("CacheIdentity", () => {
 
 		const element = await CacheIdentity()
 
-		expect(element.props.userId).toBeNull()
+		expect(stampedIds(element)).toEqual([null, null])
 	})
 
 	it("stamps anonymous when the visitor is signed out", async () => {
@@ -49,7 +64,7 @@ describe("CacheIdentity", () => {
 
 		const element = await CacheIdentity()
 
-		expect(element.props.userId).toBeNull()
+		expect(stampedIds(element)).toEqual([null, null])
 	})
 
 	it("rethrows errors that are not a failed session read", async () => {

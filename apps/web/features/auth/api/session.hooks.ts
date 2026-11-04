@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation"
 import { queryOptions, useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 
+import { resetAnalyticsIdentity } from "@/services/analytics/posthog-identity"
 import { authClient } from "@/services/better-auth/auth-client"
 import {
 	purgePersistedCache,
@@ -73,6 +74,9 @@ export function useSignOutMutation() {
 			queryClient.clear()
 			await purgePersistedCache()
 			writeCacheIdentity(null)
+			// Before the navigation below: the page it lands on records a
+			// pageview, and that pageview must already be anonymous.
+			resetAnalyticsIdentity()
 
 			return result
 		},

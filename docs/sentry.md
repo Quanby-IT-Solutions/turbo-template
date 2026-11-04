@@ -91,6 +91,10 @@ Mobile also has no diagnostics page and no test-error button — see
 | Production | Wired end to end — `.github/workflows/deploy-production.yml` passes build args and writes the runtime payload to SSM. Still inert until the GitHub Environment values are populated. |
 | Staging | **Deliberately untouched.** `docker-compose.staging.yml` and `.github/workflows/deploy-staging.yml` carry no Sentry configuration. Wire it manually if you want it — mirror the production workflow's build args and env payload. |
 
+### With OpenTelemetry export on
+
+When `OTEL_ENABLED` and an OTLP endpoint are set on the backend, Sentry runs in its documented v10 custom OpenTelemetry setup: `src/telemetry.ts` owns the one tracer provider, Sentry plugs in its sampler, span processor, propagator and context manager, and Sentry's own HTTP spans are turned off because HTTP is instrumented there. Sentry's sampling (including the health-check exclusion) and its `beforeSend*` scrubbing are unchanged. See [`opentelemetry.md`](./opentelemetry.md).
+
 ## Configuration
 
 ### Backend (`apps/backend`)

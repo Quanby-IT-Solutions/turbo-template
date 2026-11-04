@@ -9,6 +9,7 @@ import 'package:mobile/features/auth/presentation/screens/register_screen.dart';
 import 'package:mobile/features/home/presentation/screens/home_screen.dart';
 import 'package:mobile/features/onboarding/presentation/providers/onboarding_provider.dart';
 import 'package:mobile/features/onboarding/presentation/screens/onboarding_screen.dart';
+import 'package:mobile/services/analytics/analytics_screens.dart';
 import 'package:posthog_flutter/posthog_flutter.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
@@ -53,7 +54,8 @@ GoRouter appRouter(Ref ref) {
     // list is empty and no observer is constructed at all.
     observers: [
       if (SentryConstants.isEnabled) SentryNavigatorObserver(),
-      if (PosthogConstants.isEnabled) PosthogObserver(),
+      if (PosthogConstants.isEnabled)
+        PosthogObserver(nameExtractor: AnalyticsScreens.nameFor),
     ],
     redirect: (context, state) {
       final isOnboardingDone = ref.read(hasCompletedOnboardingProvider);

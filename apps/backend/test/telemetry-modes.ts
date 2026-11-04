@@ -10,6 +10,10 @@
  * values, shuts it down (which flushes), and checks what arrived. Exits 1 on
  * any failure. Needs the same local database the e2e suite uses.
  */
+// The sign-in probe needs a trusted Origin: CI sets it in the job env, a local
+// run reads apps/backend/.env (pnpm runs this from the package directory).
+import "dotenv/config"
+
 import { spawn, type ChildProcess } from "node:child_process"
 import { once } from "node:events"
 import { createServer, type Server } from "node:http"
@@ -141,13 +145,18 @@ async function exercise(port: number) {
 	})
 	const todosMs = Date.now() - started
 	await fetch(`${base}/auth/reset-password/reset-secret-w?callbackURL=/x`, { redirect: "manual" })
-	await fetch(`${base}/auth/sign-in/email`, {
+	// Node's fetch sends sec-fetch headers, so Better Auth wants a trusted Origin
+	// (403 without one, before any query runs).
+	const signIn = await fetch(`${base}/auth/sign-in/email`, {
 		method: "POST",
-		headers: { "content-type": "application/json" },
+		headers: {
+			"content-type": "application/json",
+			"origin": process.env.BETTER_AUTH_TRUSTED_ORIGINS?.split(",")[0]?.trim() ?? "",
+		},
 		body: JSON.stringify({ email: "probe-email-u@example.com", password: "probe-password-v" }),
 	})
 	await fetch(`${base}/health`)
-	return { todosStatus: todos.status, todosMs }
+	return { todosStatus: todos.status, todosMs, signInStatus: signIn.status }
 }
 
 // ---------------------------------------------------------------- checks
@@ -343,7 +352,7 @@ async function main() {
 	for (const mode of modes) {
 		receiver.reset()
 		const { child, output } = await boot(mode.env, ++port)
-		const { todosStatus, todosMs } = await exercise(port)
+		const { todosStatus, todosMs, signInStatus } = await exercise(port)
 		await new Promise(resolve => setTimeout(resolve, 1500))
 		const aliveAfterRequest = child.exitCode === null
 		await stop(child)
@@ -354,10 +363,14 @@ async function main() {
 			output: output(),
 			todosStatus,
 			todosMs,
+			signInStatus,
 			aliveAfterRequest,
 		}
 		const failures = [
 			...mode.check(run),
+			...(run.signInStatus === 403
+				? ["the sign-in probe was refused (403): check its Origin"]
+				: []),
 			...LOG_SECRETS.filter(secret => run.output.includes(secret)).map(
 				secret => `the log contains ${secret}`
 			),
@@ -417,6 +430,8 @@ type Run = {
 	output: string
 	todosStatus: number
 	todosMs: number
+	/** 401 with the database up (unknown user), 500 with it down; 403 means the probe never ran. */
+	signInStatus: number
 	aliveAfterRequest: boolean
 }
 

@@ -26,7 +26,7 @@ The project token (`phc_...`) is a public ingest key; it is still kept out of co
 
 ### Where it is wired
 
-- Web: `instrumentation-client.ts` (init), `core/lib/posthog-config.ts` (gate and init options), `app/ingest/[...path]/route.ts` with `core/lib/posthog-proxy.ts` (the `/ingest` proxy), `services/analytics/` (identity), `core/hooks/use-feature-flag.ts`.
+- Web: `instrumentation-client.ts` (starts the load), `core/lib/posthog-client.ts` (the only runtime import of `posthog-js`: downloaded and initialized on demand, never fetched while PostHog is off), `core/lib/posthog-config.ts` (gate and init options), `app/ingest/[...path]/route.ts` with `core/lib/posthog-proxy.ts` (the `/ingest` proxy), `services/analytics/` (identity), `core/hooks/use-feature-flag.ts`.
 - Backend: `src/common/analytics/` (`AnalyticsModule`, `FeatureFlagsService`), `src/shared/decorators/feature-flag.decorator.ts` and `src/shared/guards/feature-flag.guard.ts`.
 - Mobile: `lib/services/analytics/`, `lib/core/constants/posthog_constants.dart`, identity in `features/auth/presentation/providers/auth_provider.dart`.
 - Shared: `scrubEventProperties` in `@repo/observability`.

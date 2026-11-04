@@ -9,7 +9,7 @@ let loaded: PostHog | undefined
  * posthog-js, downloaded and initialized on first call, or `undefined` when
  * PostHog is off. The only module that imports the SDK at runtime: a static
  * import anywhere puts the ~350 KB library on every page even with analytics
- * off (measured in the PAL-210 walk, 11/4), so with no token it is never
+ * off (measured 11/4: a 352,709-byte chunk), so with no token it is never
  * fetched at all.
  */
 export function loadPosthog(

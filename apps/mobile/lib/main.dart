@@ -7,6 +7,8 @@ import 'package:mobile/app.dart';
 import 'package:mobile/core/constants/posthog_constants.dart';
 import 'package:mobile/core/constants/redacted_fields.dart';
 import 'package:mobile/core/constants/sentry_constants.dart';
+import 'package:mobile/features/auth/presentation/providers/auth_provider.dart';
+import 'package:mobile/services/analytics/analytics_identity_marker.dart';
 import 'package:mobile/services/analytics/analytics_service.dart';
 import 'package:mobile/services/api/api_client.dart';
 import 'package:mobile/services/notifications/notification_service.dart';
@@ -103,7 +105,10 @@ Future<void> _bootstrap() async {
   // Product analytics is opt-in at build time, like Sentry. Without the
   // POSTHOG_* defines this line is skipped and the SDK is never set up.
   // Before runApp so the first screen view is not lost.
-  if (PosthogConstants.isEnabled) await AnalyticsService.setup();
+  if (PosthogConstants.isEnabled) {
+    await AnalyticsService.setup();
+    AnalyticsIdentity.marker = AnalyticsIdentityMarker(sharedPreferences);
+  }
 
   runApp(
     ProviderScope(

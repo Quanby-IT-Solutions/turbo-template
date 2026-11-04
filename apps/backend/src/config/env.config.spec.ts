@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs"
+import { join } from "node:path"
+
 import { isApiDocsEnabled as sharedIsApiDocsEnabled } from "@repo/auth/api-docs"
 
 import { booleanFromEnv, isApiDocsEnabled } from "@/config/api-docs.config"
@@ -137,5 +140,18 @@ describe("BETTER_AUTH_SECRET boot validation", () => {
 		const { env } = loadEnvConfig(secret)
 
 		expect(env.BETTER_AUTH_SECRET).toBe(secret)
+	})
+})
+
+describe(".env.example", () => {
+	const example = readFileSync(join(__dirname, "../../.env.example"), "utf8")
+	const trustedOrigins = (example.match(/^BETTER_AUTH_TRUSTED_ORIGINS=(.*)$/m)?.[1] ?? "").split(
+		","
+	)
+
+	it("trusts the Android emulator's origin, so a copied .env lets the emulator sign in", () => {
+		// The mobile app sends its API host as Origin; on the Android emulator
+		// that host is 10.0.2.2. Without it Better Auth answers 403.
+		expect(trustedOrigins).toContain("http://10.0.2.2:3000")
 	})
 })

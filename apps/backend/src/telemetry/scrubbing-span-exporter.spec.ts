@@ -76,9 +76,9 @@ describe("scrubSpanAttributes", () => {
 	it.each(["http.request.header.referer", "http.request.header.referrer"])(
 		"redacts credential query params in a captured %s header",
 		key => {
-			expect(
-				scrubSpanAttributes({ [key]: ["https://web/reset-password?token=abc"] })[key]
-			).toEqual(["https://web/reset-password?token=[REDACTED]"])
+			expect(scrubSpanAttributes({ [key]: ["https://web/reset-password?token=abc"] })[key]).toEqual(
+				["https://web/reset-password?token=[REDACTED]"]
+			)
 		}
 	)
 

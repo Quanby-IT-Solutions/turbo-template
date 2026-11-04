@@ -57,6 +57,7 @@ Backend flag checks never wait longer than 1500 ms. A timeout or error is logged
 ## Privacy defaults
 
 - `before_send` on web and backend (and the Dart twin on mobile) drops every key on the `@repo/observability` deny-list (the list the request logger and Sentry use) at any depth, and redacts credential query parameters (`?token=`) in URL properties such as `$current_url` and `$referrer`.
+- The web `before_send` keeps PostHog's own `token` property (the public project key, which posthog-js requires on every event) while a `token` anywhere inside app data is still removed.
 - No session replay, no surveys, no scripts loaded from PostHog at runtime (`disable_external_dependency_loading`), and `defaults` pinned to a date so an SDK upgrade cannot quietly change what is captured.
 - Project settings on the Quanby PostHog project (set in PostHog, not in code): **Discard client IP data** is on, and a **Drop precise location** transformation runs after GeoIP and nulls postal code, latitude, longitude and accuracy radius. Country, region and city are kept.
 

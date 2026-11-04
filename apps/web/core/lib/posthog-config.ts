@@ -66,7 +66,14 @@ export function posthogInitOptions(): Partial<PostHogConfig> {
 		disable_session_recording: true,
 		disable_surveys: true,
 		disable_external_dependency_loading: true,
-		before_send: event =>
-			event && { ...event, properties: scrubEventProperties(event.properties ?? {}) },
+		before_send: event => {
+			if (!event) return event
+			const { token, ...properties } = event.properties ?? {}
+			// `token` here is PostHog's public project token, which posthog-js
+			// requires on every event. The deny-list also has "token" (reset
+			// tokens), so it is set aside before the scrub and put back after;
+			// a "token" anywhere inside app data is still removed.
+			return { ...event, properties: { ...scrubEventProperties(properties), token } }
+		},
 	}
 }

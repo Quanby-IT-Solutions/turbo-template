@@ -60,6 +60,21 @@ describe("posthogInitOptions", () => {
 		expect(beforeSend(event)?.properties).toEqual({ $current_url: "/dashboard" })
 	})
 
+	it("keeps PostHog's own project token, or posthog-js drops the event", () => {
+		// Every posthog-js event carries the public project token as
+		// properties.token. The deny-list has "token" (password-reset tokens), so
+		// a plain scrub removed it and posthog-js dropped every event (live walk).
+		const beforeSend = posthogInitOptions().before_send as (
+			event: CaptureResult | null
+		) => CaptureResult | null
+		const event = {
+			event: "$pageview",
+			properties: { token: "phc_project", email: "a@b.c", form: { token: "reset-secret" } },
+		} as unknown as CaptureResult
+
+		expect(beforeSend(event)?.properties).toEqual({ token: "phc_project", form: {} })
+	})
+
 	it("passes a dropped event through as dropped", () => {
 		const beforeSend = posthogInitOptions().before_send as (
 			event: CaptureResult | null

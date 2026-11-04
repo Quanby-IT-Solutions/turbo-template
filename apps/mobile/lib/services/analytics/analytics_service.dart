@@ -23,10 +23,13 @@ Map<String, Object> scrubAnalyticsProperties(Map<String, Object> properties) {
   for (final entry in properties.entries) {
     if (_isDenied(entry.key)) continue;
     final value = entry.value;
-    if (value is Map<String, Object>) {
-      result[entry.key] = <String, Object>{
+    // Any Map, not just Map<String, Object>: a Map<String, dynamic> (what
+    // JSON decoding and plugins produce) fails that type test and would pass
+    // through unscrubbed.
+    if (value is Map) {
+      result[entry.key] = {
         for (final inner in value.entries)
-          if (!_isDenied(inner.key)) inner.key: inner.value,
+          if (!_isDenied('${inner.key}')) inner.key: inner.value,
       };
     } else {
       result[entry.key] = value;

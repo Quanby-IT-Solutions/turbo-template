@@ -28,6 +28,15 @@ void main() {
     );
   });
 
+  test('drops nested deny-listed keys whatever the map is typed as', () {
+    // Maps decoded from JSON or built by plugins are Map<String, dynamic>,
+    // which is not a Map<String, Object>; the scrub must not skip them.
+    final Map<String, dynamic> form = {'password': 'x', 'step': 2};
+    expect(scrubAnalyticsProperties({'form': form}), {
+      'form': {'step': 2},
+    });
+  });
+
   test('leaves deeper levels alone', () {
     final deep = {
       'a': {

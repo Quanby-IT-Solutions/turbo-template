@@ -51,8 +51,9 @@ export const isPosthogClientEnabled = Boolean(clientPosthogToken)
  * - Events go to `/ingest`, a same-origin proxy route (`app/ingest`), so the
  *   CSP's `connect-src 'self'` already covers them and ad blockers do not drop
  *   them (the same reason Sentry uses its `/monitoring` tunnel).
- * - Person profiles only for signed-in users; replay and surveys off; no
- *   scripts loaded from PostHog at runtime, so nothing outside the bundle runs.
+ * - Person profiles only for signed-in users; replay, surveys and click
+ *   autocapture off; no scripts loaded from PostHog at runtime, so nothing
+ *   outside the bundle runs.
  * - Every event's properties pass the shared deny-list scrub.
  * - `defaults` is pinned, not `latest`, so an SDK upgrade cannot quietly change
  *   what is captured. That date captures pageviews on App Router navigation.
@@ -66,6 +67,11 @@ export function posthogInitOptions(): Partial<PostHogConfig> {
 		disable_session_recording: true,
 		disable_surveys: true,
 		disable_external_dependency_loading: true,
+		// Autocapture records the text of whatever element is clicked, and that
+		// text can be personal data on screen (an email on the account page). The
+		// scrub only sees property names, so clicks are not captured by default;
+		// capture named events instead.
+		autocapture: false,
 		before_send: event => {
 			if (!event) return event
 			const { token, ...properties } = event.properties ?? {}

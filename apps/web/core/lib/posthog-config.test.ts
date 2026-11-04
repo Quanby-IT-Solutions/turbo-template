@@ -45,6 +45,9 @@ describe("posthogInitOptions", () => {
 			disable_session_recording: true,
 			disable_surveys: true,
 			disable_external_dependency_loading: true,
+			// Autocapture records the text of whatever is clicked, and that text
+			// can be an email address on screen; the scrub only sees key names.
+			autocapture: false,
 		})
 	})
 

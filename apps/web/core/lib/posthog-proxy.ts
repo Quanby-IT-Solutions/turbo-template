@@ -85,3 +85,35 @@ export function cleanUpstreamResponse(upstream: Response): Response {
 
 	return new Response(upstream.body, { status: upstream.status, headers })
 }
+
+/**
+ * How long the proxy waits for PostHog. A PostHog outage must not hold server
+ * connections open; the SDK retries a failed batch later.
+ */
+export const UPSTREAM_TIMEOUT_MS = 5000
+
+/**
+ * One proxied call: build the clean request, send it with a deadline, and hand
+ * back PostHog's answer without cookies. 504 when PostHog does not answer in
+ * time, 502 when it cannot be reached. `fetch` and the deadline are injectable
+ * for tests.
+ */
+export async function proxyToPosthog(
+	incoming: Request,
+	hosts: PosthogHosts,
+	options: {
+		fetch?: (url: string, init: RequestInit) => Promise<Response>
+		timeoutMs?: number
+	} = {}
+): Promise<Response> {
+	const send = options.fetch ?? fetch
+	const { url, init } = await buildUpstreamRequest(incoming, hosts)
+	const signal = AbortSignal.timeout(options.timeoutMs ?? UPSTREAM_TIMEOUT_MS)
+
+	try {
+		return cleanUpstreamResponse(await send(url, { ...init, signal }))
+	} catch (error) {
+		const timedOut = error instanceof DOMException && error.name === "TimeoutError"
+		return new Response(null, { status: timedOut ? 504 : 502 })
+	}
+}

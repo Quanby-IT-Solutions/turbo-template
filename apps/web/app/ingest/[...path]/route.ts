@@ -1,8 +1,4 @@
-import {
-	buildUpstreamRequest,
-	cleanUpstreamResponse,
-	resolvePosthogHosts,
-} from "@/core/lib/posthog-proxy"
+import { proxyToPosthog, resolvePosthogHosts } from "@/core/lib/posthog-proxy"
 import { env } from "@/env"
 
 /**
@@ -24,14 +20,7 @@ export const dynamic = "force-dynamic"
 
 async function proxy(request: Request): Promise<Response> {
 	if (!hosts) return new Response(null, { status: 404 })
-
-	const { url, init } = await buildUpstreamRequest(request, hosts)
-	try {
-		return cleanUpstreamResponse(await fetch(url, init))
-	} catch {
-		// PostHog unreachable: the SDK retries later; the page is unaffected.
-		return new Response(null, { status: 502 })
-	}
+	return proxyToPosthog(request, hosts)
 }
 
 export const GET = proxy

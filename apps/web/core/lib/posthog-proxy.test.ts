@@ -1,7 +1,12 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest"
 
-import { buildUpstreamRequest, cleanUpstreamResponse, resolvePosthogHosts } from "./posthog-proxy"
+import {
+	buildUpstreamRequest,
+	cleanUpstreamResponse,
+	proxyToPosthog,
+	resolvePosthogHosts,
+} from "./posthog-proxy"
 
 const us = { ingest: "https://us.i.posthog.com", assets: "https://us-assets.i.posthog.com" }
 
@@ -86,5 +91,38 @@ describe("cleanUpstreamResponse", () => {
 		expect(await response.text()).toBe("ok")
 		expect(response.headers.get("content-type")).toBe("application/json")
 		expect(response.headers.get("set-cookie")).toBeNull()
+	})
+})
+
+describe("proxyToPosthog", () => {
+	const request = () =>
+		new Request("https://app.example.com/ingest/e/", { method: "POST", body: "x" })
+
+	it("answers 504 instead of hanging when PostHog never answers", async () => {
+		// A fetch that only ends when its signal aborts, like a black-holed host.
+		const hangingFetch = (_url: string, init: RequestInit) =>
+			new Promise<Response>((_resolve, reject) => {
+				init.signal?.addEventListener("abort", () => reject(init.signal?.reason))
+			})
+
+		const response = await proxyToPosthog(request(), us, { fetch: hangingFetch, timeoutMs: 50 })
+
+		expect(response.status).toBe(504)
+	})
+
+	it("answers 502 when PostHog cannot be reached at all", async () => {
+		const failingFetch = () => Promise.reject(new TypeError("fetch failed"))
+
+		const response = await proxyToPosthog(request(), us, { fetch: failingFetch, timeoutMs: 50 })
+
+		expect(response.status).toBe(502)
+	})
+
+	it("relays PostHog's answer when it comes in time", async () => {
+		const okFetch = () => Promise.resolve(new Response("ok", { status: 200 }))
+
+		const response = await proxyToPosthog(request(), us, { fetch: okFetch, timeoutMs: 50 })
+
+		expect(response.status).toBe(200)
 	})
 })

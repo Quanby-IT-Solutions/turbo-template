@@ -51,8 +51,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     ref.read(navigationControllerProvider.notifier).setTab(0);
     await WidgetsBinding.instance.endOfFrame;
 
-    _showcaseKey.currentState
-        ?.startShowCase(TourRegistry.instance.orderedKeys);
+    _showcaseKey.currentState?.startShowCase(TourRegistry.instance.orderedKeys);
   }
 
   @override
@@ -94,8 +93,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final userId = ref.read(currentUserProvider)?.id;
         if (userId == null) return;
-        final hasCompleted =
-            ref.read(tourStorageServiceProvider).hasCompletedTour(userId);
+        final hasCompleted = ref
+            .read(tourStorageServiceProvider)
+            .hasCompletedTour(userId);
         if (!hasCompleted) {
           _ensureAllTabsMountedThenStart();
         }

@@ -92,10 +92,7 @@ class TodosScreen extends ConsumerWidget {
                 color: theme.colorScheme.error,
               ),
               const SizedBox(height: 16),
-              Text(
-                'Failed to load todos',
-                style: theme.textTheme.titleMedium,
-              ),
+              Text('Failed to load todos', style: theme.textTheme.titleMedium),
               const SizedBox(height: 8),
               Text(
                 error.toString(),
@@ -155,7 +152,9 @@ class TodosScreen extends ConsumerWidget {
             onPressed: () => Navigator.of(ctx).pop(),
             child: Text(
               'Cancel',
-              style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.6)),
+              style: TextStyle(
+                color: theme.colorScheme.onSurface.withOpacity(0.6),
+              ),
             ),
           ),
           AppButton(
@@ -168,9 +167,7 @@ class TodosScreen extends ConsumerWidget {
             child: const Text('Add'),
           ),
         ],
-        shape: RoundedRectangleBorder(
-          borderRadius: AppRadii.mediumRadius,
-        ),
+        shape: RoundedRectangleBorder(borderRadius: AppRadii.mediumRadius),
       ),
     ).then((title) {
       if (title != null && title.isNotEmpty) {
@@ -200,9 +197,7 @@ class _TodoItem extends ConsumerWidget {
       onToggle: (_) {
         ref.read(todosListProvider.notifier).toggleTodo(todo);
         toastification.show(
-          title: Text(
-            todo.completed ? 'Todo uncompleted' : 'Todo completed',
-          ),
+          title: Text(todo.completed ? 'Todo uncompleted' : 'Todo completed'),
           type: todo.completed
               ? ToastificationType.info
               : ToastificationType.success,
@@ -226,9 +221,7 @@ class _TodoItem extends ConsumerWidget {
                 child: const Text('Delete'),
               ),
             ],
-            shape: RoundedRectangleBorder(
-              borderRadius: AppRadii.mediumRadius,
-            ),
+            shape: RoundedRectangleBorder(borderRadius: AppRadii.mediumRadius),
           ),
         );
       },

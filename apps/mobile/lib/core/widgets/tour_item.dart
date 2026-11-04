@@ -81,7 +81,8 @@ class _TourItemState extends State<TourItem> {
       key: _showcaseKey,
       title: widget.title,
       description: widget.description,
-      targetShapeBorder: widget.targetShapeBorder ?? const RoundedRectangleBorder(),
+      targetShapeBorder:
+          widget.targetShapeBorder ?? const RoundedRectangleBorder(),
       child: widget.child,
     );
   }

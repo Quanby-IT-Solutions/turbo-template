@@ -23,9 +23,7 @@ class SettingsTab extends ConsumerWidget {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Settings'),
-      ),
+      appBar: AppBar(title: const Text('Settings')),
       body: ListView(
         children: [
           // User info section
@@ -187,10 +185,7 @@ class SettingsTab extends ConsumerWidget {
                 },
               ),
               ListTile(
-                leading: Icon(
-                  Icons.logout,
-                  color: theme.colorScheme.error,
-                ),
+                leading: Icon(Icons.logout, color: theme.colorScheme.error),
                 title: Text(
                   'Sign Out',
                   style: TextStyle(color: theme.colorScheme.error),
@@ -200,8 +195,7 @@ class SettingsTab extends ConsumerWidget {
                     context: context,
                     builder: (ctx) => AlertDialog(
                       title: const Text('Sign Out'),
-                      content:
-                          const Text('Are you sure you want to sign out?'),
+                      content: const Text('Are you sure you want to sign out?'),
                       actions: [
                         TextButton(
                           onPressed: () => Navigator.of(ctx).pop(false),

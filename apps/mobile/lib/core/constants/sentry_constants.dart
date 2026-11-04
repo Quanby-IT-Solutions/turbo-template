@@ -23,12 +23,16 @@ class SentryConstants {
 
   /// Opt-in switch. Defaults to `false` so the absence of build flags means
   /// "off" rather than "half-configured".
-  static const bool _enabledFlag =
-      bool.fromEnvironment('SENTRY_ENABLED', defaultValue: false);
+  static const bool _enabledFlag = bool.fromEnvironment(
+    'SENTRY_ENABLED',
+    defaultValue: false,
+  );
 
   /// Deployment environment tag attached to every event.
-  static const String environment =
-      String.fromEnvironment('SENTRY_ENVIRONMENT', defaultValue: 'development');
+  static const String environment = String.fromEnvironment(
+    'SENTRY_ENVIRONMENT',
+    defaultValue: 'development',
+  );
 
   /// App version, mirrored from `pubspec.yaml`'s `version:` field.
   ///

@@ -25,7 +25,7 @@ class AppRadii {
 
 class AppShadows {
   AppShadows._();
-  
+
   static BoxShadow subtle(ColorScheme colorScheme) {
     return BoxShadow(
       offset: const Offset(0, 2),

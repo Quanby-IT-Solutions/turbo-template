@@ -2,14 +2,7 @@ import 'package:flex_color_scheme/flex_color_scheme.dart';
 import 'package:flutter/material.dart';
 
 /// Available color scheme choices for the app theme.
-enum AppColorScheme {
-  blue,
-  green,
-  purple,
-  red,
-  orange,
-  indigo,
-}
+enum AppColorScheme { blue, green, purple, red, orange, indigo }
 
 /// Helper that maps [AppColorScheme] to [FlexScheme] values and builds
 /// [ThemeData] instances via `flex_color_scheme`.

@@ -5,11 +5,7 @@ class CustomSwitch extends StatelessWidget {
   final bool value;
   final ValueChanged<bool> onChanged;
 
-  const CustomSwitch({
-    super.key,
-    required this.value,
-    required this.onChanged,
-  });
+  const CustomSwitch({super.key, required this.value, required this.onChanged});
 
   @override
   Widget build(BuildContext context) {
@@ -24,7 +20,9 @@ class CustomSwitch extends StatelessWidget {
         height: 24,
         decoration: BoxDecoration(
           borderRadius: AppRadii.pillRadius,
-          color: value ? theme.colorScheme.primary : theme.colorScheme.surfaceContainerHigh,
+          color: value
+              ? theme.colorScheme.primary
+              : theme.colorScheme.surfaceContainerHigh,
         ),
         child: Stack(
           alignment: Alignment.center,
@@ -39,7 +37,9 @@ class CustomSwitch extends StatelessWidget {
                 height: 20,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: value ? theme.colorScheme.onPrimary : theme.colorScheme.onSurface,
+                  color: value
+                      ? theme.colorScheme.onPrimary
+                      : theme.colorScheme.onSurface,
                   boxShadow: const [
                     BoxShadow(
                       color: Colors.black12,
@@ -56,4 +56,3 @@ class CustomSwitch extends StatelessWidget {
     );
   }
 }
-

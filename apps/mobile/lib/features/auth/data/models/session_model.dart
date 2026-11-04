@@ -48,8 +48,9 @@ abstract class SessionModel with _$SessionModel {
 
     // get-session format: { "session": { ... }, "user": { ... } }
     if (json['session'] is Map<String, dynamic>) {
-      final session =
-          SessionData.fromJson(json['session'] as Map<String, dynamic>);
+      final session = SessionData.fromJson(
+        json['session'] as Map<String, dynamic>,
+      );
       return SessionModel(session: session, user: user);
     }
 

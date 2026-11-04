@@ -8,16 +8,20 @@ import 'package:mobile/features/auth/presentation/utils/auth_validation.dart';
 /// Release hardening.
 void main() {
   group('error messages never leak infrastructure', () {
-    final host = 'http://internal-api.corp.local:8443/api/v1/auth/sign-in/email';
+    final host =
+        'http://internal-api.corp.local:8443/api/v1/auth/sign-in/email';
 
     DioException dio(DioExceptionType type, {int? status}) => DioException(
-          requestOptions: RequestOptions(path: host),
-          type: type,
-          message: 'Connection refused to $host',
-          response: status == null
-              ? null
-              : Response(requestOptions: RequestOptions(path: host), statusCode: status),
-        );
+      requestOptions: RequestOptions(path: host),
+      type: type,
+      message: 'Connection refused to $host',
+      response: status == null
+          ? null
+          : Response(
+              requestOptions: RequestOptions(path: host),
+              statusCode: status,
+            ),
+    );
 
     test('a connection failure names no host or port', () {
       final message = authErrorMessage(dio(DioExceptionType.connectionError));
@@ -27,7 +31,9 @@ void main() {
     });
 
     test('an arbitrary exception never reaches the user verbatim', () {
-      final message = authErrorMessage(StateError('secret internal detail 0xDEADBEEF'));
+      final message = authErrorMessage(
+        StateError('secret internal detail 0xDEADBEEF'),
+      );
       expect(message, isNot(contains('0xDEADBEEF')));
       expect(message, isNot(contains('secret internal detail')));
     });
@@ -47,12 +53,19 @@ void main() {
         expect(message, isNotEmpty);
         expect(message, isNot(contains('Exception')));
         expect(message, isNot(contains('DioException')));
-        expect(message.endsWith('.'), isTrue, reason: '"$message" should read as a sentence');
+        expect(
+          message.endsWith('.'),
+          isTrue,
+          reason: '"$message" should read as a sentence',
+        );
       }
     });
 
     test('rate limiting is distinguishable, since the user can act on it', () {
-      expect(authErrorMessage(dio(DioExceptionType.badResponse, status: 429)), contains('Too many'));
+      expect(
+        authErrorMessage(dio(DioExceptionType.badResponse, status: 429)),
+        contains('Too many'),
+      );
     });
   });
 
@@ -85,37 +98,57 @@ void main() {
       expect(manifest, contains('android:allowBackup="false"'));
     });
 
-    test('release is not signed with debug keys, and the id is not the sample', () {
-      final gradle = read('android/app/build.gradle.kts');
-      expect(gradle, isNot(matches(RegExp(r"""(namespace|applicationId) = "com.example.mobile"""))));
-      expect(gradle, isNot(contains('signingConfigs.getByName("debug")')));
-      expect(gradle, contains('signingConfigs.getByName("release")'));
-      // Fails the build rather than emitting an unsigned release.
-      expect(gradle, contains('Release signing is not configured'));
-    });
+    test(
+      'release is not signed with debug keys, and the id is not the sample',
+      () {
+        final gradle = read('android/app/build.gradle.kts');
+        expect(
+          gradle,
+          isNot(
+            matches(
+              RegExp(r"""(namespace|applicationId) = "com.example.mobile"""),
+            ),
+          ),
+        );
+        expect(gradle, isNot(contains('signingConfigs.getByName("debug")')));
+        expect(gradle, contains('signingConfigs.getByName("release")'));
+        // Fails the build rather than emitting an unsigned release.
+        expect(gradle, contains('Release signing is not configured'));
+      },
+    );
 
     test('MainActivity lives in the Gradle namespace', () {
       // The manifest names the activity `.MainActivity`, which Android resolves
       // against `namespace`. When the namespace moved and the Kotlin file did
       // not, every launch crashed with ClassNotFoundException.
-      final namespace = RegExp(r'namespace = "([^"]+)"')
-          .firstMatch(read('android/app/build.gradle.kts'))!
-          .group(1)!;
+      final namespace = RegExp(
+        r'namespace = "([^"]+)"',
+      ).firstMatch(read('android/app/build.gradle.kts'))!.group(1)!;
       final activity = File(
         'android/app/src/main/kotlin/${namespace.replaceAll('.', '/')}/MainActivity.kt',
       );
-      expect(activity.existsSync(), isTrue, reason: 'expected ${activity.path}');
+      expect(
+        activity.existsSync(),
+        isTrue,
+        reason: 'expected ${activity.path}',
+      );
       expect(activity.readAsStringSync(), startsWith('package $namespace\n'));
     });
 
     test('the application-id warning is recorded where it is set', () {
-      expect(read('android/app/build.gradle.kts'), contains('CANNOT be changed'));
+      expect(
+        read('android/app/build.gradle.kts'),
+        contains('CANNOT be changed'),
+      );
     });
 
-    test('keystore material is gitignored and only an example is committed', () {
-      expect(read('.gitignore'), contains('key.properties'));
-      expect(File('android/key.properties.example').existsSync(), isTrue);
-      expect(File('android/key.properties').existsSync(), isFalse);
-    });
+    test(
+      'keystore material is gitignored and only an example is committed',
+      () {
+        expect(read('.gitignore'), contains('key.properties'));
+        expect(File('android/key.properties.example').existsSync(), isTrue);
+        expect(File('android/key.properties').existsSync(), isFalse);
+      },
+    );
   });
 }

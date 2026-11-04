@@ -8,25 +8,19 @@ part 'theme_provider.g.dart';
 
 /// State class holding the current theme configuration.
 class ThemeState {
-  const ThemeState({
-    required this.themeMode,
-    required this.colorScheme,
-  });
+  const ThemeState({required this.themeMode, required this.colorScheme});
 
   final ThemeMode themeMode;
   final AppColorScheme colorScheme;
 
   /// Creates a default theme state.
   factory ThemeState.defaults() => const ThemeState(
-        themeMode: FlexThemeConfig.defaultThemeMode,
-        colorScheme: FlexThemeConfig.defaultColorScheme,
-      );
+    themeMode: FlexThemeConfig.defaultThemeMode,
+    colorScheme: FlexThemeConfig.defaultColorScheme,
+  );
 
   /// Creates a copy with the given fields replaced.
-  ThemeState copyWith({
-    ThemeMode? themeMode,
-    AppColorScheme? colorScheme,
-  }) {
+  ThemeState copyWith({ThemeMode? themeMode, AppColorScheme? colorScheme}) {
     return ThemeState(
       themeMode: themeMode ?? this.themeMode,
       colorScheme: colorScheme ?? this.colorScheme,

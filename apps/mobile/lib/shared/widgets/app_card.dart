@@ -46,16 +46,13 @@ class _AppCardState extends State<AppCard> {
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerLow,
         borderRadius: AppRadii.mediumRadius,
-        boxShadow: _isPressed 
-            ? [] 
+        boxShadow: _isPressed
+            ? []
             : [AppShadows.subtle(theme.colorScheme)], // Diffused shadow
       ),
       child: ClipRRect(
         borderRadius: AppRadii.mediumRadius,
-        child: Padding(
-          padding: widget.padding,
-          child: widget.child,
-        ),
+        child: Padding(padding: widget.padding, child: widget.child),
       ),
     );
 

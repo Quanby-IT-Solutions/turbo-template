@@ -18,39 +18,58 @@ import 'package:mobile/core/constants/redacted_fields.dart';
 void main() {
   // Relative to the `apps/mobile` package root, which is the directory
   // `flutter test` runs from.
-  final manifest =
-      File('../../packages/observability/src/redaction-manifest.json');
+  final manifest = File(
+    '../../packages/observability/src/redaction-manifest.json',
+  );
 
   late List<String> manifestFieldNames;
 
   setUpAll(() {
-    expect(manifest.existsSync(), isTrue,
-        reason: 'redaction-manifest.json moved — update this guard '
-            'and lib/core/constants/redacted_fields.dart');
+    expect(
+      manifest.existsSync(),
+      isTrue,
+      reason:
+          'redaction-manifest.json moved — update this guard '
+          'and lib/core/constants/redacted_fields.dart',
+    );
 
     final decoded = jsonDecode(manifest.readAsStringSync());
-    expect(decoded, isA<Map<String, dynamic>>(),
-        reason: 'the manifest must stay a JSON object');
+    expect(
+      decoded,
+      isA<Map<String, dynamic>>(),
+      reason: 'the manifest must stay a JSON object',
+    );
 
     final fieldNames = (decoded as Map<String, dynamic>)['fieldNames'];
-    expect(fieldNames, isA<List<dynamic>>(),
-        reason: 'the manifest must expose a fieldNames array');
+    expect(
+      fieldNames,
+      isA<List<dynamic>>(),
+      reason: 'the manifest must expose a fieldNames array',
+    );
 
-    manifestFieldNames =
-        (fieldNames as List<dynamic>).map((dynamic e) => e as String).toList();
+    manifestFieldNames = (fieldNames as List<dynamic>)
+        .map((dynamic e) => e as String)
+        .toList();
   });
 
   group('redaction deny-list parity', () {
     test('the Dart mirror matches the manifest exactly, ordering included', () {
-      expect(kRedactedFieldNames, equals(manifestFieldNames),
-          reason: 'kRedactedFieldNames drifted from redaction-manifest.json; '
-              'the manifest is the source of truth');
+      expect(
+        kRedactedFieldNames,
+        equals(manifestFieldNames),
+        reason:
+            'kRedactedFieldNames drifted from redaction-manifest.json; '
+            'the manifest is the source of truth',
+      );
     });
 
     test('neither side is empty or carries duplicates', () {
       expect(manifestFieldNames, isNotEmpty);
-      expect(kRedactedFieldNames.toSet().length, kRedactedFieldNames.length,
-          reason: 'a duplicated field name hides a bad merge');
+      expect(
+        kRedactedFieldNames.toSet().length,
+        kRedactedFieldNames.length,
+        reason: 'a duplicated field name hides a bad merge',
+      );
     });
   });
 }

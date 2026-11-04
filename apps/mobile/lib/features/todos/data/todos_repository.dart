@@ -34,19 +34,12 @@ class TodosRepository {
     return TodoModel.fromJson(response.data as Map<String, dynamic>);
   }
 
-  Future<TodoModel> update(
-    int id, {
-    String? title,
-    bool? completed,
-  }) async {
+  Future<TodoModel> update(int id, {String? title, bool? completed}) async {
     final data = <String, dynamic>{};
     if (title != null) data['title'] = title;
     if (completed != null) data['completed'] = completed;
 
-    final response = await _dio.put(
-      ApiConstants.todoById(id),
-      data: data,
-    );
+    final response = await _dio.put(ApiConstants.todoById(id), data: data);
     return TodoModel.fromJson(response.data as Map<String, dynamic>);
   }
 

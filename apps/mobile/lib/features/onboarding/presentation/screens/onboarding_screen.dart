@@ -93,9 +93,7 @@ class OnboardingScreen extends ConsumerWidget {
         activeShape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(24),
         ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(24),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         spacing: const EdgeInsets.symmetric(horizontal: 4),
       ),
       isProgressTap: false,

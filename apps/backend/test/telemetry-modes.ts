@@ -217,6 +217,25 @@ function traceChecks(spans: Span[], metrics: Metric[], receiverPort: number): st
 	return failures
 }
 
+/** Every trace id printed in the log output (JSON or pino-pretty). */
+const loggedTraceIds = (output: string) =>
+	new Set([...output.matchAll(/trace_id"?:\s*"?([0-9a-f]{32})/g)].map(match => match[1]))
+
+/**
+ * The todos request's log line carries the same trace id as its exported
+ * server span, and a span id next to it.
+ */
+function logIdChecks(spans: Span[], output: string): string[] {
+	const server = spans.find(
+		span => span.kind === SPAN_KIND_SERVER && /todos/.test(JSON.stringify(span.attributes))
+	) as (Span & { traceId?: string }) | undefined
+	if (!server?.traceId) return ["no server span to match the log line against"]
+	if (!loggedTraceIds(output).has(server.traceId))
+		return [`no log line carries the server span's trace id ${server.traceId}`]
+	if (!/span_id"?:\s*"?[0-9a-f]{16}/.test(output)) return ["no span_id in the log lines"]
+	return []
+}
+
 // ---------------------------------------------------------------- modes
 
 async function main() {
@@ -246,12 +265,18 @@ async function main() {
 		{
 			name: "OTel only",
 			env: { ...off, ...otel },
-			check: run => traceChecks(run.spans, run.metrics, receiver.port),
+			check: run => [
+				...traceChecks(run.spans, run.metrics, receiver.port),
+				...logIdChecks(run.spans, run.output),
+			],
 		},
 		{
 			name: "OTel and Sentry",
 			env: { ...otel, ...sentry },
-			check: run => traceChecks(run.spans, run.metrics, receiver.port),
+			check: run => [
+				...traceChecks(run.spans, run.metrics, receiver.port),
+				...logIdChecks(run.spans, run.output),
+			],
 		},
 		{
 			name: "Sentry only",

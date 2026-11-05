@@ -30,8 +30,9 @@ class ApiConstants {
   ///
   /// Throws in release when unset. There is deliberately no fallback: a
   /// silent default is how a production build ends up talking plaintext to
-  /// somebody's laptop address. Debug builds fall back to the Android
-  /// emulator's host alias so local work needs no extra flags.
+  /// somebody's laptop address. Debug builds fall back to the local
+  /// emulator's or simulator's host address so local work needs no extra
+  /// flags.
   static String get baseUrl {
     if (_baseUrl.isNotEmpty) {
       // A real check, not an `assert`: asserts are stripped from release
@@ -55,8 +56,14 @@ class ApiConstants {
       );
     }
 
-    // Debug/profile only: the Android emulator's alias for the host machine.
-    return 'http://10.0.2.2:3000/api';
+    // Debug/profile only: how a local emulator reaches the host machine.
+    // The Android emulator uses its 10.0.2.2 alias; the iOS simulator shares
+    // the Mac's network, so it uses localhost. A physical phone reaches
+    // neither and needs API_BASE_URL.
+    final host = defaultTargetPlatform == TargetPlatform.iOS
+        ? 'localhost'
+        : '10.0.2.2';
+    return 'http://$host:3000/api';
   }
 
   static String get versionedUrl => '$baseUrl/$apiVersion';

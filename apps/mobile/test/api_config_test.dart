@@ -23,6 +23,24 @@ void main() {
       }
     });
 
+    // The iOS simulator shares the Mac's network, so it reaches the host as
+    // localhost; 10.0.2.2 exists only inside the Android emulator.
+    test('the debug fallback on iOS is localhost, the simulator host', () {
+      if (kReleaseMode) return;
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      addTearDown(() => debugDefaultTargetPlatformOverride = null);
+
+      expect(ApiConstants.baseUrl, 'http://localhost:3000/api');
+    });
+
+    test('the debug fallback on Android is the emulator alias', () {
+      if (kReleaseMode) return;
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      addTearDown(() => debugDefaultTargetPlatformOverride = null);
+
+      expect(ApiConstants.baseUrl, 'http://10.0.2.2:3000/api');
+    });
+
     test('every endpoint derives from the single base URL', () {
       for (final url in <String>[
         ApiConstants.signIn,

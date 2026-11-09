@@ -5,6 +5,7 @@ import 'package:toastification/toastification.dart';
 import 'package:mobile/core/widgets/tour_item.dart';
 import 'package:mobile/features/auth/presentation/providers/auth_provider.dart';
 import 'package:mobile/features/home/presentation/providers/tour_provider.dart';
+import 'package:mobile/features/home/presentation/widgets/notification_settings_tile.dart';
 import 'package:mobile/features/home/presentation/widgets/preview_features_tile.dart';
 import 'package:mobile/features/onboarding/presentation/providers/onboarding_provider.dart';
 import 'package:mobile/core/theme/theme_provider.dart';
@@ -126,6 +127,9 @@ class SettingsTab extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 16),
+
+          // Shown only while notifications are off.
+          const NotificationSettingsTile(),
 
           // Shown only while the `mobile-preview` PostHog flag is on.
           const PreviewFeaturesTile(),

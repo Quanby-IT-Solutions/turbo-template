@@ -1,5 +1,6 @@
 import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Singleton service wrapping [AwesomeNotifications] for local push
 /// notification management.
@@ -39,17 +40,34 @@ class NotificationService {
     );
   }
 
-  /// Asks for notification permission if it is not granted yet.
+  /// Key of the "already asked" flag in [SharedPreferences].
+  @visibleForTesting
+  static const askedKey = 'notification_permission_asked';
+
+  /// Whether the OS currently lets the app show notifications.
+  Future<bool> isAllowed() => AwesomeNotifications().isNotificationAllowed();
+
+  /// Opens the OS notification settings for this app (the page the user
+  /// needs after a denial, when no system dialog can be shown any more).
+  Future<void> openSystemSettings() =>
+      AwesomeNotifications().showNotificationConfigPage();
+
+  /// Asks for notification permission at most once per install.
   ///
-  /// Call after `runApp`, without awaiting it. When the permission was
-  /// denied before, the plugin opens Android's settings page instead of a
-  /// dialog; awaited before `runApp`, dismissing that page left the app on a
-  /// blank screen.
+  /// After a denial the plugin does not show a dialog again: it opens the OS
+  /// Settings app (Android's notification page, iOS's root page). Asking on
+  /// every launch therefore threw the user out of the app on every start. The
+  /// "already asked" flag is stored before the request, so later launches
+  /// never ask; the Settings tab links to the OS page instead.
+  ///
+  /// Call after `runApp`, without awaiting it. Awaited before `runApp`,
+  /// dismissing the settings page left the app on a blank screen.
   Future<void> requestPermissionIfNeeded() async {
-    final isAllowed = await AwesomeNotifications().isNotificationAllowed();
-    if (!isAllowed) {
-      await AwesomeNotifications().requestPermissionToSendNotifications();
-    }
+    if (await isAllowed()) return;
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(askedKey) ?? false) return;
+    await prefs.setBool(askedKey, true);
+    await AwesomeNotifications().requestPermissionToSendNotifications();
   }
 
   // ── Listeners ─────────────────────────────────────────────────────────────

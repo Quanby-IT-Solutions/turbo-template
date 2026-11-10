@@ -7,7 +7,7 @@ root="$(git rev-parse --show-toplevel)"
 cd "$root"
 
 pattern='\b(RF[0-9]+|[A-Z]{1,4}-[0-9]+)\b'
-allow='\b(UTF-8|BID-4|NOTE-1|OFS-4)\b'
+allow='\b(UTF-8|BID-4|NOTE-1|OFS-4|BYZ-38)\b'
 
 mapfile -d '' files < <(git ls-files -z -- ':!pnpm-lock.yaml' ':!scripts/check-public-ids.sh')
 

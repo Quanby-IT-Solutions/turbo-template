@@ -4,6 +4,11 @@ on:
   push:
     branches: ['[0-9]+-**']
 
+# Cancel a stale run when a new commit lands on the same ticket branch.
+concurrency:
+  group: auto-draft-pr-${{ github.ref }}
+  cancel-in-progress: true
+
 # Least-privilege default; the App token carries its own elevated permissions.
 permissions:
   contents: read
@@ -12,6 +17,7 @@ jobs:
   draft-pr:
     name: Open draft PR for issue branch
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Mint GitHub App token
         id: app-token

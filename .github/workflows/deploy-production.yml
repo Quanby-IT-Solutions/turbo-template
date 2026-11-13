@@ -35,6 +35,10 @@ jobs:
       pull-requests: write
       checks: write
     uses: ./.github/workflows/ci.yml
+    # Commit already passed full e2e on its dev PR; run only the lightweight
+    # quality gate as the deploy guard, skip the heavy e2e suites.
+    with:
+      skip-e2e: true
     secrets:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
@@ -42,6 +46,9 @@ jobs:
     name: Deploy to Production (EC2 + ALB + ASG)
     needs: ci
     runs-on: ubuntu-latest
+    # Build + ECR push + launch-template + instance refresh (20-min poll ceiling)
+    # + ALB verify. 60 caps a hung AWS poll without cutting a real refresh.
+    timeout-minutes: 60
     environment: production
     env:
       # ==========================================================

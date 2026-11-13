@@ -6,6 +6,11 @@ on:
       - '*-[0-9]+-**'      # Linear branch names: bid-4-add-vendor-parsing
       - '**/*-[0-9]+-**'   # also match branches under a prefix, e.g. feat/bid-4-...
 
+# Cancel a stale run when a new commit lands on the same Linear branch.
+concurrency:
+  group: auto-draft-pr-linear-${{ github.ref }}
+  cancel-in-progress: true
+
 # Least-privilege default; the App token carries its own elevated permissions.
 permissions:
   contents: read
@@ -14,6 +19,7 @@ jobs:
   draft-pr:
     name: Open draft PR for Linear branch
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Mint GitHub App token
         id: app-token

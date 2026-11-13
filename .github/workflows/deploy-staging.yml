@@ -30,6 +30,10 @@ jobs:
       pull-requests: write
       checks: write
     uses: ./.github/workflows/ci.yml
+    # Commit already passed full e2e on its dev PR; run only the lightweight
+    # quality gate as the deploy guard, skip the heavy e2e suites.
+    with:
+      skip-e2e: true
     secrets:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
@@ -37,6 +41,7 @@ jobs:
     name: Deploy to Staging (EC2 + Elastic IP)
     needs: ci
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     environment: staging
     env:
       AWS_REGION: ${{ vars.AWS_REGION }}

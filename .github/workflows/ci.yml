@@ -10,6 +10,14 @@ on:
       run-e2e:
         type: boolean
         default: true
+      # Deploy callers set this true: the commit already passed full e2e on its
+      # dev PR, so re-running the heavy suites (backend-e2e, web-e2e-auth,
+      # mobile) before a staging/production deploy is redundant minutes. The
+      # lightweight external quality gate (typecheck/lint/format/test:cov) still
+      # runs as the deploy guard.
+      skip-e2e:
+        type: boolean
+        default: false
     secrets:
       NPM_TOKEN:
         required: false
@@ -120,7 +128,7 @@ jobs:
     with:
       node-version: 22.22.1
       # Boolean input. Quoting this expression would pass a string and fail the type check.
-      run-e2e: ${{ needs.changes.outputs.deps == 'true' || needs.changes.outputs.backend == 'true' || github.event_name == 'workflow_dispatch' || inputs.run-e2e == true }}
+      run-e2e: ${{ (needs.changes.outputs.deps == 'true' || needs.changes.outputs.backend == 'true' || github.event_name == 'workflow_dispatch' || inputs.run-e2e == true) && inputs.skip-e2e != true }}
     # `secrets: inherit` handed every repository secret — AWS keys, the auth
     # signing secret, the database URL — to an external workflow that declares
     # exactly one optional secret. Only that one is passed now, so a compromise
@@ -144,6 +152,11 @@ jobs:
   # trust auth and lives only for this job.
   backend-e2e:
     name: Backend e2e
+    needs: changes
+    # Only when backend code or deps changed (or dispatched). Skipped entirely on
+    # frontend-only/docs PRs and on deploys (skip-e2e), where it used to run
+    # unconditionally — a 20-min Postgres job on every single CI invocation.
+    if: ${{ (needs.changes.outputs.backend == 'true' || needs.changes.outputs.deps == 'true' || github.event_name == 'workflow_dispatch') && inputs.skip-e2e != true }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -191,6 +204,19 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
+      # Persist turbo's local build cache across runs. Shared key prefix with
+      # web-e2e-auth (both build --filter=@repo/backend), so a build in either
+      # job warms the other. Turbo does its own content-hash invalidation, so a
+      # loose restore-key is safe — it restores the newest and rebuilds only
+      # what actually changed.
+      - name: Cache turbo build
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-backend-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-backend-
+
       - name: Generate ephemeral auth secret and seed password
         run: |
           set -euo pipefail
@@ -213,7 +239,7 @@ jobs:
       # OpenTelemetry/Sentry mode against a local OTLP receiver. Jest cannot
       # observe module patching, so it is a script over dist/ (docs/opentelemetry.md).
       - name: Build backend
-        run: pnpm turbo run build --filter=@repo/backend
+        run: pnpm turbo run build --filter=@repo/backend --cache-dir=.turbo
 
       - name: Telemetry modes
         run: pnpm -F @repo/backend verify:telemetry
@@ -228,7 +254,7 @@ jobs:
   web-e2e-auth:
     name: Web e2e auth
     needs: changes
-    if: ${{ needs.changes.outputs.web == 'true' || needs.changes.outputs.backend == 'true' || needs.changes.outputs.deps == 'true' || github.event_name == 'workflow_dispatch' || inputs.run-e2e == true }}
+    if: ${{ (needs.changes.outputs.web == 'true' || needs.changes.outputs.backend == 'true' || needs.changes.outputs.deps == 'true' || github.event_name == 'workflow_dispatch' || inputs.run-e2e == true) && inputs.skip-e2e != true }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -281,6 +307,15 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
+      # Shared turbo cache key prefix with backend-e2e (same build filter).
+      - name: Cache turbo build
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-backend-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-backend-
+
       - name: Generate ephemeral auth secret and e2e passwords
         run: |
           set -euo pipefail
@@ -309,7 +344,7 @@ jobs:
       - name: Build backend
         # `node dist/main.js` loads workspace packages from their dist.
         # Turbo builds those dependencies, then the backend.
-        run: pnpm turbo run build --filter=@repo/backend
+        run: pnpm turbo run build --filter=@repo/backend --cache-dir=.turbo
 
       - name: Start backend
         run: |
@@ -324,6 +359,18 @@ jobs:
           echo "backend did not become healthy"
           tail -n 80 "$RUNNER_TEMP/backend.log" || true
           exit 1
+
+      # Cache the chromium binary so it is not re-downloaded every run. Keyed on
+      # the lockfile (the Playwright version is pinned there). On a hit, the
+      # install below skips the download; --with-deps still runs to put the apt
+      # runtime libs in place, which are not cacheable.
+      - name: Cache Playwright browsers
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
 
       - name: Install Playwright chromium
         run: pnpm --filter @repo/e2e-web exec playwright install --with-deps chromium
@@ -349,7 +396,7 @@ jobs:
   mobile:
     name: Mobile
     needs: changes
-    if: ${{ needs.changes.outputs.mobile == 'true' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ (needs.changes.outputs.mobile == 'true' || github.event_name == 'workflow_dispatch') && inputs.skip-e2e != true }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:

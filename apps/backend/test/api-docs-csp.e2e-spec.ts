@@ -43,7 +43,7 @@ function directiveSources(csp: string, name: string): string[] {
 }
 
 function scriptTags(html: string): string[] {
-	return html.match(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi) ?? []
+	return html.match(/<script\b[^>]*>[\s\S]*?<\/script\b[^>]*>/gi) ?? []
 }
 
 function assertNoUnversionedScalar(value: string): void {

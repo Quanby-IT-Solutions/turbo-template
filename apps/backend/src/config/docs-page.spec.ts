@@ -2,14 +2,15 @@ import { renderDocsHtml } from "@/config/docs-page"
 import { SCALAR_BUNDLE } from "@/config/scalar-bundle"
 
 /**
- * `\s*` before the closing `>`: the HTML parser accepts `</script >`, so a
- * pattern anchored on `</script>` alone would let that spelling slip past
- * every assertion below.
+ * `\b[^>]*` on the closing tag: the HTML parser accepts an end tag carrying
+ * anything up to its `>` — `</script >`, `</script\n foo>` — so a pattern
+ * anchored on `</script>` alone would let those spellings slip past every
+ * assertion below.
  */
-const SCRIPT_TAG_SOURCE = String.raw`<script\b[^>]*>[\s\S]*?<\/script\s*>`
+const SCRIPT_TAG = /<script\b[^>]*>[\s\S]*?<\/script\b[^>]*>/gi
 
 function scriptTags(html: string): string[] {
-	return html.match(new RegExp(SCRIPT_TAG_SOURCE, "gi")) ?? []
+	return html.match(SCRIPT_TAG) ?? []
 }
 
 /**
@@ -20,7 +21,8 @@ function scriptTags(html: string): string[] {
  * markup must not splice into a `<script` token that was never in the input.
  */
 function outsideScriptTags(html: string): string {
-	const pattern = new RegExp(SCRIPT_TAG_SOURCE, "gi")
+	// A private copy, so this walk cannot disturb the shared lastIndex.
+	const pattern = new RegExp(SCRIPT_TAG)
 	const parts: string[] = []
 	let from = 0
 
@@ -65,7 +67,7 @@ describe("renderDocsHtml", () => {
 		const escaped = renderDocsHtml({ specUrl: hostile, nonce: "n-1" })
 
 		expect(scriptTags(escaped)).toHaveLength(2)
-		expect(escaped.match(/<\/script\s*>/gi)).toHaveLength(2)
+		expect(escaped.match(/<\/script\b[^>]*>/gi)).toHaveLength(2)
 		expect(escaped).toContain("\\u003c/script>")
 		expect(escaped).not.toContain("</script><script>")
 	})

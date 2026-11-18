@@ -1,0 +1,134 @@
+name: picomatch advisory watch
+
+# Watches GHSA-fc5q-39xc-vjpf (picomatch ReDoS, CVE-2026-112366) for a fix.
+#
+# Why this exists: the advisory covers every published picomatch version
+# (<= 4.0.7, which is latest) and the upstream fix is unmerged, so there is
+# nothing to bump to. Dependabot alert #321 was dismissed as `tolerable_risk`
+# rather than left open - exploiting the ReDoS needs an attacker-controlled
+# glob pattern, and picomatch is only reached here by build/lint tooling fed
+# patterns from repo config. GitHub does not document whether a dismissed
+# alert still produces a security-update PR once a patch ships, so this job
+# is the independent signal that does not depend on that unknown.
+#
+# Delete this workflow once picomatch is bumped past the advisory.
+
+on:
+  # Weekly, an hour after the CodeQL scan. The check is a single API call, so
+  # this costs seconds of Actions minutes per run.
+  schedule:
+    - cron: "0 4 * * 1" # Mondays 04:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: picomatch-advisory-watch
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Check for a patched picomatch
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GHSA: GHSA-fc5q-39xc-vjpf
+      ISSUE_TITLE: "picomatch: patched version available for GHSA-fc5q-39xc-vjpf"
+    steps:
+      # No checkout: this job only talks to the advisory API and the issues API.
+      - name: Query the advisory
+        id: advisory
+        run: |
+          set -euo pipefail
+
+          # A failure here fails the job on purpose. A watcher that swallows
+          # errors is worse than no watcher, because it reads as "still fine".
+          advisory=$(gh api "/advisories/${GHSA}")
+
+          withdrawn=$(jq -r '.withdrawn_at // ""' <<<"$advisory")
+          patched=$(jq -r '
+            [ .vulnerabilities[]
+              | select(.package.name == "picomatch")
+              | .first_patched_version
+            ]
+            | map(select(. != null and . != ""))
+            | first // ""
+          ' <<<"$advisory")
+          range=$(jq -r '
+            [ .vulnerabilities[]
+              | select(.package.name == "picomatch")
+              | .vulnerable_version_range
+            ] | first // "unknown"
+          ' <<<"$advisory")
+
+          echo "withdrawn=${withdrawn}" >>"$GITHUB_OUTPUT"
+          echo "patched=${patched}" >>"$GITHUB_OUTPUT"
+          echo "range=${range}" >>"$GITHUB_OUTPUT"
+
+          if [ -n "$patched" ] || [ -n "$withdrawn" ]; then
+            echo "actionable=true" >>"$GITHUB_OUTPUT"
+          else
+            echo "actionable=false" >>"$GITHUB_OUTPUT"
+          fi
+
+          echo "::notice::picomatch advisory - range=${range} patched=${patched:-none} withdrawn=${withdrawn:-no}"
+
+      - name: Open an issue when a fix exists
+        if: steps.advisory.outputs.actionable == 'true'
+        env:
+          PATCHED: ${{ steps.advisory.outputs.patched }}
+          WITHDRAWN: ${{ steps.advisory.outputs.withdrawn }}
+          RANGE: ${{ steps.advisory.outputs.range }}
+        run: |
+          set -euo pipefail
+
+          # Values reach the body through a file and environment variables, not
+          # through shell interpolation, so advisory text cannot run as a command.
+          existing=$(gh issue list \
+            --state open \
+            --search "${ISSUE_TITLE} in:title" \
+            --json number \
+            --jq '.[0].number // ""')
+
+          if [ -n "$existing" ]; then
+            echo "Issue #${existing} is already open; nothing to do."
+            exit 0
+          fi
+
+          {
+            echo "\`GHSA-fc5q-39xc-vjpf\` (picomatch ReDoS, CVE-2026-112366) is now actionable."
+            echo
+            echo "| field | value |"
+            echo "| --- | --- |"
+            echo "| first patched version | ${PATCHED:-none - advisory withdrawn} |"
+            echo "| vulnerable range | ${RANGE} |"
+            echo "| advisory withdrawn | ${WITHDRAWN:-no} |"
+            echo
+            echo "## Why you are seeing this"
+            echo
+            echo "Dependabot alert #321 was dismissed as \`tolerable_risk\` because no"
+            echo "patched picomatch existed at the time. That is no longer true, so the"
+            echo "dismissal should be revisited."
+            echo
+            echo "## What to do"
+            echo
+            echo "1. Reopen or re-check Dependabot alert #321."
+            echo "2. Run \`pnpm update picomatch --recursive --latest\` and confirm the"
+            echo "   lockfile no longer resolves a version inside the range above."
+            echo "3. Verify with \`pnpm typecheck && pnpm lint && pnpm test\` - picomatch"
+            echo "   backs glob matching for eslint, vite, vitest and turbo, so a bad"
+            echo "   resolution shows up as changed file matching or cache behaviour."
+            echo "4. Delete \`.github/workflows/picomatch-advisory-watch.yml\`; its job is done."
+          } >body.md
+
+          gh issue create \
+            --title "${ISSUE_TITLE}" \
+            --body-file body.md
+
+      - name: Report no change
+        if: steps.advisory.outputs.actionable != 'true'
+        run: |
+          echo "Still no patched picomatch (range ${{ steps.advisory.outputs.range }}). Nothing to do."

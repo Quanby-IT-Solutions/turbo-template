@@ -92,7 +92,7 @@ test("docs page renders the pinned reference", async ({ page }) => {
 	await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined)
 
 	const html = (await response?.text()) ?? ""
-	const tags = html.match(/<script\b[^>]*>[\s\S]*?<\/script>/gi) ?? []
+	const tags = html.match(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi) ?? []
 	expect(tags).toHaveLength(2)
 	expect(tags[0]).toContain(`src="${SCALAR_BUNDLE.url}"`)
 	expect(tags[0]).toContain(`integrity="${SCALAR_BUNDLE.integrity}"`)

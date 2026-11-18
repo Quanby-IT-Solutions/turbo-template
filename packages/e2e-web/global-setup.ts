@@ -38,8 +38,12 @@ export default async function globalSetup() {
 
 	for (const file of [AUTH_FILE, ADMIN_AUTH_FILE, USER_B_AUTH_FILE]) {
 		fs.mkdirSync(path.dirname(file), { recursive: true })
-		if (!fs.existsSync(file)) {
-			fs.writeFileSync(file, JSON.stringify({ cookies: [], origins: [] }))
+		try {
+			// `wx` is create-or-fail in one syscall. An exists-then-write pair can
+			// clobber a session the setup project wrote in between the two calls.
+			fs.writeFileSync(file, JSON.stringify({ cookies: [], origins: [] }), { flag: "wx" })
+		} catch (error) {
+			if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error
 		}
 	}
 }

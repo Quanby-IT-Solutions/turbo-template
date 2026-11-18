@@ -1,8 +1,8 @@
 import fs from "fs"
-import os from "os"
 import path from "path"
 import { expect, request, test, type Page } from "@playwright/test"
 
+import { SESSION_READ_COOLDOWN, SIGN_OUT_TURN } from "./constants.ts"
 import {
 	E2eAdminPasswordError,
 	missingAdminPasswordVariables,
@@ -220,9 +220,6 @@ export async function signOutCompletely(page: Page): Promise<void> {
 	await page.context().clearCookies()
 }
 
-const SIGN_OUT_TURN = path.join(os.tmpdir(), "turbo-template-e2e-signout-turn")
-const SESSION_READ_COOLDOWN = path.join(os.tmpdir(), "turbo-template-e2e-session-cooldown")
-
 function signOutRetryDelayMs(retryAfterHeader: string | undefined): number {
 	const seconds = Number(retryAfterHeader)
 	if (!Number.isFinite(seconds) || seconds < 0) return 11_000
@@ -245,6 +242,8 @@ function processAlive(pid: number): boolean {
  */
 async function withSignOutTurn<T>(body: () => Promise<T>): Promise<T> {
 	const started = Date.now()
+	fs.mkdirSync(path.dirname(SIGN_OUT_TURN), { recursive: true })
+
 	for (;;) {
 		try {
 			fs.mkdirSync(SIGN_OUT_TURN)
@@ -297,7 +296,9 @@ function readCooldownUntil(): number {
 
 function pushSessionReadCooldown(waitMs: number): void {
 	const until = Date.now() + waitMs
-	if (until > readCooldownUntil()) fs.writeFileSync(SESSION_READ_COOLDOWN, String(until))
+	if (until <= readCooldownUntil()) return
+	fs.mkdirSync(path.dirname(SESSION_READ_COOLDOWN), { recursive: true })
+	fs.writeFileSync(SESSION_READ_COOLDOWN, String(until))
 }
 
 /** Both workers share one session-read budget. Whoever hits 429 parks everyone until it clears. */

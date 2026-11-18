@@ -1,8 +1,36 @@
 import { renderDocsHtml } from "@/config/docs-page"
 import { SCALAR_BUNDLE } from "@/config/scalar-bundle"
 
+/**
+ * `\s*` before the closing `>`: the HTML parser accepts `</script >`, so a
+ * pattern anchored on `</script>` alone would let that spelling slip past
+ * every assertion below.
+ */
+const SCRIPT_TAG_SOURCE = String.raw`<script\b[^>]*>[\s\S]*?<\/script\s*>`
+
 function scriptTags(html: string): string[] {
-	return html.match(/<script\b[^>]*>[\s\S]*?<\/script>/gi) ?? []
+	return html.match(new RegExp(SCRIPT_TAG_SOURCE, "gi")) ?? []
+}
+
+/**
+ * Everything that sits outside a `<script>` element.
+ *
+ * Fragments are joined with NUL rather than concatenated: removing a script
+ * element can butt its neighbours together, and two halves of the surrounding
+ * markup must not splice into a `<script` token that was never in the input.
+ */
+function outsideScriptTags(html: string): string {
+	const pattern = new RegExp(SCRIPT_TAG_SOURCE, "gi")
+	const parts: string[] = []
+	let from = 0
+
+	for (let match = pattern.exec(html); match !== null; match = pattern.exec(html)) {
+		parts.push(html.slice(from, match.index))
+		from = match.index + match[0].length
+	}
+	parts.push(html.slice(from))
+
+	return parts.join("\0")
 }
 
 describe("renderDocsHtml", () => {
@@ -26,7 +54,7 @@ describe("renderDocsHtml", () => {
 	})
 
 	it("has no other script or inline handler", () => {
-		const outsideScripts = html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "")
+		const outsideScripts = outsideScriptTags(html)
 		expect(outsideScripts).not.toContain("<script")
 		expect(outsideScripts).not.toMatch(/\son[a-z]+\s*=/i)
 		expect(html.match(/<script\b/gi)).toHaveLength(2)
@@ -37,7 +65,7 @@ describe("renderDocsHtml", () => {
 		const escaped = renderDocsHtml({ specUrl: hostile, nonce: "n-1" })
 
 		expect(scriptTags(escaped)).toHaveLength(2)
-		expect(escaped.match(/<\/script>/gi)).toHaveLength(2)
+		expect(escaped.match(/<\/script\s*>/gi)).toHaveLength(2)
 		expect(escaped).toContain("\\u003c/script>")
 		expect(escaped).not.toContain("</script><script>")
 	})

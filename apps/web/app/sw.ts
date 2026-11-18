@@ -156,7 +156,12 @@ const serwist = new Serwist({
 
 // The page asks the waiting worker to activate, once the user has
 // agreed. This is the only path that skips waiting.
+//
+// A worker can only be messaged by clients of its own origin, so the origin
+// check is belt-and-braces — but it keeps the invariant stated at the one
+// place that acts on page-supplied data.
 self.addEventListener("message", event => {
+	if (event.origin !== "" && event.origin !== self.location.origin) return
 	if ((event.data as { type?: string } | undefined)?.type === "SKIP_WAITING") {
 		void self.skipWaiting()
 	}

@@ -8,8 +8,8 @@
  * template does not ship that file. If you omit the file argument, the script
  * reads docs/TICKETS.md, which you must create yourself.
  */
-import { readFileSync, writeFileSync, unlinkSync } from 'node:fs';
-import { execSync } from 'node:child_process';
+import { readFileSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -20,7 +20,14 @@ const filePath = args.find(a => !a.startsWith('--')) ?? 'docs/TICKETS.md';
 const dryRun = args.includes('--dry-run');
 
 const repoIdx = args.indexOf('--repo');
-const repoFlag = repoIdx !== -1 ? `--repo ${args[repoIdx + 1]}` : '';
+const repoValue = repoIdx !== -1 ? args[repoIdx + 1] : undefined;
+
+if (repoIdx !== -1 && (!repoValue || repoValue.startsWith('--'))) {
+  console.error('Invalid --repo value.');
+  process.exit(1);
+}
+
+const repoArgs = repoValue ? ['--repo', repoValue] : [];
 
 // === Required project flags ===
 const projectIdx = args.indexOf('--project');
@@ -42,18 +49,27 @@ Example:
 const PROJECT_NUMBER = args[projectIdx + 1];
 const PROJECT_OWNER = args[ownerIdx + 1];
 
-if (!PROJECT_NUMBER || !PROJECT_OWNER || PROJECT_NUMBER.startsWith('--') || PROJECT_OWNER.startsWith('--')) {
+if (!PROJECT_NUMBER || !PROJECT_OWNER || PROJECT_OWNER.startsWith('--')) {
   console.error('Invalid --project or --project-owner value.');
+  process.exit(1);
+}
+
+if (!/^[0-9]+$/.test(PROJECT_NUMBER)) {
+  console.error('--project must be a project number.');
   process.exit(1);
 }
 // ==============================
 
-function gh(cmd) {
-  return execSync(`gh ${cmd} ${repoFlag}`.trimEnd(), { encoding: 'utf8' }).trim();
+// Arguments are passed as an argv array, never as a shell string: every value
+// below reaches here from the command line or from the ticket file, and a
+// title or label holding a quote or a `;` must stay one argument rather than
+// becoming a second command.
+function gh(argv) {
+  return execFileSync('gh', [...argv, ...repoArgs], { encoding: 'utf8' }).trim();
 }
 
-function ghProject(cmd) {
-  return execSync(`gh ${cmd}`, { encoding: 'utf8' }).trim();
+function ghProject(argv) {
+  return execFileSync('gh', argv, { encoding: 'utf8' }).trim();
 }
 
 // --- Read file ---
@@ -95,7 +111,7 @@ console.log(`Target project: ${PROJECT_OWNER}/projects/${PROJECT_NUMBER}\n`);
 // --- Fetch existing issues ---
 let existingTitles = new Set();
 try {
-  const json = gh('issue list --state all --limit 500 --json title');
+  const json = gh(['issue', 'list', '--state', 'all', '--limit', '500', '--json', 'title']);
   existingTitles = new Set(JSON.parse(json).map(i => i.title));
 } catch (e) {
   console.warn(`Warning: could not fetch existing issues (${e.message}). Skipping idempotency check.`);
@@ -110,7 +126,7 @@ if (dryRun) {
 } else {
   for (const label of allLabels) {
     try {
-      gh(`label create ${JSON.stringify(label)} --color "0075ca" --force`);
+      gh(['label', 'create', label, '--color', '0075ca', '--force']);
     } catch { /* ignore */ }
   }
 }
@@ -120,33 +136,39 @@ let created = 0;
 let skipped = 0;
 const createdNums = [];
 
-for (const ticket of tickets) {
-  if (existingTitles.has(ticket.issueTitle)) {
-    console.log(`SKIP   ${ticket.issueTitle}`);
-    skipped++;
-    continue;
-  }
+// `gh issue create --body-file` needs a path. A fixed name under the shared
+// temp dir is guessable, so another local process could pre-create it as a
+// symlink and have us write the ticket body somewhere else. `mkdtempSync`
+// returns a fresh directory only this process can name.
+const bodyDir = dryRun ? null : mkdtempSync(join(tmpdir(), 'tickets-to-issues-'));
 
-  const labelArgs = ticket.labels.map(l => `--label ${JSON.stringify(l)}`).join(' ');
+try {
+  for (const ticket of tickets) {
+    if (existingTitles.has(ticket.issueTitle)) {
+      console.log(`SKIP   ${ticket.issueTitle}`);
+      skipped++;
+      continue;
+    }
 
-  if (dryRun) {
-    console.log(`DRY    ${ticket.issueTitle}`);
-    console.log(`       → would add to ${PROJECT_OWNER}/projects/${PROJECT_NUMBER}`);
-    console.log();
-    created++;
-    continue;
-  }
+    const labelArgs = ticket.labels.flatMap(l => ['--label', l]);
 
-  const tmpFile = join(tmpdir(), `ticket-${ticket.key}-${Date.now()}.md`);
-  try {
+    if (dryRun) {
+      console.log(`DRY    ${ticket.issueTitle}`);
+      console.log(`       → would add to ${PROJECT_OWNER}/projects/${PROJECT_NUMBER}`);
+      console.log();
+      created++;
+      continue;
+    }
+
+    const tmpFile = join(bodyDir, `ticket-${ticket.key}.md`);
     writeFileSync(tmpFile, ticket.body, 'utf8');
-    const url = gh(`issue create --title ${JSON.stringify(ticket.issueTitle)} ${labelArgs} --body-file ${JSON.stringify(tmpFile)}`);
+    const url = gh(['issue', 'create', '--title', ticket.issueTitle, ...labelArgs, '--body-file', tmpFile]);
     const num = url.match(/\/(\d+)$/)?.[1];
     console.log(`CREATE #${num ?? '?'}  ${ticket.issueTitle}`);
 
     // Automatically add to the project
     try {
-      ghProject(`project item-add ${PROJECT_NUMBER} --owner ${PROJECT_OWNER} --url ${JSON.stringify(url)}`);
+      ghProject(['project', 'item-add', PROJECT_NUMBER, '--owner', PROJECT_OWNER, '--url', url]);
       console.log(`       → added to project ${PROJECT_OWNER}/projects/${PROJECT_NUMBER}`);
     } catch (e) {
       console.warn(`       ⚠ Failed to add to project: ${e.message}`);
@@ -155,9 +177,9 @@ for (const ticket of tickets) {
 
     if (num) createdNums.push(num);
     created++;
-  } finally {
-    try { unlinkSync(tmpFile); } catch { /* ignore */ }
   }
+} finally {
+  if (bodyDir) rmSync(bodyDir, { recursive: true, force: true });
 }
 
 // --- Summary ---

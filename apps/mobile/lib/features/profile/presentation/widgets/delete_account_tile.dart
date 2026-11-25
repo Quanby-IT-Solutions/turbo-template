@@ -20,8 +20,14 @@ class DeleteAccountTile extends StatelessWidget {
     final theme = Theme.of(context);
 
     return ListTile(
-      leading: Icon(Icons.delete_forever_outlined, color: theme.colorScheme.error),
-      title: Text('Delete Account', style: TextStyle(color: theme.colorScheme.error)),
+      leading: Icon(
+        Icons.delete_forever_outlined,
+        color: theme.colorScheme.error,
+      ),
+      title: Text(
+        'Delete Account',
+        style: TextStyle(color: theme.colorScheme.error),
+      ),
       subtitle: const Text('Permanently removes your account and its data'),
       onTap: () => showDialog<void>(
         context: context,
@@ -39,7 +45,8 @@ class _DeleteAccountDialog extends ConsumerStatefulWidget {
   const _DeleteAccountDialog();
 
   @override
-  ConsumerState<_DeleteAccountDialog> createState() => _DeleteAccountDialogState();
+  ConsumerState<_DeleteAccountDialog> createState() =>
+      _DeleteAccountDialogState();
 }
 
 class _DeleteAccountDialogState extends ConsumerState<_DeleteAccountDialog> {
@@ -94,7 +101,9 @@ class _DeleteAccountDialogState extends ConsumerState<_DeleteAccountDialog> {
     });
 
     try {
-      await ref.read(authStateProvider.notifier).deleteAccount(password: _password.text);
+      await ref
+          .read(authStateProvider.notifier)
+          .deleteAccount(password: _password.text);
 
       // Close before the router reacts to the now-signed-out state, so the
       // dialog is not left mounted over the login screen.
@@ -145,7 +154,9 @@ class _DeleteAccountDialogState extends ConsumerState<_DeleteAccountDialog> {
             const SizedBox(height: 12),
             Text(
               _error!,
-              style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.error,
+              ),
             ),
           ],
         ],

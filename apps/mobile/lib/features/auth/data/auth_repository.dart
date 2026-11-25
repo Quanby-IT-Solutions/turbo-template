@@ -144,10 +144,7 @@ class AuthRepository {
   /// only successful outcome is that the account is gone.
   Future<void> deleteAccount({required String password}) async {
     try {
-      await _dio.post(
-        ApiConstants.deleteAccount,
-        data: {'password': password},
-      );
+      await _dio.post(ApiConstants.deleteAccount, data: {'password': password});
     } on DioException catch (error) {
       throw DeleteAccountException(_classifyDeleteFailure(error));
     }

@@ -154,9 +154,9 @@ void main() {
           contains(category),
           reason: '$category is not a required-reason category',
         );
-        final codes = RegExp(r'<string>([^<]+)</string>')
-            .allMatches(block.group(2)!)
-            .map((m) => m.group(1)!);
+        final codes = RegExp(
+          r'<string>([^<]+)</string>',
+        ).allMatches(block.group(2)!).map((m) => m.group(1)!);
         for (final code in codes) {
           expect(
             allowed[category],

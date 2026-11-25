@@ -134,19 +134,22 @@ void main() {
       expect(request.data, {'password': 'correct-horse'});
     });
 
-    test('purges the session cookie from disk and clears secure storage', () async {
-      final fixture = repositoryReturning(
-        statusCode: 200,
-        body: {'success': true, 'message': 'User deleted'},
-      );
-      expect(await cookiesOnDisk(), contains('SESSIONVALUE123'));
+    test(
+      'purges the session cookie from disk and clears secure storage',
+      () async {
+        final fixture = repositoryReturning(
+          statusCode: 200,
+          body: {'success': true, 'message': 'User deleted'},
+        );
+        expect(await cookiesOnDisk(), contains('SESSIONVALUE123'));
 
-      await fixture.repository.deleteAccount(password: 'correct-horse');
+        await fixture.repository.deleteAccount(password: 'correct-horse');
 
-      expect(await cookiesOnDisk(), isNot(contains('SESSIONVALUE123')));
-      expect(storage.deleteSessionTokenCalls, 1);
-      expect(storage.deleteCookieCalls, 1);
-    });
+        expect(await cookiesOnDisk(), isNot(contains('SESSIONVALUE123')));
+        expect(storage.deleteSessionTokenCalls, 1);
+        expect(storage.deleteCookieCalls, 1);
+      },
+    );
   });
 
   group('a refused delete leaves the device signed in', () {
@@ -237,10 +240,7 @@ void main() {
     });
 
     test('a refusal with no body at all falls back to unknown', () async {
-      expect(
-        await failureFor(statusCode: 500),
-        DeleteAccountFailure.unknown,
-      );
+      expect(await failureFor(statusCode: 500), DeleteAccountFailure.unknown);
     });
   });
 }

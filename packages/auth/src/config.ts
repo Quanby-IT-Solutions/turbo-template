@@ -5,6 +5,7 @@ import { APIError } from "better-auth/api"
 import { z } from "zod"
 
 import { createDBClient } from "@repo/db/client"
+import { deleteOrphanedUserRows } from "@repo/db/orphaned-user-rows"
 import { accounts, sessions, users, verifications } from "@repo/db/schema"
 
 import { isApiDocsEnabled } from "./api-docs.js"
@@ -351,11 +352,61 @@ export function createAuth() {
 			// user in daily use is not signed out mid-work, while an abandoned
 			// session still dies within the window above.
 			updateAge: 60 * 60 * 24, // 1 day
+			// How recently a session must have been created to count as "fresh"
+			// for a sensitive operation. Pinned for the same reason as the two
+			// values above, and load-bearing for account deletion: a user with
+			// no password (Google-only) cannot prove identity with one, so
+			// Better Auth falls back to session freshness instead. Setting this
+			// to 0 would disable that fallback and let any live session delete
+			// the account.
+			freshAge: 60 * 60 * 24, // 1 day
 			// Cookie cache is deliberately OFF. It serves session data from a
 			// signed cookie without hitting the database, which means a revoked
 			// session keeps working until the cache lapses — the same staleness the
 			// shared permission cache removed from the RBAC cache, and not worth reintroducing here.
 			cookieCache: { enabled: false },
+		},
+
+		/**
+		 * Account deletion.
+		 *
+		 * Required, not optional: App Store Review Guideline 5.1.1(v) obliges an
+		 * app that offers account creation to let the user delete the account
+		 * from inside the app, and Play expects a deletion route too. Without
+		 * `enabled` the endpoint 404s.
+		 *
+		 * `sendDeleteAccountVerification` is deliberately NOT configured. With
+		 * it, `POST /delete-user` sends a mail and answers "Verification email
+		 * sent" *without deleting anything* — the user has to leave the app and
+		 * click a link to finish. That is the flow Apple rejects. Identity is
+		 * proven in-band instead: a password for credential accounts, session
+		 * freshness for Google-only ones (see `freshAge` above).
+		 *
+		 * There is intentionally no audit-log write here. `audit_log` has
+		 * exactly one enforcement point — the backend's audit service — and this
+		 * package cannot reach it without duplicating the insert that its
+		 * append-only rule depends on. Deletion is therefore recorded by the
+		 * absence of the row and by the backend's request log, not by an entry
+		 * this package writes behind the service's back.
+		 */
+		user: {
+			deleteUser: {
+				enabled: true,
+				/**
+				 * Clears the rows no foreign key reaches.
+				 *
+				 * `afterDelete` rather than `beforeDelete` on purpose. The two
+				 * tables involved are swept by expiry, so failing to purge them
+				 * leaks rather than corrupts — and self-heals. Purging first
+				 * has the opposite risk: if the user delete then failed, a live
+				 * password-reset token would already be destroyed for an
+				 * account that still exists. Only one of those two failures is
+				 * recoverable, so the purge runs once the user is actually gone.
+				 */
+				afterDelete: async (user: { id: string }) => {
+					await deleteOrphanedUserRows(db, user.id)
+				},
+			},
 		},
 
 		/**

@@ -73,6 +73,10 @@ class ApiConstants {
   static String get signUp => '$versionedUrl/auth/sign-up/email';
   static String get signOut => '$versionedUrl/auth/sign-out';
   static String get getSession => '$versionedUrl/auth/get-session';
+  // Account deletion. Better Auth 404s this route unless
+  // `user.deleteUser.enabled` is set in @repo/auth's config — the endpoint
+  // existing is a server-side decision, not a client one.
+  static String get deleteAccount => '$versionedUrl/auth/delete-user';
 
   // Todo endpoints (NestJS - oRPC)
   static String get todos => '$versionedUrl/example/todos';

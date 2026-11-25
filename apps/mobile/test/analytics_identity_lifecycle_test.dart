@@ -44,6 +44,15 @@ class _FakeAuthRepository implements AuthRepository {
 
   @override
   Future<void> signOut() async {}
+
+  /// When set, `deleteAccount` throws it — the refused-delete path.
+  Object? deleteAccountError;
+
+  @override
+  Future<void> deleteAccount({required String password}) async {
+    final error = deleteAccountError;
+    if (error != null) throw error;
+  }
 }
 
 void main() {
@@ -147,6 +156,43 @@ void main() {
 
     expect(crash, analytics);
     expect(crash, ['u1', null]);
+  });
+
+  test('account deletion resets the analytics identity', () async {
+    // A reset mints a fresh anonymous id. Without it, the next person to use
+    // this device would be merged into the person whose account was just
+    // deleted — the same hazard sign-out guards against, with no account left
+    // to disentangle it from.
+    final repository = _FakeAuthRepository(session: _session('u1'));
+    final container = containerFor(repository);
+    await container.read(authStateProvider.future);
+    analytics.clear();
+
+    await container
+        .read(authStateProvider.notifier)
+        .deleteAccount(password: 'correct-password');
+
+    expect(analytics, [null]);
+  });
+
+  test('a refused deletion does not reset', () async {
+    final repository = _FakeAuthRepository(session: _session('u1'));
+    repository.deleteAccountError = const DeleteAccountException(
+      DeleteAccountFailure.invalidPassword,
+    );
+    final container = containerFor(repository);
+    await container.read(authStateProvider.future);
+    analytics.clear();
+
+    await expectLater(
+      container
+          .read(authStateProvider.notifier)
+          .deleteAccount(password: 'wrong-password'),
+      throwsA(isA<DeleteAccountException>()),
+    );
+
+    // Resetting here would split one person into two for a mistyped password.
+    expect(analytics, isEmpty);
   });
 
   test('identify carries the id and nothing else', () {

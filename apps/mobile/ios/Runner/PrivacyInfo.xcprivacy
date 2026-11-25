@@ -1,0 +1,244 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+	Apple privacy manifest for the Runner target.
+
+	This file describes what the *app's own code* collects and which
+	required-reason APIs it touches. Apple aggregates it with the manifest
+	each dynamically linked pod ships (the Podfile uses `use_frameworks!`,
+	so Sentry's and PostHog's own manifests are processed automatically)
+	into the privacy report Xcode generates at archive time.
+
+	Two rules govern every edit below:
+
+	  1. It describes the *shipped binary*, not a local debug run. Sentry and
+	     PostHog are opt-in at build time (SentryConstants.isEnabled /
+	     PosthogConstants.isEnabled), so a build with no --dart-define
+	     collects none of the diagnostics or usage data declared here. The
+	     release builds that go to App Store Connect do supply those defines,
+	     and one manifest ships for every configuration, so the declarations
+	     describe the enabled case. Under-declaring is what gets a build
+	     rejected (ITMS-91053); declaring a type a given build happens not to
+	     exercise is not.
+
+	  2. `NSPrivacyCollectedDataTypeLinked` is `true` wherever it is, because
+	     signing in sets a Sentry user and a PostHog person to the backend's
+	     user id (see AuthState._applyIdentity in auth_provider.dart). Only
+	     the id is ever sent — never email or name, which the redaction list
+	     strips — but an id that identifies an account is what Apple means by
+	     "linked to the user". Anonymous use is unlinked; the manifest has no
+	     way to say "sometimes", so it states the broader case.
+
+	Keep this in sync with the App Store Connect privacy questionnaire and
+	with android/app/src/main/.../data-safety notes: the manifest and the
+	store answers are checked against each other, and a mismatch is a review
+	finding even when each is individually defensible.
+-->
+<plist version="1.0">
+<dict>
+	<!-- No ad SDK, no IDFA/IDFV read, no ATT prompt, and nothing is shared
+	     with a data broker. PostHog's anonymous distinct_id is an
+	     install-scoped UUID it generates itself, not a device identifier, and
+	     `personProfiles = identifiedOnly` keeps anonymous use anonymous. If
+	     an attribution or ad SDK is ever added, this flips to <true/> and the
+	     app must present the ATT prompt. -->
+	<key>NSPrivacyTracking</key>
+	<false/>
+
+	<!-- Must stay empty while NSPrivacyTracking is false: a non-empty list
+	     here with tracking off is rejected as contradictory. Sentry's and
+	     PostHog's ingest hosts are not tracking domains — they receive the
+	     app's own diagnostics, not cross-app activity. -->
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array>
+		<!-- Better Auth sign-up/sign-in posts an email address to the app's
+		     own backend (AuthRepository.signIn / signUp). Collected by the
+		     app even though it never reaches Sentry or PostHog — Apple counts
+		     transmission to your own server as collection. -->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeEmailAddress</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+
+		<!-- AuthRepository.signUp sends a display name. -->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeName</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+
+		<!-- The backend's user id, used as the correlation key in Sentry
+		     (SentryUser(id:)) and as the PostHog distinct id once identified. -->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeUserID</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+				<string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
+			</array>
+		</dict>
+
+		<!-- Sentry crash reports. -->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeCrashData</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+
+		<!-- Release health. `enableAutoSessionTracking = true` sends a session
+		     ping per launch, which is what produces the crash-free rate.
+		     Performance *tracing* is off (`tracesSampleRate = 0.0`); if that
+		     stays off forever this entry could go, but it must come back the
+		     moment the sample rate is raised. -->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypePerformanceData</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+
+		<!-- Sentry's device/OS context and lifecycle breadcrumbs. Screenshots
+		     and view hierarchies are deliberately off, and no Dio integration
+		     is installed, so no request URL, header, or body is attached. -->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeOtherDiagnosticData</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+
+		<!-- PostHog screen views and events, plus feature-flag evaluation.
+		     Session replay and surveys are both off by configuration, so no
+		     screen content is captured.
+
+		     These two mirror what posthog_flutter's own bundled manifest
+		     declares, with one deliberate difference: it marks them
+		     `Linked = false`, because an SDK cannot know whether the host app
+		     calls `identify()`. This app does, so the app-level declaration
+		     has to say `true`. Where an SDK manifest and this file disagree,
+		     this file is the one describing reality. -->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeProductInteraction</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeOtherUsageData</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
+			</array>
+		</dict>
+	</array>
+
+	<!-- Required-reason APIs. Each reason code is drawn from Apple's closed
+	     list for its category; an unlisted code fails validation just as a
+	     missing declaration does. -->
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array>
+		<!-- CA92.1 — "read and write data exclusive to the app itself".
+		     shared_preferences backs the theme mode, the onboarding and tour
+		     flags, and the `analytics-identified` marker. This is the single
+		     most common cause of ITMS-91053.
+
+		     Not redundant with the plugin: shared_preferences_foundation's
+		     own manifest declares 1C8F.1 (the App Group case), which does not
+		     cover this app's use of defaults that are exclusively its own. -->
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>CA92.1</string>
+			</array>
+		</dict>
+
+		<!-- C617.1 and 35F9.1 cover Sentry's native SDK: it stamps cached
+		     envelopes with file timestamps and measures app-start against
+		     system boot time, and per Sentry's own guidance neither can be
+		     opted out of.
+
+		     Worth knowing where these actually come from. The `sentry_flutter`
+		     pub package ships no manifest of its own; the manifest lives in
+		     the Sentry/HybridSDK pod it depends on (sentry-cocoa 8.58.4),
+		     which declares exactly these two plus UserDefaults CA92.1. Apple
+		     aggregates that automatically while the pod is dynamically linked
+		     (`use_frameworks!` in the Podfile), so the entries here are
+		     redundant today — and load-bearing the moment someone switches
+		     the Podfile to `:linkage => :static`, which is precisely the
+		     change nobody remembers to re-audit. Bump `Sentry/HybridSDK` and
+		     re-check: these codes track the pod, not this file. -->
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryFileTimestamp</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>C617.1</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategorySystemBootTime</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>35F9.1</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>

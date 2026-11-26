@@ -147,6 +147,32 @@ class AuthState extends _$AuthState {
     }
   }
 
+  /// Deletes the account, then drops this device to signed out.
+  ///
+  /// Three differences from [signOut], all of them deliberate:
+  ///
+  /// It does **not** clear the identity before the call. Sign-out may, because
+  /// it always succeeds locally. A delete can be refused — wrong password, a
+  /// session too old — and clearing first would detach the next crash from a
+  /// user who is still signed in to a live account.
+  ///
+  /// It does **not** wrap the call in [AsyncValue.guard]. A refusal has to
+  /// reach the caller so the dialog can stay open and say why; swallowing it
+  /// into an error state would close the sheet and strand the user. On
+  /// failure [state] is left exactly as it was, so they remain signed in.
+  ///
+  /// It rethrows rather than returning a result, because the only successful
+  /// outcome is terminal: there is no account left to report on.
+  Future<void> deleteAccount({required String password}) async {
+    await ref.read(authRepositoryProvider).deleteAccount(password: password);
+
+    // Order mirrors signOut(): identity first, so the /login screen view that
+    // the router renders for the state below does not carry the deleted
+    // user's id.
+    _syncIdentity(null);
+    state = const AsyncData(null);
+  }
+
   /// Mirrors the current authenticated state into the crash reporter and
   /// into analytics.
   ///

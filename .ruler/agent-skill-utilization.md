@@ -31,6 +31,7 @@ When a task matches a skill's trigger description, **load that skill first** for
 | `testing-strategies` | Unit tests, E2E tests, mocking, coverage floors |
 | `error-handling-logging` | Exception filters, logging, observability |
 | `observability-sentry` | Sentry, crash reporting, monitoring, DSN/scrubbing |
+| `mobile-store-release` | iOS privacy manifest, Play Data Safety, store submission, rejections |
 | `redis-caching` | Redis, throttle counters, RBAC permission cache |
 | `security-hardening` | Auth, CORS, input validation, secrets |
 | `ticket-to-pr-flow` | Tickets, Linear/GitHub Issues, auto-draft PRs |

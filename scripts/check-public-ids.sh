@@ -12,7 +12,10 @@ pattern='\b(RF[0-9]+|[A-Z]{1,4}-[0-9]+)\b'
 allow='\b(UTF-8|BID-4|NOTE-1|OFS-4|BYZ-38)\b'
 # CVE-2026-112366 and friends match [A-Z]{1,4}-[0-9]+ on their prefix, so
 # exclude the id shapes instead of listing each advisory as it comes up.
-public='\b(CVE-[0-9]{4,}-[0-9]+|GHSA([-][0-9a-z]{4}){3})\b'
+# ITMS-91053 and the other App Store Connect rejection codes are the same
+# kind of reference: Apple publishes them, they are how you search for a
+# rejection, and naming the code is the point of writing it down.
+public='\b(CVE-[0-9]{4,}-[0-9]+|GHSA([-][0-9a-z]{4}){3}|ITMS-[0-9]+)\b'
 
 mapfile -d '' files < <(git ls-files -z -- ':!pnpm-lock.yaml' ':!scripts/check-public-ids.sh')
 

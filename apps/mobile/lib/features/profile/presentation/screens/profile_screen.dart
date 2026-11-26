@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile/core/widgets/tour_item.dart';
 import 'package:mobile/features/auth/presentation/providers/auth_provider.dart';
+import 'package:mobile/features/profile/presentation/widgets/delete_account_tile.dart';
 import 'package:mobile/shared/widgets/app_card.dart';
 import 'package:mobile/shared/widgets/section_header.dart';
 import 'package:mobile/shared/widgets/settings_group.dart';
@@ -164,6 +165,19 @@ class ProfileScreen extends ConsumerWidget {
               ],
             ),
           ),
+          const SizedBox(height: 16),
+
+          // Account deletion. Deliberately not wrapped in a TourItem: the
+          // feature tour walks a new user through the screen, and the one
+          // irreversible action on it is not something to highlight.
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: const [
+              SectionHeader(title: 'Danger Zone'),
+              SettingsGroup(children: [DeleteAccountTile()]),
+            ],
+          ),
+          const SizedBox(height: 24),
         ],
       ),
     );

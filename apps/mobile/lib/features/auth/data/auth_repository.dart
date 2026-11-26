@@ -126,6 +126,68 @@ class AuthRepository {
     }
   }
 
+  /// Permanently deletes the signed-in user's account, then clears the device.
+  ///
+  /// Required by App Store Review Guideline 5.1.1(v): an app that offers
+  /// account creation must let the account be deleted from inside the app.
+  /// The whole exchange is one request — Better Auth is deliberately
+  /// configured without `sendDeleteAccountVerification`, which would answer
+  /// "verification email sent" and leave the account alive until the user
+  /// left the app to click a link.
+  ///
+  /// [password] re-proves identity for credential accounts. Google-only
+  /// accounts have no password to check and fail with
+  /// [DeleteAccountFailure.noPasswordSet]; Better Auth gates those on session
+  /// freshness instead.
+  ///
+  /// Throws [DeleteAccountException] on refusal. There is no return value: the
+  /// only successful outcome is that the account is gone.
+  Future<void> deleteAccount({required String password}) async {
+    try {
+      await _dio.post(ApiConstants.deleteAccount, data: {'password': password});
+    } on DioException catch (error) {
+      throw DeleteAccountException(_classifyDeleteFailure(error));
+    }
+
+    // Only on success, and deliberately NOT in a `finally` like signOut().
+    //
+    // Sign-out purges unconditionally because it must always succeed on the
+    // device. Deletion is the opposite: a refusal — a mistyped password, a
+    // session too old — has to leave the user signed in and able to try
+    // again. Purging in `finally` would sign them out of an account that
+    // still exists and still holds their data.
+    await _cookieJar.deleteAll();
+    await _storage.deleteSessionToken();
+    await _storage.deleteCookie();
+  }
+
+  DeleteAccountFailure _classifyDeleteFailure(DioException error) {
+    final response = error.response;
+
+    // The route is absent unless the server opted in. Worth its own reason:
+    // it is a deployment fault, not anything the user did wrong.
+    if (response?.statusCode == 404) return DeleteAccountFailure.notEnabled;
+
+    final body = response?.data;
+    final code = body is Map<String, dynamic> ? body['code'] : null;
+
+    switch (code) {
+      case 'INVALID_PASSWORD':
+        return DeleteAccountFailure.invalidPassword;
+      // The account has no password to check — it was created through Google.
+      // Better Auth falls back to session freshness for these, so the fix is
+      // to send no password at all.
+      case 'CREDENTIAL_ACCOUNT_NOT_FOUND':
+        return DeleteAccountFailure.noPasswordSet;
+      // Raised when a passwordless delete arrives on a session older than
+      // `freshAge`. Re-authenticating is the only way through.
+      case 'SESSION_EXPIRED':
+        return DeleteAccountFailure.reauthenticationRequired;
+      default:
+        return DeleteAccountFailure.unknown;
+    }
+  }
+
   /// Fetches the current session from the backend.
   ///
   /// Better Auth `/get-session` returns the same shape as sign-in
@@ -148,6 +210,38 @@ class AuthRepository {
       return null;
     }
   }
+}
+
+/// Why [AuthRepository.deleteAccount] refused.
+enum DeleteAccountFailure {
+  /// The password did not match the account's.
+  invalidPassword,
+
+  /// The account signs in through Google and has no password. Deletion for
+  /// these relies on session freshness instead.
+  noPasswordSet,
+
+  /// The session is older than `freshAge`. The user must sign in again before
+  /// a destructive action is allowed.
+  reauthenticationRequired,
+
+  /// `user.deleteUser.enabled` is off on the server, so the route does not
+  /// exist. A misconfiguration, not a user error.
+  notEnabled,
+
+  /// Anything else, including transport failure.
+  unknown,
+}
+
+/// Raised by [AuthRepository.deleteAccount] instead of a bare [DioException],
+/// so the dialog can branch on [failure] without reading HTTP details.
+class DeleteAccountException implements Exception {
+  const DeleteAccountException(this.failure);
+
+  final DeleteAccountFailure failure;
+
+  @override
+  String toString() => 'DeleteAccountException(${failure.name})';
 }
 
 @Riverpod(keepAlive: true)

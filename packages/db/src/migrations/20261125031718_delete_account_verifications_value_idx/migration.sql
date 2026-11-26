@@ -1,0 +1,1 @@
+CREATE INDEX "verifications_value_idx" ON "verifications" ("value");

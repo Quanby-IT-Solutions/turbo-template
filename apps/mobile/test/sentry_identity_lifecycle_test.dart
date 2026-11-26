@@ -57,6 +57,18 @@ class _FakeAuthRepository implements AuthRepository {
     final error = signOutError;
     if (error != null) throw error;
   }
+
+  /// When set, `deleteAccount` throws it — the refused-delete path.
+  Object? deleteAccountError;
+
+  int deleteAccountCalls = 0;
+
+  @override
+  Future<void> deleteAccount({required String password}) async {
+    deleteAccountCalls++;
+    final error = deleteAccountError;
+    if (error != null) throw error;
+  }
 }
 
 void main() {
@@ -177,6 +189,47 @@ void main() {
             .signIn(email: 'test@example.com', password: 'wrong-password');
 
         expect(applied, [null]);
+      },
+    );
+
+    test('account deletion clears the identity', () async {
+      final repository = _FakeAuthRepository(session: _session('user-1'));
+      final container = containerFor(repository);
+      await container.read(authStateProvider.future);
+      applied.clear();
+
+      await container
+          .read(authStateProvider.notifier)
+          .deleteAccount(password: 'correct-password');
+
+      expect(repository.deleteAccountCalls, 1);
+      expect(applied, [null]);
+    });
+
+    test(
+      'a refused deletion leaves the user attached, because they are still signed in',
+      () async {
+        final repository = _FakeAuthRepository(session: _session('user-1'));
+        repository.deleteAccountError = const DeleteAccountException(
+          DeleteAccountFailure.invalidPassword,
+        );
+        final container = containerFor(repository);
+        await container.read(authStateProvider.future);
+        applied.clear();
+
+        await expectLater(
+          container
+              .read(authStateProvider.notifier)
+              .deleteAccount(password: 'wrong-password'),
+          throwsA(isA<DeleteAccountException>()),
+        );
+
+        // The inverse of the sign-out rule above, and the reason
+        // deleteAccount does not clear the identity up front: a mistyped
+        // password must not detach a user from their own crashes while they
+        // are still signed in to a live account.
+        expect(applied, isEmpty);
+        expect(container.read(authStateProvider).value?.user.id, 'user-1');
       },
     );
   });

@@ -76,6 +76,11 @@ export const verifications = createTable(
 		// reset, kept forever. The sweeper deletes by expiry; without this index it
 		// seq-scans a table whose whole problem is that it is large.
 		index("verifications_expires_at_idx").on(t.expiresAt),
+		// Account deletion deletes this table by `value`, which holds the user
+		// id for the reset-password and delete-account rows (see
+		// `deleteOrphanedUserRows`). Without this index that delete seq-scans
+		// for the same reason the expiry sweeper did.
+		index("verifications_value_idx").on(t.value),
 	]
 )
 

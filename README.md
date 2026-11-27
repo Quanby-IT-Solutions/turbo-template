@@ -63,7 +63,7 @@ pnpm -F @repo/backend test:e2e
 # Build packages (required for first run)
 pnpm build
 
-# Generate AI agent rules (recommended - includes sub-agent-first workflow policy)
+# Generate AI agent rules from .ruler/ (see "AI agent rules" below)
 pnpm dlx @intellectronica/ruler apply
 
 # Start development (web :3001, backend :3000 — separate ports)
@@ -83,6 +83,16 @@ After `pnpm dev`:
 | Web           | http://localhost:3001             |
 | Backend API   | http://localhost:3000/api/v1      |
 | API reference | http://localhost:3000/api/v1/docs |
+
+### AI agent rules
+
+Agent instructions are managed with [Ruler](https://github.com/intellectronica/ruler).
+
+- Rules and skills live in `.ruler/`. The primary file is `.ruler/AGENTS.md`. The other `.ruler/*.md` files hold detailed rules per area.
+- Skills live in `.ruler/skills/`, one folder per skill with a `SKILL.md`. Stack skills cover this repo's patterns (Drizzle, oRPC, NestJS, Next.js, and so on). Workflow skills cover how to work: `grilling`, `spec-driven-development`, `planning-and-task-breakdown`, `test-driven-development`, `systematic-debugging`, `code-review-and-quality`, and `verification-before-completion`. The workflow skills are unmodified MIT-licensed copies from [obra/superpowers](https://github.com/obra/superpowers), [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills), and [mattpocock/skills](https://github.com/mattpocock/skills). Each folder's `SOURCE.md` records the upstream commit.
+- `.ruler/ruler.toml` lists the target agents (Copilot, Claude Code, Codex, Cursor, Windsurf, Cline, Aider, Gemini CLI, Qwen Code).
+- After you change a rule or add, edit, or remove a skill, run `pnpm dlx @intellectronica/ruler apply`. It regenerates `AGENTS.md`, `CLAUDE.md`, `.clinerules`, and each agent's skills directory.
+- The generated files are gitignored. Edit the sources in `.ruler/`, not the generated files.
 
 ## Contributing
 

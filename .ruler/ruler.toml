@@ -1,27 +1,37 @@
 # Ruler Configuration File
-# See https://ai.intellectronica.net/ruler for documentation.
+# Docs: https://github.com/intellectronica/ruler
+#
+# Sources:  .ruler/AGENTS.md (primary, concatenated first) + every other .ruler/*.md
+# Generate: pnpm dlx @intellectronica/ruler apply
+# Generated outputs (AGENTS.md, CLAUDE.md, .clinerules, */skills/, ...) are gitignored.
 
-# To specify which agents are active by default when --agents is not used,
-# uncomment and populate the following line. If omitted, all agents are active.
-default_agents = ["copilot", "claude", "codex", "cursor", "windsurf", "cline", "aider", "gemini-cli"]
+# Agents applied when --agents is not passed.
+# Run `pnpm dlx @intellectronica/ruler apply --help` for the full list of identifiers.
+default_agents = [
+  "copilot",
+  "claude",
+  "codex",
+  "cursor",
+  "windsurf",
+  "cline",
+  "aider",
+  "gemini-cli",
+  "qwen",
+]
 
-# Enable nested rule loading from nested .ruler directories
-# When enabled, ruler will search for and process .ruler directories throughout the project hierarchy
+# Enable nested rule loading from nested .ruler directories (e.g. apps/web/.ruler).
 # nested = false
 
 # --- Agent Specific Configurations ---
-# You can enable/disable agents and override their default output paths here.
-# Use lowercase agent identifiers: amp, copilot, claude, codex, cursor, windsurf, cline, aider, kilocode
-
-# [agents.copilot]
-# enabled = true
-# output_path = ".github/copilot-instructions.md"
-
+# Override an agent's enabled state or output paths here. Example:
+#
 # [agents.aider]
 # enabled = true
 # output_path_instructions = "AGENTS.md"
 # output_path_config = ".aider.conf.yml"
 
+# Gemini CLI and Qwen Code read AGENTS.md via contextFileName in
+# .gemini/settings.json and .qwen/settings.json (committed).
 [agents.gemini-cli]
 enabled = true
 
@@ -29,20 +39,24 @@ enabled = true
 enabled = true
 
 # --- MCP Servers ---
-# Define Model Context Protocol servers here. Two examples:
-# 1. A stdio server (local executable)
-# 2. A remote server (HTTP-based)
-
+# Define Model Context Protocol servers to propagate to each agent's native config.
+#
 # [mcp_servers.example_stdio]
 # command = "node"
 # args = ["scripts/your-mcp-server.js"]
 # env = { API_KEY = "replace_me" }
-
+#
 # [mcp_servers.example_remote]
 # url = "https://api.example.com/mcp"
 # headers = { Authorization = "Bearer REPLACE_ME" }
 
-
 # --- Skills ---
+# Copies .ruler/skills/* into each agent's native skills directory
+# (.claude/skills, .agents/skills, .cursor/skills, .gemini/skills, .windsurf/skills, .github/skills).
 [skills]
-enabled = true  # or false to disable
+enabled = true
+
+# --- Backups ---
+# Generated files are gitignored and fully reproducible, so skip *.bak copies.
+[backup]
+enabled = false
